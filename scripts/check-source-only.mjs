@@ -1,7 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
-import { findContentViolation, findPathViolation } from "./source-policy.mjs";
+import {
+  filterExistingPaths,
+  findContentViolation,
+  findPathViolation,
+} from "./source-policy.mjs";
 
 const candidateOutput = execFileSync(
   "git",
@@ -9,7 +13,10 @@ const candidateOutput = execFileSync(
   { encoding: "utf8" },
 );
 
-const candidates = candidateOutput.split("\0").filter(Boolean);
+const candidates = filterExistingPaths(
+  candidateOutput.split("\0").filter(Boolean),
+  existsSync,
+);
 const violations = [];
 
 for (const filePath of candidates) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  filterExistingPaths,
   findContentViolation,
   findPathViolation,
 } from "../scripts/source-policy.mjs";
@@ -19,6 +20,7 @@ describe("source-only policy", () => {
   it("allows source, migrations, tests, and source-facing documentation", () => {
     expect(findPathViolation("packages/contracts/src/id.ts")).toBeNull();
     expect(findPathViolation("README.md")).toBeNull();
+    expect(findPathViolation(".env.example")).toBeNull();
   });
 
   it.each([
@@ -38,5 +40,15 @@ describe("source-only policy", () => {
 
   it("allows ordinary source text", () => {
     expect(findContentViolation('export const status = "ok";')).toBeNull();
+  });
+
+  it("ignores tracked paths deleted from the working tree", () => {
+    const existing = new Set(["README.md"]);
+
+    expect(
+      filterExistingPaths(["README.md", "deleted.ts"], (path) =>
+        existing.has(path),
+      ),
+    ).toEqual(["README.md"]);
   });
 });

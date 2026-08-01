@@ -23,5 +23,9 @@
     "@town/contracts": "workspace:*",
     "@town/db": "workspace:*",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "12.0.4",
+    "postgres": "3.4.9"
   }
 }

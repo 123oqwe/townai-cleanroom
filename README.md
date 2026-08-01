@@ -12,11 +12,20 @@ Town Clean-Room is an evidence-driven implementation of a durable personal AI op
 
 ## Development
 
-Requires Node.js 24 and pnpm 10.
+Requires Node.js 24, pnpm 10, PostgreSQL 16, and Docker for the disposable
+integration-test database.
 
 ```bash
 pnpm install
 pnpm verify
 ```
+
+To run the API, copy `.env.example` to `.env`, set `DATABASE_URL`, and provide a
+32-byte credential-encryption key encoded as base64url in
+`CREDENTIAL_MASTER_KEY_BASE64URL`. The API applies pending migrations before it
+starts. Never commit the populated `.env` file.
+
+Generate a development encryption key without printing or storing it in source
+control using your platform's secure secret-management workflow.
 
 The current product objective is recorded in [GOAL.md](./GOAL.md).

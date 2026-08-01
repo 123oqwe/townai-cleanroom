@@ -11,7 +11,10 @@
   "dependencies": {
     "@hono/node-server": "2.0.8",
     "@town/contracts": "workspace:*",
+    "@town/db": "workspace:*",
+    "@town/identity": "workspace:*",
     "hono": "4.12.29",
+    "postgres": "3.4.9",
     "zod": "catalog:"
   }
 }

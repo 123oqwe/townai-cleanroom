@@ -2,6 +2,7 @@
   "name": "townai-cleanroom",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Evidence-driven clean-room implementation of a durable personal AI operating system.",
   "packageManager": "pnpm@10.30.3",
   "engines": {
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@testcontainers/postgresql": "12.0.4",
     "@types/node": "24.13.3",
     "eslint": "10.0.0",
     "prettier": "3.9.5",

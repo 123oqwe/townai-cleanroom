@@ -17,6 +17,10 @@ const contentRules = [
   },
 ];
 
+export function filterExistingPaths(paths, pathExists) {
+  return paths.filter(pathExists);
+}
+
 export function findPathViolation(filePath) {
   const normalized = filePath.replaceAll("\\", "/");
   const segments = normalized.split("/");
@@ -25,6 +29,7 @@ export function findPathViolation(filePath) {
   if (segments.includes(".playwright-cli")) return "browser-capture-directory";
   if (segments.includes(".superpowers")) return "brainstorm-artifact-directory";
   if (segments[0] === "output") return "investigation-output-directory";
+  if (baseName === ".env.example") return null;
   if (baseName === ".env" || baseName.startsWith(".env."))
     return "environment-secret-file";
   if (/reverse-engineering/i.test(baseName) || /逆向工程报告/u.test(baseName)) {

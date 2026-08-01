@@ -17,6 +17,9 @@ importers:
       '@eslint/js':
         specifier: 10.0.1
         version: 10.0.1(eslint@10.0.0)
+      '@testcontainers/postgresql':
+        specifier: 12.0.4
+        version: 12.0.4
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -44,9 +47,18 @@ importers:
       '@town/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@town/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@town/identity':
+        specifier: workspace:*
+        version: link:../../packages/identity
       hono:
         specifier: 4.12.29
         version: 4.12.29
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -84,6 +96,13 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.4.3
+    devDependencies:
+      '@testcontainers/postgresql':
+        specifier: 12.0.4
+        version: 12.0.4
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
 
 packages:
 

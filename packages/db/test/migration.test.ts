@@ -1,23 +1,16 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  PostgreSqlContainer,
-  type StartedPostgreSqlContainer,
-} from "@testcontainers/postgresql";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import postgres, { type Sql } from "postgres";
 
 import { runMigrations } from "../src/migrate.js";
 
-let container: StartedPostgreSqlContainer;
 let sql: Sql;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("postgres:16-alpine").start();
-  sql = postgres(container.getConnectionUri(), { max: 1 });
-}, 60_000);
+  sql = postgres(inject("postgresUrl"), { max: 1 });
+});
 
 afterAll(async () => {
   await sql.end();
-  await container.stop();
 });
 
 describe("identity migration", () => {
