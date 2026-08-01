@@ -56,12 +56,14 @@ describe("identity migration", () => {
     );
   }, 60_000);
 
-  it("is idempotent and records one applied migration", async () => {
+  it("is idempotent and records the identity migration once", async () => {
     await runMigrations(sql);
     await runMigrations(sql);
 
     const rows = await sql<{ count: number }[]>`
-      select count(*)::int as count from schema_migrations
+      select count(*)::int as count
+      from schema_migrations
+      where name = '0001_identity.sql'
     `;
 
     expect(rows[0]?.count).toBe(1);
