@@ -13,6 +13,7 @@
     "@town/contracts": "workspace:*",
     "@town/db": "workspace:*",
     "@town/identity": "workspace:*",
+    "@town/knowledge": "workspace:*",
     "hono": "4.12.29",
     "postgres": "3.4.9",
     "zod": "catalog:"

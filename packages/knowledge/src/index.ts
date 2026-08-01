@@ -1,3 +1,4 @@
+export * from "./conflict-service.js";
 export * from "./memory-repository.js";
 export * from "./people-repository.js";
 export * from "./profile-repository.js";

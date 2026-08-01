@@ -7,6 +7,15 @@ import {
   createCredentialCipher,
   createIdentityService,
 } from "@town/identity";
+import {
+  createKnowledgeConflictService,
+  createKnowledgeSearchRepository,
+  createMemoryRepository,
+  createPeopleRepository,
+  createProfileRepository,
+  createRevisionRepository,
+  createWikiRepository,
+} from "@town/knowledge";
 
 import { createApp } from "./app.js";
 
@@ -25,9 +34,26 @@ const credentialCipher = createCredentialCipher(
 );
 const identityService = createIdentityService(sql);
 const accountRepository = createAccountRepository(sql, credentialCipher);
+const profileRepository = createProfileRepository(sql);
+const memoryRepository = createMemoryRepository(sql);
+const peopleRepository = createPeopleRepository(sql);
+const wikiRepository = createWikiRepository(sql);
+const revisionRepository = createRevisionRepository(sql);
+const knowledgeSearchRepository = createKnowledgeSearchRepository(sql);
+const knowledgeConflictService = createKnowledgeConflictService(sql);
 
 const server = serve({
-  fetch: createApp({ identityService, accountRepository }).fetch,
+  fetch: createApp({
+    identityService,
+    accountRepository,
+    profileRepository,
+    memoryRepository,
+    peopleRepository,
+    wikiRepository,
+    revisionRepository,
+    knowledgeSearchRepository,
+    knowledgeConflictService,
+  }).fetch,
   port: environment.PORT,
 });
 

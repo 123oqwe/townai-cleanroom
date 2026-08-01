@@ -53,6 +53,9 @@ importers:
       '@town/identity':
         specifier: workspace:*
         version: link:../../packages/identity
+      '@town/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       hono:
         specifier: 4.12.29
         version: 4.12.29
