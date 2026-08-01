@@ -2,5 +2,6 @@ export * from "./memory-repository.js";
 export * from "./people-repository.js";
 export * from "./profile-repository.js";
 export * from "./revision-repository.js";
+export * from "./search-repository.js";
 export * from "./types.js";
 export * from "./wiki-repository.js";
