@@ -508,6 +508,22 @@ export function createRevisionRepository(sql: Sql) {
             "The pending knowledge conflict was not found.",
           );
         }
+        if (value.resolution === "reject") {
+          const rows = await transaction<ConflictRow[]>`
+            update knowledge_conflicts
+            set status = 'rejected', resolved_at = now()
+            where id = ${value.conflictId} and owner_id = ${value.ownerId}
+            returning *
+          `;
+          const rejected = rows[0];
+          if (rejected === undefined) {
+            throw new Error("Conflict update returned no row.");
+          }
+          return {
+            kind: "rejected" as const,
+            conflict: safeConflict(rejected),
+          };
+        }
         await lockKnowledgeResource(
           transaction,
           value.ownerId,
@@ -553,23 +569,6 @@ export function createRevisionRepository(sql: Sql) {
             "REVISION_CONFLICT",
             "The knowledge resource changed after the conflict was read.",
           );
-        }
-
-        if (value.resolution === "reject") {
-          const rows = await transaction<ConflictRow[]>`
-            update knowledge_conflicts
-            set status = 'rejected', resolved_at = now()
-            where id = ${value.conflictId} and owner_id = ${value.ownerId}
-            returning *
-          `;
-          const rejected = rows[0];
-          if (rejected === undefined) {
-            throw new Error("Conflict update returned no row.");
-          }
-          return {
-            kind: "rejected" as const,
-            conflict: safeConflict(rejected),
-          };
         }
 
         const revisionInput = revisionInputSchema.parse({

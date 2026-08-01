@@ -445,4 +445,68 @@ describe("knowledge revisions", () => {
       { status: "resolved", resolvedAt: expect.any(Date) },
     ]);
   });
+
+  it("rejects a pending proposal after its cited account is removed", async () => {
+    const repository = createRevisionRepository(sql);
+    const resourceId = newId<"wiki">();
+    const accountId = newId<"connected-account">();
+    await sql`
+      insert into connected_accounts (
+        id, owner_id, provider, provider_user_id, email, capabilities
+      ) values (
+        ${accountId}, ${ownerId}, 'google', 'removed-account',
+        'removed-account@example.invalid', '{}'::jsonb
+      )
+    `;
+    await repository.createInitial({
+      ownerId,
+      resourceType: "wiki",
+      resourceId,
+      authorType: "user",
+      snapshot: { body: "Initial" },
+      citations: [],
+    });
+    await repository.append({
+      ownerId,
+      resourceType: "wiki",
+      resourceId,
+      expectedRevision: 1,
+      authorType: "user",
+      snapshot: { body: "Owner edit" },
+      citations: [],
+    });
+    const proposed = await repository.append({
+      ownerId,
+      resourceType: "wiki",
+      resourceId,
+      expectedRevision: 1,
+      authorType: "assistant",
+      snapshot: { body: "Account-backed proposal" },
+      citations: [
+        {
+          sourceType: "account",
+          sourceRef: "provider-record",
+          accountId,
+          observedAt: new Date("2026-08-02T00:00:00.000Z"),
+        },
+      ],
+    });
+    if (proposed.kind !== "conflict") throw new Error("Expected conflict.");
+    await sql`
+      delete from connected_accounts
+      where owner_id = ${ownerId} and id = ${accountId}
+    `;
+
+    await expect(
+      repository.resolveConflict({
+        ownerId,
+        conflictId: proposed.conflict.id,
+        expectedRevision: 2,
+        resolution: "reject",
+      }),
+    ).resolves.toMatchObject({
+      kind: "rejected",
+      conflict: { status: "rejected" },
+    });
+  });
 });
