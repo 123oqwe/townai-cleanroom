@@ -157,6 +157,10 @@ create table knowledge_citations (
     foreign key (account_id) references connected_accounts(id) on delete set null,
   constraint knowledge_citations_source_type_allowed
     check (source_type in ('user', 'account', 'session', 'web', 'system')),
+  constraint knowledge_citations_account_binding_valid check (
+    (source_type = 'account' and account_id is not null) or
+    (source_type <> 'account' and account_id is null)
+  ),
   constraint knowledge_citations_source_ref_nonempty
     check (length(btrim(source_ref)) > 0)
 );
@@ -173,6 +177,7 @@ create table knowledge_conflicts (
   current_revision integer not null,
   proposed_author_type text not null,
   proposed_snapshot jsonb not null,
+  proposed_citations jsonb not null default '[]'::jsonb,
   status text not null default 'pending',
   resolution_revision integer,
   created_at timestamptz not null default now(),
@@ -187,6 +192,8 @@ create table knowledge_conflicts (
     check (base_revision >= 0 and current_revision > base_revision),
   constraint knowledge_conflicts_snapshot_object
     check (jsonb_typeof(proposed_snapshot) = 'object'),
+  constraint knowledge_conflicts_citations_array
+    check (jsonb_typeof(proposed_citations) = 'array'),
   constraint knowledge_conflicts_status_allowed
     check (status in ('pending', 'resolved', 'rejected')),
   constraint knowledge_conflicts_resolution_valid check (

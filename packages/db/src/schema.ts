@@ -298,6 +298,7 @@ export const knowledgeConflicts = pgTable(
     currentRevision: integer("current_revision").notNull(),
     proposedAuthorType: text("proposed_author_type").notNull(),
     proposedSnapshot: jsonb("proposed_snapshot").notNull(),
+    proposedCitations: jsonb("proposed_citations").notNull().default([]),
     status: text("status").notNull().default("pending"),
     resolutionRevision: integer("resolution_revision"),
     createdAt: timestamp("created_at", { withTimezone: true })
