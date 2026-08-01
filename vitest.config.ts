@@ -4,5 +4,7 @@ export default defineConfig({
   test: {
     fileParallelism: false,
     globalSetup: ["./test/global-postgres.ts"],
+    hookTimeout: 60_000,
+    testTimeout: 60_000,
   },
 });

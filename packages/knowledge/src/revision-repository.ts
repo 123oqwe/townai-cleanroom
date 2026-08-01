@@ -242,12 +242,20 @@ export function createRevisionRepository(sql: Sql) {
       snapshot: Record<string, JsonValue>;
       citations: CitationInput[];
       changeReason?: string;
+      applySnapshot?: (
+        transaction: TransactionSql,
+        snapshot: Record<string, JsonValue>,
+        revision: number,
+      ) => Promise<void>;
     }): Promise<KnowledgeRevision> {
-      const value = revisionInputSchema.parse(input);
+      const { applySnapshot, ...revisionInput } = input;
+      const value = revisionInputSchema.parse(revisionInput);
       try {
-        const row = await sql.begin((transaction) =>
-          insertRevision(transaction, value, 1, 0),
-        );
+        const row = await sql.begin(async (transaction) => {
+          const inserted = await insertRevision(transaction, value, 1, 0);
+          await applySnapshot?.(transaction, value.snapshot, inserted.revision);
+          return inserted;
+        });
         const [revision] = await hydrateRevisions(sql, [row]);
         if (revision === undefined)
           throw new Error("Revision hydration failed.");
@@ -278,11 +286,17 @@ export function createRevisionRepository(sql: Sql) {
       snapshot: Record<string, JsonValue>;
       citations: CitationInput[];
       changeReason?: string;
+      applySnapshot?: (
+        transaction: TransactionSql,
+        snapshot: Record<string, JsonValue>,
+        revision: number,
+      ) => Promise<void>;
     }): Promise<
       | { kind: "applied"; revision: KnowledgeRevision }
       | { kind: "conflict"; conflict: KnowledgeConflict }
     > {
-      const value = appendInputSchema.parse(input);
+      const { applySnapshot, ...revisionInput } = input;
+      const value = appendInputSchema.parse(revisionInput);
       const result = await sql.begin(async (transaction) => {
         const rows = await transaction<RevisionRow[]>`
           select * from knowledge_revisions
@@ -337,6 +351,7 @@ export function createRevisionRepository(sql: Sql) {
           latest.revision + 1,
           latest.revision,
         );
+        await applySnapshot?.(transaction, value.snapshot, row.revision);
         return { kind: "applied-row" as const, row };
       });
 
