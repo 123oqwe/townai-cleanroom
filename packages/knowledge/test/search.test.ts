@@ -236,6 +236,14 @@ describe("local knowledge search", () => {
         cursor: first.nextCursor,
       }),
     ).rejects.toMatchObject({ code: "CURSOR_MISMATCH" });
+    await expect(
+      search.search({
+        ownerId: otherOwnerId,
+        query: "alpha",
+        limit: 2,
+        cursor: first.nextCursor,
+      }),
+    ).rejects.toMatchObject({ code: "CURSOR_MISMATCH" });
   });
 
   it("rejects empty queries and malformed cursors", async () => {

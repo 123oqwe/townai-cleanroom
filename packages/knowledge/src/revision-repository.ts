@@ -168,6 +168,18 @@ async function insertCitations(
   }
 }
 
+async function lockResource(
+  transaction: TransactionSql,
+  ownerId: string,
+  resourceType: ResourceType,
+  resourceId: string,
+): Promise<void> {
+  const lockKey = `${ownerId}:${resourceType}:${resourceId}`;
+  await transaction`
+    select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
+  `;
+}
+
 async function insertRevision(
   transaction: TransactionSql,
   input: z.infer<typeof revisionInputSchema>,
@@ -298,6 +310,12 @@ export function createRevisionRepository(sql: Sql) {
       const { applySnapshot, ...revisionInput } = input;
       const value = appendInputSchema.parse(revisionInput);
       const result = await sql.begin(async (transaction) => {
+        await lockResource(
+          transaction,
+          value.ownerId,
+          value.resourceType,
+          value.resourceId,
+        );
         const rows = await transaction<RevisionRow[]>`
           select * from knowledge_revisions
           where owner_id = ${value.ownerId}
@@ -435,6 +453,12 @@ export function createRevisionRepository(sql: Sql) {
             "The pending knowledge conflict was not found.",
           );
         }
+        await lockResource(
+          transaction,
+          value.ownerId,
+          resourceTypeSchema.parse(conflict.resource_type),
+          conflict.resource_id,
+        );
         const latestRows = await transaction<RevisionRow[]>`
           select * from knowledge_revisions
           where owner_id = ${value.ownerId}

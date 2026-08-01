@@ -248,6 +248,59 @@ describe("protected knowledge API", () => {
     );
   });
 
+  it("strictly validates search query filters", async () => {
+    const { app, owner } = await fixture();
+    const headers = authorization(owner.token);
+
+    for (const query of [
+      "q=valid&memoryScope=invalid",
+      "q=valid&memoryScope=routine",
+      "q=valid&includeInactive=yes",
+    ]) {
+      const response = await app.request(`/v1/knowledge/search?${query}`, {
+        headers,
+      });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "INVALID_REQUEST",
+      });
+    }
+  });
+
+  it("soft-retires a memory through an expected revision", async () => {
+    const { app, owner } = await fixture();
+    const headers = authorization(owner.token);
+    const createdResponse = await app.request("/v1/memories", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ scope: "global", content: "Temporary memory" }),
+    });
+    const created = (await createdResponse.json()) as {
+      memory: { id: string };
+    };
+
+    const missingRevision = await app.request(
+      `/v1/memories/${created.memory.id}`,
+      { method: "DELETE", headers },
+    );
+    const retired = await app.request(
+      `/v1/memories/${created.memory.id}?expectedRevision=1`,
+      { method: "DELETE", headers },
+    );
+    const current = await app.request(`/v1/memories/${created.memory.id}`, {
+      headers,
+    });
+
+    expect(missingRevision.status).toBe(400);
+    expect(retired.status).toBe(200);
+    await expect(retired.json()).resolves.toMatchObject({
+      memory: { status: "retired", currentRevision: 2 },
+    });
+    await expect(current.json()).resolves.toMatchObject({
+      memory: { status: "retired", currentRevision: 2 },
+    });
+  });
+
   it("lists and explicitly resolves a stale system proposal", async () => {
     const { app, owner, wikiRepository } = await fixture();
     const headers = authorization(owner.token);

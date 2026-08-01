@@ -99,15 +99,7 @@ function safePerson(row: PersonRow): Person {
 }
 
 function requireProvenance(value: z.infer<typeof personCreateSchema>): void {
-  const hasInferredDetails =
-    value.organization !== undefined ||
-    value.role !== undefined ||
-    value.notes.trim().length > 0;
-  if (
-    value.authorType !== "user" &&
-    hasInferredDetails &&
-    value.citations.length === 0
-  ) {
+  if (value.authorType !== "user" && value.citations.length === 0) {
     throw new PeopleError(
       "PROVENANCE_REQUIRED",
       "Assistant-derived people details require a source citation.",

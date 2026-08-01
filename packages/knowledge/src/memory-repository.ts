@@ -89,7 +89,8 @@ export interface Memory {
 
 export class MemoryError extends Error {
   constructor(
-    readonly code: "MEMORY_NOT_FOUND",
+    readonly code:
+      "MEMORY_HAS_PENDING_CONFLICT" | "MEMORY_NOT_FOUND" | "MEMORY_NOT_RETIRED",
     message: string,
   ) {
     super(message);
@@ -316,14 +317,43 @@ export function createMemoryRepository(sql: Sql) {
     },
 
     async remove(ownerId: Id<"user">, memoryId: Id<"memory">): Promise<void> {
-      const rows = await sql<{ id: string }[]>`
-        delete from memories
-        where id = ${memoryId} and owner_id = ${ownerId}
-        returning id
-      `;
-      if (rows.length !== 1) {
-        throw new MemoryError("MEMORY_NOT_FOUND", "The memory was not found.");
-      }
+      await sql.begin(async (transaction) => {
+        const rows = await transaction<{ status: Memory["status"] }[]>`
+          select status from memories
+          where id = ${memoryId} and owner_id = ${ownerId}
+          for update
+        `;
+        const memory = rows[0];
+        if (memory === undefined) {
+          throw new MemoryError(
+            "MEMORY_NOT_FOUND",
+            "The memory was not found.",
+          );
+        }
+        if (memory.status !== "retired") {
+          throw new MemoryError(
+            "MEMORY_NOT_RETIRED",
+            "Only retired memories can be physically removed.",
+          );
+        }
+        const [pending] = await transaction<{ exists: boolean }[]>`
+          select exists(
+            select 1 from knowledge_conflicts
+            where owner_id = ${ownerId} and resource_type = 'memory'
+              and resource_id = ${memoryId} and status = 'pending'
+          ) as exists
+        `;
+        if (pending?.exists === true) {
+          throw new MemoryError(
+            "MEMORY_HAS_PENDING_CONFLICT",
+            "A memory with a pending conflict cannot be removed.",
+          );
+        }
+        await transaction`
+          delete from memories
+          where id = ${memoryId} and owner_id = ${ownerId}
+        `;
+      });
     },
   };
 }

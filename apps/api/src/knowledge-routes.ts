@@ -91,6 +91,41 @@ const resolveConflictSchema = z
   })
   .strict();
 
+const memoryDeleteQuerySchema = z
+  .object({ expectedRevision: z.coerce.number().int().positive() })
+  .strict();
+
+const searchQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(500),
+    types: z.string().trim().min(1).optional(),
+    memoryScope: z.enum(["global", "routine"]).optional(),
+    routineId: z.uuidv7().optional(),
+    includeInactive: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    cursor: z.string().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.memoryScope === "routine" && value.routineId === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "routineId is required for routine memory scope.",
+        path: ["routineId"],
+      });
+    }
+    if (value.memoryScope !== "routine" && value.routineId !== undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "routineId requires routine memory scope.",
+        path: ["routineId"],
+      });
+    }
+  });
+
 function userCitation(sourceRef: string) {
   return [
     {
@@ -225,8 +260,15 @@ export function registerKnowledgeRoutes(
   app.delete("/v1/memories/:memoryId", async (context) => {
     const ownerId = context.get("identity").user.id;
     const memoryId = asId<"memory">(context.req.param("memoryId"));
-    await dependencies.memoryRepository.remove(ownerId, memoryId);
-    return context.body(null, 204);
+    const query = memoryDeleteQuerySchema.parse(context.req.query());
+    const memory = await dependencies.memoryRepository.retire({
+      ownerId,
+      memoryId,
+      expectedRevision: query.expectedRevision,
+      authorType: "user",
+      citations: userCitation("api:memory-delete"),
+    });
+    return context.json({ memory });
   });
 
   app.get("/v1/people", async (context) => {
@@ -321,16 +363,16 @@ export function registerKnowledgeRoutes(
 
   app.get("/v1/knowledge/search", async (context) => {
     const ownerId = context.get("identity").user.id;
-    const rawTypes = context.req.query("types")?.split(",").filter(Boolean);
+    const query = searchQuerySchema.parse(context.req.query());
+    const rawTypes = query.types?.split(",").filter(Boolean);
     const types =
       rawTypes === undefined
         ? undefined
         : z.array(resourceTypeSchema).min(1).parse(rawTypes);
-    const memoryScope = context.req.query("memoryScope");
-    const routineId = context.req.query("routineId");
+    const memoryScope = query.memoryScope;
     const result = await dependencies.knowledgeSearchRepository.search({
       ownerId,
-      query: context.req.query("q") ?? "",
+      query: query.q,
       ...(types === undefined ? {} : { types }),
       ...(memoryScope === "global"
         ? { memoryScope: { scope: "global" as const } }
@@ -338,21 +380,13 @@ export function registerKnowledgeRoutes(
           ? {
               memoryScope: {
                 scope: "routine" as const,
-                routineId: asId<"routine">(routineId),
+                routineId: asId<"routine">(query.routineId),
               },
             }
           : {}),
-      includeInactive: context.req.query("includeInactive") === "true",
-      ...(context.req.query("cursor") === undefined
-        ? {}
-        : { cursor: context.req.query("cursor") as string }),
-      limit: z.coerce
-        .number()
-        .int()
-        .min(1)
-        .max(100)
-        .default(20)
-        .parse(context.req.query("limit")),
+      includeInactive: query.includeInactive,
+      ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+      limit: query.limit,
     });
     return context.json(result);
   });

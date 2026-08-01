@@ -279,4 +279,24 @@ describe("memory repository", () => {
       revisions.list(ownerId, "memory", memory.id),
     ).resolves.toHaveLength(2);
   });
+
+  it("does not physically remove an active memory", async () => {
+    const memories = createMemoryRepository(sql);
+    const memory = await memories.create({
+      ownerId,
+      scope: "global",
+      content: "Still active",
+      status: "active",
+      observedAt: new Date("2026-08-02T00:00:00.000Z"),
+      authorType: "user",
+      citations: [],
+    });
+
+    await expect(memories.remove(ownerId, memory.id)).rejects.toMatchObject({
+      code: "MEMORY_NOT_RETIRED",
+    });
+    await expect(memories.get(ownerId, memory.id)).resolves.toMatchObject({
+      status: "active",
+    });
+  });
 });

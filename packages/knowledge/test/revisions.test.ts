@@ -22,7 +22,7 @@ let ownerId: Id<"user">;
 let otherOwnerId: Id<"user">;
 
 beforeAll(async () => {
-  sql = postgres(inject("postgresUrl"), { max: 1 });
+  sql = postgres(inject("postgresUrl"), { max: 4 });
   await runMigrations(sql);
 });
 
@@ -204,6 +204,122 @@ describe("knowledge revisions", () => {
         ],
       }),
     ).rejects.toThrow();
+  });
+
+  it("rejects a citation bound to another owner's account", async () => {
+    const repository = createRevisionRepository(sql);
+    const otherAccountId = newId<"connected-account">();
+    await sql`
+      insert into connected_accounts (
+        id, owner_id, provider, provider_user_id, email, capabilities
+      ) values (
+        ${otherAccountId}, ${otherOwnerId}, 'google', 'other-account',
+        'other-account@example.invalid', '{}'::jsonb
+      )
+    `;
+
+    await expect(
+      repository.createInitial({
+        ownerId,
+        resourceType: "person",
+        resourceId: newId<"person">(),
+        authorType: "assistant",
+        snapshot: { displayName: "Cross-owner citation" },
+        citations: [
+          {
+            sourceType: "account",
+            sourceRef: "provider-record",
+            accountId: otherAccountId,
+            observedAt: new Date("2026-08-02T00:00:00.000Z"),
+          },
+        ],
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("serializes concurrent user appends into one revision conflict", async () => {
+    const repository = createRevisionRepository(sql);
+    const resourceId = newId<"memory">();
+    await repository.createInitial({
+      ownerId,
+      resourceType: "memory",
+      resourceId,
+      authorType: "user",
+      snapshot: { content: "Initial" },
+      citations: [],
+    });
+
+    const results = await Promise.allSettled([
+      repository.append({
+        ownerId,
+        resourceType: "memory",
+        resourceId,
+        expectedRevision: 1,
+        authorType: "user",
+        snapshot: { content: "First edit" },
+        citations: [],
+      }),
+      repository.append({
+        ownerId,
+        resourceType: "memory",
+        resourceId,
+        expectedRevision: 1,
+        authorType: "user",
+        snapshot: { content: "Second edit" },
+        citations: [],
+      }),
+    ]);
+
+    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(
+      1,
+    );
+    const rejected = results.find(({ status }) => status === "rejected");
+    expect(rejected).toMatchObject({
+      status: "rejected",
+      reason: { code: "REVISION_CONFLICT" },
+    });
+  });
+
+  it("turns a concurrent stale assistant append into a pending conflict", async () => {
+    const repository = createRevisionRepository(sql);
+    const resourceId = newId<"wiki">();
+    await repository.createInitial({
+      ownerId,
+      resourceType: "wiki",
+      resourceId,
+      authorType: "user",
+      snapshot: { body: "Initial" },
+      citations: [],
+    });
+
+    const results = await Promise.all([
+      repository.append({
+        ownerId,
+        resourceType: "wiki",
+        resourceId,
+        expectedRevision: 1,
+        authorType: "user",
+        snapshot: { body: "Owner edit" },
+        citations: [],
+      }),
+      repository.append({
+        ownerId,
+        resourceType: "wiki",
+        resourceId,
+        expectedRevision: 1,
+        authorType: "assistant",
+        snapshot: { body: "Assistant proposal" },
+        citations: [],
+      }),
+    ]);
+
+    expect(results.map(({ kind }) => kind).sort()).toEqual([
+      "applied",
+      "conflict",
+    ]);
+    await expect(repository.listConflicts(ownerId)).resolves.toMatchObject([
+      { status: "pending", proposedSnapshot: { body: "Assistant proposal" } },
+    ]);
   });
 
   it("resolves a conflict only against the expected current revision", async () => {

@@ -116,6 +116,7 @@ function searchFingerprint(value: z.infer<typeof searchInputSchema>): string {
   return createHash("sha256")
     .update(
       JSON.stringify({
+        ownerId: value.ownerId,
         query: value.query,
         types: [...(value.types ?? resourceTypeSchema.options)].sort(),
         memoryScope: value.memoryScope ?? null,

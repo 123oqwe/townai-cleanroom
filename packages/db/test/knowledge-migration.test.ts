@@ -46,9 +46,11 @@ describe("knowledge migration", () => {
     );
     expect(constraints.map(({ constraint_name }) => constraint_name)).toEqual(
       expect.arrayContaining([
-        "knowledge_citations_account_id_connected_accounts_id_fk",
-        "knowledge_citations_revision_id_knowledge_revisions_id_fk",
+        "connected_accounts_owner_id_id_unique",
+        "knowledge_citations_owner_account_fk",
+        "knowledge_citations_owner_revision_fk",
         "knowledge_conflicts_revision_order",
+        "knowledge_revisions_owner_id_id_unique",
         "knowledge_revisions_resource_revision_unique",
         "memories_freshness_valid",
         "memories_scope_valid",

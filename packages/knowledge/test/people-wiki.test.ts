@@ -102,6 +102,18 @@ describe("people repository", () => {
     await expect(
       people.create({
         ownerId,
+        displayName: "Unverified Relationship",
+        primaryEmail: "unverified@example.invalid",
+        category: "coworker",
+        notes: "",
+        authorType: "system",
+        citations: [],
+      }),
+    ).rejects.toMatchObject({ code: "PROVENANCE_REQUIRED" });
+
+    await expect(
+      people.create({
+        ownerId,
         displayName: "Unverified Contact",
         category: "coworker",
         organization: "Unverified Company",

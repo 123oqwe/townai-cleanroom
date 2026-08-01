@@ -111,6 +111,9 @@ create index profiles_search_idx on profiles using gin (
   to_tsvector('simple', content::text)
 );
 
+alter table connected_accounts
+  add constraint connected_accounts_owner_id_id_unique unique (owner_id, id);
+
 create table knowledge_revisions (
   id uuid primary key,
   owner_id uuid not null,
@@ -132,6 +135,7 @@ create table knowledge_revisions (
     check (revision > 0 and base_revision >= 0 and base_revision < revision),
   constraint knowledge_revisions_snapshot_object
     check (jsonb_typeof(snapshot) = 'object'),
+  constraint knowledge_revisions_owner_id_id_unique unique (owner_id, id),
   constraint knowledge_revisions_resource_revision_unique
     unique (resource_type, resource_id, revision)
 );
@@ -151,14 +155,16 @@ create table knowledge_citations (
   created_at timestamptz not null default now(),
   constraint knowledge_citations_owner_id_users_id_fk
     foreign key (owner_id) references users(id) on delete cascade,
-  constraint knowledge_citations_revision_id_knowledge_revisions_id_fk
-    foreign key (revision_id) references knowledge_revisions(id) on delete cascade,
-  constraint knowledge_citations_account_id_connected_accounts_id_fk
-    foreign key (account_id) references connected_accounts(id) on delete set null,
+  constraint knowledge_citations_owner_revision_fk
+    foreign key (owner_id, revision_id)
+    references knowledge_revisions(owner_id, id) on delete cascade,
+  constraint knowledge_citations_owner_account_fk
+    foreign key (owner_id, account_id)
+    references connected_accounts(owner_id, id) on delete set null (account_id),
   constraint knowledge_citations_source_type_allowed
     check (source_type in ('user', 'account', 'session', 'web', 'system')),
   constraint knowledge_citations_account_binding_valid check (
-    (source_type = 'account' and account_id is not null) or
+    source_type = 'account' or
     (source_type <> 'account' and account_id is null)
   ),
   constraint knowledge_citations_source_ref_nonempty
@@ -198,7 +204,8 @@ create table knowledge_conflicts (
     check (status in ('pending', 'resolved', 'rejected')),
   constraint knowledge_conflicts_resolution_valid check (
     (status = 'pending' and resolution_revision is null and resolved_at is null) or
-    (status in ('resolved', 'rejected') and resolved_at is not null)
+    (status = 'resolved' and resolution_revision is not null and resolved_at is not null) or
+    (status = 'rejected' and resolution_revision is null and resolved_at is not null)
   )
 );
 
