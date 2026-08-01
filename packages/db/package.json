@@ -1,5 +1,5 @@
 {
-  "name": "@town/contracts",
+  "name": "@town/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,14 +13,18 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "uuid": "14.0.1",
-    "zod": "catalog:"
+    "drizzle-orm": "0.45.2",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "12.0.4"
   }
 }

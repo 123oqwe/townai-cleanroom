@@ -1,5 +1,5 @@
 {
-  "name": "@town/contracts",
+  "name": "@town/identity",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -20,7 +20,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "uuid": "14.0.1",
+    "@town/contracts": "workspace:*",
+    "@town/db": "workspace:*",
     "zod": "catalog:"
   }
 }
