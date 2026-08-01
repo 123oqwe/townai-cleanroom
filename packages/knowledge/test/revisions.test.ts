@@ -234,7 +234,58 @@ describe("knowledge revisions", () => {
           },
         ],
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: "CITATION_ACCOUNT_MISMATCH" });
+  });
+
+  it("rejects a stale proposal citing another owner's account", async () => {
+    const repository = createRevisionRepository(sql);
+    const resourceId = newId<"wiki">();
+    const otherAccountId = newId<"connected-account">();
+    await sql`
+      insert into connected_accounts (
+        id, owner_id, provider, provider_user_id, email, capabilities
+      ) values (
+        ${otherAccountId}, ${otherOwnerId}, 'google', 'other-stale-account',
+        'other-stale-account@example.invalid', '{}'::jsonb
+      )
+    `;
+    await repository.createInitial({
+      ownerId,
+      resourceType: "wiki",
+      resourceId,
+      authorType: "user",
+      snapshot: { body: "Initial" },
+      citations: [],
+    });
+    await repository.append({
+      ownerId,
+      resourceType: "wiki",
+      resourceId,
+      expectedRevision: 1,
+      authorType: "user",
+      snapshot: { body: "Owner edit" },
+      citations: [],
+    });
+
+    await expect(
+      repository.append({
+        ownerId,
+        resourceType: "wiki",
+        resourceId,
+        expectedRevision: 1,
+        authorType: "assistant",
+        snapshot: { body: "Stale proposal" },
+        citations: [
+          {
+            sourceType: "account",
+            sourceRef: "cross-owner-provider-record",
+            accountId: otherAccountId,
+            observedAt: new Date("2026-08-02T00:00:00.000Z"),
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "CITATION_ACCOUNT_MISMATCH" });
+    await expect(repository.listConflicts(ownerId)).resolves.toEqual([]);
   });
 
   it("serializes concurrent user appends into one revision conflict", async () => {
@@ -280,7 +331,7 @@ describe("knowledge revisions", () => {
     });
   });
 
-  it("turns a concurrent stale assistant append into a pending conflict", async () => {
+  it("serializes concurrent user and assistant appends without storage errors", async () => {
     const repository = createRevisionRepository(sql);
     const resourceId = newId<"wiki">();
     await repository.createInitial({
@@ -292,7 +343,7 @@ describe("knowledge revisions", () => {
       citations: [],
     });
 
-    const results = await Promise.all([
+    const results = await Promise.allSettled([
       repository.append({
         ownerId,
         resourceType: "wiki",
@@ -313,13 +364,34 @@ describe("knowledge revisions", () => {
       }),
     ]);
 
-    expect(results.map(({ kind }) => kind).sort()).toEqual([
-      "applied",
-      "conflict",
-    ]);
-    await expect(repository.listConflicts(ownerId)).resolves.toMatchObject([
-      { status: "pending", proposedSnapshot: { body: "Assistant proposal" } },
-    ]);
+    const fulfilled = results.filter(
+      (
+        result,
+      ): result is PromiseFulfilledResult<
+        Awaited<ReturnType<typeof repository.append>>
+      > => result.status === "fulfilled",
+    );
+    const rejected = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    expect(fulfilled.some(({ value }) => value.kind === "applied")).toBe(true);
+    if (rejected.length === 0) {
+      expect(fulfilled.map(({ value }) => value.kind).sort()).toEqual([
+        "applied",
+        "conflict",
+      ]);
+      await expect(repository.listConflicts(ownerId)).resolves.toMatchObject([
+        {
+          status: "pending",
+          proposedSnapshot: { body: "Assistant proposal" },
+        },
+      ]);
+    } else {
+      expect(rejected).toMatchObject([
+        { reason: { code: "REVISION_CONFLICT" } },
+      ]);
+      await expect(repository.listConflicts(ownerId)).resolves.toEqual([]);
+    }
   });
 
   it("resolves a conflict only against the expected current revision", async () => {

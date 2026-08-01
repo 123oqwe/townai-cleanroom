@@ -4,6 +4,7 @@ import { z } from "zod";
 import { asId, idSchema, newId, type Id } from "@town/contracts";
 
 import { createRevisionRepository } from "./revision-repository.js";
+import { lockKnowledgeResource } from "./resource-lock.js";
 import {
   authorTypeSchema,
   citationInputSchema,
@@ -318,6 +319,7 @@ export function createMemoryRepository(sql: Sql) {
 
     async remove(ownerId: Id<"user">, memoryId: Id<"memory">): Promise<void> {
       await sql.begin(async (transaction) => {
+        await lockKnowledgeResource(transaction, ownerId, "memory", memoryId);
         const rows = await transaction<{ status: Memory["status"] }[]>`
           select status from memories
           where id = ${memoryId} and owner_id = ${ownerId}
@@ -349,6 +351,11 @@ export function createMemoryRepository(sql: Sql) {
             "A memory with a pending conflict cannot be removed.",
           );
         }
+        await transaction`
+          insert into knowledge_resource_tombstones (
+            owner_id, resource_type, resource_id
+          ) values (${ownerId}, 'memory', ${memoryId})
+        `;
         await transaction`
           delete from memories
           where id = ${memoryId} and owner_id = ${ownerId}

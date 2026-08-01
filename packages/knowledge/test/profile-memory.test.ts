@@ -299,4 +299,94 @@ describe("memory repository", () => {
       status: "active",
     });
   });
+
+  it("does not create a conflict after a retired memory is removed", async () => {
+    const memories = createMemoryRepository(sql);
+    const revisions = createRevisionRepository(sql);
+    const memory = await memories.create({
+      ownerId,
+      scope: "global",
+      content: "Disposable memory",
+      status: "active",
+      observedAt: new Date("2026-08-02T00:00:00.000Z"),
+      authorType: "user",
+      citations: [],
+    });
+    await memories.retire({
+      ownerId,
+      memoryId: memory.id,
+      expectedRevision: 1,
+      authorType: "user",
+      citations: [],
+    });
+    await memories.remove(ownerId, memory.id);
+
+    await expect(
+      revisions.append({
+        ownerId,
+        resourceType: "memory",
+        resourceId: memory.id,
+        expectedRevision: 1,
+        authorType: "assistant",
+        snapshot: { content: "Late stale proposal" },
+        citations: [],
+      }),
+    ).rejects.toMatchObject({ code: "RESOURCE_NOT_FOUND" });
+    await expect(revisions.listConflicts(ownerId)).resolves.toEqual([]);
+  });
+
+  it("serializes physical removal against stale assistant proposals", async () => {
+    const memories = createMemoryRepository(sql);
+    const revisions = createRevisionRepository(sql);
+
+    for (let index = 0; index < 5; index += 1) {
+      const memory = await memories.create({
+        ownerId,
+        scope: "global",
+        content: `Concurrent cleanup ${index}`,
+        status: "active",
+        observedAt: new Date("2026-08-02T00:00:00.000Z"),
+        authorType: "user",
+        citations: [],
+      });
+      await memories.retire({
+        ownerId,
+        memoryId: memory.id,
+        expectedRevision: 1,
+        authorType: "user",
+        citations: [],
+      });
+
+      const [removal, proposal] = await Promise.allSettled([
+        memories.remove(ownerId, memory.id),
+        revisions.append({
+          ownerId,
+          resourceType: "memory",
+          resourceId: memory.id,
+          expectedRevision: 1,
+          authorType: "assistant",
+          snapshot: { content: `Late proposal ${index}` },
+          citations: [],
+        }),
+      ]);
+
+      expect(
+        removal.status === "fulfilled" && proposal.status === "fulfilled",
+      ).toBe(false);
+      if (removal.status === "fulfilled") {
+        expect(proposal).toMatchObject({
+          status: "rejected",
+          reason: { code: "RESOURCE_NOT_FOUND" },
+        });
+      } else {
+        expect(removal).toMatchObject({
+          reason: { code: "MEMORY_HAS_PENDING_CONFLICT" },
+        });
+        expect(proposal).toMatchObject({
+          status: "fulfilled",
+          value: { kind: "conflict" },
+        });
+      }
+    }
+  });
 });

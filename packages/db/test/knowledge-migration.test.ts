@@ -38,6 +38,7 @@ describe("knowledge migration", () => {
         "knowledge_citations",
         "knowledge_conflicts",
         "knowledge_revisions",
+        "knowledge_resource_tombstones",
         "memories",
         "people",
         "profiles",
@@ -51,6 +52,7 @@ describe("knowledge migration", () => {
         "knowledge_citations_owner_revision_fk",
         "knowledge_conflicts_revision_order",
         "knowledge_revisions_owner_id_id_unique",
+        "knowledge_resource_tombstones_resource_unique",
         "knowledge_revisions_resource_revision_unique",
         "memories_freshness_valid",
         "memories_scope_valid",
@@ -63,6 +65,7 @@ describe("knowledge migration", () => {
       expect.arrayContaining([
         "knowledge_citations_owner_revision_idx",
         "knowledge_conflicts_owner_status_idx",
+        "knowledge_resource_tombstones_owner_resource_idx",
         "memories_owner_scope_status_idx",
         "people_owner_category_status_idx",
         "wiki_documents_owner_kind_status_idx",

@@ -174,6 +174,22 @@ create table knowledge_citations (
 create index knowledge_citations_owner_revision_idx
   on knowledge_citations(owner_id, revision_id);
 
+create table knowledge_resource_tombstones (
+  owner_id uuid not null,
+  resource_type text not null,
+  resource_id uuid not null,
+  removed_at timestamptz not null default now(),
+  constraint knowledge_resource_tombstones_owner_id_users_id_fk
+    foreign key (owner_id) references users(id) on delete cascade,
+  constraint knowledge_resource_tombstones_resource_type_allowed
+    check (resource_type in ('profile', 'memory', 'person', 'wiki')),
+  constraint knowledge_resource_tombstones_resource_unique
+    unique (resource_type, resource_id)
+);
+
+create index knowledge_resource_tombstones_owner_resource_idx
+  on knowledge_resource_tombstones(owner_id, resource_type, resource_id);
+
 create table knowledge_conflicts (
   id uuid primary key,
   owner_id uuid not null,

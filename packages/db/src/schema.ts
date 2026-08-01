@@ -285,6 +285,31 @@ export const knowledgeCitations = pgTable(
   ],
 );
 
+export const knowledgeResourceTombstones = pgTable(
+  "knowledge_resource_tombstones",
+  {
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    resourceType: text("resource_type").notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    removedAt: timestamp("removed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("knowledge_resource_tombstones_resource_unique").on(
+      table.resourceType,
+      table.resourceId,
+    ),
+    index("knowledge_resource_tombstones_owner_resource_idx").on(
+      table.ownerId,
+      table.resourceType,
+      table.resourceId,
+    ),
+  ],
+);
+
 export const knowledgeConflicts = pgTable(
   "knowledge_conflicts",
   {

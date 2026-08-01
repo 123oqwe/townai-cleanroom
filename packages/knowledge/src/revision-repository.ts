@@ -16,6 +16,7 @@ import {
   type KnowledgeRevision,
   type ResourceType,
 } from "./types.js";
+import { lockKnowledgeResource } from "./resource-lock.js";
 
 const revisionInputSchema = z
   .object({
@@ -84,6 +85,7 @@ export class RevisionError extends Error {
   constructor(
     readonly code:
       | "CONFLICT_NOT_FOUND"
+      | "CITATION_ACCOUNT_MISMATCH"
       | "REVISION_ALREADY_EXISTS"
       | "REVISION_CONFLICT"
       | "RESOURCE_NOT_FOUND",
@@ -92,6 +94,48 @@ export class RevisionError extends Error {
     super(message);
     this.name = "RevisionError";
   }
+}
+
+async function validateCitationAccounts(
+  transaction: TransactionSql,
+  ownerId: string,
+  citations: CitationInput[],
+): Promise<void> {
+  const accountIds = [
+    ...new Set(
+      citations.flatMap((citation) =>
+        citation.sourceType === "account" ? [citation.accountId] : [],
+      ),
+    ),
+  ];
+  if (accountIds.length === 0) return;
+  const rows = await transaction<{ id: string }[]>`
+    select id from connected_accounts
+    where owner_id = ${ownerId}
+      and id = any(${transaction.array(accountIds)}::uuid[])
+  `;
+  if (rows.length !== accountIds.length) {
+    throw new RevisionError(
+      "CITATION_ACCOUNT_MISMATCH",
+      "A citation account does not belong to the knowledge owner.",
+    );
+  }
+}
+
+async function resourceWasRemoved(
+  transaction: TransactionSql,
+  ownerId: string,
+  resourceType: ResourceType,
+  resourceId: string,
+): Promise<boolean> {
+  const [row] = await transaction<{ exists: boolean }[]>`
+    select exists(
+      select 1 from knowledge_resource_tombstones
+      where owner_id = ${ownerId} and resource_type = ${resourceType}
+        and resource_id = ${resourceId}
+    ) as exists
+  `;
+  return row?.exists === true;
 }
 
 function serializeCitation(citation: CitationInput): SerializedCitation {
@@ -166,18 +210,6 @@ async function insertCitations(
       )
     `;
   }
-}
-
-async function lockResource(
-  transaction: TransactionSql,
-  ownerId: string,
-  resourceType: ResourceType,
-  resourceId: string,
-): Promise<void> {
-  const lockKey = `${ownerId}:${resourceType}:${resourceId}`;
-  await transaction`
-    select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
-  `;
 }
 
 async function insertRevision(
@@ -264,6 +296,11 @@ export function createRevisionRepository(sql: Sql) {
       const value = revisionInputSchema.parse(revisionInput);
       try {
         const row = await sql.begin(async (transaction) => {
+          await validateCitationAccounts(
+            transaction,
+            value.ownerId,
+            value.citations,
+          );
           const inserted = await insertRevision(transaction, value, 1, 0);
           await applySnapshot?.(transaction, value.snapshot, inserted.revision);
           return inserted;
@@ -310,12 +347,30 @@ export function createRevisionRepository(sql: Sql) {
       const { applySnapshot, ...revisionInput } = input;
       const value = appendInputSchema.parse(revisionInput);
       const result = await sql.begin(async (transaction) => {
-        await lockResource(
+        await lockKnowledgeResource(
           transaction,
           value.ownerId,
           value.resourceType,
           value.resourceId,
         );
+        await validateCitationAccounts(
+          transaction,
+          value.ownerId,
+          value.citations,
+        );
+        if (
+          await resourceWasRemoved(
+            transaction,
+            value.ownerId,
+            value.resourceType,
+            value.resourceId,
+          )
+        ) {
+          throw new RevisionError(
+            "RESOURCE_NOT_FOUND",
+            "The knowledge resource was not found.",
+          );
+        }
         const rows = await transaction<RevisionRow[]>`
           select * from knowledge_revisions
           where owner_id = ${value.ownerId}
@@ -453,12 +508,30 @@ export function createRevisionRepository(sql: Sql) {
             "The pending knowledge conflict was not found.",
           );
         }
-        await lockResource(
+        await lockKnowledgeResource(
           transaction,
           value.ownerId,
           resourceTypeSchema.parse(conflict.resource_type),
           conflict.resource_id,
         );
+        await validateCitationAccounts(
+          transaction,
+          value.ownerId,
+          conflict.proposed_citations.map(deserializeCitation),
+        );
+        if (
+          await resourceWasRemoved(
+            transaction,
+            value.ownerId,
+            resourceTypeSchema.parse(conflict.resource_type),
+            conflict.resource_id,
+          )
+        ) {
+          throw new RevisionError(
+            "RESOURCE_NOT_FOUND",
+            "The knowledge resource was not found.",
+          );
+        }
         const latestRows = await transaction<RevisionRow[]>`
           select * from knowledge_revisions
           where owner_id = ${value.ownerId}
