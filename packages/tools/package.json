@@ -21,12 +21,12 @@
   },
   "dependencies": {
     "@town/contracts": "workspace:*",
+    "@town/runtime": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@town/agents": "workspace:*",
     "@town/db": "workspace:*",
-    "@town/runtime": "workspace:*",
     "postgres": "3.4.9"
   }
 }

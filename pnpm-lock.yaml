@@ -172,6 +172,9 @@ importers:
       '@town/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@town/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -182,9 +185,6 @@ importers:
       '@town/db':
         specifier: workspace:*
         version: link:../db
-      '@town/runtime':
-        specifier: workspace:*
-        version: link:../runtime
       postgres:
         specifier: 3.4.9
         version: 3.4.9

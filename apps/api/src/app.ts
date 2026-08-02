@@ -210,6 +210,7 @@ export function createApp(dependencies?: AppDependencies) {
           "TOOL_CALL_NOT_FOUND",
           "APPROVAL_NOT_FOUND",
           "TOOL_BINDING_NOT_FOUND",
+          "ACCOUNT_NOT_FOUND",
         ].includes(error.code))
     ) {
       return context.json(

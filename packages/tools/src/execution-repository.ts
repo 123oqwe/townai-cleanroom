@@ -4,6 +4,7 @@ import type { Sql, TransactionSql } from "postgres";
 import { z } from "zod";
 
 import { asId, idSchema, newId, type Id } from "@town/contracts";
+import { verifyRuntimeLeaseInTransaction } from "@town/runtime";
 
 import { evaluatePolicy } from "./policy.js";
 import {
@@ -36,6 +37,7 @@ export class ToolExecutionError extends Error {
     readonly code:
       | "RUN_NOT_FOUND"
       | "RUN_STATE_CONFLICT"
+      | "ACCOUNT_NOT_FOUND"
       | "TOOL_BINDING_NOT_FOUND"
       | "TOOL_CALL_NOT_FOUND"
       | "APPROVAL_NOT_FOUND"
@@ -198,8 +200,10 @@ export function createToolExecutionRepository(sql: Sql) {
     ownerId: Id<"user">;
     sessionId: Id<"runtime-session">;
     runId: Id<"session-run">;
+    leaseToken: string;
     agentVersionId: Id<"agent-version">;
     toolDefinitionId: Id<"tool-definition">;
+    accountId?: Id<"connected-account"> | null;
     stepKey: string;
     idempotencyKey: string;
     arguments: Record<string, unknown>;
@@ -215,8 +219,10 @@ export function createToolExecutionRepository(sql: Sql) {
         ownerId: idSchema,
         sessionId: idSchema,
         runId: idSchema,
+        leaseToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
         agentVersionId: idSchema,
         toolDefinitionId: idSchema,
+        accountId: idSchema.nullable().optional(),
         stepKey: z.string().trim().min(1).max(200),
         idempotencyKey: z.string().trim().min(1).max(500),
         arguments: jsonObjectSchema,
@@ -238,18 +244,23 @@ export function createToolExecutionRepository(sql: Sql) {
     const argumentHash = hash(canonicalJson(value.arguments));
     const idempotencyHash = hash(value.idempotencyKey);
     const result = await sql.begin(async (transaction) => {
-      const [session] = await transaction<{ id: string }[]>`
-        select id from runtime_sessions
-        where owner_id = ${value.ownerId} and id = ${value.sessionId}
-        for update
-      `;
+      const lease = await verifyRuntimeLeaseInTransaction(transaction, {
+        runId: asId<"session-run">(value.runId),
+        leaseToken: value.leaseToken,
+      });
+      if (
+        lease.owner_id !== value.ownerId ||
+        lease.session_id !== value.sessionId
+      ) {
+        throw new ToolExecutionError("RUN_NOT_FOUND", "The Run was not found.");
+      }
       const [run] = await transaction<{ id: string; state: string }[]>`
         select id, state from session_runs
         where owner_id = ${value.ownerId} and session_id = ${value.sessionId}
           and id = ${value.runId}
         for update
       `;
-      if (session === undefined || run === undefined) {
+      if (run === undefined) {
         throw new ToolExecutionError("RUN_NOT_FOUND", "The Run was not found.");
       }
       if (run.state !== "running") {
@@ -270,13 +281,14 @@ export function createToolExecutionRepository(sql: Sql) {
           side_effect: PolicyInput["sideEffect"];
           data_sensitivity: PolicyInput["dataSensitivity"];
           account_binding: "required" | "optional" | "none";
+          account_scope: string[];
         }[]
       >`
         select session.agent_version_id as session_agent_version_id,
           thread.approval_mode,
           (version.snapshot->>'defaultApprovalMode') as default_approval_mode,
-          binding.mode_override, tool.side_effect, tool.data_sensitivity,
-          tool.account_binding
+          binding.mode_override, binding.account_scope, tool.side_effect,
+          tool.data_sensitivity, tool.account_binding
         from runtime_sessions session
         join threads thread
           on thread.owner_id = session.owner_id and thread.id = session.thread_id
@@ -327,6 +339,33 @@ export function createToolExecutionRepository(sql: Sql) {
         toolContext.default_approval_mode === "require_approval"
           ? "approval_required"
           : "autonomous";
+      const accountId = value.accountId ?? null;
+      if (
+        (toolContext.account_binding === "required" && accountId === null) ||
+        (toolContext.account_binding === "none" && accountId !== null)
+      ) {
+        throw new ToolExecutionError(
+          "ACCOUNT_NOT_FOUND",
+          "The Tool account binding is invalid.",
+        );
+      }
+      if (accountId !== null) {
+        const [account] = await transaction<{ id: string }[]>`
+          select id from connected_accounts
+          where owner_id = ${value.ownerId} and id = ${accountId}
+            and is_active = true
+        `;
+        if (
+          account === undefined ||
+          (toolContext.account_scope.length > 0 &&
+            !toolContext.account_scope.includes(accountId))
+        ) {
+          throw new ToolExecutionError(
+            "ACCOUNT_NOT_FOUND",
+            "The connected Account is unavailable for this Tool.",
+          );
+        }
+      }
       const derivedPolicy: PolicyInput = {
         sessionMode,
         routineMode,
@@ -336,7 +375,7 @@ export function createToolExecutionRepository(sql: Sql) {
         inputTrust: value.policy.inputTrust as PolicyInput["inputTrust"],
         targetIsSelf: value.policy.targetIsSelf,
         targetIsTrusted: value.policy.targetIsTrusted,
-        accountBound: toolContext.account_binding === "required",
+        accountBound: accountId !== null,
       };
       const policyResult = evaluatePolicy(derivedPolicy);
       const requestFingerprint = hash(
@@ -344,7 +383,9 @@ export function createToolExecutionRepository(sql: Sql) {
           agentVersionId: value.agentVersionId,
           toolDefinitionId: value.toolDefinitionId,
           stepKey: value.stepKey,
+          accountId: value.accountId ?? null,
           policy: derivedPolicy,
+          approvalExpiresAt: value.approvalExpiresAt ?? null,
           arguments: value.arguments,
         }),
       );
@@ -400,14 +441,15 @@ export function createToolExecutionRepository(sql: Sql) {
           id, owner_id, session_id, run_id, tool_call_id, decision,
           session_mode, routine_mode, per_tool_override, side_effect,
           data_sensitivity, input_trust, target_is_self, target_is_trusted,
-          risk_flags, rationale
+          account_id, risk_flags, rationale
         ) values (
           ${policyDecisionId}, ${value.ownerId}, ${value.sessionId}, ${value.runId},
           ${callId}, ${policyResult.decision}, ${derivedPolicy.sessionMode},
           ${derivedPolicy.routineMode}, ${derivedPolicy.perToolOverride},
           ${derivedPolicy.sideEffect}, ${derivedPolicy.dataSensitivity},
           ${derivedPolicy.inputTrust}, ${derivedPolicy.targetIsSelf},
-          ${derivedPolicy.targetIsTrusted}, ${transaction.json(policyResult.riskFlags)},
+          ${derivedPolicy.targetIsTrusted}, ${accountId},
+          ${transaction.json(policyResult.riskFlags)},
           ${policyResult.rationale}
         )
       `;

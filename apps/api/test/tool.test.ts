@@ -92,7 +92,7 @@ async function fixture() {
     outputSchema: null,
     sideEffect: "external_write",
     dataSensitivity: "private",
-    accountBinding: "required",
+    accountBinding: "optional",
   });
   await registry.bind({
     ownerId: owner.user.id,
@@ -114,6 +114,7 @@ async function fixture() {
     agent,
     submission,
     tool,
+    leaseToken: lease.leaseToken,
     execution: createToolExecutionRepository(sql),
   };
 }
@@ -160,11 +161,13 @@ describe("protected Tool and Approval API", () => {
   });
 
   it("proposes a frozen approval and resolves it through CAS", async () => {
-    const { app, owner, submission, agent, tool, execution } = await fixture();
+    const { app, owner, submission, agent, tool, execution, leaseToken } =
+      await fixture();
     const proposal = await execution.propose({
       ownerId: owner.user.id,
       sessionId: submission.session.id,
       runId: submission.run.id,
+      leaseToken,
       agentVersionId: agent.activeVersion.id,
       toolDefinitionId: tool.id,
       stepKey: "api-approval-step",

@@ -81,14 +81,14 @@ async function fixture() {
     outputSchema: null,
     sideEffect: "external_write",
     dataSensitivity: "private",
-    accountBinding: "required",
+    accountBinding: "optional",
   });
   await createToolRegistryRepository(sql).bind({
     ownerId,
     agentVersionId: agent.activeVersion.id,
     toolDefinitionId: tool.id,
   });
-  return { agent, submission, tool };
+  return { agent, submission, tool, leaseToken: lease.leaseToken };
 }
 
 describe("durable ToolCall proposals and approvals", () => {
@@ -99,6 +99,7 @@ describe("durable ToolCall proposals and approvals", () => {
       ownerId,
       sessionId: seeded.submission.session.id,
       runId: seeded.submission.run.id,
+      leaseToken: seeded.leaseToken,
       agentVersionId: seeded.agent.activeVersion.id,
       toolDefinitionId: seeded.tool.id,
       stepKey: "send-step",
@@ -141,6 +142,7 @@ describe("durable ToolCall proposals and approvals", () => {
       ownerId,
       sessionId: seeded.submission.session.id,
       runId: seeded.submission.run.id,
+      leaseToken: seeded.leaseToken,
       agentVersionId: seeded.agent.activeVersion.id,
       toolDefinitionId: seeded.tool.id,
       stepKey: "send-step",
@@ -164,6 +166,7 @@ describe("durable ToolCall proposals and approvals", () => {
         ownerId,
         sessionId: seeded.submission.session.id,
         runId: seeded.submission.run.id,
+        leaseToken: seeded.leaseToken,
         agentVersionId: seeded.agent.activeVersion.id,
         toolDefinitionId: seeded.tool.id,
         stepKey: "send-step",
@@ -191,6 +194,7 @@ describe("durable ToolCall proposals and approvals", () => {
       ownerId,
       sessionId: seeded.submission.session.id,
       runId: seeded.submission.run.id,
+      leaseToken: seeded.leaseToken,
       agentVersionId: seeded.agent.activeVersion.id,
       toolDefinitionId: seeded.tool.id,
       stepKey: "approve-step",
@@ -248,7 +252,7 @@ describe("durable ToolCall proposals and approvals", () => {
       outputSchema: null,
       sideEffect: "external_write",
       dataSensitivity: "private",
-      accountBinding: "required",
+      accountBinding: "optional",
     });
     await registry.bind({
       ownerId,
@@ -260,6 +264,7 @@ describe("durable ToolCall proposals and approvals", () => {
       ownerId,
       sessionId: seeded.submission.session.id,
       runId: seeded.submission.run.id,
+      leaseToken: seeded.leaseToken,
       agentVersionId: seeded.agent.activeVersion.id,
       toolDefinitionId: seeded.tool.id,
       stepKey: "semantic-step",
@@ -282,6 +287,7 @@ describe("durable ToolCall proposals and approvals", () => {
         ownerId,
         sessionId: seeded.submission.session.id,
         runId: seeded.submission.run.id,
+        leaseToken: seeded.leaseToken,
         agentVersionId: seeded.agent.activeVersion.id,
         toolDefinitionId: secondTool.id,
         stepKey: "semantic-step",
@@ -319,6 +325,7 @@ describe("durable ToolCall proposals and approvals", () => {
         ownerId,
         sessionId: seeded.submission.session.id,
         runId: seeded.submission.run.id,
+        leaseToken: seeded.leaseToken,
         agentVersionId: newerAgent.activeVersion.id,
         toolDefinitionId: secondTool.id,
         stepKey: "pinned-version-step",
@@ -341,6 +348,7 @@ describe("durable ToolCall proposals and approvals", () => {
       ownerId,
       sessionId: seeded.submission.session.id,
       runId: seeded.submission.run.id,
+      leaseToken: seeded.leaseToken,
       agentVersionId: seeded.agent.activeVersion.id,
       toolDefinitionId: seeded.tool.id,
       stepKey: "expired-step",
@@ -376,5 +384,44 @@ describe("durable ToolCall proposals and approvals", () => {
       state: "expired",
       revision: 2,
     });
+  });
+
+  it("rejects proposals from a worker whose lease was reclaimed", async () => {
+    const seeded = await fixture();
+    await sql`
+      update runtime_jobs
+      set leased_at = clock_timestamp() - interval '2 seconds',
+          lease_expires_at = clock_timestamp() - interval '1 second'
+      where run_id = ${seeded.submission.run.id}
+    `;
+    const replacement = await createRuntimeQueueRepository(sql).claim({
+      workerId: "replacement-worker",
+      leaseMs: 60_000,
+    });
+    if (replacement === null) throw new Error("Expected replacement lease.");
+    await expect(
+      createToolExecutionRepository(sql).propose({
+        ownerId,
+        sessionId: seeded.submission.session.id,
+        runId: seeded.submission.run.id,
+        leaseToken: seeded.leaseToken,
+        agentVersionId: seeded.agent.activeVersion.id,
+        toolDefinitionId: seeded.tool.id,
+        stepKey: "stale-worker-step",
+        idempotencyKey: "stale-worker-key",
+        arguments: { body: "must reject" },
+        policy: {
+          sessionMode: "allow_all",
+          routineMode: "autonomous",
+          perToolOverride: null,
+          sideEffect: "external_write",
+          dataSensitivity: "private",
+          inputTrust: "trusted_instruction",
+          targetIsSelf: false,
+          targetIsTrusted: false,
+          accountBound: false,
+        },
+      }),
+    ).rejects.toMatchObject({ code: "LEASE_NOT_FOUND" });
   });
 });
