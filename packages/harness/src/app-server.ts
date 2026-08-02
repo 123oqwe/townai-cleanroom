@@ -24,6 +24,18 @@ export interface ThreadSnapshot {
 
 export type ThreadStore = Map<string, ThreadSnapshot>;
 
+export interface PersistentThreadStore {
+  get(
+    threadId: string,
+  ): ThreadSnapshot | undefined | Promise<ThreadSnapshot | undefined>;
+  set(threadId: string, snapshot: ThreadSnapshot): unknown | Promise<unknown>;
+  compareAndSet?: (
+    threadId: string,
+    expected: { revision: number; leaseOwner?: string },
+    snapshot: ThreadSnapshot,
+  ) => boolean | Promise<boolean>;
+}
+
 export interface AppServerRequest {
   jsonrpc: "2.0";
   id: string | number;
@@ -76,7 +88,7 @@ function invalidParams(
 }
 
 export function createAppServer(input: {
-  store: ThreadStore;
+  store: ThreadStore | PersistentThreadStore;
   leaseMs?: number;
   createAgent: (threadId: string) => {
     model: ModelPort;
@@ -88,10 +100,27 @@ export function createAppServer(input: {
   const leaseMs = input.leaseMs ?? 30_000;
   const runtimes = new Map<string, ThreadRuntime>();
 
-  function persist(runtime: ThreadRuntime, keepLease = true): void {
+  async function writeSnapshot(
+    threadId: string,
+    expected: { revision: number; leaseOwner?: string },
+    snapshot: ThreadSnapshot,
+  ): Promise<void> {
+    const store = input.store as PersistentThreadStore;
+    if (store.compareAndSet !== undefined) {
+      if (!(await store.compareAndSet(threadId, expected, snapshot)))
+        throw new Error("THREAD_CONFLICT: thread state changed while running.");
+      return;
+    }
+    await input.store.set(threadId, snapshot);
+  }
+
+  async function persist(
+    runtime: ThreadRuntime,
+    keepLease = true,
+  ): Promise<void> {
     if (runtime.leaseLost)
       throw new Error("THREAD_CONFLICT: runtime lease was lost.");
-    const latest = input.store.get(runtime.snapshot.threadId);
+    const latest = await input.store.get(runtime.snapshot.threadId);
     if (
       latest === undefined ||
       latest.revision !== runtime.snapshot.revision ||
@@ -111,11 +140,15 @@ export function createAppServer(input: {
     if (pendingApproval !== undefined)
       snapshot.pendingApproval = pendingApproval;
     runtime.snapshot = snapshot;
-    input.store.set(runtime.snapshot.threadId, runtime.snapshot);
+    await writeSnapshot(
+      runtime.snapshot.threadId,
+      { revision: latest.revision, leaseOwner: serverId },
+      runtime.snapshot,
+    );
   }
 
-  function claim(runtime: ThreadRuntime): void {
-    const latest = input.store.get(runtime.snapshot.threadId);
+  async function claim(runtime: ThreadRuntime): Promise<void> {
+    const latest = await input.store.get(runtime.snapshot.threadId);
     if (latest === undefined) throw new Error("THREAD_NOT_FOUND");
     if (
       latest.revision !== runtime.snapshot.revision ||
@@ -129,12 +162,21 @@ export function createAppServer(input: {
       leaseOwner: serverId,
       leaseExpiresAt: Date.now() + leaseMs,
     };
-    input.store.set(runtime.snapshot.threadId, claimed);
+    await writeSnapshot(
+      runtime.snapshot.threadId,
+      {
+        revision: latest.revision,
+        ...(latest.leaseOwner === undefined
+          ? {}
+          : { leaseOwner: latest.leaseOwner }),
+      },
+      claimed,
+    );
     runtime.snapshot = claimed;
   }
 
-  function release(runtime: ThreadRuntime): void {
-    const latest = input.store.get(runtime.snapshot.threadId);
+  async function release(runtime: ThreadRuntime): Promise<void> {
+    const latest = await input.store.get(runtime.snapshot.threadId);
     if (latest?.leaseOwner !== serverId) return;
     const released: ThreadSnapshot = {
       ...latest,
@@ -142,12 +184,16 @@ export function createAppServer(input: {
     };
     delete released.leaseOwner;
     delete released.leaseExpiresAt;
-    input.store.set(runtime.snapshot.threadId, released);
+    await writeSnapshot(
+      runtime.snapshot.threadId,
+      { revision: latest.revision, leaseOwner: serverId },
+      released,
+    );
     runtime.snapshot = released;
   }
 
-  function renew(runtime: ThreadRuntime): void {
-    const latest = input.store.get(runtime.snapshot.threadId);
+  async function renew(runtime: ThreadRuntime): Promise<void> {
+    const latest = await input.store.get(runtime.snapshot.threadId);
     if (
       latest?.revision !== runtime.snapshot.revision ||
       latest.leaseOwner !== serverId
@@ -161,14 +207,20 @@ export function createAppServer(input: {
       leaseOwner: serverId,
       leaseExpiresAt: Date.now() + leaseMs,
     };
-    input.store.set(runtime.snapshot.threadId, renewed);
+    await writeSnapshot(
+      runtime.snapshot.threadId,
+      { revision: latest.revision, leaseOwner: serverId },
+      renewed,
+    );
     runtime.snapshot = renewed;
   }
 
-  function getRuntime(threadId: string): ThreadRuntime | undefined {
+  async function getRuntime(
+    threadId: string,
+  ): Promise<ThreadRuntime | undefined> {
     const existing = runtimes.get(threadId);
     if (existing !== undefined) return existing;
-    const snapshot = input.store.get(threadId);
+    const snapshot = await input.store.get(threadId);
     if (snapshot === undefined) return undefined;
     const harnessInput = {
       ...input.createAgent(threadId),
@@ -251,12 +303,12 @@ export function createAppServer(input: {
       notifications: Array<ReturnType<typeof notification>>,
     ) => Promise<unknown>,
   ): Promise<AppServerResponse> {
-    const runtime = getRuntime(threadId);
+    const runtime = await getRuntime(threadId);
     if (runtime === undefined)
       return errorResponse(request, -32004, "thread not found");
     if (runtime.busy) return errorResponse(request, -32005, "thread is busy");
     try {
-      claim(runtime);
+      await claim(runtime);
     } catch (error) {
       runtimes.delete(threadId);
       return errorResponse(
@@ -269,23 +321,32 @@ export function createAppServer(input: {
     runtime.busy = true;
     runtime.leaseLost = false;
     const heartbeat = setInterval(
-      () => renew(runtime),
+      () => void renew(runtime),
       Math.max(1, Math.floor(leaseMs / 3)),
     );
     heartbeat.unref?.();
     const notifications: Array<ReturnType<typeof notification>> = [];
+    let eventWrite = Promise.resolve();
     runtime.harness.setEmitter((event: HarnessEvent) => {
       const mapped = eventNotifications(threadId, event);
-      persist(runtime);
-      notifications.push(...mapped);
+      eventWrite = eventWrite.then(async () => {
+        try {
+          await persist(runtime);
+          notifications.push(...mapped);
+        } catch {
+          runtime.leaseLost = true;
+        }
+      });
     });
     try {
       const result = await operation(runtime, notifications);
-      persist(runtime);
+      await eventWrite;
+      await persist(runtime);
       return { jsonrpc: "2.0", id: request.id, result, notifications };
     } catch (error) {
+      await eventWrite;
       try {
-        persist(runtime);
+        await persist(runtime);
       } catch {
         // Preserve the original operation error and return it through JSON-RPC.
       }
@@ -301,8 +362,8 @@ export function createAppServer(input: {
     } finally {
       clearInterval(heartbeat);
       try {
-        persist(runtime, true);
-        release(runtime);
+        await persist(runtime, true);
+        await release(runtime);
       } catch {
         // A stale owner cannot overwrite a newer store revision.
       }
@@ -358,7 +419,7 @@ export function createAppServer(input: {
         }
         if (request.method === "thread/start") {
           const threadId = newId<"thread">();
-          input.store.set(threadId, {
+          await input.store.set(threadId, {
             threadId,
             items: [],
             stepCount: 0,

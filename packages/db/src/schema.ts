@@ -1310,3 +1310,26 @@ export const integrationSyncRuns = pgTable(
     ),
   ],
 );
+
+export const harnessThreads = pgTable(
+  "harness_threads",
+  {
+    id: uuid("id").primaryKey(),
+    snapshot: jsonb("snapshot").notNull(),
+    revision: integer("revision").notNull(),
+    leaseOwner: text("lease_owner"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "harness_threads_snapshot_object",
+      sql`jsonb_typeof(${table.snapshot}) = 'object'`,
+    ),
+    check("harness_threads_revision_nonnegative", sql`${table.revision} >= 0`),
+    check(
+      "harness_threads_lease_shape",
+      sql`(${table.leaseOwner} is null and ${table.leaseExpiresAt} is null) or (${table.leaseOwner} is not null and ${table.leaseExpiresAt} is not null)`,
+    ),
+  ],
+);

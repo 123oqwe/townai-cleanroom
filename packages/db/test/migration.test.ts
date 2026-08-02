@@ -41,6 +41,7 @@ describe("identity migration", () => {
         "oauth_credentials",
         "schema_migrations",
         "users",
+        "harness_threads",
       ]),
     );
     expect(constraints.map(({ conname }) => conname)).toEqual(
