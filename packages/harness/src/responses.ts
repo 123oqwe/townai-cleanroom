@@ -40,12 +40,14 @@ function toResponsesInput(
       case "assistant_message":
         return { role: "assistant", content: item.text };
       case "assistant_tool_call":
-        return {
-          type: "function_call",
-          call_id: item.callId,
-          name: item.toolName,
-          arguments: JSON.stringify(item.arguments),
-        };
+        return (
+          item.providerItem ?? {
+            type: "function_call",
+            call_id: item.callId,
+            name: item.toolName,
+            arguments: JSON.stringify(item.arguments),
+          }
+        );
       case "tool_result":
         return {
           type: "function_call_output",
@@ -118,6 +120,16 @@ export function createResponsesModel(input: {
       const functionCalls = parsed.data.output.filter(
         (item) => functionCallSchema.safeParse(item).success,
       );
+      for (const item of parsed.data.output) {
+        if (
+          z.record(z.string(), z.unknown()).safeParse(item).success &&
+          (item as { type?: unknown }).type === "function_call" &&
+          !functionCallSchema.safeParse(item).success
+        )
+          throw new Error(
+            "HARNESS_MODEL_RESPONSE_INVALID: malformed function call item.",
+          );
+      }
       if (functionCalls.length > 1)
         throw new Error(
           "HARNESS_MODEL_RESPONSE_INVALID: multiple function calls are unsupported.",
@@ -155,11 +167,22 @@ export function createResponsesModel(input: {
             callId: call.data.call_id,
             toolName: call.data.name,
             arguments: object.data,
+            providerItem: item as Record<string, unknown>,
             ...(providerItems.length === 0 ? {} : { providerItems }),
           };
         }
         const message = messageSchema.safeParse(item);
-        if (message.success)
+        if (message.success) {
+          const providerItems = parsed.data.output
+            .filter((candidate) => candidate !== item)
+            .filter(
+              (candidate) =>
+                z.record(z.string(), z.unknown()).safeParse(candidate).success,
+            )
+            .map((candidate) => ({
+              type: "provider_item" as const,
+              item: candidate as Record<string, unknown>,
+            }));
           return {
             kind: "final",
             text: message.data.content
@@ -167,7 +190,9 @@ export function createResponsesModel(input: {
                 part.type === "refusal" ? part.refusal : part.text,
               )
               .join(""),
+            ...(providerItems.length === 0 ? {} : { providerItems }),
           };
+        }
       }
       throw new Error(
         "HARNESS_MODEL_RESPONSE_INVALID: no final message or function call.",

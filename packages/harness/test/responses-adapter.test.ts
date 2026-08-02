@@ -52,7 +52,7 @@ describe("Responses API adapter", () => {
     });
     await expect(
       model.respond({ items: [{ type: "user_message", text: "read" }] }),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       kind: "tool_call",
       callId: "call-1",
       toolName: "read",
@@ -116,6 +116,80 @@ describe("Responses API adapter", () => {
       model.respond({ items: [{ type: "user_message", text: "no" }] }),
     ).resolves.toEqual({ kind: "final", text: "cannot comply" });
     expect(headers?.get("authorization")).toBe("Bearer secret");
+  });
+
+  it("preserves provider output items for the next request", async () => {
+    let body: Record<string, unknown> | undefined;
+    let calls = 0;
+    const model = createResponsesModel({
+      endpoint: "https://model.example.invalid/v1/responses",
+      model: "test-model",
+      fetch: async (_url, init) => {
+        body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        calls += 1;
+        return new Response(
+          JSON.stringify({
+            output:
+              calls === 1
+                ? [
+                    { id: "rs_1", type: "reasoning", summary: [] },
+                    {
+                      type: "function_call",
+                      call_id: "call-1",
+                      name: "read",
+                      arguments: "{}",
+                      status: "completed",
+                    },
+                  ]
+                : [
+                    {
+                      type: "message",
+                      content: [{ type: "output_text", text: "done" }],
+                    },
+                  ],
+          }),
+          { status: 200 },
+        );
+      },
+    });
+    const first = await model.respond({
+      items: [{ type: "user_message", text: "go" }],
+    });
+    expect(first.kind).toBe("tool_call");
+    if (first.kind !== "tool_call") throw new Error("expected tool call");
+    await model.respond({
+      items: [
+        { type: "user_message", text: "go" },
+        ...(first.providerItems ?? []),
+        {
+          type: "assistant_tool_call",
+          callId: first.callId,
+          toolName: first.toolName,
+          arguments: first.arguments,
+          ...(first.providerItem === undefined
+            ? {}
+            : { providerItem: first.providerItem }),
+        },
+        {
+          type: "tool_result",
+          callId: "call-1",
+          toolName: "read",
+          output: "ok",
+        },
+      ],
+    });
+    expect(body?.["input"]).toEqual([
+      { role: "user", content: "go" },
+      { id: "rs_1", type: "reasoning", summary: [] },
+      {
+        type: "function_call",
+        call_id: "call-1",
+        name: "read",
+        arguments: "{}",
+        status: "completed",
+      },
+      { type: "function_call_output", call_id: "call-1", output: "ok" },
+    ]);
   });
 
   it("compacts only when the context budget is exceeded", async () => {

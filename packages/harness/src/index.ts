@@ -12,6 +12,7 @@ export type HarnessItem =
       callId: string;
       toolName: string;
       arguments: Record<string, unknown>;
+      providerItem?: Record<string, unknown>;
     }
   | { type: "tool_result"; callId: string; toolName: string; output: string }
   | { type: "assistant_message"; text: string }
@@ -28,8 +29,16 @@ export interface ModelPort {
           type: "provider_item";
           item: Record<string, unknown>;
         }>;
+        providerItem?: Record<string, unknown>;
       }
-    | { kind: "final"; text: string }
+    | {
+        kind: "final";
+        text: string;
+        providerItems?: Array<{
+          type: "provider_item";
+          item: Record<string, unknown>;
+        }>;
+      }
   >;
 }
 
@@ -115,6 +124,8 @@ export function createHarness(input: {
       stepCount += 1;
       const response = await input.model.respond({ items: [...items] });
       if (response.kind === "final") {
+        if (response.providerItems !== undefined)
+          items = [...items, ...response.providerItems];
         items = [...items, { type: "assistant_message", text: response.text }];
         add({ type: "assistant_message", text: response.text });
         add({ type: "turn_completed", text: response.text });
@@ -132,6 +143,9 @@ export function createHarness(input: {
           callId: response.callId,
           toolName: response.toolName,
           arguments: arguments_,
+          ...(response.providerItem === undefined
+            ? {}
+            : { providerItem: response.providerItem }),
         },
       ];
       add({
