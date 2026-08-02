@@ -34,6 +34,7 @@ export interface PersistentThreadStore {
     expected: { revision: number; leaseOwner?: string; takeover?: boolean },
     snapshot: ThreadSnapshot,
   ) => boolean | Promise<boolean>;
+  now: () => number | Promise<number>;
 }
 
 export interface AppServerRequest {
@@ -113,6 +114,7 @@ export function createAppServer(input: {
               mapStore.set(threadId, snapshot);
               return true;
             },
+            now: () => Date.now(),
           };
         })()
       : input.store;
@@ -149,7 +151,10 @@ export function createAppServer(input: {
       stepCount: runtime.harness.getStepCount(),
       revision: latest.revision + 1,
       ...(keepLease
-        ? { leaseOwner: serverId, leaseExpiresAt: Date.now() + leaseMs }
+        ? {
+            leaseOwner: serverId,
+            leaseExpiresAt: (await store.now()) + leaseMs,
+          }
         : {}),
     };
     const pendingApproval = runtime.harness.getPendingApproval();
@@ -169,14 +174,15 @@ export function createAppServer(input: {
     if (
       latest.revision !== runtime.snapshot.revision ||
       (latest.leaseOwner !== undefined &&
-        (latest.leaseExpiresAt ?? Number.POSITIVE_INFINITY) > Date.now())
+        (latest.leaseExpiresAt ?? Number.POSITIVE_INFINITY) >
+          (await store.now()))
     )
       throw new Error("THREAD_CONFLICT: thread is stale or busy.");
     const claimed: ThreadSnapshot = {
       ...latest,
       revision: latest.revision + 1,
       leaseOwner: serverId,
-      leaseExpiresAt: Date.now() + leaseMs,
+      leaseExpiresAt: (await store.now()) + leaseMs,
     };
     await writeSnapshot(
       runtime.snapshot.threadId,
@@ -222,7 +228,7 @@ export function createAppServer(input: {
       ...latest,
       revision: latest.revision + 1,
       leaseOwner: serverId,
-      leaseExpiresAt: Date.now() + leaseMs,
+      leaseExpiresAt: (await store.now()) + leaseMs,
     };
     await writeSnapshot(
       runtime.snapshot.threadId,
@@ -363,6 +369,7 @@ export function createAppServer(input: {
     runtime.harness.setEmitter((event: HarnessEvent) => {
       return eventWrite(event).catch(() => {
         runtime.leaseLost = true;
+        throw new Error("THREAD_CONFLICT: durable event persistence failed.");
       });
     });
     try {

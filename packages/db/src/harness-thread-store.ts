@@ -11,6 +11,14 @@ export function createHarnessThreadStore(
   db: TownDatabase,
 ): PersistentThreadStore {
   return {
+    async now() {
+      const rows = await db.execute(
+        sql`select extract(epoch from clock_timestamp()) * 1000 as epoch_ms`,
+      );
+      return Number(
+        (rows as unknown as Array<{ epoch_ms: string | number }>)[0]?.epoch_ms,
+      );
+    },
     async get(threadId) {
       const [row] = await db
         .select()

@@ -199,26 +199,14 @@ export function createHarness(input: {
     arguments_: Record<string, unknown>,
   ): Promise<void> {
     await add({ type: "tool_started", callId, toolName: tool.name });
+    let output: string;
     try {
       const result = toolResultSchema.parse(await tool.execute(arguments_));
-      items = [
-        ...items,
-        {
-          type: "tool_result",
-          callId,
-          toolName: tool.name,
-          output: result.output,
-        },
-      ];
-      await add({
-        type: "tool_succeeded",
-        callId,
-        toolName: tool.name,
-        output: result.output,
-      });
+      output = result.output;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Tool execution failed.";
+      output = message;
       items = [
         ...items,
         { type: "tool_result", callId, toolName: tool.name, output: message },
@@ -229,7 +217,13 @@ export function createHarness(input: {
         toolName: tool.name,
         error: message,
       });
+      return;
     }
+    items = [
+      ...items,
+      { type: "tool_result", callId, toolName: tool.name, output },
+    ];
+    await add({ type: "tool_succeeded", callId, toolName: tool.name, output });
   }
 
   return {
