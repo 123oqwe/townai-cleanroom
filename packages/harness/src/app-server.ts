@@ -19,6 +19,7 @@ export interface ThreadSnapshot {
   stepCount: number;
   revision: number;
   leaseOwner?: string;
+  leaseExpiresAt?: number;
 }
 
 export type ThreadStore = Map<string, ThreadSnapshot>;
@@ -82,6 +83,7 @@ export function createAppServer(input: {
 }) {
   let initialized = false;
   const serverId = randomUUID();
+  const leaseMs = 30_000;
   const runtimes = new Map<string, ThreadRuntime>();
 
   function persist(runtime: ThreadRuntime, keepLease = true): void {
@@ -97,7 +99,9 @@ export function createAppServer(input: {
       items: [...runtime.harness.getItems()],
       stepCount: runtime.harness.getStepCount(),
       revision: latest.revision + 1,
-      ...(keepLease ? { leaseOwner: serverId } : {}),
+      ...(keepLease
+        ? { leaseOwner: serverId, leaseExpiresAt: Date.now() + leaseMs }
+        : {}),
     };
     const pendingApproval = runtime.harness.getPendingApproval();
     if (pendingApproval !== undefined)
@@ -111,13 +115,15 @@ export function createAppServer(input: {
     if (latest === undefined) throw new Error("THREAD_NOT_FOUND");
     if (
       latest.revision !== runtime.snapshot.revision ||
-      latest.leaseOwner !== undefined
+      (latest.leaseOwner !== undefined &&
+        (latest.leaseExpiresAt ?? Number.POSITIVE_INFINITY) > Date.now())
     )
       throw new Error("THREAD_CONFLICT: thread is stale or busy.");
     const claimed: ThreadSnapshot = {
       ...latest,
       revision: latest.revision + 1,
       leaseOwner: serverId,
+      leaseExpiresAt: Date.now() + leaseMs,
     };
     input.store.set(runtime.snapshot.threadId, claimed);
     runtime.snapshot = claimed;
@@ -131,6 +137,7 @@ export function createAppServer(input: {
       revision: latest.revision + 1,
     };
     delete released.leaseOwner;
+    delete released.leaseExpiresAt;
     input.store.set(runtime.snapshot.threadId, released);
     runtime.snapshot = released;
   }

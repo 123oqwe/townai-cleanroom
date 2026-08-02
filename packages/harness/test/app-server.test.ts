@@ -463,4 +463,50 @@ describe("Codex-style bidirectional app server", () => {
     ).resolves.toMatchObject({ error: { code: -32005 } });
     expect(executions).toBe(1);
   });
+
+  it("reclaims a lease left behind after its trusted expiry", async () => {
+    const store: ThreadStore = new Map();
+    const server = createAppServer({
+      store,
+      createAgent: () => ({
+        model: {
+          async respond() {
+            return { kind: "final" as const, text: "reclaimed" };
+          },
+        },
+        tools: [],
+      }),
+    });
+    await server.dispatch({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {},
+    });
+    const started = await server.dispatch({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "thread/start",
+      params: {},
+    });
+    const threadId = (started as { result: { threadId: string } }).result
+      .threadId;
+    const snapshot = store.get(threadId);
+    if (snapshot === undefined) throw new Error("missing test snapshot");
+    store.set(threadId, {
+      ...snapshot,
+      leaseOwner: "dead-server",
+      leaseExpiresAt: Date.now() - 1,
+    });
+    await expect(
+      server.dispatch({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "turn/start",
+        params: { threadId, text: "recover" },
+      }),
+    ).resolves.toMatchObject({
+      result: { kind: "completed", text: "reclaimed" },
+    });
+  });
 });
