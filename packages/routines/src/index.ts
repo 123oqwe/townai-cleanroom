@@ -213,6 +213,17 @@ export function createRoutineRepository(sql: Sql) {
     >`select * from routine_schedules where owner_id=${ownerId} order by next_run_at, id`;
     return rows.map(safe);
   }
+  async function get(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+  ): Promise<RoutineSchedule> {
+    const [row] = await sql<Row[]>`
+      select * from routine_schedules where owner_id=${ownerId} and id=${routineScheduleId}
+    `;
+    if (!row)
+      throw new RoutineError("ROUTINE_NOT_FOUND", "The routine was not found.");
+    return safe(row);
+  }
   async function update(
     input: z.input<typeof updateScheduleInput>,
   ): Promise<RoutineSchedule> {
@@ -481,6 +492,7 @@ export function createRoutineRepository(sql: Sql) {
   return {
     create,
     list,
+    get,
     update,
     remove,
     ownsSchedule,

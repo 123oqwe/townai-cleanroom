@@ -1,12 +1,18 @@
 import type { Hono } from "hono";
 import { z } from "zod";
 
-import { asId } from "@town/contracts";
+import { asId, newId } from "@town/contracts";
+import type { AgentRepository } from "@town/agents";
+import type { SessionRepository } from "@town/runtime";
+import type { ThreadRepository } from "@town/agents";
 import type { RoutineRepository } from "@town/routines";
 import type { AuthVariables } from "./auth.js";
 
 export interface RoutineDependencies {
   repository: RoutineRepository;
+  agents?: AgentRepository;
+  threads?: ThreadRepository;
+  sessions?: SessionRepository;
 }
 
 const createRoutineSchema = z
@@ -22,6 +28,9 @@ const createRoutineSchema = z
   .strict();
 const updateRoutineSchema = createRoutineSchema
   .extend({ expectedRevision: z.number().int().positive() })
+  .strict();
+const triggerRoutineSchema = z
+  .object({ input: z.string().trim().min(1).max(50_000) })
   .strict();
 
 export function registerRoutineRoutes(
@@ -62,6 +71,44 @@ export function registerRoutineRoutes(
       nextRunAt: new Date(input.nextRunAt),
     });
     return context.json({ routine }, 201);
+  });
+
+  app.post("/v1/routines/:routineId/run", async (context) => {
+    if (
+      dependencies.agents === undefined ||
+      dependencies.threads === undefined ||
+      dependencies.sessions === undefined
+    )
+      return context.json({ error: "RUNTIME_NOT_CONFIGURED" }, 503);
+    const ownerId = context.get("identity").user.id;
+    const routine = await dependencies.repository.get(
+      ownerId,
+      asRoutineId(context.req.param("routineId")),
+    );
+    const body = triggerRoutineSchema.parse(await context.req.json());
+    const agent = await dependencies.agents.getRoutine(
+      ownerId,
+      routine.agentId,
+    );
+    const thread = await dependencies.threads.createTask({
+      ownerId,
+      agentId: agent.id,
+      title: routine.name,
+      approvalMode: agent.activeVersion.snapshot.defaultApprovalMode,
+    });
+    const idempotencyKey =
+      context.req.header("Idempotency-Key") ??
+      `routine:${routine.id}:${newId<"session-run">()}`;
+    return context.json(
+      await dependencies.sessions.submitMessage({
+        ownerId,
+        threadId: thread.id,
+        idempotencyKey,
+        text: body.input,
+        mentions: [],
+      }),
+      202,
+    );
   });
 
   app.patch("/v1/routines/:routineId", async (context) => {

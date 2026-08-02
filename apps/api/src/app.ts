@@ -615,6 +615,15 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/routines/*", authenticate);
       registerRoutineRoutes(app, {
         repository: dependencies.routineRepository,
+        ...(dependencies.agentRepository === undefined
+          ? {}
+          : { agents: dependencies.agentRepository }),
+        ...(dependencies.threadRepository === undefined
+          ? {}
+          : { threads: dependencies.threadRepository }),
+        ...(dependencies.sessionRepository === undefined
+          ? {}
+          : { sessions: dependencies.sessionRepository }),
       });
     }
 

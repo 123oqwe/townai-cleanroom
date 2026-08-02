@@ -101,7 +101,9 @@ runtime role, Turn sequence, and source provenance are server-derived.
 
 Routine Agents can be created, listed, and optimistically version-published
 under `/v1/agents/routines`; their immutable active versions are then
-referenced by `/v1/routines` schedules.
+referenced by `/v1/routines` schedules. An authenticated
+`POST /v1/routines/:routineId/run` creates a real child Task/Session Run and
+returns queued state for the worker; it never reports a fabricated completion.
 
 Authenticated message submission is available at
 `/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are

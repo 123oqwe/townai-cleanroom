@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 
 import type { AuthVariables } from "../src/auth.js";
@@ -8,6 +8,8 @@ import {
 } from "../src/routine-routes.js";
 import type { RoutineRepository, RoutineSchedule } from "@town/routines";
 import { asId } from "@town/contracts";
+import type { AgentRepository, ThreadRepository } from "@town/agents";
+import type { SessionRepository } from "@town/runtime";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const agentId = "01900000-0000-7000-8000-000000000002";
@@ -15,6 +17,11 @@ const agentVersionId = "01900000-0000-7000-8000-000000000003";
 
 function appWith(
   repository: RoutineRepository,
+  extras: {
+    agents?: AgentRepository;
+    threads?: ThreadRepository;
+    sessions?: SessionRepository;
+  } = {},
 ): Hono<{ Variables: AuthVariables }> {
   const app = new Hono<{ Variables: AuthVariables }>();
   app.use("*", async (context, next) => {
@@ -23,7 +30,7 @@ function appWith(
     } as AuthVariables["identity"]);
     await next();
   });
-  registerRoutineRoutes(app, { repository });
+  registerRoutineRoutes(app, { repository, ...extras });
   registerRoutineWebhookRoutes(app, { repository });
   return app;
 }
@@ -113,5 +120,54 @@ describe("routine routes", () => {
     );
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ duplicate: true });
+  });
+
+  it("turns a manual routine trigger into a durable session submission", async () => {
+    const routine = {
+      id: asId<"routine-schedule">("01900000-0000-7000-8000-000000000004"),
+      ownerId,
+      agentId: asId<"agent">(agentId),
+      agentVersionId: asId<"agent-version">(agentVersionId),
+      name: "Briefing",
+    };
+    const repository = {
+      get: vi.fn().mockResolvedValue(routine),
+    } as unknown as RoutineRepository;
+    const agent = {
+      id: routine.agentId,
+      activeVersion: { snapshot: { defaultApprovalMode: "autonomous" } },
+    };
+    const thread = {
+      id: asId<"thread">("01900000-0000-7000-8000-000000000005"),
+    };
+    const submitMessage = vi.fn().mockResolvedValue({ queued: true });
+    const app = appWith(repository, {
+      agents: {
+        getRoutine: vi.fn().mockResolvedValue(agent),
+      } as unknown as AgentRepository,
+      threads: {
+        createTask: vi.fn().mockResolvedValue(thread),
+      } as unknown as ThreadRepository,
+      sessions: { submitMessage } as unknown as SessionRepository,
+    });
+    const response = await app.request(
+      `http://town.test/v1/routines/${routine.id}/run`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "briefing-1",
+        },
+        body: JSON.stringify({ input: "prepare the briefing" }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(submitMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: thread.id,
+        text: "prepare the briefing",
+        idempotencyKey: "briefing-1",
+      }),
+    );
   });
 });
