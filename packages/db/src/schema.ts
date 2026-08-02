@@ -1217,3 +1217,96 @@ export const approvalRequests = pgTable(
     ),
   ],
 );
+
+export const routineSchedules = pgTable(
+  "routine_schedules",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id").notNull(),
+    agentVersionId: uuid("agent_version_id").notNull(),
+    name: text("name").notNull(),
+    cron: text("cron").notNull(),
+    timezone: text("timezone").notNull().default("UTC"),
+    enabled: boolean("enabled").notNull().default(true),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    revision: integer("revision").notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.agentId],
+      foreignColumns: [agents.ownerId, agents.id],
+      name: "routine_schedules_owner_agent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.ownerId, table.agentId, table.agentVersionId],
+      foreignColumns: [
+        agentVersions.ownerId,
+        agentVersions.agentId,
+        agentVersions.id,
+      ],
+      name: "routine_schedules_owner_version_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("routine_schedules_owner_name_unique").on(
+      table.ownerId,
+      sql`lower(${table.name})`,
+    ),
+    unique("routine_schedules_owner_id_unique").on(table.ownerId, table.id),
+    index("routine_schedules_due_idx").on(
+      table.ownerId,
+      table.enabled,
+      table.nextRunAt,
+      table.id,
+    ),
+    check("routine_schedules_revision_positive", sql`${table.revision} > 0`),
+  ],
+);
+
+export const integrationSyncRuns = pgTable(
+  "integration_sync_runs",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").notNull(),
+    routineScheduleId: uuid("routine_schedule_id"),
+    provider: text("provider").notNull(),
+    status: text("status").notNull().default("queued"),
+    cursor: jsonb("cursor").notNull().default({}),
+    errorCode: text("error_code"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.accountId],
+      foreignColumns: [connectedAccounts.ownerId, connectedAccounts.id],
+      name: "integration_sync_runs_owner_account_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.ownerId, table.routineScheduleId],
+      foreignColumns: [routineSchedules.ownerId, routineSchedules.id],
+      name: "integration_sync_runs_owner_routine_fk",
+    }).onDelete("set null"),
+    index("integration_sync_runs_owner_status_idx").on(
+      table.ownerId,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "integration_sync_runs_cursor_object",
+      sql`jsonb_typeof(${table.cursor}) = 'object'`,
+    ),
+    check(
+      "integration_sync_runs_status_allowed",
+      sql`${table.status} in ('queued','running','succeeded','failed','blocked')`,
+    ),
+  ],
+);

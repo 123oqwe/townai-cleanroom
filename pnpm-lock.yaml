@@ -148,6 +148,22 @@ importers:
         specifier: 3.4.9
         version: 3.4.9
 
+  packages/routines:
+    dependencies:
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@town/db':
+        specifier: workspace:*
+        version: link:../db
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
+
   packages/runtime:
     dependencies:
       '@town/agents':
