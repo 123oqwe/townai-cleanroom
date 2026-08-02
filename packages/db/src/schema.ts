@@ -1759,3 +1759,103 @@ export const squareAccountShares = pgTable(
     }).onDelete("cascade"),
   ],
 );
+
+export const notificationChannels = pgTable(
+  "notification_channels",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    address: text("address").notNull(),
+    config: jsonb("config").notNull().default({}),
+    status: text("status").notNull().default("active"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    unique("notification_channels_owner_id_unique").on(table.ownerId, table.id),
+    index("notification_channels_owner_status_idx").on(
+      table.ownerId,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "notification_channels_kind_allowed",
+      sql`${table.kind} in ('email','webhook','telegram','whatsapp')`,
+    ),
+    check(
+      "notification_channels_status_allowed",
+      sql`${table.status} in ('active','disabled')`,
+    ),
+    check(
+      "notification_channels_config_object",
+      sql`jsonb_typeof(${table.config}) = 'object'`,
+    ),
+    check(
+      "notification_channels_address_nonempty",
+      sql`length(btrim(${table.address})) > 0`,
+    ),
+  ],
+);
+
+export const notificationDeliveries = pgTable(
+  "notification_deliveries",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    channelId: uuid("channel_id").notNull(),
+    eventType: text("event_type").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    payload: jsonb("payload").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    status: text("status").notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    claimedBy: text("claimed_by"),
+    claimToken: text("claim_token"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.channelId],
+      foreignColumns: [notificationChannels.ownerId, notificationChannels.id],
+      name: "notification_deliveries_owner_channel_fk",
+    }).onDelete("cascade"),
+    unique("notification_deliveries_owner_key_unique").on(
+      table.ownerId,
+      table.idempotencyKey,
+    ),
+    index("notification_deliveries_claim_idx").on(
+      table.status,
+      table.nextAttemptAt,
+      table.createdAt,
+      table.id,
+    ),
+    index("notification_deliveries_owner_idx").on(
+      table.ownerId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "notification_deliveries_status_allowed",
+      sql`${table.status} in ('queued','attempting','succeeded','failed')`,
+    ),
+    check(
+      "notification_deliveries_attempts_nonnegative",
+      sql`${table.attempts} >= 0`,
+    ),
+    check(
+      "notification_deliveries_payload_object",
+      sql`jsonb_typeof(${table.payload}) = 'object'`,
+    ),
+  ],
+);

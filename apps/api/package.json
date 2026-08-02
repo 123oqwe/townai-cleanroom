@@ -13,6 +13,7 @@
     "@town/agents": "workspace:*",
     "@town/contracts": "workspace:*",
     "@town/content": "workspace:*",
+    "@town/channels": "workspace:*",
     "@town/teams": "workspace:*",
     "@town/harness": "workspace:*",
     "@town/db": "workspace:*",

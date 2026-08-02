@@ -52,6 +52,10 @@ control using your platform's secure secret-management workflow.
 - Owner-scoped Squares with active memberships, owner/admin/member roles,
   canonical-owner invariants, team policy revisions, and authenticated API
   boundaries for member administration.
+- Owner-scoped notification Channels (email/webhook/Telegram/WhatsApp metadata)
+  with strict public configuration, disabled-channel controls, idempotent
+  delivery outbox records, worker leases, claim-token completion, retry state,
+  and no worker capability token in public delivery DTOs.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

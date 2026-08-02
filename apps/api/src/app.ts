@@ -42,6 +42,7 @@ import {
 } from "@town/tools";
 import type { AppServer, AppServerRequest } from "@town/harness";
 import { ContentError, type ContentRepository } from "@town/content";
+import { ChannelError, type ChannelRepository } from "@town/channels";
 import {
   SquareError,
   type SquareRepository,
@@ -62,6 +63,7 @@ import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
 import { registerContentRoutes } from "./content-routes.js";
 import { registerSquareRoutes } from "./square-routes.js";
 import { registerSharedAccountRoutes } from "./shared-account-routes.js";
+import { registerChannelRoutes } from "./channel-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -85,6 +87,7 @@ export interface AppDependencies {
   contentRepository?: ContentRepository;
   squareRepository?: SquareRepository;
   sharedAccountRepository?: SharedAccountRepository;
+  channelRepository?: ChannelRepository;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
 }
@@ -202,6 +205,22 @@ export function createApp(dependencies?: AppDependencies) {
         400,
       );
     }
+    if (
+      error instanceof ChannelError &&
+      error.code === "INVALID_CHANNEL_CONFIG"
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/invalid-request",
+          title: "Invalid channel configuration",
+          status: 400,
+          detail:
+            "The channel configuration is not a permitted public metadata shape.",
+          code: error.code,
+        },
+        400,
+      );
+    }
     if (error instanceof SquareError && error.code === "FORBIDDEN") {
       return context.json(
         {
@@ -210,6 +229,18 @@ export function createApp(dependencies?: AppDependencies) {
           status: 403,
           detail:
             "The authenticated user cannot perform this Square operation.",
+          code: error.code,
+        },
+        403,
+      );
+    }
+    if (error instanceof ChannelError && error.code === "FORBIDDEN") {
+      return context.json(
+        {
+          type: "https://town.local/problems/forbidden",
+          title: "Forbidden",
+          status: 403,
+          detail: "The authenticated user cannot manage this channel.",
           code: error.code,
         },
         403,
@@ -232,7 +263,10 @@ export function createApp(dependencies?: AppDependencies) {
         (error.code === "SQUARE_NOT_FOUND" ||
           error.code === "MEMBERSHIP_NOT_FOUND" ||
           error.code === "ACCOUNT_NOT_FOUND" ||
-          error.code === "ACCOUNT_SHARE_NOT_FOUND"))
+          error.code === "ACCOUNT_SHARE_NOT_FOUND")) ||
+      (error instanceof ChannelError &&
+        (error.code === "CHANNEL_NOT_FOUND" ||
+          error.code === "DELIVERY_NOT_FOUND"))
     ) {
       return context.json(
         {
@@ -328,7 +362,10 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof SquareError &&
         (error.code === "SQUARE_ALREADY_EXISTS" ||
           error.code === "MEMBERSHIP_CONFLICT" ||
-          error.code === "POLICY_CONFLICT"))
+          error.code === "POLICY_CONFLICT")) ||
+      (error instanceof ChannelError &&
+        (error.code === "CHANNEL_DISABLED" ||
+          error.code === "DELIVERY_CONFLICT"))
     ) {
       return context.json(
         {
@@ -506,6 +543,14 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/square-account-shares/*", authenticate);
       registerSharedAccountRoutes(app, {
         repository: dependencies.sharedAccountRepository,
+      });
+    }
+    if (dependencies.channelRepository !== undefined) {
+      app.use("/v1/channels", authenticate);
+      app.use("/v1/channels/*", authenticate);
+      app.use("/v1/notification-deliveries", authenticate);
+      registerChannelRoutes(app, {
+        repository: dependencies.channelRepository,
       });
     }
 

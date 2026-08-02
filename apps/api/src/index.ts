@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { z } from "zod";
 import { asId } from "@town/contracts";
+import { createChannelRepository } from "@town/channels";
 import { createContentRepository } from "@town/content";
 import {
   createSharedAccountRepository,
@@ -94,6 +95,7 @@ const toolExecutionRepository = createToolExecutionRepository(sql);
 const contentRepository = createContentRepository(sql);
 const squareRepository = createSquareRepository(sql);
 const sharedAccountRepository = createSharedAccountRepository(sql);
+const channelRepository = createChannelRepository(sql);
 
 const harnessServerFactory =
   environment.RESPONSES_API_KEY === undefined
@@ -186,6 +188,7 @@ const server = serve({
     contentRepository,
     squareRepository,
     sharedAccountRepository,
+    channelRepository,
     ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
   }).fetch,
   port: environment.PORT,

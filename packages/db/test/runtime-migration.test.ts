@@ -111,6 +111,7 @@ describe("persistent runtime and tool-policy migrations", () => {
       "0011_content_library.sql",
       "0012_squares.sql",
       "0013_square_account_shares.sql",
+      "0014_channels.sql",
     ]);
   });
 });

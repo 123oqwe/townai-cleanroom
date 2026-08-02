@@ -56,6 +56,7 @@ describe("identity migration", () => {
         "users_status_allowed",
         "integration_sync_runs_owner_id_unique",
         "routine_step_results_owner_run_fk",
+        "notification_deliveries_owner_channel_fk",
       ]),
     );
   }, 60_000);
