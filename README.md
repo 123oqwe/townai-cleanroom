@@ -65,8 +65,9 @@ control using your platform's secure secret-management workflow.
 - Owner-scoped Routine schedules with strict five-field cron validation,
   timezone/next-run metadata, authenticated CRUD APIs under `/v1/routines`,
   optimistic revisions, and transactional due-work claims for an internal
-  worker. Schedules with run history are protected from destructive deletion;
-  disable them instead.
+  worker. Sync-run records expose owner-scoped history plus queued → running →
+  succeeded/failed transitions. Schedules with run history are protected from
+  destructive deletion; disable them instead.
 - A responsive, API-backed `apps/web` command center with explicit connection,
   empty, error, focus, and harness states; it uses no fabricated backend data.
 

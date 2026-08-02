@@ -35,6 +35,24 @@ export function registerRoutineRoutes(
     });
   });
 
+  app.get("/v1/routines/:routineId/runs", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const routineId = asRoutineId(context.req.param("routineId"));
+    const query = z
+      .object({ limit: z.coerce.number().int().min(1).max(100).default(50) })
+      .strict()
+      .parse(context.req.query());
+    if (!(await dependencies.repository.ownsSchedule(ownerId, routineId)))
+      return context.json({ error: "ROUTINE_NOT_FOUND" }, 404);
+    return context.json({
+      runs: await dependencies.repository.listRuns(
+        ownerId,
+        routineId,
+        query.limit,
+      ),
+    });
+  });
+
   app.post("/v1/routines", async (context) => {
     const ownerId = context.get("identity").user.id;
     const input = createRoutineSchema.parse(await context.req.json());
