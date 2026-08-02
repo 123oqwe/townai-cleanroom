@@ -1,4 +1,4 @@
-import type { ThreadMention } from "@town/agents";
+import type { TurnMentionInput } from "@town/agents";
 
 import type { RuntimeSession, SessionRun } from "./types.js";
 
@@ -14,7 +14,7 @@ export type RuntimeAdapterEvent =
   | {
       type: "assistant_output";
       text: string;
-      mentions: ThreadMention[];
+      mentions: TurnMentionInput[];
     }
   | {
       type: "waiting_user_input";
