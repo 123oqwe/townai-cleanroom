@@ -170,48 +170,53 @@ const harnessServerFactory =
         });
       };
 
-const server = serve({
-  fetch: createApp({
-    identityService,
-    accountRepository,
-    profileRepository,
-    memoryRepository,
-    peopleRepository,
-    wikiRepository,
-    revisionRepository,
-    knowledgeSearchRepository,
-    knowledgeConflictService,
-    agentRepository,
-    threadRepository,
-    turnRepository,
-    taskRepository,
-    inputRequestRepository,
-    sessionRepository,
-    runtimeTransitionService,
-    toolRegistryRepository,
-    toolExecutionRepository,
-    contentRepository,
-    squareRepository,
-    sharedAccountRepository,
-    channelRepository,
-    billingRepository,
-    operationsRepository,
-    webOrigin: environment.WEB_ORIGIN,
-    ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
-  }).fetch,
-  port: environment.PORT,
+const app = createApp({
+  identityService,
+  accountRepository,
+  profileRepository,
+  memoryRepository,
+  peopleRepository,
+  wikiRepository,
+  revisionRepository,
+  knowledgeSearchRepository,
+  knowledgeConflictService,
+  agentRepository,
+  threadRepository,
+  turnRepository,
+  taskRepository,
+  inputRequestRepository,
+  sessionRepository,
+  runtimeTransitionService,
+  toolRegistryRepository,
+  toolExecutionRepository,
+  contentRepository,
+  squareRepository,
+  sharedAccountRepository,
+  channelRepository,
+  billingRepository,
+  operationsRepository,
+  webOrigin: environment.WEB_ORIGIN,
+  ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });
 
-let shuttingDown = false;
+export default app;
 
-function shutdown(): void {
-  if (shuttingDown) return;
-  shuttingDown = true;
-
-  server.close(() => {
-    void sql.end().finally(() => process.exit(0));
+if (process.env["VERCEL"] !== "1") {
+  const server = serve({
+    fetch: app.fetch,
+    port: environment.PORT,
   });
-}
+  let shuttingDown = false;
 
-process.once("SIGINT", shutdown);
-process.once("SIGTERM", shutdown);
+  function shutdown(): void {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    server.close(() => {
+      void sql.end().finally(() => process.exit(0));
+    });
+  }
+
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+}

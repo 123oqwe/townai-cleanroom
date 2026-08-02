@@ -18,3 +18,8 @@ available. No placeholder credentials or fabricated server state are used.
 The preview was created with Vercel's deployment connector. The first tiny
 probe deployment was superseded by the full UI deployment and is not used as a
 release artifact.
+
+The API entrypoint now exports the Hono app as the default from
+`apps/api/src/index.ts` when `VERCEL=1`; local development still uses the Node
+server listener. This keeps serverless invocation separate from local process
+shutdown and does not weaken the API's database or authentication requirements.
