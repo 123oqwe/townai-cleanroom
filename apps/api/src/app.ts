@@ -441,12 +441,13 @@ export function createApp(dependencies?: AppDependencies) {
       registerToolRoutes(app, tools);
     }
 
-    if (dependencies.harnessServer !== undefined) {
+    const harnessServer = dependencies.harnessServer;
+    if (harnessServer !== undefined) {
       app.use("/v1/harness", authenticate);
       app.use("/v1/harness/*", authenticate);
       app.post("/v1/harness", async (context) => {
         const request = (await context.req.json()) as AppServerRequest;
-        const response = await dependencies.harnessServer!.dispatch(request);
+        const response = await harnessServer.dispatch(request);
         return context.json(response);
       });
     }
