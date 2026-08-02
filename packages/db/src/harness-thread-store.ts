@@ -27,8 +27,12 @@ function toSnapshot(
   )
     throw new Error("HARNESS_THREAD_CORRUPT: snapshot does not match its row.");
   try {
+    const snapshot = { ...(row.snapshot as Record<string, unknown>) };
+    delete snapshot["revision"];
+    delete snapshot["leaseOwner"];
+    delete snapshot["leaseExpiresAt"];
     const parsed = threadSnapshotSchema.parse({
-      ...(row.snapshot as ThreadSnapshot),
+      ...snapshot,
       revision: row.revision,
       ...(row.leaseOwner === null ? {} : { leaseOwner: row.leaseOwner }),
       ...(row.leaseExpiresAt === null
