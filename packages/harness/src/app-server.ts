@@ -180,7 +180,9 @@ export function createAppServer(input: {
           request.params["decision"] === "approve" ? "approve" : "reject";
         const notifications: Array<ReturnType<typeof notification>> = [];
         const original = runtime.harness;
-        // Attach a temporary event bridge while preserving the pending approval in the live core.
+        original.setEmitter((event: HarnessEvent) =>
+          notifications.push(...eventNotifications(threadId, event)),
+        );
         const result = await original.resume({ approvalId, decision });
         notifications.push(
           notification("approval/resolved", { threadId, approvalId, decision }),

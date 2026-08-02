@@ -70,7 +70,7 @@ export function createHarness(input: {
   maxSteps?: number;
 }) {
   const tools = new Map(input.tools.map((tool) => [tool.name, tool]));
-  const emit = input.emit ?? (() => undefined);
+  let emit = input.emit ?? (() => undefined);
   const maxSteps = input.maxSteps ?? 32;
   let items: HarnessItem[] = [];
   let pending: PendingApproval | undefined;
@@ -180,6 +180,9 @@ export function createHarness(input: {
   }
 
   return {
+    setEmitter(next: (event: HarnessEvent) => void): void {
+      emit = next;
+    },
     async run(runInput: { userText: string }): Promise<HarnessResult> {
       if (pending !== undefined)
         throw new Error(

@@ -130,5 +130,17 @@ describe("Codex-style bidirectional app server", () => {
     expect(resumed).toMatchObject({
       result: { kind: "completed", text: "sent" },
     });
+    expect(
+      (
+        resumed as { notifications: Array<{ method: string }> }
+      ).notifications.map((item) => item.method),
+    ).toEqual([
+      "item/started",
+      "item/completed",
+      "item/started",
+      "item/completed",
+      "turn/completed",
+      "approval/resolved",
+    ]);
   });
 });
