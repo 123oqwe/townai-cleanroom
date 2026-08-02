@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { z } from "zod";
+import { asId } from "@town/contracts";
 
 import {
   createAgentRepository,
@@ -38,6 +39,7 @@ import {
 } from "@town/tools";
 
 import { createApp } from "./app.js";
+import { createTownSearchHarnessBinding } from "./harness-tools.js";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -88,7 +90,12 @@ const harnessServerFactory =
             endpoint: environment.RESPONSES_API_ENDPOINT,
             model: environment.RESPONSES_MODEL,
             apiKey: async () => environment.RESPONSES_API_KEY as string,
-            tools: () => [],
+            tools: () => [
+              createTownSearchHarnessBinding(
+                asId<"user">(ownerId),
+                knowledgeSearchRepository,
+              ),
+            ],
           }),
         });
 
