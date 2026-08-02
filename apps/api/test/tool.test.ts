@@ -17,10 +17,7 @@ import {
   createCredentialCipher,
   createIdentityService,
 } from "@town/identity";
-import {
-  createRuntimeTransitionService,
-  createSessionRepository,
-} from "@town/runtime";
+import { createSessionRepository } from "@town/runtime";
 import {
   createToolExecutionRepository,
   createToolRegistryRepository,

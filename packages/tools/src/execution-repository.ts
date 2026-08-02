@@ -8,7 +8,6 @@ import { asId, idSchema, newId, type Id } from "@town/contracts";
 import { evaluatePolicy } from "./policy.js";
 import {
   approvalStateSchema,
-  policyDecisionSchema,
   toolCallStatusSchema,
   type ApprovalRequest,
   type PolicyInput,
