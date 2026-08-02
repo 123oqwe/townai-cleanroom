@@ -6,6 +6,7 @@ import { z } from "zod";
 import { asId, idSchema, type Id } from "@town/contracts";
 
 import { RuntimeError } from "./errors.js";
+import type { SessionRunState } from "./types.js";
 
 const workerIdSchema = z.string().trim().min(1).max(200);
 const leaseTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
@@ -41,6 +42,7 @@ interface CandidateRow {
   owner_id: string;
   session_id: string;
   run_id: string;
+  run_state: SessionRunState;
 }
 
 export interface RuntimeJobLeaseRow extends CandidateRow {
@@ -56,6 +58,7 @@ export interface RuntimeLease {
   ownerId: Id<"user">;
   sessionId: Id<"runtime-session">;
   runId: Id<"session-run">;
+  runState: SessionRunState;
   workerId: string;
   leaseToken: string;
   attempt: number;
@@ -103,11 +106,15 @@ async function lockJob(
 ): Promise<RuntimeJobLeaseRow | undefined> {
   const [row] = await transaction<RuntimeJobLeaseRow[]>`
     select
-      owner_id, session_id, run_id, state, attempt, lease_token_hash,
-      leased_by, leased_at, lease_expires_at
-    from runtime_jobs
-    where run_id = ${runId}
-    for update
+      job.owner_id, job.session_id, job.run_id, job.state, job.attempt,
+      job.lease_token_hash, job.leased_by, job.leased_at,
+      job.lease_expires_at, run.state as run_state
+    from runtime_jobs job
+    join session_runs run
+      on run.owner_id = job.owner_id and run.session_id = job.session_id
+      and run.id = job.run_id
+    where job.run_id = ${runId}
+    for update of job
   `;
   return row;
 }
@@ -139,10 +146,13 @@ export function createRuntimeQueueRepository(sql: Sql) {
     return sql.begin(async (transaction) => {
       const [candidate] = await transaction<CandidateRow[]>`
         select
-          candidate.owner_id, session.id as session_id, candidate.run_id
+          candidate.owner_id, session.id as session_id, candidate.run_id,
+          candidate.run_state
         from runtime_sessions session
         join lateral (
-          select job.owner_id, job.run_id, job.available_at, job.created_at
+          select
+            job.owner_id, job.run_id, job.available_at, job.created_at,
+            run.state as run_state
           from runtime_jobs job
           join session_runs run
             on run.owner_id = job.owner_id
@@ -150,7 +160,7 @@ export function createRuntimeQueueRepository(sql: Sql) {
             and run.id = job.run_id
           where job.owner_id = session.owner_id
             and job.session_id = session.id
-            and run.state = 'queued'
+            and run.state in ('queued', 'running')
             and job.available_at <= ${value.now}
             and (
               job.state = 'queued' or
@@ -191,6 +201,7 @@ export function createRuntimeQueueRepository(sql: Sql) {
         ownerId: asId<"user">(candidate.owner_id),
         sessionId: asId<"runtime-session">(candidate.session_id),
         runId: asId<"session-run">(candidate.run_id),
+        runState: candidate.run_state,
         workerId: value.workerId,
         leaseToken,
         attempt: claimed.attempt,
@@ -219,6 +230,7 @@ export function createRuntimeQueueRepository(sql: Sql) {
         ownerId: asId<"user">(row.owner_id),
         sessionId: asId<"runtime-session">(row.session_id),
         runId,
+        runState: row.run_state,
         workerId: row.leased_by,
         leaseToken: value.leaseToken,
         attempt: row.attempt,

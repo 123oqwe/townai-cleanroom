@@ -276,4 +276,54 @@ describe("runtime transitions", () => {
     `;
     expect(job?.count).toBe(0);
   });
+
+  it("reclaims an expired lease after start without losing Run progress", async () => {
+    await queuedRun("reclaim-running-run");
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const lease = await queue.claim({
+      workerId: "worker-before-crash",
+      leaseMs: 10_000,
+      now: new Date("2030-08-02T08:00:00.000Z"),
+    });
+    if (lease === null) throw new Error("Expected a lease.");
+    await transitions.start({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      now: new Date("2030-08-02T08:00:00.000Z"),
+    });
+
+    const reclaimed = await queue.claim({
+      workerId: "worker-after-crash",
+      leaseMs: 60_000,
+      now: new Date("2030-08-02T08:00:11.000Z"),
+    });
+    expect(reclaimed).toMatchObject({
+      runId: lease.runId,
+      runState: "running",
+      attempt: 2,
+    });
+    if (reclaimed === null) throw new Error("Expected a reclaimed lease.");
+    await expect(
+      transitions.recordAssistantOutput({
+        runId: lease.runId,
+        leaseToken: lease.leaseToken,
+        text: "The expired worker must not commit.",
+        mentions: [],
+        now: new Date("2030-08-02T08:00:12.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "LEASE_NOT_FOUND" });
+    await expect(
+      transitions.recordAssistantOutput({
+        runId: reclaimed.runId,
+        leaseToken: reclaimed.leaseToken,
+        text: "The replacement worker owns this output.",
+        mentions: [],
+        now: new Date("2030-08-02T08:00:12.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      sourceRef: lease.runId,
+      text: "The replacement worker owns this output.",
+    });
+  });
 });
