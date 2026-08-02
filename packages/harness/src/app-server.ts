@@ -20,6 +20,11 @@ export interface ThreadSnapshot {
   revision: number;
   leaseOwner?: string;
   leaseExpiresAt?: number;
+  activeTool?: {
+    callId: string;
+    toolName: string;
+    arguments: Record<string, unknown>;
+  };
 }
 
 export type ThreadStore = Map<string, ThreadSnapshot>;
@@ -61,6 +66,7 @@ interface ThreadRuntime {
   harness: Harness;
   busy: boolean;
   leaseLost: boolean;
+  activeTool?: ThreadSnapshot["activeTool"];
 }
 
 function errorResponse(
@@ -156,6 +162,9 @@ export function createAppServer(input: {
             leaseExpiresAt: (await store.now()) + leaseMs,
           }
         : {}),
+      ...(runtime.activeTool === undefined
+        ? {}
+        : { activeTool: runtime.activeTool }),
     };
     const pendingApproval = runtime.harness.getPendingApproval();
     if (pendingApproval !== undefined)
@@ -260,6 +269,9 @@ export function createAppServer(input: {
       harness,
       busy: false,
       leaseLost: false,
+      ...(snapshot.activeTool === undefined
+        ? {}
+        : { activeTool: snapshot.activeTool }),
     };
     runtimes.set(threadId, runtime);
     return runtime;
@@ -367,6 +379,14 @@ export function createAppServer(input: {
       });
     };
     runtime.harness.setEmitter((event: HarnessEvent) => {
+      if (event.type === "assistant_tool_call")
+        runtime.activeTool = {
+          callId: event.callId,
+          toolName: event.toolName,
+          arguments: event.arguments,
+        };
+      if (event.type === "tool_succeeded" || event.type === "tool_failed")
+        runtime.activeTool = undefined;
       return eventWrite(event).catch(() => {
         runtime.leaseLost = true;
         throw new Error("THREAD_CONFLICT: durable event persistence failed.");

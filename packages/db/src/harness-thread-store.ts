@@ -25,6 +25,16 @@ export function createHarnessThreadStore(
         .from(harnessThreads)
         .where(eq(harnessThreads.id, threadId));
       if (row === undefined) return undefined;
+      if (
+        typeof row.snapshot !== "object" ||
+        row.snapshot === null ||
+        Array.isArray(row.snapshot) ||
+        (row.snapshot as { threadId?: unknown }).threadId !== threadId ||
+        !Array.isArray((row.snapshot as { items?: unknown }).items)
+      )
+        throw new Error(
+          "HARNESS_THREAD_CORRUPT: snapshot does not match its row.",
+        );
       return {
         ...(row.snapshot as ThreadSnapshot),
         revision: row.revision,
@@ -35,6 +45,10 @@ export function createHarnessThreadStore(
       };
     },
     async set(threadId, snapshot) {
+      if (snapshot.threadId !== threadId)
+        throw new Error(
+          "HARNESS_THREAD_CORRUPT: snapshot threadId does not match row.",
+        );
       await db
         .insert(harnessThreads)
         .values({
@@ -62,6 +76,10 @@ export function createHarnessThreadStore(
         });
     },
     async compareAndSet(threadId, expected, snapshot) {
+      if (snapshot.threadId !== threadId)
+        throw new Error(
+          "HARNESS_THREAD_CORRUPT: snapshot threadId does not match row.",
+        );
       const rows = await db
         .update(harnessThreads)
         .set({
