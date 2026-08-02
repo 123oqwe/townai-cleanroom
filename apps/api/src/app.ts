@@ -77,6 +77,10 @@ import {
 import type { RoutineRepository } from "@town/routines";
 import { RoutineError } from "@town/routines";
 import { registerAccountRoutes } from "./account-routes.js";
+import {
+  registerGoogleOAuthRoutes,
+  type GoogleOAuthDependencies,
+} from "./google-oauth-routes.js";
 import { registerSuggestionRoutes } from "./suggestion-routes.js";
 import type { SuggestionRepository } from "@town/suggestions";
 import { SuggestionError } from "@town/suggestions";
@@ -108,6 +112,7 @@ export interface AppDependencies {
   operationsRepository?: OperationsRepository;
   routineRepository?: RoutineRepository;
   suggestionRepository?: SuggestionRepository;
+  googleOAuth?: GoogleOAuthDependencies;
   webOrigin?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
@@ -533,6 +538,8 @@ export function createApp(dependencies?: AppDependencies) {
     });
 
     registerAccountRoutes(app, { repository: dependencies.accountRepository });
+    if (dependencies.googleOAuth !== undefined)
+      registerGoogleOAuthRoutes(app, dependencies.googleOAuth);
 
     const knowledge = knowledgeDependencies(dependencies);
     if (knowledge !== null) {

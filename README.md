@@ -97,7 +97,10 @@ only be written by internal runtime code.
 Authenticated connected-account management is available under `/v1/accounts`:
 safe account listing, owner-scoped credential rotation, and account removal.
 OAuth secrets are encrypted at rest and are never returned in API projections;
-provider OAuth callback wiring remains an explicit deployment integration.
+Google OAuth callback wiring is implemented with PKCE, one-time state, offline
+refresh scope, userinfo verification, and encrypted credential persistence. It
+returns `OAUTH_NOT_CONFIGURED` until the deployment supplies Google client
+credentials and a registered redirect URI.
 
 Authenticated Agent, Thread, Turn-read, Task, and InputRequest resources are
 available under `/v1/agents`, `/v1/threads`, and `/v1/tasks`. Owner identity,

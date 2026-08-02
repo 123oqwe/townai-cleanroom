@@ -77,6 +77,9 @@ const environmentSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   WORKER_SECRET: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
 });
 
 const environment = environmentSchema.parse(process.env);
@@ -234,6 +237,20 @@ const app = createApp({
   operationsRepository,
   routineRepository,
   suggestionRepository,
+  googleOAuth: {
+    sql,
+    accounts: accountRepository,
+    webOrigin: environment.WEB_ORIGIN,
+    ...(environment.GOOGLE_OAUTH_CLIENT_ID === undefined
+      ? {}
+      : { clientId: environment.GOOGLE_OAUTH_CLIENT_ID }),
+    ...(environment.GOOGLE_OAUTH_CLIENT_SECRET === undefined
+      ? {}
+      : { clientSecret: environment.GOOGLE_OAUTH_CLIENT_SECRET }),
+    ...(environment.GOOGLE_OAUTH_REDIRECT_URI === undefined
+      ? {}
+      : { redirectUri: environment.GOOGLE_OAUTH_REDIRECT_URI }),
+  },
   webOrigin: environment.WEB_ORIGIN,
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });
