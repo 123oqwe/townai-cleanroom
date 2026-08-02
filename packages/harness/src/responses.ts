@@ -235,8 +235,11 @@ export async function compactHarnessContext(
     compact: (items: readonly HarnessItem[]) => Promise<readonly HarnessItem[]>;
   },
 ): Promise<readonly HarnessItem[]> {
-  const requiredProviderItems = items.filter(
-    (item) => item.type === "provider_item",
+  const originalStructural = items.filter(
+    (item) =>
+      item.type === "provider_item" ||
+      item.type === "assistant_tool_call" ||
+      item.type === "tool_result",
   );
   const canonical = (value: unknown): string => {
     if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -314,23 +317,25 @@ export async function compactHarnessContext(
           throw new Error(
             `HARNESS_CONTEXT_INVALID: tool call ${callId} has no matching tool result.`,
           );
-      let providerIndex = 0;
-      for (const item of compacted)
-        if (item.type === "provider_item") {
-          const required = requiredProviderItems[providerIndex];
-          if (
-            required === undefined ||
-            canonical(required.item) !== canonical(item.item)
-          )
-            throw new Error(
-              "HARNESS_CONTEXT_INVALID: provider output order or item was not preserved.",
-            );
-          providerIndex += 1;
-        }
-      if (providerIndex !== requiredProviderItems.length)
-        throw new Error(
-          "HARNESS_CONTEXT_INVALID: provider output item was dropped during compaction.",
+      let structuralIndex = 0;
+      for (const item of compacted) {
+        if (
+          item.type !== "provider_item" &&
+          item.type !== "assistant_tool_call" &&
+          item.type !== "tool_result"
+        )
+          continue;
+        const found = originalStructural.findIndex(
+          (candidate, index) =>
+            index >= structuralIndex &&
+            canonical(candidate) === canonical(item),
         );
+        if (found < structuralIndex)
+          throw new Error(
+            "HARNESS_CONTEXT_INVALID: tool/provider history order was not preserved.",
+          );
+        structuralIndex = found + 1;
+      }
     },
   });
 }
