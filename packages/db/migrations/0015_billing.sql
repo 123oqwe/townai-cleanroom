@@ -14,15 +14,16 @@ create table billing_accounts (
   constraint billing_accounts_credit_band_allowed check (credit_band in ('healthy','warning','blocked')),
   constraint billing_accounts_banners_array check (jsonb_typeof(credit_banners) = 'array'),
   constraint billing_accounts_revision_positive check (revision > 0),
-  constraint billing_accounts_period_shape check (period_start is null or period_end is null or period_end > period_start)
+  constraint billing_accounts_period_shape check ((period_start is null and period_end is null) or (period_start is not null and period_end is not null and period_end > period_start))
 );
 
 create table usage_ledger (
   id uuid primary key,
   owner_id uuid not null references users(id) on delete cascade,
   idempotency_key text not null,
+  fingerprint text not null,
   category text not null,
-  quantity integer not null,
+  quantity bigint not null,
   unit text not null,
   metadata jsonb not null default '{}'::jsonb,
   occurred_at timestamptz not null default now(),

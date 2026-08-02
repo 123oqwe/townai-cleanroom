@@ -27,6 +27,17 @@ export function registerBillingRoutes(
       query.start === undefined
         ? new Date(end.getTime() - 30 * 24 * 60 * 60 * 1_000)
         : new Date(query.start);
+    if (
+      start >= end ||
+      end.getTime() - start.getTime() > 366 * 24 * 60 * 60 * 1_000
+    )
+      throw new z.ZodError([
+        {
+          code: "custom",
+          path: ["period"],
+          message: "Billing period must be positive and at most one year.",
+        },
+      ]);
     return context.json({
       status: "configured" as const,
       billing: state,

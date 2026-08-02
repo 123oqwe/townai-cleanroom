@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  bigint,
   check,
   customType,
   foreignKey,
@@ -1889,7 +1890,7 @@ export const billingAccounts = pgTable(
     check("billing_accounts_revision_positive", sql`${table.revision} > 0`),
     check(
       "billing_accounts_period_shape",
-      sql`${table.periodStart} is null or ${table.periodEnd} is null or ${table.periodEnd} > ${table.periodStart}`,
+      sql`(${table.periodStart} is null and ${table.periodEnd} is null) or (${table.periodStart} is not null and ${table.periodEnd} is not null and ${table.periodEnd} > ${table.periodStart})`,
     ),
   ],
 );
@@ -1902,8 +1903,9 @@ export const usageLedger = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     idempotencyKey: text("idempotency_key").notNull(),
+    fingerprint: text("fingerprint").notNull(),
     category: text("category").notNull(),
-    quantity: integer("quantity").notNull(),
+    quantity: bigint("quantity", { mode: "bigint" }).notNull(),
     unit: text("unit").notNull(),
     metadata: jsonb("metadata").notNull().default({}),
     occurredAt: timestamp("occurred_at", { withTimezone: true })

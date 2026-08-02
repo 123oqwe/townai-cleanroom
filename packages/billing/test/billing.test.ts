@@ -45,11 +45,21 @@ describe("billing and usage", () => {
       isTrial: true,
       revision: 1,
     });
+    await expect(
+      repository.setState({ ownerId, planName: "overwrite-without-cas" }),
+    ).rejects.toMatchObject({ code: "BILLING_REVISION_CONFLICT" });
+    await expect(
+      repository.setState({
+        ownerId: otherId,
+        planName: "new",
+        expectedRevision: 9,
+      }),
+    ).rejects.toMatchObject({ code: "BILLING_REVISION_CONFLICT" });
     const entry = await repository.recordUsage({
       ownerId,
       idempotencyKey: "run-1",
       category: "model",
-      quantity: 10,
+      quantity: "3000000000",
       unit: "credits",
       metadata: { model: "a" },
     });
@@ -58,7 +68,7 @@ describe("billing and usage", () => {
         ownerId,
         idempotencyKey: "run-1",
         category: "model",
-        quantity: 10,
+        quantity: "3000000000",
         unit: "credits",
         metadata: { model: "a" },
       }),
@@ -77,11 +87,30 @@ describe("billing and usage", () => {
         ownerId,
         idempotencyKey: "run-1",
         category: "model",
-        quantity: 10,
+        quantity: "3000000000",
         unit: "credits",
         metadata: { model: "b" },
       }),
     ).rejects.toMatchObject({ code: "USAGE_CONFLICT" });
+    await expect(
+      repository.summarize(ownerId, new Date(2_000), new Date(1_000)),
+    ).rejects.toMatchObject({ code: "INVALID_PERIOD" });
+    await expect(
+      repository.setState({
+        ownerId: otherId,
+        planName: "invalid-period",
+        periodStart: new Date(1_000),
+      }),
+    ).rejects.toThrow();
+    await expect(
+      repository.recordUsage({
+        ownerId,
+        idempotencyKey: "too-large",
+        category: "model",
+        quantity: "9223372036854775808",
+        unit: "credits",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_USAGE" });
     await expect(
       repository.summarize(otherId, new Date(0), new Date(Date.now() + 1_000)),
     ).resolves.toEqual([]);

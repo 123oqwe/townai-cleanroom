@@ -32,20 +32,24 @@ export interface UsageEntry {
   ownerId: Id<"user">;
   idempotencyKey: string;
   category: UsageCategory;
-  quantity: number;
+  quantity: string;
   unit: string;
   metadata: Record<string, unknown>;
   occurredAt: Date;
 }
 export interface UsageSummary {
   category: UsageCategory;
-  quantity: number;
+  quantity: string;
   unit: string;
 }
 export class BillingError extends Error {
   constructor(
     readonly code:
-      "BILLING_NOT_CONFIGURED" | "USAGE_CONFLICT" | "BILLING_REVISION_CONFLICT",
+      | "BILLING_NOT_CONFIGURED"
+      | "USAGE_CONFLICT"
+      | "INVALID_USAGE"
+      | "BILLING_REVISION_CONFLICT"
+      | "INVALID_PERIOD",
     message: string,
   ) {
     super(message);
@@ -69,8 +73,9 @@ type UsageRow = {
   id: string;
   owner_id: string;
   idempotency_key: string;
+  fingerprint: string;
   category: UsageCategory;
-  quantity: number;
+  quantity: bigint;
   unit: string;
   metadata: Record<string, unknown>;
   occurred_at: Date;
@@ -89,15 +94,38 @@ const stateInput = z
       .default([]),
     periodStart: z.date().nullable().optional(),
     periodEnd: z.date().nullable().optional(),
-    expectedRevision: z.number().int().positive().optional(),
+    expectedRevision: z.number().int().nonnegative().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    const startMissing =
+      value.periodStart === undefined || value.periodStart === null;
+    const endMissing =
+      value.periodEnd === undefined || value.periodEnd === null;
+    if (startMissing !== endMissing)
+      context.addIssue({
+        code: "custom",
+        message: "Billing periods require both endpoints or neither.",
+      });
+    if (
+      value.periodStart &&
+      value.periodEnd &&
+      value.periodEnd <= value.periodStart
+    )
+      context.addIssue({
+        code: "custom",
+        message: "Billing period end must be after start.",
+      });
+  });
 const usageInput = z
   .object({
     ownerId: idSchema,
     idempotencyKey: z.string().trim().min(1).max(500),
     category: usageCategorySchema,
-    quantity: z.number().int().positive(),
+    quantity: z.union([
+      z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+      z.string().regex(/^[1-9][0-9]*$/),
+    ]),
     unit: z.string().trim().min(1).max(50),
     metadata: z.record(z.string(), z.json()).default({}),
     occurredAt: z.date().optional(),
@@ -124,7 +152,7 @@ function safeUsage(row: UsageRow): UsageEntry {
     ownerId: asId<"user">(row.owner_id),
     idempotencyKey: row.idempotency_key,
     category: row.category,
-    quantity: row.quantity,
+    quantity: row.quantity.toString(),
     unit: row.unit,
     metadata: row.metadata,
     occurredAt: row.occurred_at,
@@ -140,6 +168,23 @@ function canonical(value: unknown): unknown {
     );
   return value;
 }
+function usageFingerprint(value: {
+  category: UsageCategory;
+  quantity: bigint;
+  unit: string;
+  metadata: Record<string, unknown>;
+  occurredAt: Date | null;
+}): string {
+  return JSON.stringify(
+    canonical({
+      category: value.category,
+      quantity: value.quantity.toString(),
+      unit: value.unit,
+      metadata: value.metadata,
+      occurredAt: value.occurredAt?.toISOString() ?? null,
+    }),
+  );
+}
 export function createBillingRepository(sql: Sql) {
   async function get(ownerId: Id<"user">): Promise<BillingState | null> {
     const [row] = await sql<
@@ -151,9 +196,41 @@ export function createBillingRepository(sql: Sql) {
     input: z.input<typeof stateInput>,
   ): Promise<BillingState> {
     const value = stateInput.parse(input);
-    const [row] = await sql<
-      StateRow[]
-    >`insert into billing_accounts (owner_id,plan_name,is_blocked,is_trial,is_enterprise,credit_band,credit_banners,period_start,period_end) values (${value.ownerId},${value.planName},${value.isBlocked},${value.isTrial},${value.isEnterprise},${value.creditBand},${sql.json(value.creditBanners)},${value.periodStart ?? null},${value.periodEnd ?? null}) on conflict (owner_id) do update set plan_name=excluded.plan_name,is_blocked=excluded.is_blocked,is_trial=excluded.is_trial,is_enterprise=excluded.is_enterprise,credit_band=excluded.credit_band,credit_banners=excluded.credit_banners,period_start=excluded.period_start,period_end=excluded.period_end,revision=billing_accounts.revision+1,updated_at=now() where ${value.expectedRevision === undefined ? sql`true` : sql`billing_accounts.revision=${value.expectedRevision}`} returning owner_id,plan_name,is_blocked,is_trial,is_enterprise,credit_band,credit_banners,period_start,period_end,revision,updated_at`;
+    const [row] = await sql.begin(async (tx) => {
+      const [current] = await tx<
+        { revision: number }[]
+      >`select revision from billing_accounts where owner_id=${value.ownerId} for update`;
+      if (!current) {
+        if (
+          value.expectedRevision !== undefined &&
+          value.expectedRevision !== 0
+        )
+          throw new BillingError(
+            "BILLING_REVISION_CONFLICT",
+            "A new billing state must start at revision 0.",
+          );
+        const [created] = await tx<
+          StateRow[]
+        >`insert into billing_accounts (owner_id,plan_name,is_blocked,is_trial,is_enterprise,credit_band,credit_banners,period_start,period_end) values (${value.ownerId},${value.planName},${value.isBlocked},${value.isTrial},${value.isEnterprise},${value.creditBand},${sql.json(value.creditBanners)},${value.periodStart ?? null},${value.periodEnd ?? null}) on conflict (owner_id) do nothing returning owner_id,plan_name,is_blocked,is_trial,is_enterprise,credit_band,credit_banners,period_start,period_end,revision,updated_at`;
+        if (!created)
+          throw new BillingError(
+            "BILLING_REVISION_CONFLICT",
+            "The billing state changed concurrently.",
+          );
+        return [created];
+      }
+      if (
+        value.expectedRevision === undefined ||
+        value.expectedRevision !== current.revision
+      )
+        throw new BillingError(
+          "BILLING_REVISION_CONFLICT",
+          "The billing state changed concurrently.",
+        );
+      return tx<
+        StateRow[]
+      >`update billing_accounts set plan_name=${value.planName},is_blocked=${value.isBlocked},is_trial=${value.isTrial},is_enterprise=${value.isEnterprise},credit_band=${value.creditBand},credit_banners=${sql.json(value.creditBanners)},period_start=${value.periodStart ?? null},period_end=${value.periodEnd ?? null},revision=revision+1,updated_at=now() where owner_id=${value.ownerId} and revision=${value.expectedRevision} returning owner_id,plan_name,is_blocked,is_trial,is_enterprise,credit_band,credit_banners,period_start,period_end,revision,updated_at`;
+    });
     if (!row)
       throw new BillingError(
         "BILLING_REVISION_CONFLICT",
@@ -165,21 +242,28 @@ export function createBillingRepository(sql: Sql) {
     input: z.input<typeof usageInput>,
   ): Promise<UsageEntry> {
     const value = usageInput.parse(input);
+    const quantity = BigInt(value.quantity);
+    if (quantity > 9223372036854775807n)
+      throw new BillingError(
+        "INVALID_USAGE",
+        "Usage quantity exceeds the PostgreSQL bigint limit.",
+      );
+    const occurredAt = value.occurredAt ?? null;
+    const requestFingerprint = usageFingerprint({
+      category: value.category,
+      quantity,
+      unit: value.unit,
+      metadata: value.metadata,
+      occurredAt,
+    });
     const [row] = await sql<
       UsageRow[]
-    >`insert into usage_ledger (id,owner_id,idempotency_key,category,quantity,unit,metadata,occurred_at) values (${newId<"usage-entry">()},${value.ownerId},${value.idempotencyKey},${value.category},${value.quantity},${value.unit},${sql.json(value.metadata as never)},${value.occurredAt ?? sql`now()`}) on conflict (owner_id,idempotency_key) do nothing returning *`;
+    >`insert into usage_ledger (id,owner_id,idempotency_key,fingerprint,category,quantity,unit,metadata,occurred_at) values (${newId<"usage-entry">()},${value.ownerId},${value.idempotencyKey},${requestFingerprint},${value.category},${quantity.toString()},${value.unit},${sql.json(value.metadata as never)},${value.occurredAt ?? sql`now()`}) on conflict (owner_id,idempotency_key) do nothing returning *`;
     if (row) return safeUsage(row);
     const [existing] = await sql<
       UsageRow[]
     >`select * from usage_ledger where owner_id=${value.ownerId} and idempotency_key=${value.idempotencyKey}`;
-    if (
-      existing &&
-      existing.category === value.category &&
-      existing.quantity === value.quantity &&
-      existing.unit === value.unit &&
-      JSON.stringify(canonical(existing.metadata)) ===
-        JSON.stringify(canonical(value.metadata))
-    )
+    if (existing && existing.fingerprint === requestFingerprint)
       return safeUsage(existing);
     throw new BillingError(
       "USAGE_CONFLICT",
@@ -191,9 +275,20 @@ export function createBillingRepository(sql: Sql) {
     start: Date,
     end: Date,
   ): Promise<UsageSummary[]> {
+    if (
+      !(start instanceof Date) ||
+      Number.isNaN(start.getTime()) ||
+      !(end instanceof Date) ||
+      Number.isNaN(end.getTime()) ||
+      start >= end
+    )
+      throw new BillingError(
+        "INVALID_PERIOD",
+        "The usage period must have a valid start before its end.",
+      );
     const rows = await sql<
-      { category: UsageCategory; unit: string; quantity: number }[]
-    >`select category,unit,sum(quantity)::int as quantity from usage_ledger where owner_id=${idSchema.parse(ownerId)} and occurred_at >= ${start} and occurred_at < ${end} group by category,unit order by category,unit`;
+      { category: UsageCategory; unit: string; quantity: string }[]
+    >`select category,unit,sum(quantity)::text as quantity from usage_ledger where owner_id=${idSchema.parse(ownerId)} and occurred_at >= ${start} and occurred_at < ${end} group by category,unit order by category,unit`;
     return rows;
   }
   return { get, setState, recordUsage, summarize };
