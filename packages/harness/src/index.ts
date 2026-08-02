@@ -17,9 +17,7 @@ export type HarnessItem =
   | { type: "assistant_message"; text: string };
 
 export interface ModelPort {
-  respond(input: {
-    items: HarnessItem[];
-  }): Promise<
+  respond(input: { items: HarnessItem[] }): Promise<
     | {
         kind: "tool_call";
         callId: string;
