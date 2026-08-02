@@ -78,6 +78,15 @@ const gmailMessageArguments = z
     messageId: z.string().trim().min(1).max(500),
   })
   .strict();
+const gmailSendArguments = z
+  .object({
+    accountId: googleAccountId,
+    to: z.email(),
+    cc: z.array(z.email()).max(20).optional(),
+    subject: z.string().trim().min(1).max(500),
+    body: z.string().min(1).max(100_000),
+  })
+  .strict();
 const calendarFreeBusyArguments = z
   .object({
     accountId: googleAccountId,
@@ -413,6 +422,49 @@ export function createGoogleGmailGetMessageHarnessBinding(
       },
     },
   };
+}
+
+/** Sends an external Gmail message only after the Harness approval boundary resumes. */
+export function createGoogleGmailSendHarnessBinding(
+  ownerId: Id<"user">,
+  google: GoogleApiClient,
+): HarnessToolBinding {
+  return createPolicyAwareHarnessTool({
+    definition: {
+      name: "google_gmail_send",
+      description:
+        "Send an email from an explicitly selected connected Google account after approval.",
+      parameters: {
+        type: "object",
+        properties: {
+          accountId: { type: "string", format: "uuid" },
+          to: { type: "string", format: "email" },
+          cc: {
+            type: "array",
+            items: { type: "string", format: "email" },
+            maxItems: 20,
+          },
+          subject: { type: "string", minLength: 1, maxLength: 500 },
+          body: { type: "string", minLength: 1, maxLength: 100000 },
+        },
+        required: ["accountId", "to", "subject", "body"],
+        additionalProperties: false,
+      },
+    },
+    decide: () => "approval_required",
+    async execute(arguments_) {
+      const value = gmailSendArguments.parse(arguments_);
+      const result = await google.gmailSend({
+        ownerId,
+        accountId: value.accountId as Id<"connected-account">,
+        to: value.to,
+        ...(value.cc === undefined ? {} : { cc: value.cc }),
+        subject: value.subject,
+        body: value.body,
+      });
+      return { kind: "result", output: JSON.stringify(result) };
+    },
+  });
 }
 
 /** Read-only Calendar free/busy lookup through an owner-selected account. */

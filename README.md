@@ -111,6 +111,9 @@ they do not fabricate connector data.
 It also exposes read-only `google_gmail_get_message` and approval-gated
 `google_calendar_create_event`; external event creation cannot execute until
 the durable Harness approval context is resumed.
+Approval-gated `google_gmail_send` uses Gmail's RFC 822 `messages.send` API,
+rejects header-injection input, and reports success only after Google confirms
+the sent message.
 
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,

@@ -128,4 +128,38 @@ describe("Google API client", () => {
     });
     expect(result.id).toBe("event-1");
   });
+
+  it("encodes an RFC822 Gmail send request and rejects header injection", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (_url, options) => {
+      const body = JSON.parse(String(options?.body)) as { raw: string };
+      const decoded = Buffer.from(body.raw, "base64url").toString("utf8");
+      expect(decoded).toContain("To: recipient@example.invalid");
+      expect(decoded).toContain("Subject: Hello");
+      expect(decoded).toContain("line one\nline two");
+      return new Response(
+        JSON.stringify({ id: "sent-1", threadId: "thread-1" }),
+        { status: 200 },
+      );
+    });
+    const result = await createGoogleApiClient({
+      accounts: accounts(),
+      fetch,
+    }).gmailSend({
+      ownerId,
+      accountId,
+      to: "recipient@example.invalid",
+      subject: "Hello",
+      body: "line one\nline two",
+    });
+    expect(result.id).toBe("sent-1");
+    await expect(
+      createGoogleApiClient({ accounts: accounts(), fetch }).gmailSend({
+        ownerId,
+        accountId,
+        to: "recipient@example.invalid",
+        subject: "Bad\nBcc: attacker@example.invalid",
+        body: "body",
+      }),
+    ).rejects.toMatchObject({ code: "GOOGLE_API_INVALID" });
+  });
 });

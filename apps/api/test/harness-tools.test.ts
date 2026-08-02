@@ -12,6 +12,7 @@ import {
   createTownMemoryAddHarnessBinding,
   createTownSearchHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
+  createGoogleGmailSendHarnessBinding,
 } from "../src/harness-tools.js";
 import { AgentError } from "@town/agents";
 import type { AgentRepository, RoutineAgent } from "@town/agents";
@@ -378,6 +379,34 @@ describe("Town Harness built-in tools", () => {
       }),
     ).resolves.toMatchObject({ kind: "result" });
     expect(google.calendarCreateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId, accountId }),
+    );
+  });
+
+  it("requires approval before sending an external Gmail message", async () => {
+    const ownerId = newId<"user">();
+    const accountId = newId<"connected-account">();
+    const google = { gmailSend: vi.fn().mockResolvedValue({ id: "sent-1" }) };
+    const binding = createGoogleGmailSendHarnessBinding(
+      ownerId,
+      google as never,
+    );
+    const arguments_ = {
+      accountId,
+      to: "recipient@example.invalid",
+      subject: "Hello",
+      body: "Body",
+    };
+    await expect(binding.port.execute(arguments_)).rejects.toThrow(
+      "APPROVAL_REQUIRED",
+    );
+    await expect(
+      binding.port.execute(arguments_, {
+        approvalGranted: true,
+        policyDecision: "approval_required",
+      }),
+    ).resolves.toMatchObject({ kind: "result" });
+    expect(google.gmailSend).toHaveBeenCalledWith(
       expect.objectContaining({ ownerId, accountId }),
     );
   });

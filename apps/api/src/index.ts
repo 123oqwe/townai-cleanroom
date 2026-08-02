@@ -59,6 +59,7 @@ import {
   createTownSearchHarnessBinding,
   createGoogleGmailSearchHarnessBinding,
   createGoogleGmailGetMessageHarnessBinding,
+  createGoogleGmailSendHarnessBinding,
   createGoogleCalendarFreeBusyHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
 } from "./harness-tools.js";
@@ -209,6 +210,7 @@ const harnessServerFactory =
                   typedOwnerId,
                   googleApi,
                 ),
+                createGoogleGmailSendHarnessBinding(typedOwnerId, googleApi),
                 createGoogleCalendarFreeBusyHarnessBinding(
                   typedOwnerId,
                   googleApi,

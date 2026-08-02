@@ -19,6 +19,13 @@ const gmailMessageSchema = z
     payload: z.record(z.string(), z.json()).optional(),
   })
   .passthrough();
+const gmailSentSchema = z
+  .object({
+    id: z.string(),
+    threadId: z.string().optional(),
+    labelIds: z.array(z.string()).optional(),
+  })
+  .passthrough();
 const calendarEventSchema = z
   .object({
     id: z.string().optional(),
@@ -145,6 +152,70 @@ export function createGoogleApiClient(input: {
         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(input_.messageId)}?format=full`,
         gmailMessageSchema,
       );
+    },
+    async gmailSend(
+      input_: {
+        ownerId: Id<"user">;
+        accountId: Id<"connected-account">;
+        to: string;
+        cc?: string[];
+        subject: string;
+        body: string;
+      },
+      retried = false,
+    ): Promise<z.infer<typeof gmailSentSchema>> {
+      const fields = [input_.to, input_.subject, ...(input_.cc ?? [])];
+      if (fields.some((field) => /[\r\n]/.test(field)))
+        throw new GoogleApiError(
+          "GOOGLE_API_INVALID",
+          "Email headers and body must not contain raw CR/LF header injection.",
+        );
+      const raw = [
+        `To: ${input_.to}`,
+        ...(input_.cc === undefined || input_.cc.length === 0
+          ? []
+          : [`Cc: ${input_.cc.join(", ")}`]),
+        `Subject: ${input_.subject}`,
+        "MIME-Version: 1.0",
+        "Content-Type: text/plain; charset=UTF-8",
+        "",
+        input_.body,
+      ].join("\r\n");
+      const response = await request(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            authorization: `Bearer ${await accessToken(input_.ownerId, input_.accountId)}`,
+          },
+          body: JSON.stringify({
+            raw: Buffer.from(raw, "utf8").toString("base64url"),
+          }),
+        },
+      );
+      if (
+        response.status === 401 &&
+        !retried &&
+        input.refresher !== undefined
+      ) {
+        await input.refresher.refresh(input_.ownerId, input_.accountId);
+        return this.gmailSend(input_, true);
+      }
+      if (!response.ok)
+        throw new GoogleApiError(
+          "GOOGLE_API_HTTP",
+          `Gmail API returned HTTP ${response.status}.`,
+          response.status,
+        );
+      const parsed = gmailSentSchema.safeParse(await response.json());
+      if (!parsed.success)
+        throw new GoogleApiError(
+          "GOOGLE_API_INVALID",
+          "Gmail returned an unexpected send response.",
+        );
+      return parsed.data;
     },
     async calendarFreeBusy(input_: {
       ownerId: Id<"user">;
