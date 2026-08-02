@@ -6,15 +6,19 @@ import {
   type HarnessEvent,
   type HarnessItem,
   type ModelPort,
+  type PendingApprovalSnapshot,
   type ToolPort,
 } from "./index.js";
 
 export interface ThreadSnapshot {
   threadId: string;
   items: HarnessItem[];
+  pendingApproval?: PendingApprovalSnapshot;
+  stepCount: number;
 }
 
 export type ThreadStore = Map<string, ThreadSnapshot>;
+
 export interface AppServerRequest {
   jsonrpc: "2.0";
   id: string | number;
@@ -37,6 +41,7 @@ export interface AppServerResponse {
 interface ThreadRuntime {
   snapshot: ThreadSnapshot;
   harness: Harness;
+  busy: boolean;
 }
 
 function errorResponse(
@@ -45,6 +50,13 @@ function errorResponse(
   message: string,
 ): AppServerResponse {
   return { jsonrpc: "2.0", id: request.id, error: { code, message } };
+}
+
+function invalidParams(
+  request: AppServerRequest,
+  message: string,
+): AppServerResponse {
+  return errorResponse(request, -32602, message);
 }
 
 export function createAppServer(input: {
@@ -57,18 +69,35 @@ export function createAppServer(input: {
   let initialized = false;
   const runtimes = new Map<string, ThreadRuntime>();
 
+  function persist(runtime: ThreadRuntime): void {
+    const snapshot: ThreadSnapshot = {
+      threadId: runtime.snapshot.threadId,
+      items: [...runtime.harness.getItems()],
+      stepCount: runtime.harness.getStepCount(),
+    };
+    const pendingApproval = runtime.harness.getPendingApproval();
+    if (pendingApproval !== undefined)
+      snapshot.pendingApproval = pendingApproval;
+    runtime.snapshot = snapshot;
+    input.store.set(runtime.snapshot.threadId, runtime.snapshot);
+  }
+
   function getRuntime(threadId: string): ThreadRuntime | undefined {
     const existing = runtimes.get(threadId);
     if (existing !== undefined) return existing;
     const snapshot = input.store.get(threadId);
     if (snapshot === undefined) return undefined;
-    const runtime: ThreadRuntime = {
-      snapshot,
-      harness: createHarness({
-        ...input.createAgent(threadId),
-        emit: () => undefined,
-      }),
+    const harnessInput = {
+      ...input.createAgent(threadId),
+      initialItems: snapshot.items,
+      initialStepCount: snapshot.stepCount,
+      emit: () => undefined,
+      ...(snapshot.pendingApproval === undefined
+        ? {}
+        : { initialPendingApproval: snapshot.pendingApproval }),
     };
+    const harness = createHarness(harnessInput);
+    const runtime: ThreadRuntime = { snapshot, harness, busy: false };
     runtimes.set(threadId, runtime);
     return runtime;
   }
@@ -118,84 +147,137 @@ export function createAppServer(input: {
     }
   }
 
+  async function withRuntime(
+    request: AppServerRequest,
+    threadId: string,
+    operation: (
+      runtime: ThreadRuntime,
+      notifications: Array<ReturnType<typeof notification>>,
+    ) => Promise<unknown>,
+  ): Promise<AppServerResponse> {
+    const runtime = getRuntime(threadId);
+    if (runtime === undefined)
+      return errorResponse(request, -32004, "thread not found");
+    if (runtime.busy) return errorResponse(request, -32005, "thread is busy");
+
+    runtime.busy = true;
+    const notifications: Array<ReturnType<typeof notification>> = [];
+    runtime.harness.setEmitter((event: HarnessEvent) => {
+      notifications.push(...eventNotifications(threadId, event));
+      persist(runtime);
+    });
+    try {
+      const result = await operation(runtime, notifications);
+      persist(runtime);
+      return { jsonrpc: "2.0", id: request.id, result, notifications };
+    } catch (error) {
+      persist(runtime);
+      const message =
+        error instanceof Error ? error.message : "Request failed.";
+      const code = message.startsWith("HARNESS_") ? -32010 : -32000;
+      return errorResponse(request, code, message);
+    } finally {
+      runtime.busy = false;
+    }
+  }
+
   return {
     async dispatch(request: AppServerRequest): Promise<AppServerResponse> {
-      if (!initialized && request.method !== "initialize")
-        return errorResponse(
-          request,
-          -32001,
-          "initialize must be called first",
-        );
-      if (request.method === "initialize") {
-        if (initialized)
+      try {
+        if (!initialized && request.method !== "initialize")
           return errorResponse(
             request,
-            -32600,
-            "initialize may only be called once",
+            -32001,
+            "initialize must be called first",
           );
-        initialized = true;
-        return {
-          jsonrpc: "2.0",
-          id: request.id,
-          result: {
-            protocolVersion: "1",
-            capabilities: {
-              threads: true,
-              approvals: true,
-              notifications: true,
+        if (request.method === "initialize") {
+          if (initialized)
+            return errorResponse(
+              request,
+              -32600,
+              "initialize may only be called once",
+            );
+          initialized = true;
+          return {
+            jsonrpc: "2.0",
+            id: request.id,
+            result: {
+              protocolVersion: "1",
+              capabilities: {
+                threads: true,
+                approvals: true,
+                notifications: true,
+              },
             },
-          },
-        };
-      }
-      if (request.method === "thread/start") {
-        const threadId = newId<"thread">();
-        input.store.set(threadId, { threadId, items: [] });
-        return { jsonrpc: "2.0", id: request.id, result: { threadId } };
-      }
-      if (request.method === "turn/start") {
-        const threadId = String(request.params["threadId"] ?? "");
-        const text = String(request.params["text"] ?? "");
-        const runtime = getRuntime(threadId);
-        if (runtime === undefined)
-          return errorResponse(request, -32004, "thread not found");
-        const notifications: Array<ReturnType<typeof notification>> = [];
-        const harness = createHarness({
-          ...input.createAgent(threadId),
-          emit: (event: HarnessEvent) =>
-            notifications.push(...eventNotifications(threadId, event)),
-        });
-        runtime.harness = harness;
-        const result = await harness.run({ userText: text });
-        runtime.snapshot = { threadId, items: [...harness.getItems()] };
-        input.store.set(threadId, runtime.snapshot);
-        return { jsonrpc: "2.0", id: request.id, result, notifications };
-      }
-      if (request.method === "approval/resolve") {
-        const threadId = String(request.params["threadId"] ?? "");
-        const runtime = getRuntime(threadId);
-        if (runtime === undefined)
-          return errorResponse(request, -32004, "thread not found");
-        const approvalId = String(request.params["approvalId"] ?? "");
-        const decision =
-          request.params["decision"] === "approve" ? "approve" : "reject";
-        const notifications: Array<ReturnType<typeof notification>> = [];
-        const original = runtime.harness;
-        original.setEmitter((event: HarnessEvent) =>
-          notifications.push(...eventNotifications(threadId, event)),
+          };
+        }
+        if (request.method === "thread/start") {
+          const threadId = newId<"thread">();
+          input.store.set(threadId, {
+            threadId,
+            items: [],
+            stepCount: 0,
+          });
+          return { jsonrpc: "2.0", id: request.id, result: { threadId } };
+        }
+        if (request.method === "turn/start") {
+          const threadId = request.params["threadId"];
+          const text = request.params["text"];
+          if (
+            typeof threadId !== "string" ||
+            typeof text !== "string" ||
+            text.trim() === ""
+          )
+            return invalidParams(
+              request,
+              "threadId and non-empty text are required",
+            );
+          return withRuntime(request, threadId, async (runtime) => {
+            if (runtime.harness.getPendingApproval() !== undefined)
+              throw new Error(
+                "HARNESS_APPROVAL_PENDING: resolve the pending approval first.",
+              );
+            return runtime.harness.run({ userText: text });
+          });
+        }
+        if (request.method === "approval/resolve") {
+          const threadId = request.params["threadId"];
+          const approvalId = request.params["approvalId"];
+          const decision = request.params["decision"];
+          if (
+            typeof threadId !== "string" ||
+            typeof approvalId !== "string" ||
+            (decision !== "approve" && decision !== "reject")
+          )
+            return invalidParams(
+              request,
+              "threadId, approvalId, and decision=approve|reject are required",
+            );
+          return withRuntime(
+            request,
+            threadId,
+            async (runtime, notifications) => {
+              notifications.unshift(
+                notification("approval/resolved", {
+                  threadId,
+                  approvalId,
+                  decision,
+                }),
+              );
+              return runtime.harness.resume({ approvalId, decision });
+            },
+          );
+        }
+        return errorResponse(
+          request,
+          -32601,
+          `unknown method: ${request.method}`,
         );
-        const result = await original.resume({ approvalId, decision });
-        notifications.push(
-          notification("approval/resolved", { threadId, approvalId, decision }),
-        );
-        runtime.snapshot = { threadId, items: [...original.getItems()] };
-        input.store.set(threadId, runtime.snapshot);
-        return { jsonrpc: "2.0", id: request.id, result, notifications };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Request failed.";
+        return errorResponse(request, -32000, message);
       }
-      return errorResponse(
-        request,
-        -32601,
-        `unknown method: ${request.method}`,
-      );
     },
   };
 }

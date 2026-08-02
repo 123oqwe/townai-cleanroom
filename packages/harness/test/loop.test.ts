@@ -82,4 +82,40 @@ describe("Codex-style harness loop", () => {
       harness.resume({ approvalId: "call-2", decision: "reject" }),
     ).resolves.toEqual({ kind: "rejected" });
   });
+
+  it("does not reset the step budget across approval pauses", async () => {
+    let call = 0;
+    const harness = createHarness({
+      maxSteps: 2,
+      model: {
+        async respond() {
+          call += 1;
+          return {
+            kind: "tool_call" as const,
+            callId: `approval-${call}`,
+            toolName: "send",
+            arguments: {},
+          };
+        },
+      },
+      tools: [
+        {
+          name: "send",
+          requiresApproval: true,
+          async execute() {
+            return { kind: "result" as const, output: "ok" };
+          },
+        },
+      ],
+    });
+    await expect(harness.run({ userText: "loop" })).resolves.toMatchObject({
+      approvalId: "approval-1",
+    });
+    await expect(
+      harness.resume({ approvalId: "approval-1", decision: "approve" }),
+    ).resolves.toMatchObject({ approvalId: "approval-2" });
+    await expect(
+      harness.resume({ approvalId: "approval-2", decision: "approve" }),
+    ).rejects.toThrow("HARNESS_STEP_LIMIT");
+  });
 });

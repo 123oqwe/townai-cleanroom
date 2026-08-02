@@ -63,24 +63,50 @@ interface PendingApproval {
   arguments: Record<string, unknown>;
 }
 
+export interface PendingApprovalSnapshot {
+  callId: string;
+  toolName: string;
+  arguments: Record<string, unknown>;
+}
+
 export function createHarness(input: {
   model: ModelPort;
   tools: readonly ToolPort[];
   emit?: (event: HarnessEvent) => void;
   maxSteps?: number;
+  initialItems?: readonly HarnessItem[];
+  initialPendingApproval?: PendingApprovalSnapshot;
+  initialStepCount?: number;
 }) {
   const tools = new Map(input.tools.map((tool) => [tool.name, tool]));
   let emit = input.emit ?? (() => undefined);
   const maxSteps = input.maxSteps ?? 32;
-  let items: HarnessItem[] = [];
+  let items: HarnessItem[] = [...(input.initialItems ?? [])];
   let pending: PendingApproval | undefined;
+  let stepCount = input.initialStepCount ?? 0;
+  if (input.initialPendingApproval !== undefined) {
+    const tool = tools.get(input.initialPendingApproval.toolName);
+    if (tool === undefined) {
+      throw new Error(
+        `HARNESS_APPROVAL_TOOL_NOT_FOUND: ${input.initialPendingApproval.toolName}`,
+      );
+    }
+    pending = {
+      callId: input.initialPendingApproval.callId,
+      tool,
+      arguments: toolArgumentsSchema.parse(
+        input.initialPendingApproval.arguments,
+      ),
+    };
+  }
 
   function add(event: HarnessEvent): void {
     emit(event);
   }
 
   async function continueLoop(): Promise<HarnessResult> {
-    for (let step = 0; step < maxSteps; step += 1) {
+    while (stepCount < maxSteps) {
+      stepCount += 1;
       const response = await input.model.respond({ items: [...items] });
       if (response.kind === "final") {
         items = [...items, { type: "assistant_message", text: response.text }];
@@ -188,6 +214,7 @@ export function createHarness(input: {
         throw new Error(
           "HARNESS_APPROVAL_PENDING: resolve the pending approval first.",
         );
+      stepCount = 0;
       items = [...items, { type: "user_message", text: runInput.userText }];
       add({ type: "turn_started", userText: runInput.userText });
       return continueLoop();
@@ -211,6 +238,17 @@ export function createHarness(input: {
     },
     getItems(): readonly HarnessItem[] {
       return [...items];
+    },
+    getPendingApproval(): PendingApprovalSnapshot | undefined {
+      if (pending === undefined) return undefined;
+      return {
+        callId: pending.callId,
+        toolName: pending.tool.name,
+        arguments: { ...pending.arguments },
+      };
+    },
+    getStepCount(): number {
+      return stepCount;
     },
   };
 }
