@@ -213,7 +213,11 @@ export async function compactContext<T>(
     throw new Error(
       "HARNESS_CONTEXT_LIMIT_INVALID: maxItems must be positive.",
     );
-  if (items.length <= input.maxItems) return [...items];
+  if (items.length <= input.maxItems) {
+    const unchanged = [...items];
+    input.validate?.(unchanged);
+    return unchanged;
+  }
   const compacted = [...(await input.compact(items))];
   if (compacted.length > input.maxItems)
     throw new Error(
@@ -239,10 +243,37 @@ export async function compactHarnessContext(
           .filter((item) => item.type === "assistant_tool_call")
           .map((item) => item.callId),
       );
-      for (const item of compacted)
+      const results = new Set(
+        compacted
+          .filter((item) => item.type === "tool_result")
+          .map((item) => item.callId),
+      );
+      const seenCall = new Set<string>();
+      for (const item of compacted) {
         if (item.type === "tool_result" && !calls.has(item.callId))
           throw new Error(
             `HARNESS_CONTEXT_INVALID: tool result ${item.callId} has no matching tool call.`,
+          );
+        if (item.type === "tool_result" && !seenCall.has(item.callId))
+          throw new Error(
+            `HARNESS_CONTEXT_INVALID: tool result ${item.callId} precedes its tool call.`,
+          );
+        if (item.type === "assistant_tool_call") seenCall.add(item.callId);
+        if (
+          item.type === "provider_item" &&
+          item.item["type"] === "function_call"
+        ) {
+          const callId = item.item["call_id"];
+          if (typeof callId !== "string" || !calls.has(callId))
+            throw new Error(
+              "HARNESS_CONTEXT_INVALID: provider function call is not paired with a tool call.",
+            );
+        }
+      }
+      for (const callId of calls)
+        if (!results.has(callId))
+          throw new Error(
+            `HARNESS_CONTEXT_INVALID: tool call ${callId} has no matching tool result.`,
           );
     },
   });

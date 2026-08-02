@@ -236,5 +236,38 @@ describe("Responses API adapter", () => {
         { maxItems: 1, compact: async (value) => value.slice(1) },
       ),
     ).rejects.toThrow("no matching tool call");
+    const call = {
+      type: "assistant_tool_call" as const,
+      callId: "c1",
+      toolName: "read",
+      arguments: {},
+    };
+    const result = {
+      type: "tool_result" as const,
+      callId: "c1",
+      toolName: "read",
+      output: "ok",
+    };
+    await expect(
+      compactHarnessContext(
+        [{ type: "user_message", text: "x" }, call, result],
+        {
+          maxItems: 2,
+          compact: async () => [call],
+        },
+      ),
+    ).rejects.toThrow("no matching tool result");
+    await expect(
+      compactHarnessContext(
+        [{ type: "user_message", text: "x" }, call, result],
+        {
+          maxItems: 2,
+          compact: async () => [result, call],
+        },
+      ),
+    ).rejects.toThrow("precedes");
+    await expect(
+      compactHarnessContext([call], { maxItems: 2, compact: async () => [] }),
+    ).rejects.toThrow("no matching tool result");
   });
 });
