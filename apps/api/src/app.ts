@@ -72,6 +72,7 @@ import { registerBillingRoutes } from "./billing-routes.js";
 import { registerOperationsRoutes } from "./operations-routes.js";
 import { registerRoutineRoutes } from "./routine-routes.js";
 import type { RoutineRepository } from "@town/routines";
+import { RoutineError } from "@town/routines";
 import { registerAccountRoutes } from "./account-routes.js";
 
 export interface AppDependencies {
@@ -303,7 +304,8 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof ChannelError &&
         (error.code === "CHANNEL_NOT_FOUND" ||
           error.code === "DELIVERY_NOT_FOUND")) ||
-      (error instanceof AccountError && error.code === "ACCOUNT_NOT_FOUND")
+      (error instanceof AccountError && error.code === "ACCOUNT_NOT_FOUND") ||
+      (error instanceof RoutineError && error.code === "ROUTINE_NOT_FOUND")
     ) {
       return context.json(
         {
@@ -340,6 +342,7 @@ export function createApp(dependencies?: AppDependencies) {
       );
     }
     if (
+      (error instanceof RoutineError && error.code === "ROUTINE_CONFLICT") ||
       (error instanceof ToolRegistryError &&
         ["TOOL_NAME_CONFLICT", "TOOL_BINDING_CONFLICT"].includes(error.code)) ||
       (error instanceof ToolExecutionError &&

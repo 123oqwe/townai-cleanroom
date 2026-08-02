@@ -21,6 +21,18 @@ const scheduleInput = z
     enabled: z.boolean().default(true),
   })
   .strict();
+const updateScheduleInput = z
+  .object({
+    ownerId: z.uuidv7(),
+    id: z.uuidv7(),
+    expectedRevision: z.number().int().positive(),
+    name: nameSchema,
+    cron: cronSchema,
+    timezone: z.string().trim().min(1).max(100).default("UTC"),
+    nextRunAt: z.date(),
+    enabled: z.boolean(),
+  })
+  .strict();
 
 export interface RoutineSchedule {
   id: Id<"routine-schedule">;
@@ -118,6 +130,77 @@ export function createRoutineRepository(sql: Sql) {
     >`select * from routine_schedules where owner_id=${ownerId} order by next_run_at, id`;
     return rows.map(safe);
   }
+  async function update(
+    input: z.input<typeof updateScheduleInput>,
+  ): Promise<RoutineSchedule> {
+    const value = updateScheduleInput.parse(input);
+    const rows = await sql.begin(async (transaction) => {
+      const [current] = await transaction<{ revision: number }[]>`
+        select revision from routine_schedules
+        where owner_id=${value.ownerId} and id=${value.id}
+        for update
+      `;
+      if (current === undefined)
+        throw new RoutineError(
+          "ROUTINE_NOT_FOUND",
+          "The routine was not found.",
+        );
+      if (current.revision !== value.expectedRevision)
+        throw new RoutineError(
+          "ROUTINE_CONFLICT",
+          "The routine changed since it was read.",
+        );
+      return transaction<Row[]>`
+        update routine_schedules
+        set name=${value.name}, cron=${value.cron}, timezone=${value.timezone},
+            next_run_at=${value.nextRunAt}, enabled=${value.enabled},
+            revision=revision+1, updated_at=now()
+        where owner_id=${value.ownerId} and id=${value.id}
+        returning *
+      `;
+    });
+    const row = rows[0];
+    if (row === undefined)
+      throw new RoutineError("ROUTINE_NOT_FOUND", "The routine was not found.");
+    return safe(row);
+  }
+  async function remove(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+    expectedRevision: number,
+  ): Promise<void> {
+    const revision = z.number().int().positive().parse(expectedRevision);
+    await sql.begin(async (transaction) => {
+      const [current] = await transaction<{ revision: number }[]>`
+        select revision from routine_schedules
+        where owner_id=${ownerId} and id=${routineScheduleId}
+        for update
+      `;
+      if (current === undefined)
+        throw new RoutineError(
+          "ROUTINE_NOT_FOUND",
+          "The routine was not found.",
+        );
+      if (current.revision !== revision)
+        throw new RoutineError(
+          "ROUTINE_CONFLICT",
+          "The routine changed since it was read.",
+        );
+      const [history] = await transaction<{ count: number }[]>`
+        select count(*)::int as count from integration_sync_runs
+        where owner_id=${ownerId} and routine_schedule_id=${routineScheduleId}
+      `;
+      if ((history?.count ?? 0) > 0)
+        throw new RoutineError(
+          "ROUTINE_CONFLICT",
+          "A routine with run history cannot be deleted; disable it instead.",
+        );
+      await transaction`
+        delete from routine_schedules
+        where owner_id=${ownerId} and id=${routineScheduleId}
+      `;
+    });
+  }
   async function ownsSchedule(
     ownerId: Id<"user">,
     routineScheduleId: Id<"routine-schedule">,
@@ -146,6 +229,6 @@ export function createRoutineRepository(sql: Sql) {
       return claimed;
     });
   }
-  return { create, list, ownsSchedule, claimDue };
+  return { create, list, update, remove, ownsSchedule, claimDue };
 }
 export type RoutineRepository = ReturnType<typeof createRoutineRepository>;

@@ -1294,7 +1294,7 @@ export const integrationSyncRuns = pgTable(
       columns: [table.ownerId, table.routineScheduleId],
       foreignColumns: [routineSchedules.ownerId, routineSchedules.id],
       name: "integration_sync_runs_owner_routine_fk",
-    }).onDelete("set null"),
+    }).onDelete("restrict"),
     index("integration_sync_runs_owner_status_idx").on(
       table.ownerId,
       table.status,

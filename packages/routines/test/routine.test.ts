@@ -64,6 +64,47 @@ describe("routine schedules", () => {
     expect(runs).toEqual([
       { status: "queued", routine_schedule_id: schedule.id },
     ]);
+    const updated = await repo.update({
+      ownerId,
+      id: schedule.id,
+      expectedRevision: 2,
+      name: "Morning sync updated",
+      cron: "15 8 * * *",
+      timezone: "Asia/Shanghai",
+      nextRunAt: new Date("2026-08-03T00:15:00Z"),
+      enabled: true,
+    });
+    expect(updated).toMatchObject({
+      name: "Morning sync updated",
+      revision: 3,
+    });
+    await expect(
+      repo.update({
+        ownerId,
+        id: schedule.id,
+        expectedRevision: 2,
+        name: "stale",
+        cron: "0 0 * * *",
+        timezone: "UTC",
+        nextRunAt: new Date("2026-08-03T00:00:00Z"),
+        enabled: true,
+      }),
+    ).rejects.toMatchObject({ code: "ROUTINE_CONFLICT" });
+    await expect(repo.remove(ownerId, schedule.id, 3)).rejects.toMatchObject({
+      code: "ROUTINE_CONFLICT",
+    });
+    const disposable = await repo.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Disposable schedule",
+      cron: "0 12 * * *",
+      nextRunAt: new Date("2026-08-03T12:00:00Z"),
+    });
+    await repo.remove(ownerId, disposable.id, 1);
+    expect((await repo.list(ownerId)).map(({ id }) => id)).toEqual([
+      schedule.id,
+    ]);
   });
 
   it("caches a step per owner/run/key and never reruns a completed step", async () => {
