@@ -330,3 +330,4 @@ export type Harness = ReturnType<typeof createHarness>;
 
 export * from "./app-server.js";
 export * from "./responses.js";
+export * from "./agent-factory.js";
