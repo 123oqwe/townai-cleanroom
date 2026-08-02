@@ -10,7 +10,10 @@ import {
 import postgres, { type Sql } from "postgres";
 import { newId, type Id } from "@town/contracts";
 import { runMigrations } from "@town/db";
-import { createRoutineRepository } from "../src/index.js";
+import {
+  createRoutineRepository,
+  createRoutineStepRepository,
+} from "../src/index.js";
 
 let sql: Sql;
 let ownerId: Id<"user">;
@@ -61,5 +64,79 @@ describe("routine schedules", () => {
     expect(runs).toEqual([
       { status: "queued", routine_schedule_id: schedule.id },
     ]);
+  });
+
+  it("caches a step per owner/run/key and never reruns a completed step", async () => {
+    const repo = createRoutineStepRepository(sql);
+    const runId = newId<"integration-sync-run">();
+    await sql`insert into integration_sync_runs (id, owner_id, account_id, provider) values (${runId}, ${ownerId}, ${accountId}, 'google')`;
+    const first = await repo.begin({
+      ownerId,
+      runId,
+      stepKey: "collect-email",
+    });
+    expect(first).toMatchObject({
+      acquired: true,
+      result: { status: "running" },
+    });
+
+    const duplicate = await repo.begin({
+      ownerId,
+      runId,
+      stepKey: "collect-email",
+    });
+    expect(duplicate).toMatchObject({
+      acquired: false,
+      result: { status: "running" },
+    });
+    await repo.complete({
+      ownerId,
+      runId,
+      stepKey: "collect-email",
+      output: { count: 2 },
+    });
+
+    const resumed = await repo.begin({
+      ownerId,
+      runId,
+      stepKey: "collect-email",
+    });
+    expect(resumed).toMatchObject({
+      acquired: false,
+      result: { status: "completed", output: { count: 2 } },
+    });
+    await expect(
+      repo.complete({ ownerId, runId, stepKey: "collect-email", output: {} }),
+    ).rejects.toThrow("ROUTINE_STEP_NOT_RUNNING");
+  });
+
+  it("records a failed step without exposing another owner's row", async () => {
+    const repo = createRoutineStepRepository(sql);
+    const otherOwnerId = newId<"user">();
+    await sql`insert into users (id,email,timezone) values (${otherOwnerId},'routine-other@example.invalid','UTC')`;
+    const runId = newId<"integration-sync-run">();
+    await sql`insert into integration_sync_runs (id, owner_id, account_id, provider) values (${runId}, ${ownerId}, ${accountId}, 'google')`;
+    await repo.begin({ ownerId, runId, stepKey: "send-email" });
+    await repo.fail({
+      ownerId,
+      runId,
+      stepKey: "send-email",
+      errorCode: "PROVIDER_TIMEOUT",
+      errorMessage: "provider did not respond",
+    });
+    expect(
+      await repo.get({ ownerId: otherOwnerId, runId, stepKey: "send-email" }),
+    ).toBeNull();
+    expect(
+      (await repo.get({ ownerId, runId, stepKey: "send-email" }))?.status,
+    ).toBe("failed");
+    expect(
+      await repo.begin({ ownerId, runId, stepKey: "send-email" }),
+    ).toMatchObject({ acquired: true, result: { status: "running" } });
+    await expect(
+      sql`insert into routine_step_results
+          (owner_id, run_id, step_key, status, started_at, finished_at)
+        values (${ownerId}, ${runId}, 'invalid-null', 'failed', now(), now())`,
+    ).rejects.toThrow();
   });
 });

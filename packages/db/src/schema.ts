@@ -1300,6 +1300,7 @@ export const integrationSyncRuns = pgTable(
       table.createdAt,
       table.id,
     ),
+    unique("integration_sync_runs_owner_id_unique").on(table.ownerId, table.id),
     check(
       "integration_sync_runs_cursor_object",
       sql`jsonb_typeof(${table.cursor}) = 'object'`,
@@ -1308,6 +1309,50 @@ export const integrationSyncRuns = pgTable(
       "integration_sync_runs_status_allowed",
       sql`${table.status} in ('queued','running','succeeded','failed','blocked')`,
     ),
+  ],
+);
+
+export const routineStepResults = pgTable(
+  "routine_step_results",
+  {
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    runId: uuid("run_id").notNull(),
+    stepKey: text("step_key").notNull(),
+    status: text("status").notNull(),
+    output: jsonb("output"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({ columns: [table.ownerId, table.runId, table.stepKey] }),
+    index("routine_step_results_owner_run_idx").on(
+      table.ownerId,
+      table.runId,
+      table.createdAt,
+      table.stepKey,
+    ),
+    check(
+      "routine_step_results_status_allowed",
+      sql`${table.status} in ('running', 'completed', 'failed')`,
+    ),
+    check(
+      "routine_step_results_step_key_shape",
+      sql`length(btrim(${table.stepKey})) between 1 and 200`,
+    ),
+    check(
+      "routine_step_results_state_shape",
+      sql`(${table.status} = 'running' and ${table.output} is null and ${table.errorCode} is null and ${table.errorMessage} is null and ${table.startedAt} is not null and ${table.finishedAt} is null) or (${table.status} = 'completed' and ${table.output} is not null and ${table.errorCode} is null and ${table.errorMessage} is null and ${table.startedAt} is not null and ${table.finishedAt} is not null) or (${table.status} = 'failed' and ${table.output} is null and ${table.errorCode} is not null and length(btrim(${table.errorCode})) > 0 and ${table.errorMessage} is not null and length(btrim(${table.errorMessage})) > 0 and ${table.startedAt} is not null and ${table.finishedAt} is not null)`,
+    ),
+    foreignKey({
+      columns: [table.ownerId, table.runId],
+      foreignColumns: [integrationSyncRuns.ownerId, integrationSyncRuns.id],
+      name: "routine_step_results_owner_run_fk",
+    }).onDelete("cascade"),
   ],
 );
 

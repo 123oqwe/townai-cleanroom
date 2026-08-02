@@ -2,6 +2,8 @@ import type { Sql } from "postgres";
 import { z } from "zod";
 import { asId, newId, type Id } from "@town/contracts";
 
+export * from "./step-repository.js";
+
 const cronSchema = z
   .string()
   .trim()

@@ -42,6 +42,7 @@ describe("identity migration", () => {
         "schema_migrations",
         "users",
         "harness_threads",
+        "routine_step_results",
       ]),
     );
     expect(constraints.map(({ conname }) => conname)).toEqual(
@@ -53,6 +54,8 @@ describe("identity migration", () => {
         "oauth_credentials_owner_id_users_id_fk",
         "oauth_credentials_positive_key_version",
         "users_status_allowed",
+        "integration_sync_runs_owner_id_unique",
+        "routine_step_results_owner_run_fk",
       ]),
     );
   }, 60_000);
