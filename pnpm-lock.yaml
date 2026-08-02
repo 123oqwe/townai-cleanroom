@@ -59,6 +59,9 @@ importers:
       '@town/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@town/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       hono:
         specifier: 4.12.29
         version: 4.12.29

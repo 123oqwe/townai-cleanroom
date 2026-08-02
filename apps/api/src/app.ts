@@ -29,6 +29,11 @@ import {
   type RevisionRepository,
   type WikiRepository,
 } from "@town/knowledge";
+import {
+  RuntimeError,
+  type RuntimeTransitionService,
+  type SessionRepository,
+} from "@town/runtime";
 
 import { createAuthMiddleware, type AuthVariables } from "./auth.js";
 import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
@@ -36,6 +41,10 @@ import {
   registerKnowledgeRoutes,
   type KnowledgeDependencies,
 } from "./knowledge-routes.js";
+import {
+  registerRuntimeRoutes,
+  type RuntimeDependencies,
+} from "./runtime-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -52,6 +61,21 @@ export interface AppDependencies {
   turnRepository?: TurnRepository;
   taskRepository?: TaskRepository;
   inputRequestRepository?: InputRequestRepository;
+  sessionRepository?: SessionRepository;
+  runtimeTransitionService?: RuntimeTransitionService;
+}
+
+function runtimeDependencies(
+  dependencies: AppDependencies,
+): RuntimeDependencies | null {
+  const { sessionRepository, runtimeTransitionService } = dependencies;
+  if (
+    sessionRepository === undefined ||
+    runtimeTransitionService === undefined
+  ) {
+    return null;
+  }
+  return { sessionRepository, runtimeTransitionService };
 }
 
 function agentDependencies(
@@ -159,7 +183,9 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof TaskError && error.code === "TASK_NOT_FOUND") ||
       (error instanceof TurnError && error.code === "TASK_NOT_FOUND") ||
       (error instanceof InputRequestError &&
-        error.code === "INPUT_REQUEST_NOT_FOUND")
+        error.code === "INPUT_REQUEST_NOT_FOUND") ||
+      (error instanceof RuntimeError &&
+        (error.code === "SESSION_NOT_FOUND" || error.code === "RUN_NOT_FOUND"))
     ) {
       return context.json(
         {
@@ -204,7 +230,10 @@ export function createApp(dependencies?: AppDependencies) {
           error.code === "TASK_THREAD_REQUIRES_TASK_UPDATE")) ||
       (error instanceof TaskError && error.code === "TASK_REVISION_CONFLICT") ||
       (error instanceof InputRequestError &&
-        error.code === "INPUT_REQUEST_ALREADY_RESOLVED")
+        error.code === "INPUT_REQUEST_ALREADY_RESOLVED") ||
+      (error instanceof RuntimeError &&
+        (error.code === "IDEMPOTENCY_CONFLICT" ||
+          error.code === "RUN_STATE_CONFLICT"))
     ) {
       return context.json(
         {
@@ -319,6 +348,15 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/tasks", authenticate);
       app.use("/v1/tasks/*", authenticate);
       registerAgentRoutes(app, agents);
+    }
+
+    const runtime = runtimeDependencies(dependencies);
+    if (runtime !== null) {
+      app.use("/v1/threads", authenticate);
+      app.use("/v1/threads/*", authenticate);
+      app.use("/v1/sessions", authenticate);
+      app.use("/v1/sessions/*", authenticate);
+      registerRuntimeRoutes(app, runtime);
     }
   }
 

@@ -23,7 +23,10 @@ import { RuntimeError } from "./errors.js";
 import {
   runtimePayloadSchema,
   runtimeSessionStateSchema,
+  sessionEventKindSchema,
   sessionRunStateSchema,
+  type SessionEvent,
+  type SessionEventPage,
   type RuntimeSession,
   type MessageSubmission,
   type SessionRun,
@@ -55,6 +58,22 @@ const runCursorKeySchema = z
     fingerprint: z.string().min(1),
     createdAt: z.iso.datetime({ offset: true }),
     id: idSchema,
+  })
+  .strict();
+
+const listEventsSchema = z
+  .object({
+    ownerId: idSchema,
+    sessionId: idSchema,
+    cursor: z.string().min(1).optional(),
+    limit: z.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+
+const eventCursorKeySchema = z
+  .object({
+    fingerprint: z.string().min(1),
+    sequence: z.number().int().positive(),
   })
   .strict();
 
@@ -90,6 +109,16 @@ interface RunRow {
   started_at: Date | null;
   finished_at: Date | null;
   updated_at: Date;
+}
+
+interface EventRow {
+  id: string;
+  session_id: string;
+  run_id: string;
+  sequence: number;
+  kind: string;
+  payload: unknown;
+  created_at: Date;
 }
 
 function safeSession(row: SessionRow): RuntimeSession {
@@ -130,6 +159,18 @@ function safeRun(row: RunRow): SessionRun {
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function safeEvent(row: EventRow): SessionEvent {
+  return {
+    id: asId<"session-event">(row.id),
+    sessionId: asId<"runtime-session">(row.session_id),
+    runId: asId<"session-run">(row.run_id),
+    sequence: row.sequence,
+    kind: sessionEventKindSchema.parse(row.kind),
+    payload: runtimePayloadSchema.parse(row.payload),
+    createdAt: row.created_at,
   };
 }
 
@@ -269,6 +310,50 @@ export function createSessionRepository(sql: Sql) {
       throw new RuntimeError("RUN_NOT_FOUND", "The Run was not found.");
     }
     return safeRun(row);
+  }
+
+  async function listEvents(
+    input: z.input<typeof listEventsSchema>,
+  ): Promise<SessionEventPage> {
+    const value = listEventsSchema.parse(input);
+    const ownerId = asId<"user">(value.ownerId);
+    const sessionId = asId<"runtime-session">(value.sessionId);
+    await get(ownerId, sessionId);
+    const fingerprint = cursorFingerprint({ ownerId, sessionId });
+    const decoded =
+      value.cursor === undefined ? null : decodeCursor(value.cursor);
+    const cursorKey =
+      decoded === null
+        ? null
+        : eventCursorKeySchema.parse(JSON.parse(decoded.key));
+    if (cursorKey !== null && cursorKey.fingerprint !== fingerprint) {
+      throw new RuntimeError("SESSION_NOT_FOUND", "The Session was not found.");
+    }
+    const cursorSequence = cursorKey?.sequence ?? 0;
+    const rows = await sql<EventRow[]>`
+      select id, session_id, run_id, sequence, kind, payload, created_at
+      from session_events
+      where owner_id = ${ownerId} and session_id = ${sessionId}
+        and sequence > ${cursorSequence}
+      order by sequence, id
+      limit ${value.limit + 1}
+    `;
+    const hasMore = rows.length > value.limit;
+    const pageRows = hasMore ? rows.slice(0, value.limit) : rows;
+    const items = pageRows.map(safeEvent);
+    const last = hasMore ? pageRows.at(-1) : undefined;
+    const nextCursor =
+      last === undefined
+        ? null
+        : encodeCursor({
+            version: 1,
+            key: JSON.stringify({
+              fingerprint,
+              sequence: last.sequence,
+            }),
+            id: asId(last.id),
+          });
+    return { items, nextCursor };
   }
 
   async function submitMessage(
@@ -430,7 +515,7 @@ export function createSessionRepository(sql: Sql) {
     return { session, run, turn, replayed: result.replayed };
   }
 
-  return { get, getByThread, getRun, listRuns, submitMessage };
+  return { get, getByThread, getRun, listEvents, listRuns, submitMessage };
 }
 
 export type SessionRepository = ReturnType<typeof createSessionRepository>;

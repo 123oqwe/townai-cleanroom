@@ -23,6 +23,10 @@ import {
   createRevisionRepository,
   createWikiRepository,
 } from "@town/knowledge";
+import {
+  createRuntimeTransitionService,
+  createSessionRepository,
+} from "@town/runtime";
 
 import { createApp } from "./app.js";
 
@@ -53,6 +57,8 @@ const threadRepository = createThreadRepository(sql);
 const turnRepository = createTurnRepository(sql);
 const taskRepository = createTaskRepository(sql);
 const inputRequestRepository = createInputRequestRepository(sql);
+const sessionRepository = createSessionRepository(sql);
+const runtimeTransitionService = createRuntimeTransitionService(sql);
 
 const server = serve({
   fetch: createApp({
@@ -70,6 +76,8 @@ const server = serve({
     turnRepository,
     taskRepository,
     inputRequestRepository,
+    sessionRepository,
+    runtimeTransitionService,
   }).fetch,
   port: environment.PORT,
 });
