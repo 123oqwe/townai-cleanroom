@@ -142,6 +142,25 @@ importers:
         specifier: 3.4.9
         version: 3.4.9
 
+  packages/runtime:
+    dependencies:
+      '@town/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@town/db':
+        specifier: workspace:*
+        version: link:../db
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
+
 packages:
 
   '@balena/dockerignore@1.0.2':
