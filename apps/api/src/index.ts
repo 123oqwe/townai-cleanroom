@@ -41,6 +41,8 @@ import {
 import {
   createRuntimeTransitionService,
   createSessionRepository,
+  createRuntimeQueueRepository,
+  createRuntimeWorker,
 } from "@town/runtime";
 import { createRoutineRepository } from "@town/routines";
 import {
@@ -54,6 +56,7 @@ import {
   createRegistryHarnessBindings,
   createTownSearchHarnessBinding,
 } from "./harness-tools.js";
+import { createHarnessRuntimeAdapter } from "./harness-runtime-adapter.js";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -66,6 +69,10 @@ const environmentSchema = z.object({
   RESPONSES_API_KEY: z.string().min(1).optional(),
   WEB_ORIGIN: z.string().url().default("http://localhost:4173"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
+  WORKER_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 const environment = environmentSchema.parse(process.env);
@@ -200,9 +207,36 @@ const app = createApp({
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });
 
+const runtimeWorker =
+  environment.WORKER_ENABLED && harnessServerFactory !== undefined
+    ? createRuntimeWorker(
+        {
+          queue: createRuntimeQueueRepository(sql),
+          sessions: sessionRepository,
+          transitions: runtimeTransitionService,
+          adapter: createHarnessRuntimeAdapter({
+            createServer: harnessServerFactory,
+            createStore: (ownerId) =>
+              createHarnessThreadStore(database.db, ownerId),
+            turns: turnRepository,
+          }),
+        },
+        { workerId: process.env["WORKER_ID"] ?? `town-worker-${process.pid}` },
+      )
+    : undefined;
+
 export default app;
 
 if (process.env["VERCEL"] !== "1") {
+  let workerTimer: ReturnType<typeof setTimeout> | undefined;
+  const runWorker = async (): Promise<void> => {
+    if (runtimeWorker === undefined) return;
+    await runtimeWorker.runOnce();
+    workerTimer = setTimeout(() => void runWorker(), 250);
+    workerTimer.unref?.();
+  };
+  if (runtimeWorker !== undefined) void runWorker();
+
   const server = serve({
     fetch: app.fetch,
     port: environment.PORT,
@@ -212,6 +246,7 @@ if (process.env["VERCEL"] !== "1") {
   function shutdown(): void {
     if (shuttingDown) return;
     shuttingDown = true;
+    if (workerTimer !== undefined) clearTimeout(workerTimer);
 
     server.close(() => {
       void sql.end().finally(() => process.exit(0));
