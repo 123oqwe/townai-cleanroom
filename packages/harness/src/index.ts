@@ -206,7 +206,6 @@ export function createHarness(input: {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Tool execution failed.";
-      output = message;
       items = [
         ...items,
         { type: "tool_result", callId, toolName: tool.name, output: message },
