@@ -238,39 +238,68 @@ export async function compactHarnessContext(
   return compactContext(items, {
     ...input,
     validate(compacted) {
-      const calls = new Set(
+      const calls = new Map<string, (typeof compacted)[number]>();
+      const allCallIds = new Set(
         compacted
           .filter((item) => item.type === "assistant_tool_call")
           .map((item) => item.callId),
       );
-      const results = new Set(
-        compacted
-          .filter((item) => item.type === "tool_result")
-          .map((item) => item.callId),
-      );
-      const seenCall = new Set<string>();
+      const results = new Set<string>();
       for (const item of compacted) {
-        if (item.type === "tool_result" && !calls.has(item.callId))
-          throw new Error(
-            `HARNESS_CONTEXT_INVALID: tool result ${item.callId} has no matching tool call.`,
-          );
-        if (item.type === "tool_result" && !seenCall.has(item.callId))
-          throw new Error(
-            `HARNESS_CONTEXT_INVALID: tool result ${item.callId} precedes its tool call.`,
-          );
-        if (item.type === "assistant_tool_call") seenCall.add(item.callId);
+        if (item.type === "assistant_tool_call") {
+          if (calls.has(item.callId))
+            throw new Error(
+              `HARNESS_CONTEXT_INVALID: duplicate tool call ${item.callId}.`,
+            );
+          if (item.providerItem !== undefined) {
+            const provider = functionCallSchema.safeParse(item.providerItem);
+            if (
+              !provider.success ||
+              provider.data.call_id !== item.callId ||
+              provider.data.name !== item.toolName
+            )
+              throw new Error(
+                "HARNESS_CONTEXT_INVALID: provider function call does not match tool call.",
+              );
+            let parsedArguments: unknown;
+            try {
+              parsedArguments = JSON.parse(provider.data.arguments);
+            } catch {
+              throw new Error(
+                "HARNESS_CONTEXT_INVALID: provider arguments are invalid.",
+              );
+            }
+            if (
+              JSON.stringify(parsedArguments) !== JSON.stringify(item.arguments)
+            )
+              throw new Error(
+                "HARNESS_CONTEXT_INVALID: provider arguments do not match tool call.",
+              );
+          }
+          calls.set(item.callId, item);
+        }
         if (
           item.type === "provider_item" &&
           item.item["type"] === "function_call"
-        ) {
-          const callId = item.item["call_id"];
-          if (typeof callId !== "string" || !calls.has(callId))
+        )
+          throw new Error(
+            "HARNESS_CONTEXT_INVALID: standalone provider function call is not allowed.",
+          );
+        if (item.type === "tool_result" && !calls.has(item.callId))
+          throw new Error(
+            allCallIds.has(item.callId)
+              ? `HARNESS_CONTEXT_INVALID: tool result ${item.callId} precedes its tool call.`
+              : `HARNESS_CONTEXT_INVALID: tool result ${item.callId} has no matching tool call.`,
+          );
+        if (item.type === "tool_result") {
+          if (results.has(item.callId))
             throw new Error(
-              "HARNESS_CONTEXT_INVALID: provider function call is not paired with a tool call.",
+              `HARNESS_CONTEXT_INVALID: duplicate tool result ${item.callId}.`,
             );
+          results.add(item.callId);
         }
       }
-      for (const callId of calls)
+      for (const callId of calls.keys())
         if (!results.has(callId))
           throw new Error(
             `HARNESS_CONTEXT_INVALID: tool call ${callId} has no matching tool result.`,
