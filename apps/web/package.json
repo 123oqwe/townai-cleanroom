@@ -1,0 +1,9 @@
+{
+  "name": "@town/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node ../../scripts/check-web.mjs"
+  }
+}

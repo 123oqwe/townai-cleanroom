@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { z } from "zod";
 
 import {
@@ -94,6 +95,7 @@ export interface AppDependencies {
   channelRepository?: ChannelRepository;
   billingRepository?: BillingRepository;
   operationsRepository?: OperationsRepository;
+  webOrigin?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
 }
@@ -197,6 +199,16 @@ export function createApp(dependencies?: AppDependencies) {
       "HARNESS_CONFIGURATION_CONFLICT: provide harnessServer or harnessServerFactory, not both.",
     );
   const app = new Hono<{ Variables: AuthVariables }>();
+  if (dependencies?.webOrigin !== undefined)
+    app.use(
+      "/v1/*",
+      cors({
+        origin: dependencies.webOrigin,
+        allowHeaders: ["Authorization", "Content-Type"],
+        allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        maxAge: 600,
+      }),
+    );
 
   app.onError((error, context) => {
     if (error instanceof z.ZodError || error instanceof SyntaxError) {

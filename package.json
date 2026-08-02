@@ -17,6 +17,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "check:source": "node scripts/check-source-only.mjs",
+    "check:web": "node scripts/check-web.mjs",
     "verify": "pnpm check:source && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {

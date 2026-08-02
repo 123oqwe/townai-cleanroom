@@ -64,6 +64,7 @@ const environmentSchema = z.object({
     .default("https://api.openai.com/v1/responses"),
   RESPONSES_MODEL: z.string().min(1).default("gpt-5"),
   RESPONSES_API_KEY: z.string().min(1).optional(),
+  WEB_ORIGIN: z.string().url().default("http://localhost:4173"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
 });
 
@@ -195,6 +196,7 @@ const server = serve({
     channelRepository,
     billingRepository,
     operationsRepository,
+    webOrigin: environment.WEB_ORIGIN,
     ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
   }).fetch,
   port: environment.PORT,

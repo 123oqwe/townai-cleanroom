@@ -62,6 +62,8 @@ control using your platform's secure secret-management workflow.
 - Owner-scoped Operations audit events with deduplication, opaque keyset
   pagination, authenticated audit reads, and live runtime backlog summaries for
   sessions, runs, approvals, and notification delivery recovery.
+- A responsive, API-backed `apps/web` command center with explicit connection,
+  empty, error, focus, and harness states; it uses no fabricated backend data.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f1eb" />
+    <meta
+      name="description"
+      content="Town — a calm command center for durable AI work."
+    />
+    <title>Town — Command center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">t</span>
+          <span class="brand-name">town</span>
+          <span class="brand-mode">clear</span>
+        </div>
+        <nav class="primary-nav">
+          <a class="nav-item is-active" href="#focus"
+            ><span class="nav-icon">◌</span>Focus</a
+          >
+          <a class="nav-item" href="#runs"
+            ><span class="nav-icon">↗</span>Runs</a
+          >
+          <a class="nav-item" href="#library"
+            ><span class="nav-icon">□</span>Library</a
+          >
+          <a class="nav-item" href="#team"
+            ><span class="nav-icon">+</span>People</a
+          >
+        </nav>
+        <div class="sidebar-bottom">
+          <button class="quiet-button" id="connect-open" type="button">
+            <span class="status-dot"></span
+            ><span id="connection-label">Connect API</span
+            ><span class="shortcut">⌘ K</span>
+          </button>
+          <a class="profile-chip" href="#settings" aria-label="Open settings"
+            ><span class="avatar">G</span
+            ><span><strong>Workspace</strong><small>Personal space</small></span
+            ><span class="chevron">↗</span></a
+          >
+        </div>
+      </aside>
+
+      <main id="main" class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb">
+            <span>Workspace</span><span class="crumb-separator">/</span
+            ><strong>Focus</strong>
+          </div>
+          <div class="top-actions">
+            <span class="live-indicator"
+              ><span class="status-dot"></span
+              ><span id="top-status">Local-first</span></span
+            ><button
+              class="icon-button"
+              id="refresh"
+              type="button"
+              aria-label="Refresh live data"
+            >
+              ↻</button
+            ><button
+              class="avatar avatar-small"
+              type="button"
+              aria-label="Open account menu"
+            >
+              G
+            </button>
+          </div>
+        </header>
+
+        <section class="welcome" id="focus" aria-labelledby="welcome-title">
+          <div>
+            <p class="eyebrow">Monday · <span id="today-date">today</span></p>
+            <h1 id="welcome-title">
+              Make room for<br /><em>the important.</em>
+            </h1>
+            <p class="lede">
+              One clear surface for your people, projects, and durable work.
+            </p>
+          </div>
+          <div class="welcome-note">
+            <span class="note-line"></span>
+            <p>Nothing is urgent<br /><strong>until you say it is.</strong></p>
+          </div>
+        </section>
+
+        <section class="dashboard-grid" aria-label="Workspace overview">
+          <article class="panel focus-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Now</p>
+                <h2>Your focus</h2>
+              </div>
+              <span class="panel-kicker">01</span>
+            </div>
+            <div class="focus-empty" id="focus-empty">
+              <span class="focus-glyph">✦</span>
+              <p>Start with one clear intention.</p>
+              <button class="text-button" id="intention-button" type="button">
+                Set an intention <span>→</span>
+              </button>
+            </div>
+            <form class="intention-form" id="intention-form" hidden>
+              <label for="intention">What deserves your attention?</label>
+              <div class="input-row">
+                <input
+                  id="intention"
+                  name="intention"
+                  maxlength="140"
+                  placeholder="Write it in a sentence…"
+                  autocomplete="off"
+                /><button class="primary-button" type="submit">Hold it</button>
+              </div>
+              <p class="form-hint">
+                Saved in this browser until a server-backed task is connected.
+              </p>
+            </form>
+          </article>
+
+          <article class="panel signal-panel" id="runs">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">System signal</p>
+                <h2>At a glance</h2>
+              </div>
+              <span class="signal-state" id="signal-state">Not connected</span>
+            </div>
+            <div class="metric-list" id="metrics" aria-live="polite">
+              <div class="metric-row">
+                <span>Active work</span><strong>—</strong>
+              </div>
+              <div class="metric-row">
+                <span>Queued runs</span><strong>—</strong>
+              </div>
+              <div class="metric-row">
+                <span>Needs approval</span><strong>—</strong>
+              </div>
+              <div class="metric-row">
+                <span>Deliveries</span><strong>—</strong>
+              </div>
+            </div>
+            <p class="panel-foot" id="signal-foot">
+              Connect an authenticated API to see live state.
+            </p>
+          </article>
+
+          <article class="panel timeline-panel" id="library">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Today</p>
+                <h2>Run trail</h2>
+              </div>
+              <a class="panel-link" href="#runs">See all <span>↗</span></a>
+            </div>
+            <div class="timeline" id="timeline" aria-live="polite">
+              <div class="empty-timeline">
+                <span class="timeline-line"></span>
+                <p>No run events yet.</p>
+                <small
+                  >Your durable work will appear here when the API is
+                  connected.</small
+                >
+              </div>
+            </div>
+          </article>
+
+          <article class="panel people-panel" id="team">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">People</p>
+                <h2>Keep close</h2>
+              </div>
+              <span class="panel-kicker">03</span>
+            </div>
+            <div class="people-empty">
+              <div class="orbit" aria-hidden="true">
+                <span>G</span><span>+</span><span>·</span>
+              </div>
+              <p>People you care about<br /><strong>belong here.</strong></p>
+              <button class="text-button" type="button" id="people-button">
+                Add someone <span>→</span>
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <section class="command-strip" aria-labelledby="command-title">
+          <div class="command-copy">
+            <span class="command-mark">⌁</span>
+            <div>
+              <p class="eyebrow">The short way in</p>
+              <h2 id="command-title">What should Town carry for you?</h2>
+            </div>
+          </div>
+          <button class="command-button" id="command-open" type="button">
+            Open harness <span>⌘ ↵</span>
+          </button>
+        </section>
+        <footer class="footer">
+          <span>Town clear · local-first by default</span
+          ><span>Backend state is always explicit</span>
+        </footer>
+      </main>
+    </div>
+
+    <dialog
+      class="connect-dialog"
+      id="connect-dialog"
+      aria-labelledby="connect-title"
+    >
+      <form method="dialog" id="connect-form">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Private connection</p>
+        <h2 id="connect-title">
+          Bring your workspace<br /><em>into view.</em>
+        </h2>
+        <p class="dialog-copy">
+          Paste a bearer token for your Town API. It stays in this browser and
+          is never written into the source.
+        </p>
+        <label for="api-base">API base URL</label
+        ><input
+          id="api-base"
+          name="api-base"
+          type="url"
+          value="http://localhost:3000"
+          required
+        /><label for="api-token">Bearer token</label
+        ><input
+          id="api-token"
+          name="api-token"
+          type="password"
+          placeholder="Paste token"
+          autocomplete="off"
+          required
+        />
+        <div class="dialog-actions">
+          <button class="quiet-button" value="cancel" type="submit">
+            Cancel</button
+          ><button
+            class="primary-button"
+            id="connect-submit"
+            value="default"
+            type="submit"
+          >
+            Connect <span>→</span>
+          </button>
+        </div>
+        <p class="dialog-error" id="connect-error" role="alert" hidden></p>
+      </form>
+    </dialog>
+    <dialog
+      class="harness-dialog"
+      id="harness-dialog"
+      aria-labelledby="harness-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Codex-style harness</p>
+        <h2 id="harness-title">A clear next step.</h2>
+        <p class="dialog-copy">
+          The durable harness is available through the authenticated API. This
+          surface will become the focused turn composer when a worker is
+          configured.
+        </p>
+        <div class="harness-state">
+          <span class="status-dot"></span
+          ><span id="harness-state-text">No provider worker configured</span>
+        </div>
+        <button class="primary-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
