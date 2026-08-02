@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { asId } from "@town/contracts";
 import { createChannelRepository } from "@town/channels";
@@ -73,6 +74,7 @@ const environmentSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  WORKER_SECRET: z.string().min(1).optional(),
 });
 
 const environment = environmentSchema.parse(process.env);
@@ -208,7 +210,8 @@ const app = createApp({
 });
 
 const runtimeWorker =
-  environment.WORKER_ENABLED && harnessServerFactory !== undefined
+  (environment.WORKER_ENABLED || process.env["VERCEL"] === "1") &&
+  harnessServerFactory !== undefined
     ? createRuntimeWorker(
         {
           queue: createRuntimeQueueRepository(sql),
@@ -224,6 +227,22 @@ const runtimeWorker =
         { workerId: process.env["WORKER_ID"] ?? `town-worker-${process.pid}` },
       )
     : undefined;
+
+const workerSecret = environment.WORKER_SECRET;
+if (runtimeWorker !== undefined && workerSecret !== undefined) {
+  app.post("/v1/internal/worker", async (context) => {
+    const supplied = context.req
+      .header("Authorization")
+      ?.match(/^Bearer ([^\s,]+)$/)?.[1];
+    if (supplied === undefined)
+      return context.json({ code: "UNAUTHORIZED" }, 401);
+    const expected = Buffer.from(workerSecret);
+    const actual = Buffer.from(supplied);
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual))
+      return context.json({ code: "UNAUTHORIZED" }, 401);
+    return context.json(await runtimeWorker.runOnce());
+  });
+}
 
 export default app;
 
