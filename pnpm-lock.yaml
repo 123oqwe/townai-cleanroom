@@ -164,6 +164,12 @@ importers:
         specifier: 3.4.9
         version: 3.4.9
 
+  packages/tools:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+
 packages:
 
   '@balena/dockerignore@1.0.2':
