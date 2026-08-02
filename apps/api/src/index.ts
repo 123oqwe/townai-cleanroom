@@ -1,6 +1,13 @@
 import { serve } from "@hono/node-server";
 import { z } from "zod";
 
+import {
+  createAgentRepository,
+  createInputRequestRepository,
+  createTaskRepository,
+  createThreadRepository,
+  createTurnRepository,
+} from "@town/agents";
 import { createDatabase, runMigrations } from "@town/db";
 import {
   createAccountRepository,
@@ -41,6 +48,11 @@ const wikiRepository = createWikiRepository(sql);
 const revisionRepository = createRevisionRepository(sql);
 const knowledgeSearchRepository = createKnowledgeSearchRepository(sql);
 const knowledgeConflictService = createKnowledgeConflictService(sql);
+const agentRepository = createAgentRepository(sql);
+const threadRepository = createThreadRepository(sql);
+const turnRepository = createTurnRepository(sql);
+const taskRepository = createTaskRepository(sql);
+const inputRequestRepository = createInputRequestRepository(sql);
 
 const server = serve({
   fetch: createApp({
@@ -53,6 +65,11 @@ const server = serve({
     revisionRepository,
     knowledgeSearchRepository,
     knowledgeConflictService,
+    agentRepository,
+    threadRepository,
+    turnRepository,
+    taskRepository,
+    inputRequestRepository,
   }).fetch,
   port: environment.PORT,
 });

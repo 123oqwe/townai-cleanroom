@@ -315,7 +315,13 @@ export function createTurnRepository(sql: Sql) {
         ? null
         : turnCursorKeySchema.parse(JSON.parse(decoded.key));
     if (cursorKey !== null && cursorKey.fingerprint !== queryFingerprint) {
-      throw new Error("The Turn cursor belongs to a different Thread.");
+      throw new z.ZodError([
+        {
+          code: "custom",
+          path: ["cursor"],
+          message: "Cursor Thread mismatch.",
+        },
+      ]);
     }
     const cursorSequence = cursorKey?.sequence ?? 0;
     const rows = await sql<TurnRow[]>`

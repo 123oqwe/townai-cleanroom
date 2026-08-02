@@ -490,7 +490,13 @@ export function createTaskRepository(sql: Sql) {
         ? null
         : taskCursorKeySchema.parse(JSON.parse(decoded.key));
     if (cursorKey !== null && cursorKey.fingerprint !== queryFingerprint) {
-      throw new Error("The Task cursor belongs to different filters.");
+      throw new z.ZodError([
+        {
+          code: "custom",
+          path: ["cursor"],
+          message: "Cursor filter mismatch.",
+        },
+      ]);
     }
     const cursorScheduleRank = cursorKey?.scheduledFor === null ? 1 : 0;
     const cursorScheduledFor =

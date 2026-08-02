@@ -56,6 +56,7 @@ const listThreadsSchema = z
     ownerId: idSchema,
     kinds: z.array(threadKindSchema).min(1).optional(),
     statuses: z.array(threadStatusSchema).min(1).optional(),
+    pinned: z.boolean().optional(),
     unread: z.boolean().optional(),
     cursor: z.string().min(1).optional(),
     limit: z.number().int().min(1).max(100).default(50),
@@ -117,6 +118,7 @@ function fingerprint(input: {
   ownerId: string;
   kinds: ThreadKind[];
   statuses: ConversationThread["status"][];
+  pinned?: boolean | undefined;
   unread?: boolean | undefined;
 }): string {
   return createHash("sha256")
@@ -125,6 +127,7 @@ function fingerprint(input: {
         ownerId: input.ownerId,
         kinds: [...input.kinds].sort(),
         statuses: [...input.statuses].sort(),
+        pinned: input.pinned ?? null,
         unread: input.unread ?? null,
       }),
     )
@@ -348,6 +351,7 @@ export function createThreadRepository(sql: Sql) {
       ownerId,
       kinds,
       statuses,
+      pinned: value.pinned,
       unread: value.unread,
     });
     const decoded =
@@ -357,7 +361,13 @@ export function createThreadRepository(sql: Sql) {
         ? null
         : threadCursorKeySchema.parse(JSON.parse(decoded.key));
     if (cursorKey !== null && cursorKey.fingerprint !== queryFingerprint) {
-      throw new Error("The Thread cursor belongs to different filters.");
+      throw new z.ZodError([
+        {
+          code: "custom",
+          path: ["cursor"],
+          message: "Cursor filter mismatch.",
+        },
+      ]);
     }
     const cursorPinnedRank = cursorKey?.pinned === true ? 1 : 0;
     const cursorPinnedAt = cursorKey?.pinnedAt ?? "0001-01-01T00:00:00.000Z";
@@ -366,6 +376,8 @@ export function createThreadRepository(sql: Sql) {
     const hasCursor = cursorKey !== null;
     const unreadFilter = value.unread ?? false;
     const hasUnreadFilter = value.unread !== undefined;
+    const pinnedFilter = value.pinned ?? false;
+    const hasPinnedFilter = value.pinned !== undefined;
 
     const rows = await sql<ThreadRow[]>`
       with projected as (
@@ -386,6 +398,7 @@ export function createThreadRepository(sql: Sql) {
       select * from projected
       where kind = any(${sql.array(kinds)}::text[])
         and status = any(${sql.array(statuses)}::text[])
+        and (${!hasPinnedFilter} or (pinned_at is not null) = ${pinnedFilter})
         and (${!hasUnreadFilter} or unread = ${unreadFilter})
         and (
           ${!hasCursor}

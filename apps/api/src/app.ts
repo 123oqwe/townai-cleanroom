@@ -1,6 +1,18 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
+import {
+  AgentError,
+  InputRequestError,
+  TaskError,
+  ThreadError,
+  TurnError,
+  type AgentRepository,
+  type InputRequestRepository,
+  type TaskRepository,
+  type ThreadRepository,
+  type TurnRepository,
+} from "@town/agents";
 import type { AccountRepository, IdentityService } from "@town/identity";
 import {
   KnowledgeSearchError,
@@ -19,6 +31,7 @@ import {
 } from "@town/knowledge";
 
 import { createAuthMiddleware, type AuthVariables } from "./auth.js";
+import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
 import {
   registerKnowledgeRoutes,
   type KnowledgeDependencies,
@@ -34,6 +47,39 @@ export interface AppDependencies {
   revisionRepository?: RevisionRepository;
   knowledgeSearchRepository?: KnowledgeSearchRepository;
   knowledgeConflictService?: KnowledgeConflictService;
+  agentRepository?: AgentRepository;
+  threadRepository?: ThreadRepository;
+  turnRepository?: TurnRepository;
+  taskRepository?: TaskRepository;
+  inputRequestRepository?: InputRequestRepository;
+}
+
+function agentDependencies(
+  dependencies: AppDependencies,
+): AgentDependencies | null {
+  const {
+    agentRepository,
+    threadRepository,
+    turnRepository,
+    taskRepository,
+    inputRequestRepository,
+  } = dependencies;
+  if (
+    agentRepository === undefined ||
+    threadRepository === undefined ||
+    turnRepository === undefined ||
+    taskRepository === undefined ||
+    inputRequestRepository === undefined
+  ) {
+    return null;
+  }
+  return {
+    agentRepository,
+    threadRepository,
+    turnRepository,
+    taskRepository,
+    inputRequestRepository,
+  };
 }
 
 function knowledgeDependencies(
@@ -108,6 +154,25 @@ export function createApp(dependencies?: AppDependencies) {
       );
     }
     if (
+      (error instanceof AgentError && error.code === "AGENT_NOT_FOUND") ||
+      (error instanceof ThreadError && error.code === "THREAD_NOT_FOUND") ||
+      (error instanceof TaskError && error.code === "TASK_NOT_FOUND") ||
+      (error instanceof TurnError && error.code === "TASK_NOT_FOUND") ||
+      (error instanceof InputRequestError &&
+        error.code === "INPUT_REQUEST_NOT_FOUND")
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/not-found",
+          title: "Resource not found",
+          status: 404,
+          detail: "The requested resource was not found.",
+          code: error.code,
+        },
+        404,
+      );
+    }
+    if (
       (error instanceof ProfileError &&
         error.code === "PROFILE_ALREADY_EXISTS") ||
       (error instanceof PeopleError &&
@@ -117,6 +182,28 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof RevisionError &&
         (error.code === "REVISION_CONFLICT" ||
           error.code === "REVISION_ALREADY_EXISTS"))
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/conflict",
+          title: "Resource conflict",
+          status: 409,
+          detail: "The resource changed or already exists.",
+          code: error.code,
+        },
+        409,
+      );
+    }
+    if (
+      (error instanceof AgentError &&
+        (error.code === "AGENT_REVISION_CONFLICT" ||
+          error.code === "PERSONAL_AGENT_ALREADY_EXISTS")) ||
+      (error instanceof ThreadError &&
+        (error.code === "THREAD_REVISION_CONFLICT" ||
+          error.code === "TASK_THREAD_REQUIRES_TASK_DELETE")) ||
+      (error instanceof TaskError && error.code === "TASK_REVISION_CONFLICT") ||
+      (error instanceof InputRequestError &&
+        error.code === "INPUT_REQUEST_ALREADY_RESOLVED")
     ) {
       return context.json(
         {
@@ -148,6 +235,21 @@ export function createApp(dependencies?: AppDependencies) {
           title: "Provenance required",
           status: 422,
           detail: "Assistant-derived knowledge requires a source citation.",
+          code: error.code,
+        },
+        422,
+      );
+    }
+    if (
+      (error instanceof TaskError && error.code === "REFERENCE_UNAVAILABLE") ||
+      (error instanceof TurnError && error.code === "REFERENCE_UNAVAILABLE")
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/reference-unavailable",
+          title: "Reference unavailable",
+          status: 422,
+          detail: "The referenced resource is not available.",
           code: error.code,
         },
         422,
@@ -205,6 +307,17 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/knowledge", authenticate);
       app.use("/v1/knowledge/*", authenticate);
       registerKnowledgeRoutes(app, knowledge);
+    }
+
+    const agents = agentDependencies(dependencies);
+    if (agents !== null) {
+      app.use("/v1/agents", authenticate);
+      app.use("/v1/agents/*", authenticate);
+      app.use("/v1/threads", authenticate);
+      app.use("/v1/threads/*", authenticate);
+      app.use("/v1/tasks", authenticate);
+      app.use("/v1/tasks/*", authenticate);
+      registerAgentRoutes(app, agents);
     }
   }
 

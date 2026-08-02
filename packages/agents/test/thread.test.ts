@@ -250,6 +250,12 @@ describe("Thread repository", () => {
     expect(
       new Set([...page1.items, ...page2.items].map(({ id }) => id)).size,
     ).toBe(4);
+    await expect(
+      threads.list({ ownerId, pinned: true, limit: 10 }),
+    ).resolves.toMatchObject({
+      items: [{ id: first.id }, { id: third.id }],
+      nextCursor: null,
+    });
 
     await expect(
       threads.list({

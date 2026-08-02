@@ -73,7 +73,7 @@ describe("knowledge migration", () => {
     );
   });
 
-  it("applies both migrations exactly once", async () => {
+  it("keeps every known migration recorded exactly once", async () => {
     await runMigrations(sql);
     await runMigrations(sql);
 
@@ -82,6 +82,10 @@ describe("knowledge migration", () => {
       from schema_migrations
     `;
 
-    expect(rows[0]?.names).toEqual(["0001_identity.sql", "0002_knowledge.sql"]);
+    expect(rows[0]?.names).toEqual([
+      "0001_identity.sql",
+      "0002_knowledge.sql",
+      "0003_agents_threads_tasks.sql",
+    ]);
   });
 });
