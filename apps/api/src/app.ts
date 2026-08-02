@@ -41,6 +41,7 @@ import {
   type ToolRegistryRepository,
 } from "@town/tools";
 import type { AppServer, AppServerRequest } from "@town/harness";
+import { ContentError, type ContentRepository } from "@town/content";
 
 import { createAuthMiddleware, type AuthVariables } from "./auth.js";
 import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
@@ -53,6 +54,7 @@ import {
   type RuntimeDependencies,
 } from "./runtime-routes.js";
 import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
+import { registerContentRoutes } from "./content-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -73,6 +75,7 @@ export interface AppDependencies {
   runtimeTransitionService?: RuntimeTransitionService;
   toolRegistryRepository?: ToolRegistryRepository;
   toolExecutionRepository?: ToolExecutionRepository;
+  contentRepository?: ContentRepository;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
 }
@@ -198,7 +201,11 @@ export function createApp(dependencies?: AppDependencies) {
         error.code === "WIKI_DOCUMENT_NOT_FOUND") ||
       (error instanceof RevisionError &&
         (error.code === "RESOURCE_NOT_FOUND" ||
-          error.code === "CONFLICT_NOT_FOUND"))
+          error.code === "CONFLICT_NOT_FOUND")) ||
+      (error instanceof ContentError &&
+        (error.code === "CONTENT_NOT_FOUND" ||
+          error.code === "COLLECTION_NOT_FOUND" ||
+          error.code === "SHARE_NOT_FOUND"))
     ) {
       return context.json(
         {
@@ -286,7 +293,11 @@ export function createApp(dependencies?: AppDependencies) {
         error.code === "WIKI_DOCUMENT_ALREADY_EXISTS") ||
       (error instanceof RevisionError &&
         (error.code === "REVISION_CONFLICT" ||
-          error.code === "REVISION_ALREADY_EXISTS"))
+          error.code === "REVISION_ALREADY_EXISTS")) ||
+      (error instanceof ContentError &&
+        (error.code === "CONTENT_CONFLICT" ||
+          error.code === "CONTENT_ALREADY_EXISTS" ||
+          error.code === "COLLECTION_ALREADY_EXISTS"))
     ) {
       return context.json(
         {
@@ -447,6 +458,13 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/approvals", authenticate);
       app.use("/v1/approvals/*", authenticate);
       registerToolRoutes(app, tools);
+    }
+    if (dependencies.contentRepository !== undefined) {
+      app.use("/v1/content", authenticate);
+      app.use("/v1/content/*", authenticate);
+      registerContentRoutes(app, {
+        repository: dependencies.contentRepository,
+      });
     }
 
     const harnessServer = dependencies.harnessServer;

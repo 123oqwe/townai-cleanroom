@@ -47,6 +47,9 @@ importers:
       '@town/agents':
         specifier: workspace:*
         version: link:../../packages/agents
+      '@town/content':
+        specifier: workspace:*
+        version: link:../../packages/content
       '@town/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -93,6 +96,25 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
+
+  packages/content:
+    dependencies:
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@town/db':
+        specifier: workspace:*
+        version: link:../db
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
       postgres:
         specifier: 3.4.9
         version: 3.4.9

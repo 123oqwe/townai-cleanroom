@@ -1386,3 +1386,189 @@ export const harnessThreads = pgTable(
     ),
   ],
 );
+
+export const contentItems = pgTable(
+  "content_items",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    mimeType: text("mime_type"),
+    storageKey: text("storage_key"),
+    body: text("body"),
+    metadata: jsonb("metadata").notNull().default({}),
+    sourceSessionId: uuid("source_session_id"),
+    status: text("status").notNull().default("active"),
+    currentRevision: integer("current_revision").notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    unique("content_items_owner_id_id_unique").on(table.ownerId, table.id),
+    uniqueIndex("content_items_owner_storage_key_unique").on(
+      table.ownerId,
+      table.storageKey,
+    ),
+    index("content_items_owner_status_idx").on(
+      table.ownerId,
+      table.status,
+      table.updatedAt,
+      table.id,
+    ),
+    check(
+      "content_items_kind_allowed",
+      sql`${table.kind} in ('document','file','image','audio','recording','briefing')`,
+    ),
+    check(
+      "content_items_status_allowed",
+      sql`${table.status} in ('active','archived','deleted')`,
+    ),
+    check(
+      "content_items_payload_present",
+      sql`${table.storageKey} is not null or ${table.body} is not null`,
+    ),
+    check(
+      "content_items_metadata_object",
+      sql`jsonb_typeof(${table.metadata}) = 'object'`,
+    ),
+    foreignKey({
+      columns: [table.ownerId, table.sourceSessionId],
+      foreignColumns: [runtimeSessions.ownerId, runtimeSessions.id],
+      name: "content_items_owner_source_session_fk",
+    }),
+  ],
+);
+
+export const contentRevisions = pgTable(
+  "content_revisions",
+  {
+    id: uuid("id").primaryKey(),
+    contentId: uuid("content_id").notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    title: text("title").notNull(),
+    mimeType: text("mime_type"),
+    storageKey: text("storage_key"),
+    body: text("body"),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("content_revisions_content_revision_unique").on(
+      table.contentId,
+      table.revision,
+    ),
+    index("content_revisions_owner_content_idx").on(
+      table.ownerId,
+      table.contentId,
+      table.revision,
+    ),
+    check(
+      "content_revisions_payload_present",
+      sql`${table.storageKey} is not null or ${table.body} is not null`,
+    ),
+    check(
+      "content_revisions_metadata_object",
+      sql`jsonb_typeof(${table.metadata}) = 'object'`,
+    ),
+    foreignKey({
+      columns: [table.ownerId, table.contentId],
+      foreignColumns: [contentItems.ownerId, contentItems.id],
+      name: "content_revisions_owner_content_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const contentCollections = pgTable(
+  "content_collections",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    ...timestamps,
+  },
+  (table) => [
+    unique("content_collections_owner_id_name_unique").on(
+      table.ownerId,
+      table.name,
+    ),
+    unique("content_collections_owner_id_unique").on(table.ownerId, table.id),
+    index("content_collections_owner_idx").on(
+      table.ownerId,
+      table.updatedAt,
+      table.id,
+    ),
+  ],
+);
+
+export const contentCollectionItems = pgTable(
+  "content_collection_items",
+  {
+    collectionId: uuid("collection_id").notNull(),
+    contentId: uuid("content_id").notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.collectionId, table.contentId] }),
+    index("content_collection_items_owner_idx").on(
+      table.ownerId,
+      table.collectionId,
+      table.position,
+      table.contentId,
+    ),
+    check(
+      "content_collection_items_position_nonnegative",
+      sql`${table.position} >= 0`,
+    ),
+    foreignKey({
+      columns: [table.ownerId, table.collectionId],
+      foreignColumns: [contentCollections.ownerId, contentCollections.id],
+      name: "content_collection_items_owner_collection_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.ownerId, table.contentId],
+      foreignColumns: [contentItems.ownerId, contentItems.id],
+      name: "content_collection_items_owner_content_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const contentShareTokens = pgTable(
+  "content_share_tokens",
+  {
+    id: uuid("id").primaryKey(),
+    contentId: uuid("content_id").notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: bytea("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("content_share_tokens_lookup_idx").on(table.tokenHash),
+    foreignKey({
+      columns: [table.ownerId, table.contentId],
+      foreignColumns: [contentItems.ownerId, contentItems.id],
+      name: "content_share_tokens_owner_content_fk",
+    }).onDelete("cascade"),
+  ],
+);

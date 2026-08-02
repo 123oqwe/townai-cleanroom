@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { z } from "zod";
 import { asId } from "@town/contracts";
+import { createContentRepository } from "@town/content";
 
 import {
   AgentError,
@@ -86,6 +87,7 @@ const runtimeTransitionService = createRuntimeTransitionService(sql);
 const routineRepository = createRoutineRepository(sql);
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
+const contentRepository = createContentRepository(sql);
 
 const harnessServerFactory =
   environment.RESPONSES_API_KEY === undefined
@@ -175,6 +177,7 @@ const server = serve({
     runtimeTransitionService,
     toolRegistryRepository,
     toolExecutionRepository,
+    contentRepository,
     ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
   }).fetch,
   port: environment.PORT,
