@@ -34,6 +34,12 @@ stage. Vercel's documentation states that protecting production domains with
 Protection; the project setting must be verified before claiming a restricted
 production release.
 
+The available Vercel API credential was verified as the `123oqwe` account, but
+the REST API cannot resolve the connector-created `town-clear` project or its
+deployment IDs. The deployment connector exposes no project-settings mutation
+endpoint, so enabling protection requires reconnecting the project to the
+owner's Vercel API scope (or enabling the setting in the Vercel dashboard).
+
 The API entrypoint now exports the Hono app as the default from
 `apps/api/src/index.ts` when `VERCEL=1`; local development still uses the Node
 server listener. This keeps serverless invocation separate from local process
