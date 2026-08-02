@@ -378,6 +378,59 @@ export function createChannelRepository(sql: Sql) {
       );
     return safeDelivery(row);
   }
-  return { create, list, disable, enqueue, claimNext, complete };
+  async function deliverNext(input: {
+    workerId: string;
+    leaseMs?: number;
+    fetch?: typeof globalThis.fetch;
+  }): Promise<{ delivery: NotificationDelivery | null; claimed: boolean }> {
+    const claimed = await claimNext(input.workerId, input.leaseMs);
+    if (claimed === null) return { delivery: null, claimed: false };
+    const request = input.fetch ?? globalThis.fetch;
+    let success = false;
+    let error: string | undefined;
+    try {
+      if (request === undefined) throw new Error("CHANNEL_FETCH_UNAVAILABLE");
+      const [channel] = await sql<Pick<ChannelRow, "kind" | "address">[]>`
+        select kind, address from notification_channels
+        where owner_id=${claimed.ownerId} and id=${claimed.channelId} and status='active'
+      `;
+      if (channel === undefined) throw new Error("CHANNEL_NOT_FOUND");
+      if (channel.kind !== "webhook")
+        throw new Error(`CHANNEL_KIND_UNSUPPORTED:${channel.kind}`);
+      const response = await request(channel.address, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          eventType: claimed.eventType,
+          payload: claimed.payload,
+        }),
+      });
+      if (!response.ok) throw new Error(`CHANNEL_HTTP_${response.status}`);
+      success = true;
+    } catch (caught) {
+      error =
+        caught instanceof Error ? caught.message : "CHANNEL_DELIVERY_FAILED";
+    }
+    const retryAt = success
+      ? null
+      : new Date(
+          Date.now() +
+            Math.min(300_000, 1_000 * 2 ** Math.min(claimed.attempts, 8)),
+        );
+    const delivery = await complete({
+      ownerId: claimed.ownerId,
+      deliveryId: claimed.id,
+      workerId: input.workerId,
+      claimToken: claimed.claimToken,
+      success,
+      ...(error === undefined ? {} : { error }),
+      ...(retryAt === null ? {} : { retryAt }),
+    });
+    return { delivery, claimed: true };
+  }
+  return { create, list, disable, enqueue, claimNext, complete, deliverNext };
 }
 export type ChannelRepository = ReturnType<typeof createChannelRepository>;

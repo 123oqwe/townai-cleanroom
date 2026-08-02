@@ -115,6 +115,12 @@ Approval-gated `google_gmail_send` uses Gmail's RFC 822 `messages.send` API,
 rejects header-injection input, and reports success only after Google confirms
 the sent message.
 
+Notification channels now have a real webhook outbox executor: queued
+deliveries are leased, POSTed as `{ eventType, payload }`, marked succeeded only
+on a 2xx response, and scheduled for bounded exponential retry on provider
+failure. The executor runs from the protected internal worker endpoint and the
+local worker loop.
+
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,
 and revision-checked transitions; private Memory and credentials are never

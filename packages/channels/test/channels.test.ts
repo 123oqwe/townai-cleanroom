@@ -6,6 +6,7 @@ import {
   expect,
   inject,
   it,
+  vi,
 } from "vitest";
 import postgres, { type Sql } from "postgres";
 
@@ -172,6 +173,59 @@ describe("notification channels", () => {
     ).resolves.toMatchObject({
       id: delivery.id,
       attempts: 2,
+    });
+  });
+
+  it("executes webhook outbox deliveries and records provider failures for retry", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/town-hook",
+      config: { headers: {} },
+    });
+    await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.completed",
+      idempotencyKey: "delivery-success",
+      payload: { runId: "run-success" },
+    });
+    const fetch = vi.fn<typeof globalThis.fetch>(async (_url, options) => {
+      expect(options?.method).toBe("POST");
+      expect(JSON.parse(String(options?.body))).toMatchObject({
+        eventType: "routine.completed",
+      });
+      return new Response(null, { status: 202 });
+    });
+    await expect(
+      repository.deliverNext({ workerId: "delivery-worker", fetch }),
+    ).resolves.toMatchObject({
+      claimed: true,
+      delivery: { status: "succeeded" },
+    });
+    expect(fetch).toHaveBeenCalledOnce();
+
+    const failed = await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.failed",
+      idempotencyKey: "delivery-failure",
+      payload: { runId: "run-failure" },
+    });
+    await expect(
+      repository.deliverNext({
+        workerId: "delivery-worker",
+        fetch: vi.fn(async () => new Response("no", { status: 503 })),
+      }),
+    ).resolves.toMatchObject({
+      claimed: true,
+      delivery: {
+        id: failed.id,
+        status: "failed",
+        lastError: "CHANNEL_HTTP_503",
+        nextAttemptAt: expect.any(Date),
+      },
     });
   });
 });

@@ -334,7 +334,8 @@ const routineScheduler =
       });
 
 const workerSecret = environment.WORKER_SECRET;
-if (runtimeWorker !== undefined && workerSecret !== undefined) {
+const workerId = process.env["WORKER_ID"] ?? `town-worker-${process.pid}`;
+if (workerSecret !== undefined) {
   app.post("/v1/internal/worker", async (context) => {
     const supplied = context.req
       .header("Authorization")
@@ -349,7 +350,9 @@ if (runtimeWorker !== undefined && workerSecret !== undefined) {
       routineScheduler === undefined ? undefined : await routineScheduler();
     return context.json({
       schedule,
-      runtime: await runtimeWorker.runOnce(),
+      runtime:
+        runtimeWorker === undefined ? undefined : await runtimeWorker.runOnce(),
+      channel: await channelRepository.deliverNext({ workerId }),
     });
   });
 }
@@ -359,13 +362,13 @@ export default app;
 if (process.env["VERCEL"] !== "1") {
   let workerTimer: ReturnType<typeof setTimeout> | undefined;
   const runWorker = async (): Promise<void> => {
-    if (runtimeWorker === undefined) return;
     if (routineScheduler !== undefined) await routineScheduler();
-    await runtimeWorker.runOnce();
+    if (runtimeWorker !== undefined) await runtimeWorker.runOnce();
+    await channelRepository.deliverNext({ workerId });
     workerTimer = setTimeout(() => void runWorker(), 250);
     workerTimer.unref?.();
   };
-  if (runtimeWorker !== undefined) void runWorker();
+  void runWorker();
 
   const server = serve({
     fetch: app.fetch,
