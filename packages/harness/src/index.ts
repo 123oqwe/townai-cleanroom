@@ -213,3 +213,5 @@ export function createHarness(input: {
 }
 
 export type Harness = ReturnType<typeof createHarness>;
+
+export * from "./app-server.js";
