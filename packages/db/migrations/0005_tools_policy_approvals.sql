@@ -185,7 +185,8 @@ create table tool_calls (
     references tool_definitions(owner_id, id),
   constraint tool_calls_owner_policy_decision_fk
     foreign key (owner_id, policy_decision_id)
-    references policy_decisions(owner_id, id),
+    references policy_decisions(owner_id, id)
+    deferrable initially deferred,
   constraint tool_calls_owner_id_id_unique unique (owner_id, id),
   constraint tool_calls_owner_session_run_id_unique
     unique (owner_id, session_id, run_id, id),
@@ -264,6 +265,11 @@ create table approval_requests (
 
 create index approval_requests_owner_status_idx
   on approval_requests(owner_id, state, requested_at desc, id);
+
+alter table policy_decisions
+  add constraint policy_decisions_owner_tool_call_fk
+  foreign key (owner_id, session_id, run_id, tool_call_id)
+  references tool_calls(owner_id, session_id, run_id, id);
 
 create function reject_tool_policy_immutable_mutation()
 returns trigger

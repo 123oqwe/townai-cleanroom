@@ -374,21 +374,6 @@ export function createToolExecutionRepository(sql: Sql) {
         };
       }
       const policyDecisionId = newId<"policy-decision">();
-      await transaction`
-        insert into policy_decisions (
-          id, owner_id, session_id, run_id, decision, session_mode,
-          routine_mode, per_tool_override, side_effect, data_sensitivity,
-          input_trust, target_is_self, target_is_trusted, risk_flags, rationale
-        ) values (
-          ${policyDecisionId}, ${value.ownerId}, ${value.sessionId}, ${value.runId},
-          ${policyResult.decision}, ${derivedPolicy.sessionMode},
-          ${derivedPolicy.routineMode}, ${derivedPolicy.perToolOverride},
-          ${derivedPolicy.sideEffect}, ${derivedPolicy.dataSensitivity},
-          ${derivedPolicy.inputTrust}, ${derivedPolicy.targetIsSelf},
-          ${derivedPolicy.targetIsTrusted}, ${transaction.json(policyResult.riskFlags)},
-          ${policyResult.rationale}
-        )
-      `;
       const callId = newId<"tool-call">();
       const callStatus =
         policyResult.decision === "allow"
@@ -408,6 +393,22 @@ export function createToolExecutionRepository(sql: Sql) {
           ${value.stepKey}, ${idempotencyHash}, ${argumentHash},
           ${requestFingerprint},
           ${transaction.json(value.arguments)}, ${callStatus}
+        )
+      `;
+      await transaction`
+        insert into policy_decisions (
+          id, owner_id, session_id, run_id, tool_call_id, decision,
+          session_mode, routine_mode, per_tool_override, side_effect,
+          data_sensitivity, input_trust, target_is_self, target_is_trusted,
+          risk_flags, rationale
+        ) values (
+          ${policyDecisionId}, ${value.ownerId}, ${value.sessionId}, ${value.runId},
+          ${callId}, ${policyResult.decision}, ${derivedPolicy.sessionMode},
+          ${derivedPolicy.routineMode}, ${derivedPolicy.perToolOverride},
+          ${derivedPolicy.sideEffect}, ${derivedPolicy.dataSensitivity},
+          ${derivedPolicy.inputTrust}, ${derivedPolicy.targetIsSelf},
+          ${derivedPolicy.targetIsTrusted}, ${transaction.json(policyResult.riskFlags)},
+          ${policyResult.rationale}
         )
       `;
       let approvalId: Id<"approval-request"> | null = null;
