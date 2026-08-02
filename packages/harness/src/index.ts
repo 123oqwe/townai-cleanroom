@@ -87,7 +87,7 @@ export interface PendingApprovalSnapshot {
 export function createHarness(input: {
   model: ModelPort;
   tools: readonly ToolPort[];
-  emit?: (event: HarnessEvent) => void;
+  emit?: (event: HarnessEvent) => unknown | Promise<unknown>;
   maxSteps?: number;
   initialItems?: readonly HarnessItem[];
   initialPendingApproval?: PendingApprovalSnapshot;
@@ -115,8 +115,8 @@ export function createHarness(input: {
     };
   }
 
-  function add(event: HarnessEvent): void {
-    emit(event);
+  async function add(event: HarnessEvent): Promise<void> {
+    await emit(event);
   }
 
   async function continueLoop(): Promise<HarnessResult> {
@@ -127,8 +127,8 @@ export function createHarness(input: {
         if (response.providerItems !== undefined)
           items = [...items, ...response.providerItems];
         items = [...items, { type: "assistant_message", text: response.text }];
-        add({ type: "assistant_message", text: response.text });
-        add({ type: "turn_completed", text: response.text });
+        await add({ type: "assistant_message", text: response.text });
+        await add({ type: "turn_completed", text: response.text });
         return { kind: "completed", text: response.text };
       }
 
@@ -148,7 +148,7 @@ export function createHarness(input: {
             : { providerItem: response.providerItem }),
         },
       ];
-      add({
+      await add({
         type: "assistant_tool_call",
         callId: response.callId,
         toolName: response.toolName,
@@ -165,7 +165,7 @@ export function createHarness(input: {
             output: error,
           },
         ];
-        add({
+        await add({
           type: "tool_failed",
           callId: response.callId,
           toolName: response.toolName,
@@ -175,7 +175,7 @@ export function createHarness(input: {
       }
       if (tool.requiresApproval === true) {
         pending = { callId: response.callId, tool, arguments: arguments_ };
-        add({
+        await add({
           type: "approval_requested",
           approvalId: response.callId,
           toolName: response.toolName,
@@ -198,7 +198,7 @@ export function createHarness(input: {
     tool: ToolPort,
     arguments_: Record<string, unknown>,
   ): Promise<void> {
-    add({ type: "tool_started", callId, toolName: tool.name });
+    await add({ type: "tool_started", callId, toolName: tool.name });
     try {
       const result = toolResultSchema.parse(await tool.execute(arguments_));
       items = [
@@ -210,7 +210,7 @@ export function createHarness(input: {
           output: result.output,
         },
       ];
-      add({
+      await add({
         type: "tool_succeeded",
         callId,
         toolName: tool.name,
@@ -223,12 +223,19 @@ export function createHarness(input: {
         ...items,
         { type: "tool_result", callId, toolName: tool.name, output: message },
       ];
-      add({ type: "tool_failed", callId, toolName: tool.name, error: message });
+      await add({
+        type: "tool_failed",
+        callId,
+        toolName: tool.name,
+        error: message,
+      });
     }
   }
 
   return {
-    setEmitter(next: (event: HarnessEvent) => void): void {
+    setEmitter(
+      next: (event: HarnessEvent) => unknown | Promise<unknown>,
+    ): void {
       emit = next;
     },
     async run(runInput: { userText: string }): Promise<HarnessResult> {
@@ -238,7 +245,7 @@ export function createHarness(input: {
         );
       stepCount = 0;
       items = [...items, { type: "user_message", text: runInput.userText }];
-      add({ type: "turn_started", userText: runInput.userText });
+      await add({ type: "turn_started", userText: runInput.userText });
       return continueLoop();
     },
     async resume(decision: {
@@ -262,14 +269,17 @@ export function createHarness(input: {
             output,
           },
         ];
-        add({ type: "approval_rejected", approvalId: decision.approvalId });
-        add({
+        await add({
+          type: "approval_rejected",
+          approvalId: decision.approvalId,
+        });
+        await add({
           type: "tool_failed",
           callId: current.callId,
           toolName: current.tool.name,
           error: output,
         });
-        add({ type: "turn_rejected", approvalId: decision.approvalId });
+        await add({ type: "turn_rejected", approvalId: decision.approvalId });
         return { kind: "rejected" };
       }
       await executeTool(current.callId, current.tool, current.arguments);

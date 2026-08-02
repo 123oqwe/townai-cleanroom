@@ -16,6 +16,17 @@ describe("persistent thread store boundary", () => {
       async set(threadId, snapshot) {
         snapshots.set(threadId, structuredClone(snapshot));
       },
+      async compareAndSet(threadId, expected, snapshot) {
+        const current = snapshots.get(threadId);
+        if (
+          current === undefined ||
+          current.revision !== expected.revision ||
+          current.leaseOwner !== expected.leaseOwner
+        )
+          return false;
+        snapshots.set(threadId, structuredClone(snapshot));
+        return true;
+      },
     };
     const server = createAppServer({
       store,
@@ -52,5 +63,83 @@ describe("persistent thread store boundary", () => {
       { type: "user_message", text: "hello" },
       { type: "assistant_message", text: "persisted" },
     ]);
+  });
+
+  it("persists the tool-call boundary before executing a side effect", async () => {
+    const snapshots = new Map<string, ThreadSnapshot>();
+    let threadId = "";
+    let sawDurableCall = false;
+    const store: PersistentThreadStore = {
+      async get(id) {
+        return snapshots.get(id);
+      },
+      async set(id, snapshot) {
+        snapshots.set(id, structuredClone(snapshot));
+      },
+      async compareAndSet(id, expected, snapshot) {
+        const current = snapshots.get(id);
+        if (
+          current === undefined ||
+          current.revision !== expected.revision ||
+          current.leaseOwner !== expected.leaseOwner
+        )
+          return false;
+        snapshots.set(id, structuredClone(snapshot));
+        return true;
+      },
+    };
+    const server = createAppServer({
+      store,
+      createAgent: () => ({
+        model: {
+          async respond({ items }) {
+            if (items.some((item) => item.type === "tool_result"))
+              return { kind: "final", text: "done" as const };
+            return {
+              kind: "tool_call",
+              callId: "call-1",
+              toolName: "side-effect",
+              arguments: {},
+            } as const;
+          },
+        },
+        tools: [
+          {
+            name: "side-effect",
+            async execute() {
+              sawDurableCall =
+                snapshots
+                  .get(threadId)
+                  ?.items.some(
+                    (item) =>
+                      item.type === "assistant_tool_call" &&
+                      item.callId === "call-1",
+                  ) ?? false;
+              return { kind: "result", output: "ok" as const };
+            },
+          },
+        ],
+      }),
+    });
+    await server.dispatch({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {},
+    });
+    const started = await server.dispatch({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "thread/start",
+      params: {},
+    });
+    threadId = (started as { result: { threadId: string } }).result.threadId;
+    await server.dispatch({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "turn/start",
+      params: { threadId, text: "run" },
+    });
+    expect(sawDurableCall).toBe(true);
   });
 });

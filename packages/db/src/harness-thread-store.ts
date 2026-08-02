@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
 
 import type { PersistentThreadStore, ThreadSnapshot } from "@town/harness";
 
@@ -70,9 +70,22 @@ export function createHarnessThreadStore(
           and(
             eq(harnessThreads.id, threadId),
             eq(harnessThreads.revision, expected.revision),
-            expected.leaseOwner === undefined
-              ? isNull(harnessThreads.leaseOwner)
-              : eq(harnessThreads.leaseOwner, expected.leaseOwner),
+            expected.takeover === true
+              ? expected.leaseOwner === undefined
+                ? or(
+                    isNull(harnessThreads.leaseOwner),
+                    lte(harnessThreads.leaseExpiresAt, sql`now()`),
+                  )
+                : and(
+                    eq(harnessThreads.leaseOwner, expected.leaseOwner),
+                    lte(harnessThreads.leaseExpiresAt, sql`now()`),
+                  )
+              : expected.leaseOwner === undefined
+                ? isNull(harnessThreads.leaseOwner)
+                : and(
+                    eq(harnessThreads.leaseOwner, expected.leaseOwner),
+                    gt(harnessThreads.leaseExpiresAt, sql`now()`),
+                  ),
           ),
         )
         .returning({ id: harnessThreads.id });
