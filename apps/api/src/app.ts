@@ -426,7 +426,8 @@ export function createApp(dependencies?: AppDependencies) {
     if (
       (error instanceof AgentError &&
         (error.code === "AGENT_REVISION_CONFLICT" ||
-          error.code === "PERSONAL_AGENT_ALREADY_EXISTS")) ||
+          error.code === "PERSONAL_AGENT_ALREADY_EXISTS" ||
+          error.code === "AGENT_CALLABLE_CONFLICT")) ||
       (error instanceof ThreadError &&
         (error.code === "THREAD_REVISION_CONFLICT" ||
           error.code === "TASK_THREAD_REQUIRES_TASK_DELETE" ||

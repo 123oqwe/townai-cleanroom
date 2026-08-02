@@ -9,6 +9,7 @@ create table routine_webhooks (
   constraint routine_webhooks_owner_routine_fk foreign key (owner_id, routine_schedule_id)
     references routine_schedules(owner_id, id) on delete cascade,
   constraint routine_webhooks_token_hash_size check (octet_length(token_hash) = 32),
+  constraint routine_webhooks_owner_id_unique unique (owner_id, id),
   constraint routine_webhooks_owner_routine_unique unique (owner_id, routine_schedule_id)
 );
 

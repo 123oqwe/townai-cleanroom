@@ -1,6 +1,7 @@
 export type AgentErrorCode =
   | "AGENT_NOT_FOUND"
   | "AGENT_REVISION_CONFLICT"
+  | "AGENT_CALLABLE_CONFLICT"
   | "PERSONAL_AGENT_ALREADY_EXISTS";
 
 export class AgentError extends Error {

@@ -71,6 +71,9 @@ control using your platform's secure secret-management workflow.
   one-time `whsec_` secrets, rotation by recreation, disable/enable state,
   JSON/text payloads, bearer authentication, and idempotent asynchronous
   enqueueing with HTTP 202.
+- Routine Agent versions persist an explicit `callableRoutineIds` allowlist;
+  publication rejects missing, disabled, cross-owner, and self-referential
+  child routines before the immutable version is activated.
 - A responsive, API-backed `apps/web` command center with explicit connection,
   empty, error, focus, and harness states; it uses no fabricated backend data.
 

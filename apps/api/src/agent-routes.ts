@@ -33,6 +33,7 @@ const agentSnapshotFields = {
   displayName: z.string().trim().min(1).max(100),
   instructions: z.string().max(50_000),
   defaultApprovalMode: approvalModeSchema,
+  callableRoutineIds: z.array(z.uuidv7()).max(100).default([]),
 };
 const agentCreateSchema = z.object(agentSnapshotFields).strict();
 const agentPublishSchema = z

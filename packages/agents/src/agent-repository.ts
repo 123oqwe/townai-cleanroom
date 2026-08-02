@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import { z } from "zod";
 
 import {
@@ -157,12 +157,36 @@ function safeSnapshot(value: {
   instructions: string;
   defaultApprovalMode:
     "respect_tool_setting" | "require_approval" | "autonomous";
+  callableRoutineIds?: string[];
 }) {
   return agentVersionSnapshotSchema.parse({
     displayName: value.displayName,
     instructions: value.instructions,
     defaultApprovalMode: value.defaultApprovalMode,
+    callableRoutineIds: value.callableRoutineIds ?? [],
   });
+}
+
+async function assertCallableRoutines(
+  transaction: Sql | TransactionSql,
+  ownerId: Id<"user">,
+  callableRoutineIds: string[],
+  selfId?: Id<"agent">,
+): Promise<void> {
+  const ids = [...new Set(callableRoutineIds)];
+  if (ids.length === 0) return;
+  const rows = await transaction<{ id: string }[]>`
+    select id from agents where owner_id=${ownerId} and kind='routine' and status='active'
+      and id = any(${ids}::uuid[])
+  `;
+  if (
+    rows.length !== ids.length ||
+    (selfId !== undefined && ids.includes(selfId))
+  )
+    throw new AgentError(
+      "AGENT_CALLABLE_CONFLICT",
+      "Callable routines must be active owner-scoped routines and cannot include the parent routine.",
+    );
 }
 
 export function createAgentRepository(sql: Sql) {
@@ -254,6 +278,12 @@ export function createAgentRepository(sql: Sql) {
           ${transaction.json(snapshot)}, 'user'
         )
       `;
+      await assertCallableRoutines(
+        transaction,
+        ownerId,
+        value.callableRoutineIds,
+        asId<"agent">(agentId),
+      );
       const updated = await transaction`
         update agents set active_version_id = ${versionId}
         where id = ${agentId} and owner_id = ${ownerId}
@@ -390,6 +420,12 @@ export function createAgentRepository(sql: Sql) {
       }
 
       const agentId = asId<"agent">(agent.id);
+      await assertCallableRoutines(
+        transaction,
+        ownerId,
+        value.callableRoutineIds,
+        agentId,
+      );
       const nextVersion = agent.revision + 1;
       await transaction`
         insert into agent_versions (
