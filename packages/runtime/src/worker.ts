@@ -14,6 +14,12 @@ export interface RuntimeWorkerDependencies {
 export interface RuntimeWorkerOptions {
   workerId: string;
   leaseMs?: number;
+  onFinished?: (input: {
+    ownerId: RuntimeSession["ownerId"];
+    runId: SessionRun["id"];
+    state: "completed" | "failed";
+    errorCode?: string;
+  }) => Promise<void>;
 }
 
 export interface RuntimeWorkerResult {
@@ -113,6 +119,15 @@ export function createRuntimeWorker(
         leaseToken: lease.leaseToken,
         outcome: { workerId: options.workerId, attempt: lease.attempt },
       });
+      try {
+        await options.onFinished?.({
+          ownerId: currentSession.ownerId,
+          runId: lease.runId,
+          state: "completed",
+        });
+      } catch {
+        // Reconciliation is best-effort and must not turn a completed run into a retry.
+      }
       return { claimed: true, state: "completed", runId: lease.runId };
     } catch (error) {
       if (started) {
@@ -123,6 +138,16 @@ export function createRuntimeWorker(
             errorCode: error instanceof Error ? error.name : "RUNTIME_FAILURE",
           })
           .catch(() => undefined);
+        try {
+          await options.onFinished?.({
+            ownerId: session.ownerId,
+            runId: lease.runId,
+            state: "failed",
+            errorCode: error instanceof Error ? error.name : "RUNTIME_FAILURE",
+          });
+        } catch {
+          // Reconciliation is best-effort and must not turn a failed run into a retry.
+        }
       } else {
         await dependencies.queue
           .retry({

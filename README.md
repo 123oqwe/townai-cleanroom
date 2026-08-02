@@ -107,7 +107,8 @@ returns queued state for the worker; it never reports a fabricated completion.
 The local/serverless worker tick also claims due schedules and submits them
 through that same Session queue; trigger failures are recorded as failed sync
 runs, and each claimed sync run stores the resulting runtime `runId` for
-reconciliation and recovery.
+reconciliation and recovery. Worker completion/failure callbacks reconcile that
+linked sync record to `succeeded`/`failed` without changing the runtime result.
 
 Authenticated message submission is available at
 `/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are

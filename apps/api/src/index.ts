@@ -250,7 +250,18 @@ const runtimeWorker =
             turns: turnRepository,
           }),
         },
-        { workerId: process.env["WORKER_ID"] ?? `town-worker-${process.pid}` },
+        {
+          workerId: process.env["WORKER_ID"] ?? `town-worker-${process.pid}`,
+          onFinished: ({ ownerId, runId, state, errorCode }) =>
+            routineRepository
+              .reconcileRuntimeRun({
+                ownerId,
+                runtimeRunId: runId,
+                status: state,
+                ...(errorCode === undefined ? {} : { errorCode }),
+              })
+              .then(() => undefined),
+        },
       )
     : undefined;
 const routineScheduler =

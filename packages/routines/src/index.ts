@@ -416,7 +416,7 @@ export function createRoutineRepository(sql: Sql) {
   ): Promise<IntegrationSyncRun> {
     const rows = await sql<SyncRunRow[]>`
       update integration_sync_runs
-      set runtime_run_id=${runtimeRunId}, updated_at=now()
+      set runtime_run_id=${runtimeRunId}, status='running', started_at=coalesce(started_at, now()), updated_at=now()
       where owner_id=${ownerId} and id=${id}
         and status='queued' and runtime_run_id is null
       returning *
@@ -429,6 +429,31 @@ export function createRoutineRepository(sql: Sql) {
       );
     }
     return safeRun(rows[0]);
+  }
+  async function reconcileRuntimeRun(input: {
+    ownerId: Id<"user">;
+    runtimeRunId: Id<"session-run">;
+    status: "completed" | "failed";
+    errorCode?: string;
+  }): Promise<IntegrationSyncRun | null> {
+    const code =
+      input.status === "failed"
+        ? z
+            .string()
+            .trim()
+            .min(1)
+            .max(120)
+            .parse(input.errorCode ?? "RUNTIME_FAILURE")
+        : null;
+    const rows = await sql<SyncRunRow[]>`
+      update integration_sync_runs
+      set status=${input.status === "completed" ? "succeeded" : "failed"},
+          error_code=${code}, finished_at=now(), updated_at=now()
+      where owner_id=${input.ownerId} and runtime_run_id=${input.runtimeRunId}
+        and status='running'
+      returning *
+    `;
+    return rows[0] ? safeRun(rows[0]) : null;
   }
   async function createWebhook(
     ownerId: Id<"user">,
@@ -529,6 +554,7 @@ export function createRoutineRepository(sql: Sql) {
     completeRun,
     failRun,
     attachRuntimeRun,
+    reconcileRuntimeRun,
     createWebhook,
     getWebhook,
     setWebhookEnabled,

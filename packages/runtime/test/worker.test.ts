@@ -49,16 +49,18 @@ describe("runtime worker", () => {
     const dependencies = {
       queue,
       sessions: {
-        get: vi.fn(async () => ({}) as never),
+        get: vi.fn(async () => ({ ownerId }) as never),
         getRun: vi.fn(async () => ({}) as never),
       },
       transitions,
       adapter,
     } as unknown as RuntimeWorkerDependencies;
 
+    const onFinished = vi.fn(async () => undefined);
     const result = await createRuntimeWorker(dependencies, {
       workerId: "worker-1",
       leaseMs: 3_000,
+      onFinished,
     }).runOnce();
 
     expect(result).toMatchObject({ claimed: true, state: "completed", runId });
@@ -75,5 +77,10 @@ describe("runtime worker", () => {
       mentions: [],
     });
     expect(transitions.complete).toHaveBeenCalled();
+    expect(onFinished).toHaveBeenCalledWith({
+      ownerId,
+      runId,
+      state: "completed",
+    });
   });
 });
