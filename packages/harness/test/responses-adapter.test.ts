@@ -60,6 +60,64 @@ describe("Responses API adapter", () => {
     });
   });
 
+  it("rejects multiple function calls instead of silently dropping one", async () => {
+    const model = createResponsesModel({
+      endpoint: "https://model.example.invalid/v1/responses",
+      model: "test-model",
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            output: [
+              {
+                type: "function_call",
+                call_id: "call-1",
+                name: "one",
+                arguments: "{}",
+              },
+              {
+                type: "function_call",
+                call_id: "call-2",
+                name: "two",
+                arguments: "{}",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    });
+    await expect(
+      model.respond({ items: [{ type: "user_message", text: "go" }] }),
+    ).rejects.toThrow("multiple function calls");
+  });
+
+  it("normalizes authorization headers and supports refusal output", async () => {
+    let headers: Headers | undefined;
+    const model = createResponsesModel({
+      endpoint: "https://model.example.invalid/v1/responses",
+      model: "test-model",
+      headers: { Authorization: "Bearer attacker" },
+      apiKey: async () => "secret",
+      fetch: async (_url, init) => {
+        headers = new Headers(init?.headers);
+        return new Response(
+          JSON.stringify({
+            output: [
+              {
+                type: "message",
+                content: [{ type: "refusal", refusal: "cannot comply" }],
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      },
+    });
+    await expect(
+      model.respond({ items: [{ type: "user_message", text: "no" }] }),
+    ).resolves.toEqual({ kind: "final", text: "cannot comply" });
+    expect(headers?.get("authorization")).toBe("Bearer secret");
+  });
+
   it("compacts only when the context budget is exceeded", async () => {
     const items = [
       { type: "user_message" as const, text: "one" },
@@ -83,5 +141,8 @@ describe("Responses API adapter", () => {
         compact: async () => [],
       }),
     ).resolves.toEqual(items.slice(0, 2));
+    await expect(
+      compactContext(items, { maxItems: 2, compact: async () => items }),
+    ).rejects.toThrow("context compaction exceeded");
   });
 });

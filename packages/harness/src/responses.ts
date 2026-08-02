@@ -5,8 +5,14 @@ import type { HarnessItem, ModelPort } from "./index.js";
 const outputTextSchema = z
   .object({ type: z.literal("output_text"), text: z.string() })
   .passthrough();
+const refusalSchema = z
+  .object({ type: z.literal("refusal"), refusal: z.string() })
+  .passthrough();
 const messageSchema = z
-  .object({ type: z.literal("message"), content: z.array(outputTextSchema) })
+  .object({
+    type: z.literal("message"),
+    content: z.array(z.union([outputTextSchema, refusalSchema])),
+  })
   .passthrough();
 const functionCallSchema = z
   .object({
@@ -46,6 +52,8 @@ function toResponsesInput(
           call_id: item.callId,
           output: item.output,
         };
+      case "provider_item":
+        return item.item;
     }
   });
 }
@@ -64,12 +72,10 @@ export function createResponsesModel(input: {
     throw new Error("HARNESS_FETCH_UNAVAILABLE: fetch is required.");
   return {
     async respond(modelInput) {
-      const headers: Record<string, string> = {
-        "content-type": "application/json",
-        ...input.headers,
-      };
+      const headers = new Headers(input.headers);
+      headers.set("content-type", "application/json");
       if (input.apiKey !== undefined)
-        headers["authorization"] = `Bearer ${await input.apiKey()}`;
+        headers.set("authorization", `Bearer ${await input.apiKey()}`);
       const response = await request(input.endpoint, {
         method: "POST",
         headers,
@@ -79,6 +85,7 @@ export function createResponsesModel(input: {
             ? {}
             : { instructions: input.instructions }),
           input: toResponsesInput(modelInput.items),
+          parallel_tool_calls: false,
           ...(input.tools === undefined
             ? {}
             : {
@@ -108,6 +115,13 @@ export function createResponsesModel(input: {
         throw new Error(
           "HARNESS_MODEL_RESPONSE_INVALID: missing output items.",
         );
+      const functionCalls = parsed.data.output.filter(
+        (item) => functionCallSchema.safeParse(item).success,
+      );
+      if (functionCalls.length > 1)
+        throw new Error(
+          "HARNESS_MODEL_RESPONSE_INVALID: multiple function calls are unsupported.",
+        );
       for (const item of parsed.data.output) {
         const call = functionCallSchema.safeParse(item);
         if (call.success) {
@@ -126,18 +140,33 @@ export function createResponsesModel(input: {
             throw new Error(
               "HARNESS_MODEL_RESPONSE_INVALID: tool arguments must be an object.",
             );
+          const providerItems = parsed.data.output
+            .filter((candidate) => candidate !== item)
+            .filter(
+              (candidate) =>
+                z.record(z.string(), z.unknown()).safeParse(candidate).success,
+            )
+            .map((candidate) => ({
+              type: "provider_item" as const,
+              item: candidate as Record<string, unknown>,
+            }));
           return {
             kind: "tool_call",
             callId: call.data.call_id,
             toolName: call.data.name,
             arguments: object.data,
+            ...(providerItems.length === 0 ? {} : { providerItems }),
           };
         }
         const message = messageSchema.safeParse(item);
         if (message.success)
           return {
             kind: "final",
-            text: message.data.content.map((part) => part.text).join(""),
+            text: message.data.content
+              .map((part) =>
+                part.type === "refusal" ? part.refusal : part.text,
+              )
+              .join(""),
           };
       }
       throw new Error(
@@ -159,5 +188,10 @@ export async function compactContext<T>(
       "HARNESS_CONTEXT_LIMIT_INVALID: maxItems must be positive.",
     );
   if (items.length <= input.maxItems) return [...items];
-  return [...(await input.compact(items))];
+  const compacted = [...(await input.compact(items))];
+  if (compacted.length > input.maxItems)
+    throw new Error(
+      "HARNESS_CONTEXT_LIMIT_EXCEEDED: context compaction exceeded maxItems.",
+    );
+  return compacted;
 }

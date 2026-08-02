@@ -14,7 +14,8 @@ export type HarnessItem =
       arguments: Record<string, unknown>;
     }
   | { type: "tool_result"; callId: string; toolName: string; output: string }
-  | { type: "assistant_message"; text: string };
+  | { type: "assistant_message"; text: string }
+  | { type: "provider_item"; item: Record<string, unknown> };
 
 export interface ModelPort {
   respond(input: { items: HarnessItem[] }): Promise<
@@ -23,6 +24,10 @@ export interface ModelPort {
         callId: string;
         toolName: string;
         arguments: Record<string, unknown>;
+        providerItems?: Array<{
+          type: "provider_item";
+          item: Record<string, unknown>;
+        }>;
       }
     | { kind: "final"; text: string }
   >;
@@ -118,6 +123,8 @@ export function createHarness(input: {
 
       const arguments_ = toolArgumentsSchema.parse(response.arguments);
       const tool = tools.get(response.toolName);
+      if (response.providerItems !== undefined)
+        items = [...items, ...response.providerItems];
       items = [
         ...items,
         {
