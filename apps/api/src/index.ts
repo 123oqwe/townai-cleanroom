@@ -60,6 +60,7 @@ import {
 import { createHarnessRuntimeAdapter } from "./harness-runtime-adapter.js";
 import { createRoutineScheduler } from "./routine-scheduler.js";
 import { createSuggestionRepository } from "@town/suggestions";
+import { createA2ARepository } from "@town/a2a";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -108,6 +109,7 @@ const sessionRepository = createSessionRepository(sql);
 const runtimeTransitionService = createRuntimeTransitionService(sql);
 const routineRepository = createRoutineRepository(sql);
 const suggestionRepository = createSuggestionRepository(sql);
+const a2aRepository = createA2ARepository(sql);
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
 const contentRepository = createContentRepository(sql);
@@ -237,6 +239,7 @@ const app = createApp({
   operationsRepository,
   routineRepository,
   suggestionRepository,
+  a2aRepository,
   googleOAuth: {
     sql,
     accounts: accountRepository,

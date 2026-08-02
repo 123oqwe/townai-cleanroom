@@ -102,6 +102,11 @@ refresh scope, userinfo verification, and encrypted credential persistence. It
 returns `OAUTH_NOT_CONFIGURED` until the deployment supplies Google client
 credentials and a registered redirect URI.
 
+Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
+They use an explicit request/result envelope, recipient consent, expiry metadata,
+and revision-checked transitions; private Memory and credentials are never
+shared by this clean-room protocol.
+
 Authenticated Agent, Thread, Turn-read, Task, and InputRequest resources are
 available under `/v1/agents`, `/v1/threads`, and `/v1/tasks`. Owner identity,
 runtime role, Turn sequence, and source provenance are server-derived.

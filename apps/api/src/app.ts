@@ -84,6 +84,9 @@ import {
 import { registerSuggestionRoutes } from "./suggestion-routes.js";
 import type { SuggestionRepository } from "@town/suggestions";
 import { SuggestionError } from "@town/suggestions";
+import { registerA2ARoutes } from "./a2a-routes.js";
+import type { A2ARepository } from "@town/a2a";
+import { A2AError } from "@town/a2a";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -112,6 +115,7 @@ export interface AppDependencies {
   operationsRepository?: OperationsRepository;
   routineRepository?: RoutineRepository;
   suggestionRepository?: SuggestionRepository;
+  a2aRepository?: A2ARepository;
   googleOAuth?: GoogleOAuthDependencies;
   webOrigin?: string;
   harnessServer?: AppServer;
@@ -320,7 +324,8 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof RoutineError &&
         ["ROUTINE_NOT_FOUND", "SYNC_RUN_NOT_FOUND"].includes(error.code)) ||
       (error instanceof SuggestionError &&
-        error.code === "SUGGESTION_NOT_FOUND")
+        error.code === "SUGGESTION_NOT_FOUND") ||
+      (error instanceof A2AError && error.code === "A2A_NOT_FOUND")
     ) {
       return context.json(
         {
@@ -361,6 +366,7 @@ export function createApp(dependencies?: AppDependencies) {
         ["ROUTINE_CONFLICT", "SYNC_RUN_CONFLICT"].includes(error.code)) ||
       (error instanceof SuggestionError &&
         error.code === "SUGGESTION_CONFLICT") ||
+      (error instanceof A2AError && error.code === "A2A_CONFLICT") ||
       (error instanceof ToolRegistryError &&
         ["TOOL_NAME_CONFLICT", "TOOL_BINDING_CONFLICT"].includes(error.code)) ||
       (error instanceof ToolExecutionError &&
@@ -540,6 +546,11 @@ export function createApp(dependencies?: AppDependencies) {
     registerAccountRoutes(app, { repository: dependencies.accountRepository });
     if (dependencies.googleOAuth !== undefined)
       registerGoogleOAuthRoutes(app, dependencies.googleOAuth);
+    if (dependencies.a2aRepository !== undefined) {
+      app.use("/v1/a2a", authenticate);
+      app.use("/v1/a2a/*", authenticate);
+      registerA2ARoutes(app, dependencies.a2aRepository);
+    }
 
     const knowledge = knowledgeDependencies(dependencies);
     if (knowledge !== null) {
