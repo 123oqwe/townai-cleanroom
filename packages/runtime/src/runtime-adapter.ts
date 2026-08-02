@@ -19,6 +19,10 @@ export type RuntimeAdapterEvent =
   | {
       type: "waiting_user_input";
       reason: string;
+    }
+  | {
+      type: "waiting_approval";
+      reason: string;
     };
 
 export interface RuntimeAdapterContext {

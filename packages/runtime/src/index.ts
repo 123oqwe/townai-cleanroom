@@ -4,3 +4,4 @@ export * from "./runtime-adapter.js";
 export * from "./session-repository.js";
 export * from "./transition-service.js";
 export * from "./types.js";
+export * from "./worker.js";
