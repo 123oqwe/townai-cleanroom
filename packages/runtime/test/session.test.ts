@@ -113,12 +113,12 @@ describe("Session repository reads", () => {
     });
 
     const sessions = createSessionRepository(sql);
-    await expect(sessions.get(otherOwnerId, seeded.sessionId)).rejects.toMatchObject(
-      { code: "SESSION_NOT_FOUND" },
-    );
-    await expect(sessions.getByThread(otherOwnerId, seeded.thread.id)).rejects.toMatchObject(
-      { code: "SESSION_NOT_FOUND" },
-    );
+    await expect(
+      sessions.get(otherOwnerId, seeded.sessionId),
+    ).rejects.toMatchObject({ code: "SESSION_NOT_FOUND" });
+    await expect(
+      sessions.getByThread(otherOwnerId, seeded.thread.id),
+    ).rejects.toMatchObject({ code: "SESSION_NOT_FOUND" });
 
     const session = await sessions.get(ownerId, seeded.sessionId);
     expect(session).toMatchObject({
@@ -137,7 +137,9 @@ describe("Session repository reads", () => {
         },
       },
     });
-    expect(await sessions.getByThread(ownerId, seeded.thread.id)).toEqual(session);
+    expect(await sessions.getByThread(ownerId, seeded.thread.id)).toEqual(
+      session,
+    );
     expect(JSON.stringify(session)).not.toContain("idempotency");
   });
 
@@ -172,7 +174,10 @@ describe("Session repository reads", () => {
       state: "queued",
       limit: 2,
     });
-    expect(page1.items.map(({ id }) => id)).toEqual([third.runId, second.runId]);
+    expect(page1.items.map(({ id }) => id)).toEqual([
+      third.runId,
+      second.runId,
+    ]);
     expect(page1.nextCursor).not.toBeNull();
     const page2 = await sessions.listRuns({
       ownerId,
@@ -224,5 +229,203 @@ describe("Session repository reads", () => {
         unknownFilter: true,
       } as never),
     ).rejects.toMatchObject({ name: "ZodError" });
+  });
+});
+
+describe("atomic message submission", () => {
+  it("atomically pins a Session and creates one Turn, Run, job, and ordered events", async () => {
+    const agent = await createAgent(ownerId);
+    const thread = await createThreadRepository(sql).createAssistant({
+      ownerId,
+      agentId: agent.id,
+      title: "Atomic submission",
+      approvalMode: "require_approval",
+    });
+    const sessions = createSessionRepository(sql);
+    const submitted = await sessions.submitMessage({
+      ownerId,
+      threadId: thread.id,
+      idempotencyKey: "atomic-message-1",
+      text: "Process this synthetic request.",
+      mentions: [],
+    });
+
+    expect(submitted).toMatchObject({
+      replayed: false,
+      session: {
+        ownerId,
+        threadId: thread.id,
+        agentVersion: { id: agent.activeVersion.id },
+      },
+      run: { state: "queued" },
+      turn: {
+        role: "user",
+        sourceType: "user",
+        sourceRef: null,
+        text: "Process this synthetic request.",
+      },
+    });
+    const [counts] = await sql<
+      {
+        sessions: number;
+        runs: number;
+        jobs: number;
+        turns: number;
+        assistant_turns: number;
+      }[]
+    >`
+      select
+        (select count(*)::int from runtime_sessions) as sessions,
+        (select count(*)::int from session_runs) as runs,
+        (select count(*)::int from runtime_jobs) as jobs,
+        (select count(*)::int from thread_turns) as turns,
+        (select count(*)::int from thread_turns where role = 'assistant')
+          as assistant_turns
+    `;
+    expect(counts).toEqual({
+      sessions: 1,
+      runs: 1,
+      jobs: 1,
+      turns: 1,
+      assistant_turns: 0,
+    });
+    const events = await sql<{ sequence: number; kind: string }[]>`
+      select sequence, kind from session_events
+      where session_id = ${submitted.session.id}
+      order by sequence
+    `;
+    expect(events).toEqual([
+      { sequence: 1, kind: "input_observed" },
+      { sequence: 2, kind: "run_queued" },
+    ]);
+    const [readState] = await sql<
+      {
+        read_through_sequence: number;
+        force_unread: boolean;
+      }[]
+    >`
+      select read_through_sequence, force_unread from thread_read_states
+      where owner_id = ${ownerId} and thread_id = ${thread.id}
+    `;
+    expect(readState).toEqual({
+      read_through_sequence: submitted.turn.sequence,
+      force_unread: false,
+    });
+
+    const replay = await sessions.submitMessage({
+      ownerId,
+      threadId: thread.id,
+      idempotencyKey: "atomic-message-1",
+      text: "Process this synthetic request.",
+      mentions: [],
+    });
+    expect(replay).toMatchObject({
+      replayed: true,
+      session: { id: submitted.session.id },
+      run: { id: submitted.run.id },
+      turn: { id: submitted.turn.id },
+    });
+    await expect(
+      sessions.submitMessage({
+        ownerId,
+        threadId: thread.id,
+        idempotencyKey: "atomic-message-1",
+        text: "Changed content must not reuse the key.",
+        mentions: [],
+      }),
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+  });
+
+  it("serializes concurrent duplicate submissions into one durable Run", async () => {
+    const agent = await createAgent(ownerId);
+    const thread = await createThreadRepository(sql).createAssistant({
+      ownerId,
+      agentId: agent.id,
+      title: "Concurrent submission",
+      approvalMode: "require_approval",
+    });
+    const sessions = createSessionRepository(sql);
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        sessions.submitMessage({
+          ownerId,
+          threadId: thread.id,
+          idempotencyKey: "concurrent-message-1",
+          text: "Create exactly one queued Run.",
+          mentions: [],
+        }),
+      ),
+    );
+    expect(new Set(results.map(({ run }) => run.id)).size).toBe(1);
+    expect(results.filter(({ replayed }) => !replayed)).toHaveLength(1);
+    const [counts] = await sql<
+      { turns: number; runs: number; events: number }[]
+    >`
+      select
+        (select count(*)::int from thread_turns) as turns,
+        (select count(*)::int from session_runs) as runs,
+        (select count(*)::int from session_events) as events
+    `;
+    expect(counts).toEqual({ turns: 1, runs: 1, events: 2 });
+  });
+
+  it("rolls back unavailable references and rejects deleted or cross-owner Threads", async () => {
+    const agent = await createAgent(ownerId);
+    const otherAgent = await createAgent(otherOwnerId);
+    const threads = createThreadRepository(sql);
+    const thread = await threads.createAssistant({
+      ownerId,
+      agentId: agent.id,
+      title: "Rollback submission",
+      approvalMode: "require_approval",
+    });
+    const sessions = createSessionRepository(sql);
+
+    await expect(
+      sessions.submitMessage({
+        ownerId,
+        threadId: thread.id,
+        idempotencyKey: "invalid-reference",
+        text: "Mention an unavailable target.",
+        mentions: [
+          {
+            position: 0,
+            targetType: "agent",
+            targetId: otherAgent.id,
+            label: "Other owner Agent",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "AGENT_NOT_FOUND" });
+    const [afterRollback] = await sql<{ sessions: number; turns: number }[]>`
+      select
+        (select count(*)::int from runtime_sessions) as sessions,
+        (select count(*)::int from thread_turns) as turns
+    `;
+    expect(afterRollback).toEqual({ sessions: 0, turns: 0 });
+
+    await expect(
+      sessions.submitMessage({
+        ownerId: otherOwnerId,
+        threadId: thread.id,
+        idempotencyKey: "cross-owner",
+        text: "Must not cross owners.",
+        mentions: [],
+      }),
+    ).rejects.toMatchObject({ code: "THREAD_NOT_FOUND" });
+    await threads.removeAssistant({
+      ownerId,
+      threadId: thread.id,
+      expectedRevision: 1,
+    });
+    await expect(
+      sessions.submitMessage({
+        ownerId,
+        threadId: thread.id,
+        idempotencyKey: "deleted-thread",
+        text: "Must not revive deleted Threads.",
+        mentions: [],
+      }),
+    ).rejects.toMatchObject({ code: "THREAD_NOT_FOUND" });
   });
 });

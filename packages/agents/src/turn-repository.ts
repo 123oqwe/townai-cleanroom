@@ -22,7 +22,7 @@ import {
   type TurnPage,
 } from "./types.js";
 
-const mentionInputSchema = z
+export const turnMentionInputSchema = z
   .object({
     position: z.number().int().nonnegative(),
     targetType: mentionTargetTypeSchema,
@@ -30,8 +30,8 @@ const mentionInputSchema = z
     label: z.string().trim().min(1).max(200),
   })
   .strict();
-const mentionsSchema = z
-  .array(mentionInputSchema)
+export const turnMentionsInputSchema = z
+  .array(turnMentionInputSchema)
   .max(100)
   .superRefine((mentions, context) => {
     const positions = new Set<number>();
@@ -50,7 +50,7 @@ const appendUserSchema = z
     ownerId: idSchema,
     threadId: idSchema,
     text: z.string().trim().min(1).max(100_000),
-    mentions: mentionsSchema,
+    mentions: turnMentionsInputSchema,
   })
   .strict();
 const appendRuntimeSchema = z
@@ -60,7 +60,7 @@ const appendRuntimeSchema = z
     role: z.enum(["assistant", "system"]),
     text: z.string().trim().min(1).max(100_000),
     sourceRef: z.string().trim().min(1).max(500),
-    mentions: mentionsSchema,
+    mentions: turnMentionsInputSchema,
   })
   .strict();
 const listTurnsSchema = z
@@ -78,7 +78,7 @@ const turnCursorKeySchema = z
   })
   .strict();
 
-type MentionInput = z.infer<typeof mentionInputSchema>;
+export type TurnMentionInput = z.infer<typeof turnMentionInputSchema>;
 
 interface TurnRow {
   id: string;
@@ -134,7 +134,7 @@ function fingerprint(ownerId: string, threadId: string): string {
     .digest("base64url");
 }
 
-function rejectUnavailableReferences(mentions: MentionInput[]): void {
+function rejectUnavailableReferences(mentions: TurnMentionInput[]): void {
   if (
     mentions.some(
       ({ targetType }) => targetType === "routine" || targetType === "content",
@@ -150,7 +150,7 @@ function rejectUnavailableReferences(mentions: MentionInput[]): void {
 async function assertMentionTarget(
   transaction: Sql | TransactionSql,
   ownerId: Id<"user">,
-  mention: MentionInput,
+  mention: TurnMentionInput,
 ): Promise<void> {
   if (mention.targetType === "agent") {
     const rows = await transaction`
@@ -191,44 +191,45 @@ async function assertMentionTarget(
   );
 }
 
-export function createTurnRepository(sql: Sql) {
-  async function append(input: {
+export async function appendTurnInTransaction(
+  transaction: Sql | TransactionSql,
+  input: {
     ownerId: Id<"user">;
     threadId: Id<"thread">;
     role: "user" | "assistant" | "system";
     text: string;
     sourceType: "user" | "runtime";
     sourceRef: string | null;
-    mentions: MentionInput[];
-  }): Promise<ThreadTurn> {
-    rejectUnavailableReferences(input.mentions);
-    const turnId = newId<"thread-turn">();
+    mentions: TurnMentionInput[];
+  },
+): Promise<ThreadTurn> {
+  rejectUnavailableReferences(input.mentions);
+  const turnId = newId<"thread-turn">();
 
-    const result = await sql.begin(async (transaction) => {
-      const [thread] = await transaction<{ id: string }[]>`
+  const [thread] = await transaction<{ id: string }[]>`
         select id from threads
         where id = ${input.threadId} and owner_id = ${input.ownerId}
           and status <> 'deleted'
         for update
       `;
-      if (thread === undefined) {
-        throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
-      }
-      for (const mention of input.mentions) {
-        await assertMentionTarget(transaction, input.ownerId, mention);
-      }
+  if (thread === undefined) {
+    throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
+  }
+  for (const mention of input.mentions) {
+    await assertMentionTarget(transaction, input.ownerId, mention);
+  }
 
-      const [sequenceRow] = await transaction<{ last_turn_sequence: number }[]>`
+  const [sequenceRow] = await transaction<{ last_turn_sequence: number }[]>`
         update threads
         set last_turn_sequence = last_turn_sequence + 1, updated_at = now()
         where id = ${input.threadId} and owner_id = ${input.ownerId}
           and status <> 'deleted'
         returning last_turn_sequence
       `;
-      if (sequenceRow === undefined) {
-        throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
-      }
-      const [turn] = await transaction<TurnRow[]>`
+  if (sequenceRow === undefined) {
+    throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
+  }
+  const [turn] = await transaction<TurnRow[]>`
         insert into thread_turns (
           id, owner_id, thread_id, sequence, role, text, source_type, source_ref
         ) values (
@@ -238,12 +239,12 @@ export function createTurnRepository(sql: Sql) {
         )
         returning *
       `;
-      if (turn === undefined) throw new Error("Turn insert returned no row.");
+  if (turn === undefined) throw new Error("Turn insert returned no row.");
 
-      const mentionRows: MentionRow[] = [];
-      for (const mention of input.mentions) {
-        const mentionId = newId<"thread-mention">();
-        const [row] = await transaction<MentionRow[]>`
+  const mentionRows: MentionRow[] = [];
+  for (const mention of input.mentions) {
+    const mentionId = newId<"thread-mention">();
+    const [row] = await transaction<MentionRow[]>`
           insert into thread_mentions (
             id, owner_id, turn_id, position, target_type, target_id, label
           ) values (
@@ -252,18 +253,30 @@ export function createTurnRepository(sql: Sql) {
           )
           returning *
         `;
-        if (row === undefined)
-          throw new Error("Mention insert returned no row.");
-        mentionRows.push(row);
-      }
-      return safeTurn(
-        turn,
-        mentionRows
-          .sort((left, right) => left.position - right.position)
-          .map(safeMention),
-      );
-    });
-    return result;
+    if (row === undefined) throw new Error("Mention insert returned no row.");
+    mentionRows.push(row);
+  }
+  return safeTurn(
+    turn,
+    mentionRows
+      .sort((left, right) => left.position - right.position)
+      .map(safeMention),
+  );
+}
+
+export function createTurnRepository(sql: Sql) {
+  async function append(input: {
+    ownerId: Id<"user">;
+    threadId: Id<"thread">;
+    role: "user" | "assistant" | "system";
+    text: string;
+    sourceType: "user" | "runtime";
+    sourceRef: string | null;
+    mentions: TurnMentionInput[];
+  }): Promise<ThreadTurn> {
+    return sql.begin((transaction) =>
+      appendTurnInTransaction(transaction, input),
+    );
   }
 
   function appendUser(input: z.input<typeof appendUserSchema>) {
@@ -290,6 +303,32 @@ export function createTurnRepository(sql: Sql) {
       sourceRef: value.sourceRef,
       mentions: value.mentions,
     });
+  }
+
+  async function get(input: {
+    ownerId: Id<"user">;
+    threadId: Id<"thread">;
+    turnId: Id<"thread-turn">;
+  }): Promise<ThreadTurn> {
+    const ownerId = asId<"user">(input.ownerId);
+    const threadId = asId<"thread">(input.threadId);
+    const turnId = asId<"thread-turn">(input.turnId);
+    const [row] = await sql<TurnRow[]>`
+      select turn.* from thread_turns turn
+      join threads thread
+        on thread.owner_id = turn.owner_id and thread.id = turn.thread_id
+      where turn.owner_id = ${ownerId} and turn.thread_id = ${threadId}
+        and turn.id = ${turnId} and thread.status <> 'deleted'
+    `;
+    if (row === undefined) {
+      throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
+    }
+    const mentions = await sql<MentionRow[]>`
+      select * from thread_mentions
+      where owner_id = ${ownerId} and turn_id = ${turnId}
+      order by position, id
+    `;
+    return safeTurn(row, mentions.map(safeMention));
   }
 
   async function list(
@@ -366,7 +405,7 @@ export function createTurnRepository(sql: Sql) {
     return { items, nextCursor };
   }
 
-  return { appendRuntime, appendUser, list };
+  return { appendRuntime, appendUser, get, list };
 }
 
 export type TurnRepository = ReturnType<typeof createTurnRepository>;

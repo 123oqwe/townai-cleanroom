@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { AgentVersion } from "@town/agents";
+import type { AgentVersion, ThreadTurn } from "@town/agents";
 import type { Id } from "@town/contracts";
 
 export const runtimeSessionStateSchema = z.enum([
@@ -88,4 +88,11 @@ export interface SessionEvent {
 export interface SessionEventPage {
   items: SessionEvent[];
   nextCursor: string | null;
+}
+
+export interface MessageSubmission {
+  session: RuntimeSession;
+  run: SessionRun;
+  turn: ThreadTurn;
+  replayed: boolean;
 }
