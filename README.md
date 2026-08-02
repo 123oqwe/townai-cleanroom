@@ -104,6 +104,9 @@ under `/v1/agents/routines`; their immutable active versions are then
 referenced by `/v1/routines` schedules. An authenticated
 `POST /v1/routines/:routineId/run` creates a real child Task/Session Run and
 returns queued state for the worker; it never reports a fabricated completion.
+The local/serverless worker tick also claims due schedules and submits them
+through that same Session queue; trigger failures are recorded as failed sync
+runs.
 
 Authenticated message submission is available at
 `/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are

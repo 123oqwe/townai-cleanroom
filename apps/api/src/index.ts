@@ -58,6 +58,7 @@ import {
   createTownSearchHarnessBinding,
 } from "./harness-tools.js";
 import { createHarnessRuntimeAdapter } from "./harness-runtime-adapter.js";
+import { createRoutineScheduler } from "./routine-scheduler.js";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -252,6 +253,16 @@ const runtimeWorker =
         { workerId: process.env["WORKER_ID"] ?? `town-worker-${process.pid}` },
       )
     : undefined;
+const routineScheduler =
+  harnessServerFactory === undefined
+    ? undefined
+    : createRoutineScheduler({
+        sql,
+        routines: routineRepository,
+        agents: agentRepository,
+        threads: threadRepository,
+        sessions: sessionRepository,
+      });
 
 const workerSecret = environment.WORKER_SECRET;
 if (runtimeWorker !== undefined && workerSecret !== undefined) {
@@ -265,7 +276,12 @@ if (runtimeWorker !== undefined && workerSecret !== undefined) {
     const actual = Buffer.from(supplied);
     if (expected.length !== actual.length || !timingSafeEqual(expected, actual))
       return context.json({ code: "UNAUTHORIZED" }, 401);
-    return context.json(await runtimeWorker.runOnce());
+    const schedule =
+      routineScheduler === undefined ? undefined : await routineScheduler();
+    return context.json({
+      schedule,
+      runtime: await runtimeWorker.runOnce(),
+    });
   });
 }
 
@@ -275,6 +291,7 @@ if (process.env["VERCEL"] !== "1") {
   let workerTimer: ReturnType<typeof setTimeout> | undefined;
   const runWorker = async (): Promise<void> => {
     if (runtimeWorker === undefined) return;
+    if (routineScheduler !== undefined) await routineScheduler();
     await runtimeWorker.runOnce();
     workerTimer = setTimeout(() => void runWorker(), 250);
     workerTimer.unref?.();
