@@ -206,3 +206,25 @@ describe("personal Agent repository", () => {
     ).rejects.toMatchObject({ code: "AGENT_NOT_FOUND" });
   });
 });
+
+describe("routine Agent repository", () => {
+  it("creates and lists owner-scoped routine Agents", async () => {
+    const agents = createAgentRepository(sql);
+    const routine = await agents.createRoutine({
+      ownerId,
+      displayName: "Morning routine",
+      instructions: "Summarize the owner's morning signals.",
+      defaultApprovalMode: "require_approval",
+    });
+
+    expect(routine).toMatchObject({
+      ownerId,
+      kind: "routine",
+      activeVersion: { version: 1 },
+    });
+    expect((await agents.listRoutines(ownerId)).map(({ id }) => id)).toEqual([
+      routine.id,
+    ]);
+    expect(await agents.listRoutines(otherOwnerId)).toEqual([]);
+  });
+});

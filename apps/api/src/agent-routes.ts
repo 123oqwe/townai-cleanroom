@@ -130,6 +130,23 @@ export function registerAgentRoutes(
     });
   });
 
+  app.post("/v1/agents/routines", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = agentCreateSchema.parse(await context.req.json());
+    const agent = await dependencies.agentRepository.createRoutine({
+      ownerId,
+      ...body,
+    });
+    return context.json({ agent }, 201);
+  });
+
+  app.get("/v1/agents/routines", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      agents: await dependencies.agentRepository.listRoutines(ownerId),
+    });
+  });
+
   app.put("/v1/agents/personal", async (context) => {
     const ownerId = context.get("identity").user.id;
     const body = agentPublishSchema.parse(await context.req.json());

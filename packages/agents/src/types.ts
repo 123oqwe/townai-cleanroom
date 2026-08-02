@@ -40,6 +40,17 @@ export interface PersonalAgent {
   updatedAt: Date;
 }
 
+export interface RoutineAgent {
+  id: Id<"agent">;
+  ownerId: Id<"user">;
+  kind: "routine";
+  status: "active" | "disabled";
+  revision: number;
+  activeVersion: AgentVersion;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface AgentVersionPage {
   items: AgentVersion[];
   nextCursor: string | null;

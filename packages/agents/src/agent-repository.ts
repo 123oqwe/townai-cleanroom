@@ -18,11 +18,13 @@ import {
   type AgentVersion,
   type AgentVersionPage,
   type PersonalAgent,
+  type RoutineAgent,
 } from "./types.js";
 
 const createPersonalSchema = agentVersionSnapshotSchema.extend({
   ownerId: idSchema,
 });
+const createRoutineSchema = createPersonalSchema;
 const publishPersonalSchema = agentVersionSnapshotSchema.extend({
   ownerId: idSchema,
   expectedRevision: z.number().int().positive(),
@@ -46,7 +48,7 @@ const agentCursorKeySchema = z
 interface AgentRow {
   id: string;
   owner_id: string;
-  kind: "personal";
+  kind: "personal" | "routine";
   status: "active" | "disabled";
   revision: number;
   created_at: Date;
@@ -91,7 +93,28 @@ function safeAgent(row: AgentRow): PersonalAgent {
   return {
     id: asId<"agent">(row.id),
     ownerId: asId<"user">(row.owner_id),
-    kind: row.kind,
+    kind: "personal",
+    status: row.status,
+    revision: row.revision,
+    activeVersion: safeVersion({
+      id: row.version_id,
+      agent_id: row.version_agent_id,
+      version: row.version,
+      snapshot: row.snapshot,
+      change_reason: row.change_reason,
+      created_by: row.created_by,
+      created_at: row.version_created_at,
+    }),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function safeRoutineAgent(row: AgentRow): RoutineAgent {
+  return {
+    id: asId<"agent">(row.id),
+    ownerId: asId<"user">(row.owner_id),
+    kind: "routine",
     status: row.status,
     revision: row.revision,
     activeVersion: safeVersion({
@@ -204,6 +227,74 @@ export function createAgentRepository(sql: Sql) {
     return getPersonal(ownerId);
   }
 
+  async function createRoutine(
+    input: z.input<typeof createRoutineSchema>,
+  ): Promise<RoutineAgent> {
+    const value = createRoutineSchema.parse(input);
+    const ownerId = asId<"user">(value.ownerId);
+    const agentId = newId<"agent">();
+    const versionId = newId<"agent-version">();
+    const snapshot = safeSnapshot(value);
+    await sql.begin(async (transaction) => {
+      await transaction`
+        insert into agents (id, owner_id, kind, revision, status)
+        values (${agentId}, ${ownerId}, 'routine', 1, 'active')
+      `;
+      await transaction`
+        insert into agent_versions (
+          id, owner_id, agent_id, version, snapshot, created_by
+        ) values (
+          ${versionId}, ${ownerId}, ${agentId}, 1,
+          ${transaction.json(snapshot)}, 'user'
+        )
+      `;
+      const updated = await transaction`
+        update agents set active_version_id = ${versionId}
+        where id = ${agentId} and owner_id = ${ownerId}
+      `;
+      if (updated.count !== 1)
+        throw new Error("Routine Agent activation returned no row.");
+    });
+    const [row] = await sql<AgentRow[]>`
+      select
+        agent.id, agent.owner_id, agent.kind, agent.status, agent.revision,
+        agent.created_at, agent.updated_at,
+        version.id as version_id, version.agent_id as version_agent_id,
+        version.version, version.snapshot, version.change_reason,
+        version.created_by, version.created_at as version_created_at
+      from agents agent
+      join agent_versions version
+        on version.owner_id = agent.owner_id
+        and version.agent_id = agent.id
+        and version.id = agent.active_version_id
+      where agent.owner_id = ${ownerId} and agent.id = ${agentId}
+        and agent.kind = 'routine' and agent.status = 'active'
+    `;
+    if (row === undefined)
+      throw new AgentError("AGENT_NOT_FOUND", "The Agent was not found.");
+    return safeRoutineAgent(row);
+  }
+
+  async function listRoutines(ownerId: Id<"user">): Promise<RoutineAgent[]> {
+    const rows = await sql<AgentRow[]>`
+      select
+        agent.id, agent.owner_id, agent.kind, agent.status, agent.revision,
+        agent.created_at, agent.updated_at,
+        version.id as version_id, version.agent_id as version_agent_id,
+        version.version, version.snapshot, version.change_reason,
+        version.created_by, version.created_at as version_created_at
+      from agents agent
+      join agent_versions version
+        on version.owner_id = agent.owner_id
+        and version.agent_id = agent.id
+        and version.id = agent.active_version_id
+      where agent.owner_id = ${ownerId}
+        and agent.kind = 'routine' and agent.status = 'active'
+      order by agent.created_at, agent.id
+    `;
+    return rows.map(safeRoutineAgent);
+  }
+
   async function publishPersonal(
     input: z.input<typeof publishPersonalSchema>,
   ): Promise<PersonalAgent> {
@@ -308,7 +399,9 @@ export function createAgentRepository(sql: Sql) {
 
   return {
     createPersonal,
+    createRoutine,
     getPersonal,
+    listRoutines,
     listVersions,
     publishPersonal,
   };
