@@ -58,7 +58,12 @@ export type HarnessEvent =
       toolName: string;
       arguments: Record<string, unknown>;
     }
-  | { type: "tool_started"; callId: string; toolName: string }
+  | {
+      type: "tool_started";
+      callId: string;
+      toolName: string;
+      arguments: Record<string, unknown>;
+    }
   | { type: "tool_succeeded"; callId: string; toolName: string; output: string }
   | { type: "tool_failed"; callId: string; toolName: string; error: string }
   | { type: "approval_requested"; approvalId: string; toolName: string }
@@ -198,7 +203,12 @@ export function createHarness(input: {
     tool: ToolPort,
     arguments_: Record<string, unknown>,
   ): Promise<void> {
-    await add({ type: "tool_started", callId, toolName: tool.name });
+    await add({
+      type: "tool_started",
+      callId,
+      toolName: tool.name,
+      arguments: arguments_,
+    });
     let output: string;
     try {
       const result = toolResultSchema.parse(await tool.execute(arguments_));
@@ -291,6 +301,27 @@ export function createHarness(input: {
     },
     getStepCount(): number {
       return stepCount;
+    },
+    async recordInterruptedToolResult(input: {
+      callId: string;
+      toolName: string;
+      output: string;
+    }): Promise<void> {
+      items = [
+        ...items,
+        {
+          type: "tool_result",
+          callId: input.callId,
+          toolName: input.toolName,
+          output: input.output,
+        },
+      ];
+      await add({
+        type: "tool_failed",
+        callId: input.callId,
+        toolName: input.toolName,
+        error: input.output,
+      });
     },
   };
 }

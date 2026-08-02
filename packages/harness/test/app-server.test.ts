@@ -630,4 +630,52 @@ describe("Codex-style bidirectional app server", () => {
       ).notifications.map((item) => item.method),
     ).toEqual(["turn/started"]);
   });
+
+  it("offers an explicit reconciliation path for an interrupted tool", async () => {
+    const store: ThreadStore = new Map();
+    const createAgent = () => ({
+      model: {
+        async respond() {
+          return { kind: "final", text: "done" as const };
+        },
+      },
+      tools: [],
+    });
+    const first = createAppServer({ store, createAgent });
+    await first.dispatch({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {},
+    });
+    const started = await first.dispatch({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "thread/start",
+      params: {},
+    });
+    const threadId = (started as { result: { threadId: string } }).result
+      .threadId;
+    const snapshot = store.get(threadId);
+    if (snapshot === undefined) throw new Error("missing thread");
+    store.set(threadId, {
+      ...snapshot,
+      activeTool: { callId: "interrupted", toolName: "send", arguments: {} },
+    });
+    const second = createAppServer({ store, createAgent });
+    await second.dispatch({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "initialize",
+      params: {},
+    });
+    const reconciled = await second.dispatch({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "execution/reconcile",
+      params: { threadId, callId: "interrupted", output: "not executed" },
+    });
+    expect(reconciled).toMatchObject({ result: { kind: "reconciled" } });
+    expect(store.get(threadId)?.activeTool).toBeUndefined();
+  });
 });

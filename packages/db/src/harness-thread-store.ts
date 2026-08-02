@@ -27,14 +27,17 @@ function toSnapshot(
   )
     throw new Error("HARNESS_THREAD_CORRUPT: snapshot does not match its row.");
   try {
-    return threadSnapshotSchema.parse({
+    const parsed = threadSnapshotSchema.parse({
       ...(row.snapshot as ThreadSnapshot),
       revision: row.revision,
       ...(row.leaseOwner === null ? {} : { leaseOwner: row.leaseOwner }),
       ...(row.leaseExpiresAt === null
         ? {}
         : { leaseExpiresAt: row.leaseExpiresAt.getTime() }),
-    }) as unknown as ThreadSnapshot;
+    });
+    if (parsed.threadId !== threadId)
+      throw new Error("HARNESS_THREAD_CORRUPT: snapshot row id mismatch.");
+    return parsed as unknown as ThreadSnapshot;
   } catch {
     throw new Error(
       "HARNESS_THREAD_CORRUPT: snapshot failed schema validation.",

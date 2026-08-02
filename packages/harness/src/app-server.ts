@@ -465,7 +465,7 @@ export function createAppServer(input: {
       });
     };
     runtime.harness.setEmitter((event: HarnessEvent) => {
-      if (event.type === "assistant_tool_call")
+      if (event.type === "tool_started")
         runtime.activeTool = {
           callId: event.callId,
           toolName: event.toolName,
@@ -626,6 +626,36 @@ export function createAppServer(input: {
               return runtime.harness.resume({ approvalId, decision });
             },
           );
+        }
+        if (request.method === "execution/reconcile") {
+          const threadId = request.params["threadId"];
+          const callId = request.params["callId"];
+          const output = request.params["output"];
+          if (
+            typeof threadId !== "string" ||
+            typeof callId !== "string" ||
+            typeof output !== "string" ||
+            output.trim() === ""
+          )
+            return invalidParams(
+              request,
+              "threadId, callId, and non-empty output are required",
+            );
+          return withRuntime(request, threadId, async (runtime) => {
+            const active = runtime.snapshot.activeTool;
+            if (active === undefined || active.callId !== callId)
+              throw new Error(
+                "HARNESS_EXECUTION_NOT_FOUND: no matching interrupted tool execution.",
+              );
+            await runtime.harness.recordInterruptedToolResult({
+              callId,
+              toolName: active.toolName,
+              output,
+            });
+            runtime.activeTool = undefined;
+            delete runtime.snapshot.activeTool;
+            return { kind: "reconciled", callId };
+          });
         }
         return errorResponse(
           request,
