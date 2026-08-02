@@ -86,6 +86,7 @@ describe("knowledge migration", () => {
       "0001_identity.sql",
       "0002_knowledge.sql",
       "0003_agents_threads_tasks.sql",
+      "0004_persistent_sessions.sql",
     ]);
   });
 });

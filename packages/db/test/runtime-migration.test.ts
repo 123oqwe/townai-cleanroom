@@ -13,8 +13,8 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe("agent, thread, and task migration", () => {
-  it("creates the complete owner-constrained schema", async () => {
+describe("persistent runtime migration", () => {
+  it("creates owner-bound sessions, runs, events, and jobs", async () => {
     await runMigrations(sql);
 
     const tables = await sql<{ table_name: string }[]>`
@@ -35,56 +35,41 @@ describe("agent, thread, and task migration", () => {
 
     expect(tables.map(({ table_name }) => table_name)).toEqual(
       expect.arrayContaining([
-        "agent_versions",
-        "agents",
-        "task_input_requests",
-        "task_source_refs",
-        "tasks",
-        "thread_mentions",
-        "thread_read_states",
-        "thread_turns",
-        "threads",
+        "runtime_jobs",
+        "runtime_sessions",
+        "session_events",
+        "session_runs",
       ]),
     );
     expect(constraints.map(({ constraint_name }) => constraint_name)).toEqual(
       expect.arrayContaining([
-        "agent_versions_owner_agent_fk",
-        "agent_versions_owner_agent_version_unique",
-        "agents_owner_active_version_fk",
-        "agents_owner_id_id_unique",
-        "task_input_requests_state_valid",
-        "task_source_refs_owner_account_fk",
-        "tasks_lifecycle_valid",
-        "tasks_owner_thread_unique",
-        "thread_mentions_owner_turn_position_unique",
-        "thread_read_states_owner_thread_unique",
-        "thread_turns_owner_thread_sequence_unique",
-        "threads_deletion_state_valid",
-        "threads_last_turn_sequence_nonnegative",
+        "runtime_jobs_lease_shape_valid",
+        "runtime_jobs_owner_session_run_fk",
+        "runtime_sessions_event_sequence_nonnegative",
+        "runtime_sessions_owner_agent_version_fk",
+        "runtime_sessions_owner_thread_unique",
+        "session_events_owner_session_sequence_unique",
+        "session_events_payload_object",
+        "session_runs_idempotency_hash_size",
+        "session_runs_lifecycle_valid",
+        "session_runs_owner_session_idempotency_unique",
+        "session_runs_owner_session_turn_unique",
       ]),
     );
     expect(indexes.map(({ indexname }) => indexname)).toEqual(
       expect.arrayContaining([
-        "agent_versions_owner_agent_version_idx",
-        "agents_one_personal_per_owner_idx",
-        "task_input_requests_owner_task_status_idx",
-        "task_source_refs_owner_task_idx",
-        "tasks_owner_status_schedule_idx",
-        "thread_mentions_owner_turn_idx",
-        "thread_turns_owner_thread_sequence_idx",
-        "threads_owner_status_activity_idx",
+        "runtime_jobs_claim_idx",
+        "runtime_sessions_owner_state_activity_idx",
+        "session_events_owner_session_sequence_idx",
+        "session_runs_owner_session_created_idx",
       ]),
     );
     expect(triggers.map(({ trigger_name }) => trigger_name)).toEqual(
-      expect.arrayContaining([
-        "agent_versions_immutable_update",
-        "thread_mentions_immutable_update",
-        "thread_turns_immutable_update",
-      ]),
+      expect.arrayContaining(["session_events_immutable_update"]),
     );
   });
 
-  it("applies all migrations exactly once", async () => {
+  it("applies all four migrations exactly once", async () => {
     await runMigrations(sql);
     await runMigrations(sql);
 

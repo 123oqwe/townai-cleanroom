@@ -21,6 +21,10 @@ const citext = customType<{ data: string }>({
   dataType: () => "citext",
 });
 
+const bytea = customType<{ data: Buffer }>({
+  dataType: () => "bytea",
+});
+
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -501,6 +505,11 @@ export const threadTurns = pgTable(
       name: "thread_turns_owner_thread_fk",
     }).onDelete("cascade"),
     unique("thread_turns_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("thread_turns_owner_thread_id_unique").on(
+      table.ownerId,
+      table.threadId,
+      table.id,
+    ),
     unique("thread_turns_owner_thread_sequence_unique").on(
       table.ownerId,
       table.threadId,
@@ -675,6 +684,238 @@ export const taskInputRequests = pgTable(
       table.status,
       table.requestedAt,
       table.id,
+    ),
+  ],
+);
+
+export const runtimeSessions = pgTable(
+  "runtime_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    threadId: uuid("thread_id").notNull(),
+    agentId: uuid("agent_id").notNull(),
+    agentVersionId: uuid("agent_version_id").notNull(),
+    state: text("state").notNull().default("idle"),
+    revision: integer("revision").notNull().default(1),
+    lastEventSequence: integer("last_event_sequence").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.threadId],
+      foreignColumns: [threads.ownerId, threads.id],
+      name: "runtime_sessions_owner_thread_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.agentId],
+      foreignColumns: [agents.ownerId, agents.id],
+      name: "runtime_sessions_owner_agent_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.agentId, table.agentVersionId],
+      foreignColumns: [
+        agentVersions.ownerId,
+        agentVersions.agentId,
+        agentVersions.id,
+      ],
+      name: "runtime_sessions_owner_agent_version_fk",
+    }),
+    unique("runtime_sessions_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("runtime_sessions_owner_thread_unique").on(
+      table.ownerId,
+      table.threadId,
+    ),
+    unique("runtime_sessions_owner_thread_id_unique").on(
+      table.ownerId,
+      table.threadId,
+      table.id,
+    ),
+    index("runtime_sessions_owner_state_activity_idx").on(
+      table.ownerId,
+      table.state,
+      table.updatedAt,
+      table.id,
+    ),
+    check(
+      "runtime_sessions_state_allowed",
+      sql`${table.state} in ('idle', 'running', 'waiting_approval', 'waiting_user_input', 'failed', 'cancelled')`,
+    ),
+    check("runtime_sessions_revision_positive", sql`${table.revision} > 0`),
+    check(
+      "runtime_sessions_event_sequence_nonnegative",
+      sql`${table.lastEventSequence} >= 0`,
+    ),
+  ],
+);
+
+export const sessionRuns = pgTable(
+  "session_runs",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull(),
+    threadId: uuid("thread_id").notNull(),
+    triggeringTurnId: uuid("triggering_turn_id").notNull(),
+    idempotencyHash: bytea("idempotency_hash").notNull(),
+    requestFingerprint: bytea("request_fingerprint").notNull(),
+    state: text("state").notNull().default("queued"),
+    attempt: integer("attempt").notNull().default(0),
+    waitReason: text("wait_reason"),
+    outcome: jsonb("outcome"),
+    errorCode: text("error_code"),
+    ...timestamps,
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.threadId, table.sessionId],
+      foreignColumns: [
+        runtimeSessions.ownerId,
+        runtimeSessions.threadId,
+        runtimeSessions.id,
+      ],
+      name: "session_runs_owner_session_thread_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.threadId, table.triggeringTurnId],
+      foreignColumns: [
+        threadTurns.ownerId,
+        threadTurns.threadId,
+        threadTurns.id,
+      ],
+      name: "session_runs_owner_triggering_turn_fk",
+    }),
+    unique("session_runs_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("session_runs_owner_session_id_id_unique").on(
+      table.ownerId,
+      table.sessionId,
+      table.id,
+    ),
+    unique("session_runs_owner_session_turn_unique").on(
+      table.ownerId,
+      table.sessionId,
+      table.triggeringTurnId,
+    ),
+    unique("session_runs_owner_session_idempotency_unique").on(
+      table.ownerId,
+      table.sessionId,
+      table.idempotencyHash,
+    ),
+    index("session_runs_owner_session_created_idx").on(
+      table.ownerId,
+      table.sessionId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "session_runs_idempotency_hash_size",
+      sql`octet_length(${table.idempotencyHash}) = 32`,
+    ),
+    check(
+      "session_runs_request_fingerprint_size",
+      sql`octet_length(${table.requestFingerprint}) = 32`,
+    ),
+    check("session_runs_attempt_nonnegative", sql`${table.attempt} >= 0`),
+  ],
+);
+
+export const sessionEvents = pgTable(
+  "session_events",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull(),
+    runId: uuid("run_id").notNull(),
+    sequence: integer("sequence").notNull(),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.sessionId],
+      foreignColumns: [runtimeSessions.ownerId, runtimeSessions.id],
+      name: "session_events_owner_session_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.ownerId, table.sessionId, table.runId],
+      foreignColumns: [
+        sessionRuns.ownerId,
+        sessionRuns.sessionId,
+        sessionRuns.id,
+      ],
+      name: "session_events_owner_session_run_fk",
+    }).onDelete("cascade"),
+    unique("session_events_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("session_events_owner_session_sequence_unique").on(
+      table.ownerId,
+      table.sessionId,
+      table.sequence,
+    ),
+    index("session_events_owner_session_sequence_idx").on(
+      table.ownerId,
+      table.sessionId,
+      table.sequence,
+      table.id,
+    ),
+    check("session_events_sequence_positive", sql`${table.sequence} > 0`),
+    check(
+      "session_events_payload_object",
+      sql`jsonb_typeof(${table.payload}) = 'object'`,
+    ),
+  ],
+);
+
+export const runtimeJobs = pgTable(
+  "runtime_jobs",
+  {
+    runId: uuid("run_id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull(),
+    state: text("state").notNull().default("queued"),
+    attempt: integer("attempt").notNull().default(0),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    leaseTokenHash: bytea("lease_token_hash"),
+    leasedBy: text("leased_by"),
+    leasedAt: timestamp("leased_at", { withTimezone: true }),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.sessionId, table.runId],
+      foreignColumns: [
+        sessionRuns.ownerId,
+        sessionRuns.sessionId,
+        sessionRuns.id,
+      ],
+      name: "runtime_jobs_owner_session_run_fk",
+    }).onDelete("cascade"),
+    unique("runtime_jobs_owner_run_unique").on(table.ownerId, table.runId),
+    index("runtime_jobs_claim_idx").on(
+      table.state,
+      table.availableAt,
+      table.createdAt,
+      table.runId,
+    ),
+    check("runtime_jobs_attempt_nonnegative", sql`${table.attempt} >= 0`),
+    check(
+      "runtime_jobs_lease_token_hash_size",
+      sql`${table.leaseTokenHash} is null or octet_length(${table.leaseTokenHash}) = 32`,
     ),
   ],
 );
