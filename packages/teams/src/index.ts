@@ -57,7 +57,9 @@ export class SquareError extends Error {
       | "MEMBERSHIP_CONFLICT"
       | "SQUARE_ALREADY_EXISTS"
       | "FORBIDDEN"
-      | "POLICY_CONFLICT",
+      | "POLICY_CONFLICT"
+      | "ACCOUNT_NOT_FOUND"
+      | "ACCOUNT_SHARE_NOT_FOUND",
     message: string,
   ) {
     super(message);
@@ -429,3 +431,4 @@ export function createSquareRepository(sql: Sql) {
   };
 }
 export type SquareRepository = ReturnType<typeof createSquareRepository>;
+export * from "./shared-account-repository.js";

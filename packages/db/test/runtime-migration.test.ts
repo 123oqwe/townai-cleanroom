@@ -110,6 +110,7 @@ describe("persistent runtime and tool-policy migrations", () => {
       "0010_routine_step_results.sql",
       "0011_content_library.sql",
       "0012_squares.sql",
+      "0013_square_account_shares.sql",
     ]);
   });
 });

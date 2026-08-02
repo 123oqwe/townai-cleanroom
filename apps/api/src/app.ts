@@ -42,7 +42,11 @@ import {
 } from "@town/tools";
 import type { AppServer, AppServerRequest } from "@town/harness";
 import { ContentError, type ContentRepository } from "@town/content";
-import { SquareError, type SquareRepository } from "@town/teams";
+import {
+  SquareError,
+  type SquareRepository,
+  type SharedAccountRepository,
+} from "@town/teams";
 
 import { createAuthMiddleware, type AuthVariables } from "./auth.js";
 import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
@@ -57,6 +61,7 @@ import {
 import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
 import { registerContentRoutes } from "./content-routes.js";
 import { registerSquareRoutes } from "./square-routes.js";
+import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -79,6 +84,7 @@ export interface AppDependencies {
   toolExecutionRepository?: ToolExecutionRepository;
   contentRepository?: ContentRepository;
   squareRepository?: SquareRepository;
+  sharedAccountRepository?: SharedAccountRepository;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
 }
@@ -224,7 +230,9 @@ export function createApp(dependencies?: AppDependencies) {
           error.code === "SHARE_NOT_FOUND")) ||
       (error instanceof SquareError &&
         (error.code === "SQUARE_NOT_FOUND" ||
-          error.code === "MEMBERSHIP_NOT_FOUND"))
+          error.code === "MEMBERSHIP_NOT_FOUND" ||
+          error.code === "ACCOUNT_NOT_FOUND" ||
+          error.code === "ACCOUNT_SHARE_NOT_FOUND"))
     ) {
       return context.json(
         {
@@ -493,6 +501,12 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/squares", authenticate);
       app.use("/v1/squares/*", authenticate);
       registerSquareRoutes(app, { repository: dependencies.squareRepository });
+    }
+    if (dependencies.sharedAccountRepository !== undefined) {
+      app.use("/v1/square-account-shares/*", authenticate);
+      registerSharedAccountRoutes(app, {
+        repository: dependencies.sharedAccountRepository,
+      });
     }
 
     const harnessServer = dependencies.harnessServer;

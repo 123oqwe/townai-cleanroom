@@ -1694,3 +1694,68 @@ export const squarePolicies = pgTable(
     }).onDelete("cascade"),
   ],
 );
+
+export const squareAccountShares = pgTable(
+  "square_account_shares",
+  {
+    id: uuid("id").primaryKey(),
+    squareId: uuid("square_id").notNull(),
+    squareOwnerId: uuid("square_owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").notNull(),
+    accountOwnerId: uuid("account_owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    grantedBy: uuid("granted_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    capabilities: jsonb("capabilities").notNull().default([]),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("square_account_shares_unique").on(
+      table.squareId,
+      table.accountOwnerId,
+      table.accountId,
+    ),
+    index("square_account_shares_square_status_idx").on(
+      table.squareOwnerId,
+      table.squareId,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
+    index("square_account_shares_account_idx").on(
+      table.accountOwnerId,
+      table.accountId,
+      table.status,
+    ),
+    check(
+      "square_account_shares_capabilities_array",
+      sql`jsonb_typeof(${table.capabilities}) = 'array'`,
+    ),
+    check(
+      "square_account_shares_status_allowed",
+      sql`${table.status} in ('active','revoked')`,
+    ),
+    check(
+      "square_account_shares_revoked_shape",
+      sql`(${table.status} = 'active' and ${table.revokedAt} is null) or (${table.status} = 'revoked' and ${table.revokedAt} is not null)`,
+    ),
+    foreignKey({
+      columns: [table.squareOwnerId, table.squareId],
+      foreignColumns: [squares.ownerId, squares.id],
+      name: "square_account_shares_owner_square_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.accountOwnerId, table.accountId],
+      foreignColumns: [connectedAccounts.ownerId, connectedAccounts.id],
+      name: "square_account_shares_owner_account_fk",
+    }).onDelete("cascade"),
+  ],
+);
