@@ -24,6 +24,24 @@ export function createResponsesAgentFactory(input: {
 } {
   return (threadId) => {
     const bindings = input.tools?.(threadId) ?? [];
+    const definitionNames = new Set<string>();
+    const portNames = new Set<string>();
+    for (const { definition, port } of bindings) {
+      if (
+        definition.name.trim() === "" ||
+        port.name.trim() === "" ||
+        definition.name !== port.name
+      )
+        throw new Error(
+          "HARNESS_AGENT_TOOL_INVALID: provider definition and execution port names must match.",
+        );
+      if (definitionNames.has(definition.name) || portNames.has(port.name))
+        throw new Error(
+          `HARNESS_AGENT_TOOL_DUPLICATE: tool ${definition.name} is bound more than once.`,
+        );
+      definitionNames.add(definition.name);
+      portNames.add(port.name);
+    }
     return {
       model: createResponsesModel({
         endpoint: input.endpoint,

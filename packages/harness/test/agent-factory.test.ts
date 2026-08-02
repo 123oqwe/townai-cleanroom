@@ -52,4 +52,30 @@ describe("Responses agent factory", () => {
       },
     ]);
   });
+
+  it("rejects mismatched or duplicate provider/port names", () => {
+    const make = (bindings: Array<{ name: string; portName?: string }>) =>
+      createResponsesAgentFactory({
+        endpoint: "https://model.example.invalid/v1/responses",
+        model: "test-model",
+        tools: () =>
+          bindings.map(({ name, portName }) => ({
+            definition: {
+              name,
+              description: "tool",
+              parameters: { type: "object" },
+            },
+            port: {
+              name: portName ?? name,
+              async execute() {
+                return { kind: "result", output: "ok" as const };
+              },
+            },
+          })),
+      });
+    const mismatched = make([{ name: "read", portName: "write" }]);
+    expect(() => mismatched("thread")).toThrow("names must match");
+    const duplicated = make([{ name: "read" }, { name: "read" }]);
+    expect(() => duplicated("thread")).toThrow("bound more than once");
+  });
 });
