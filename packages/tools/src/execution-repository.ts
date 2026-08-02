@@ -385,7 +385,7 @@ export function createToolExecutionRepository(sql: Sql) {
           stepKey: value.stepKey,
           accountId: value.accountId ?? null,
           policy: derivedPolicy,
-          approvalExpiresAt: value.approvalExpiresAt ?? null,
+          approvalExpiresAt: value.approvalExpiresAt?.toISOString() ?? null,
           arguments: value.arguments,
         }),
       );

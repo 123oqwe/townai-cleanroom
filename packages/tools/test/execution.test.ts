@@ -171,6 +171,34 @@ describe("durable ToolCall proposals and approvals", () => {
         toolDefinitionId: seeded.tool.id,
         stepKey: "send-step",
         idempotencyKey: "send-1",
+        arguments: {
+          body: "Frozen body",
+          recipient: "external@example.invalid",
+        },
+        approvalExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+        policy: {
+          sessionMode: "allow_all",
+          routineMode: "autonomous",
+          perToolOverride: null,
+          sideEffect: "external_write",
+          dataSensitivity: "private",
+          inputTrust: "untrusted_data",
+          targetIsSelf: false,
+          targetIsTrusted: false,
+          accountBound: false,
+        },
+      }),
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+    await expect(
+      execution.propose({
+        ownerId,
+        sessionId: seeded.submission.session.id,
+        runId: seeded.submission.run.id,
+        leaseToken: seeded.leaseToken,
+        agentVersionId: seeded.agent.activeVersion.id,
+        toolDefinitionId: seeded.tool.id,
+        stepKey: "send-step",
+        idempotencyKey: "send-1",
         arguments: { body: "changed" },
         policy: {
           sessionMode: "allow_all",
