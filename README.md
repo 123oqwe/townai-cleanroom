@@ -62,6 +62,9 @@ control using your platform's secure secret-management workflow.
 - Owner-scoped Operations audit events with deduplication, opaque keyset
   pagination, authenticated audit reads, and live runtime backlog summaries for
   sessions, runs, approvals, and notification delivery recovery.
+- Owner-scoped Routine schedules with strict five-field cron validation,
+  timezone/next-run metadata, authenticated list/create APIs under
+  `/v1/routines`, and transactional due-work claims for an internal worker.
 - A responsive, API-backed `apps/web` command center with explicit connection,
   empty, error, focus, and harness states; it uses no fabricated backend data.
 
@@ -87,9 +90,10 @@ returns queued state without inventing assistant content. Queue claims, leases,
 event writes, runtime roles, and assistant-output writes are internal only.
 
 Module 4 defines the durable execution boundary and a provider-neutral runtime
-adapter port. No model provider, tool executor, approval engine, routine engine,
-or Codex harness is configured yet. Without an installed worker/adapter, Runs
-remain honestly queued. Genuine assistant output can only be recorded by an
-internal worker holding the current unexpired Run lease.
+adapter port. The Responses/Codex-compatible harness adapter is wired only when
+its explicit API key is configured; no provider call or assistant output is
+fabricated otherwise. Without an installed worker/adapter, Runs remain honestly
+queued. Genuine assistant output can only be recorded by an internal worker
+holding the current unexpired Run lease.
 
 The current product objective is recorded in [GOAL.md](./GOAL.md).
