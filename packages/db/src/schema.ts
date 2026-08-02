@@ -1084,6 +1084,7 @@ export const toolCalls = pgTable(
     stepKey: text("step_key").notNull(),
     idempotencyKeyHash: bytea("idempotency_key_hash").notNull(),
     argumentHash: bytea("argument_hash").notNull(),
+    requestFingerprint: bytea("request_fingerprint").notNull(),
     arguments: jsonb("arguments").notNull(),
     status: text("status").notNull().default("proposed"),
     approvalRequestId: uuid("approval_request_id"),
@@ -1140,6 +1141,10 @@ export const toolCalls = pgTable(
     check(
       "tool_calls_argument_hash_size",
       sql`octet_length(${table.argumentHash}) = 32`,
+    ),
+    check(
+      "tool_calls_request_fingerprint_size",
+      sql`octet_length(${table.requestFingerprint}) = 32`,
     ),
     check(
       "tool_calls_arguments_object",

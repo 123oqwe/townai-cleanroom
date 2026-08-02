@@ -49,6 +49,10 @@ alter table session_events
     )
   );
 
+alter table runtime_sessions
+  add constraint runtime_sessions_owner_id_agent_version_unique
+  unique (owner_id, id, agent_version_id);
+
 create index tool_definitions_owner_name_idx
   on tool_definitions(owner_id, name, version desc, id);
 
@@ -154,6 +158,7 @@ create table tool_calls (
   step_key text not null,
   idempotency_key_hash bytea not null,
   argument_hash bytea not null,
+  request_fingerprint bytea not null,
   arguments jsonb not null,
   status text not null default 'proposed',
   approval_request_id uuid,
@@ -172,6 +177,9 @@ create table tool_calls (
   constraint tool_calls_owner_agent_version_fk
     foreign key (owner_id, agent_version_id)
     references agent_versions(owner_id, id),
+  constraint tool_calls_owner_session_agent_version_fk
+    foreign key (owner_id, session_id, agent_version_id)
+    references runtime_sessions(owner_id, id, agent_version_id),
   constraint tool_calls_owner_tool_definition_fk
     foreign key (owner_id, tool_definition_id)
     references tool_definitions(owner_id, id),
@@ -179,6 +187,8 @@ create table tool_calls (
     foreign key (owner_id, policy_decision_id)
     references policy_decisions(owner_id, id),
   constraint tool_calls_owner_id_id_unique unique (owner_id, id),
+  constraint tool_calls_owner_session_run_id_unique
+    unique (owner_id, session_id, run_id, id),
   constraint tool_calls_owner_step_idempotency_unique
     unique (owner_id, run_id, step_key, idempotency_key_hash),
   constraint tool_calls_step_key_nonempty check (length(btrim(step_key)) > 0),
@@ -186,6 +196,8 @@ create table tool_calls (
     check (octet_length(idempotency_key_hash) = 32),
   constraint tool_calls_argument_hash_size
     check (octet_length(argument_hash) = 32),
+  constraint tool_calls_request_fingerprint_size
+    check (octet_length(request_fingerprint) = 32),
   constraint tool_calls_arguments_object
     check (jsonb_typeof(arguments) = 'object'),
   constraint tool_calls_status_allowed check (
@@ -226,7 +238,8 @@ create table approval_requests (
     foreign key (owner_id, session_id, run_id)
     references session_runs(owner_id, session_id, id),
   constraint approval_requests_owner_tool_call_fk
-    foreign key (owner_id, tool_call_id) references tool_calls(owner_id, id),
+    foreign key (owner_id, session_id, run_id, tool_call_id)
+    references tool_calls(owner_id, session_id, run_id, id),
   constraint approval_requests_owner_decided_by_fk
     foreign key (decided_by) references users(id),
   constraint approval_requests_owner_id_id_unique unique (owner_id, id),
@@ -243,6 +256,9 @@ create table approval_requests (
     (state = 'pending' and decided_at is null and decided_by is null) or
     (state <> 'pending' and decided_at is not null and
       (state = 'expired' or decided_by is not null))
+  ),
+  constraint approval_requests_decided_by_owner check (
+    decided_by is null or decided_by = owner_id
   )
 );
 
@@ -254,6 +270,11 @@ returns trigger
 language plpgsql
 as $$
 begin
+  if tg_op = 'DELETE' and not exists (
+    select 1 from users where id = old.owner_id
+  ) then
+    return old;
+  end if;
   raise exception using
     errcode = '55000',
     message = 'tool policy history records cannot be changed';

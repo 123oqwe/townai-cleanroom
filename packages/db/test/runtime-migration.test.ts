@@ -64,8 +64,11 @@ describe("persistent runtime and tool-policy migrations", () => {
         "agent_tool_bindings_owner_agent_version_fk",
         "policy_decisions_risk_flags_array",
         "tool_calls_argument_hash_size",
+        "tool_calls_request_fingerprint_size",
+        "tool_calls_owner_session_agent_version_fk",
         "approval_requests_state_allowed",
         "approval_requests_frozen_arguments_object",
+        "approval_requests_decided_by_owner",
       ]),
     );
     expect(indexes.map(({ indexname }) => indexname)).toEqual(

@@ -17,7 +17,11 @@ import {
   createCredentialCipher,
   createIdentityService,
 } from "@town/identity";
-import { createSessionRepository } from "@town/runtime";
+import {
+  createRuntimeQueueRepository,
+  createRuntimeTransitionService,
+  createSessionRepository,
+} from "@town/runtime";
 import {
   createToolExecutionRepository,
   createToolRegistryRepository,
@@ -70,6 +74,15 @@ async function fixture() {
     text: "Prepare a tool proposal.",
     mentions: [],
   });
+  const lease = await createRuntimeQueueRepository(sql).claim({
+    workerId: "tool-api-worker",
+    leaseMs: 60_000,
+  });
+  if (lease === null) throw new Error("Expected a runtime lease.");
+  await createRuntimeTransitionService(sql).start({
+    runId: lease.runId,
+    leaseToken: lease.leaseToken,
+  });
   const registry = createToolRegistryRepository(sql);
   const tool = await registry.create({
     ownerId: owner.user.id,
@@ -95,7 +108,14 @@ async function fixture() {
     toolRegistryRepository: registry,
     toolExecutionRepository: createToolExecutionRepository(sql),
   });
-  return { app, owner, agent, submission, tool };
+  return {
+    app,
+    owner,
+    agent,
+    submission,
+    tool,
+    execution: createToolExecutionRepository(sql),
+  };
 }
 
 function headers(token: string) {
@@ -136,39 +156,34 @@ describe("protected Tool and Approval API", () => {
       }),
     });
     expect(unauthenticated.status).toBe(401);
-    expect(spoofed.status).toBe(400);
+    expect(spoofed.status).toBe(404);
   });
 
   it("proposes a frozen approval and resolves it through CAS", async () => {
-    const { app, owner, submission, agent, tool } = await fixture();
-    const proposalResponse = await app.request("/v1/tool-calls", {
-      method: "POST",
-      headers: headers(owner.token),
-      body: JSON.stringify({
-        sessionId: submission.session.id,
-        runId: submission.run.id,
-        agentVersionId: agent.activeVersion.id,
-        toolDefinitionId: tool.id,
-        stepKey: "api-approval-step",
-        idempotencyKey: "api-approval-idempotency",
-        arguments: { body: "Do not rewrite this." },
-        policy: {
-          sessionMode: "ask_before_changes",
-          routineMode: "autonomous",
-          perToolOverride: null,
-          sideEffect: "external_write",
-          dataSensitivity: "private",
-          inputTrust: "trusted_instruction",
-          targetIsSelf: false,
-          targetIsTrusted: false,
-          accountBound: true,
-        },
-      }),
+    const { app, owner, submission, agent, tool, execution } = await fixture();
+    const proposal = await execution.propose({
+      ownerId: owner.user.id,
+      sessionId: submission.session.id,
+      runId: submission.run.id,
+      agentVersionId: agent.activeVersion.id,
+      toolDefinitionId: tool.id,
+      stepKey: "api-approval-step",
+      idempotencyKey: "api-approval-idempotency",
+      arguments: { body: "Do not rewrite this." },
+      policy: {
+        sessionMode: "ask_before_changes",
+        routineMode: "autonomous",
+        perToolOverride: null,
+        sideEffect: "external_write",
+        dataSensitivity: "private",
+        inputTrust: "trusted_instruction",
+        targetIsSelf: false,
+        targetIsTrusted: false,
+        accountBound: true,
+      },
     });
-    expect(proposalResponse.status).toBe(202);
-    const proposal = (await proposalResponse.json()) as {
-      approval: { id: string; revision: number };
-    };
+    if (proposal.approval === null)
+      throw new Error("Expected approval request.");
     const decisionResponse = await app.request(
       `/v1/approvals/${proposal.approval.id}/decision`,
       {

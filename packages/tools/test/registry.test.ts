@@ -92,6 +92,13 @@ describe("tool registry", () => {
     await expect(
       sql`update tool_definitions set description = 'spoofed' where id = ${tool.id}`,
     ).rejects.toMatchObject({ code: "55000" });
+    await expect(
+      sql`delete from users where id = ${ownerId}`,
+    ).resolves.toBeDefined();
+    const [remaining] = await sql<{ count: number }[]>`
+      select count(*)::int as count from tool_definitions where owner_id = ${ownerId}
+    `;
+    expect(remaining?.count).toBe(0);
   });
 
   it("rejects duplicate names and duplicate bindings without weakening ownership", async () => {

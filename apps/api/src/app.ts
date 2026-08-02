@@ -229,6 +229,7 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof ToolExecutionError &&
         [
           "IDEMPOTENCY_CONFLICT",
+          "RUN_STATE_CONFLICT",
           "APPROVAL_STATE_CONFLICT",
           "APPROVAL_REVISION_CONFLICT",
         ].includes(error.code))

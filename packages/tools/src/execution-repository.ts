@@ -20,7 +20,7 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value !== null && typeof value === "object") {
     return `{${Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
       .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
       .join(",")}}`;
   }
@@ -35,6 +35,7 @@ export class ToolExecutionError extends Error {
   constructor(
     readonly code:
       | "RUN_NOT_FOUND"
+      | "RUN_STATE_CONFLICT"
       | "TOOL_BINDING_NOT_FOUND"
       | "TOOL_CALL_NOT_FOUND"
       | "APPROVAL_NOT_FOUND"
@@ -58,6 +59,7 @@ interface ToolCallRow {
   policy_decision_id: string;
   step_key: string;
   argument_hash: Buffer;
+  request_fingerprint: Buffer;
   arguments: Record<string, unknown>;
   status: ToolCall["status"];
   approval_request_id: string | null;
@@ -160,7 +162,7 @@ export function createToolExecutionRepository(sql: Sql) {
     const [row] = await sql<ToolCallRow[]>`
       select id, owner_id, session_id, run_id, agent_version_id,
         tool_definition_id, policy_decision_id, step_key, argument_hash,
-        arguments, status, approval_request_id, created_at
+        request_fingerprint, arguments, status, approval_request_id, created_at
       from tool_calls where owner_id = ${ownerId} and id = ${toolCallId}
     `;
     if (row === undefined) {
@@ -235,21 +237,69 @@ export function createToolExecutionRepository(sql: Sql) {
       .parse(input);
     const argumentHash = hash(canonicalJson(value.arguments));
     const idempotencyHash = hash(value.idempotencyKey);
-    const policyResult = evaluatePolicy(value.policy as PolicyInput);
     const result = await sql.begin(async (transaction) => {
       const [session] = await transaction<{ id: string }[]>`
         select id from runtime_sessions
         where owner_id = ${value.ownerId} and id = ${value.sessionId}
         for update
       `;
-      const [run] = await transaction<{ id: string }[]>`
-        select id from session_runs
+      const [run] = await transaction<{ id: string; state: string }[]>`
+        select id, state from session_runs
         where owner_id = ${value.ownerId} and session_id = ${value.sessionId}
           and id = ${value.runId}
         for update
       `;
       if (session === undefined || run === undefined) {
         throw new ToolExecutionError("RUN_NOT_FOUND", "The Run was not found.");
+      }
+      if (run.state !== "running") {
+        throw new ToolExecutionError(
+          "RUN_STATE_CONFLICT",
+          "Tool proposals require a running Run.",
+        );
+      }
+      const [toolContext] = await transaction<
+        {
+          session_agent_version_id: string;
+          approval_mode:
+            "respect_tool_setting" | "require_approval" | "autonomous";
+          default_approval_mode:
+            "respect_tool_setting" | "require_approval" | "autonomous";
+          mode_override:
+            "read_only" | "approval_required" | "autonomous" | null;
+          side_effect: PolicyInput["sideEffect"];
+          data_sensitivity: PolicyInput["dataSensitivity"];
+          account_binding: "required" | "optional" | "none";
+        }[]
+      >`
+        select session.agent_version_id as session_agent_version_id,
+          thread.approval_mode,
+          (version.snapshot->>'defaultApprovalMode') as default_approval_mode,
+          binding.mode_override, tool.side_effect, tool.data_sensitivity,
+          tool.account_binding
+        from runtime_sessions session
+        join threads thread
+          on thread.owner_id = session.owner_id and thread.id = session.thread_id
+        join agent_versions version
+          on version.owner_id = session.owner_id and version.id = session.agent_version_id
+        join agent_tool_bindings binding
+          on binding.owner_id = session.owner_id
+          and binding.agent_version_id = session.agent_version_id
+          and binding.tool_definition_id = ${value.toolDefinitionId}
+        join tool_definitions tool
+          on tool.owner_id = binding.owner_id and tool.id = binding.tool_definition_id
+        where session.owner_id = ${value.ownerId}
+          and session.id = ${value.sessionId}
+          and tool.enabled = true
+      `;
+      if (
+        toolContext === undefined ||
+        toolContext.session_agent_version_id !== value.agentVersionId
+      ) {
+        throw new ToolExecutionError(
+          "TOOL_BINDING_NOT_FOUND",
+          "The Tool is not bound to the Session AgentVersion.",
+        );
       }
       const [binding] = await transaction<{ id: string }[]>`
         select binding.id
@@ -267,20 +317,51 @@ export function createToolExecutionRepository(sql: Sql) {
           "The Tool is not bound to this AgentVersion.",
         );
       }
+      const sessionMode =
+        toolContext.approval_mode === "require_approval"
+          ? "ask_before_changes"
+          : toolContext.approval_mode === "autonomous"
+            ? "allow_all"
+            : "allow_safe_actions";
+      const routineMode =
+        toolContext.default_approval_mode === "require_approval"
+          ? "approval_required"
+          : "autonomous";
+      const derivedPolicy: PolicyInput = {
+        sessionMode,
+        routineMode,
+        perToolOverride: toolContext.mode_override,
+        sideEffect: toolContext.side_effect,
+        dataSensitivity: toolContext.data_sensitivity,
+        inputTrust: value.policy.inputTrust as PolicyInput["inputTrust"],
+        targetIsSelf: value.policy.targetIsSelf,
+        targetIsTrusted: value.policy.targetIsTrusted,
+        accountBound: toolContext.account_binding === "required",
+      };
+      const policyResult = evaluatePolicy(derivedPolicy);
+      const requestFingerprint = hash(
+        canonicalJson({
+          agentVersionId: value.agentVersionId,
+          toolDefinitionId: value.toolDefinitionId,
+          stepKey: value.stepKey,
+          policy: derivedPolicy,
+          arguments: value.arguments,
+        }),
+      );
       const [existing] = await transaction<ToolCallRow[]>`
         select id, owner_id, session_id, run_id, agent_version_id,
-          tool_definition_id, policy_decision_id, step_key, argument_hash,
-          arguments, status, approval_request_id, created_at
+        tool_definition_id, policy_decision_id, step_key, argument_hash,
+          request_fingerprint, arguments, status, approval_request_id, created_at
         from tool_calls
         where owner_id = ${value.ownerId} and run_id = ${value.runId}
           and step_key = ${value.stepKey}
           and idempotency_key_hash = ${idempotencyHash}
       `;
       if (existing !== undefined) {
-        if (!existing.argument_hash.equals(argumentHash)) {
+        if (!existing.request_fingerprint.equals(requestFingerprint)) {
           throw new ToolExecutionError(
             "IDEMPOTENCY_CONFLICT",
-            "The idempotency key was reused for different arguments.",
+            "The idempotency key was reused for different tool semantics.",
           );
         }
         return {
@@ -300,11 +381,11 @@ export function createToolExecutionRepository(sql: Sql) {
           input_trust, target_is_self, target_is_trusted, risk_flags, rationale
         ) values (
           ${policyDecisionId}, ${value.ownerId}, ${value.sessionId}, ${value.runId},
-          ${policyResult.decision}, ${value.policy.sessionMode},
-          ${value.policy.routineMode}, ${value.policy.perToolOverride},
-          ${value.policy.sideEffect}, ${value.policy.dataSensitivity},
-          ${value.policy.inputTrust}, ${value.policy.targetIsSelf},
-          ${value.policy.targetIsTrusted}, ${transaction.json(policyResult.riskFlags)},
+          ${policyResult.decision}, ${derivedPolicy.sessionMode},
+          ${derivedPolicy.routineMode}, ${derivedPolicy.perToolOverride},
+          ${derivedPolicy.sideEffect}, ${derivedPolicy.dataSensitivity},
+          ${derivedPolicy.inputTrust}, ${derivedPolicy.targetIsSelf},
+          ${derivedPolicy.targetIsTrusted}, ${transaction.json(policyResult.riskFlags)},
           ${policyResult.rationale}
         )
       `;
@@ -319,11 +400,13 @@ export function createToolExecutionRepository(sql: Sql) {
         insert into tool_calls (
           id, owner_id, session_id, run_id, agent_version_id,
           tool_definition_id, policy_decision_id, step_key,
-          idempotency_key_hash, argument_hash, arguments, status
+          idempotency_key_hash, argument_hash, request_fingerprint,
+          arguments, status
         ) values (
           ${callId}, ${value.ownerId}, ${value.sessionId}, ${value.runId},
           ${value.agentVersionId}, ${value.toolDefinitionId}, ${policyDecisionId},
           ${value.stepKey}, ${idempotencyHash}, ${argumentHash},
+          ${requestFingerprint},
           ${transaction.json(value.arguments)}, ${callStatus}
         )
       `;
@@ -431,10 +514,45 @@ export function createToolExecutionRepository(sql: Sql) {
           "APPROVAL_STATE_CONFLICT",
           "The Approval is no longer pending.",
         );
+      const [expired] = await transaction<{ id: string }[]>`
+        update approval_requests
+        set state = 'expired', revision = revision + 1,
+            decided_at = clock_timestamp()
+        where owner_id = ${value.ownerId} and id = ${value.approvalId}
+          and state = 'pending' and revision = ${value.expectedRevision}
+          and expires_at is not null and expires_at <= clock_timestamp()
+        returning id
+      `;
+      if (expired !== undefined) {
+        await transaction`
+          update tool_calls set status = 'denied'
+          where owner_id = ${value.ownerId} and id = ${approval.tool_call_id}
+        `;
+        await appendToolEvents(transaction, {
+          ownerId: value.ownerId,
+          sessionId: approval.session_id,
+          runId: approval.run_id,
+          events: [
+            {
+              kind: "approval_resolved",
+              payload: {
+                approvalRequestId: approval.id,
+                decision: "expired",
+                toolCallId: approval.tool_call_id,
+              },
+            },
+          ],
+        });
+        return {
+          approvalId: approval.id,
+          callId: approval.tool_call_id,
+          expired: true,
+        };
+      }
       const [call] = await transaction<ToolCallRow[]>`
         select id, owner_id, session_id, run_id, agent_version_id,
           tool_definition_id, policy_decision_id, step_key, argument_hash,
-          arguments, status, approval_request_id, created_at
+          request_fingerprint, arguments, status, approval_request_id, created_at
         from tool_calls where owner_id = ${value.ownerId} and id = ${approval.tool_call_id}
         for update
       `;
@@ -472,8 +590,14 @@ export function createToolExecutionRepository(sql: Sql) {
           },
         ],
       });
-      return { approvalId: approval.id, callId: call.id };
+      return { approvalId: approval.id, callId: call.id, expired: false };
     });
+    if (result.expired) {
+      throw new ToolExecutionError(
+        "APPROVAL_STATE_CONFLICT",
+        "The Approval has expired.",
+      );
+    }
     return {
       approval: await getApproval(
         asId<"user">(value.ownerId),
@@ -544,7 +668,7 @@ export function createToolExecutionRepository(sql: Sql) {
       const [call] = await transaction<ToolCallRow[]>`
         select id, owner_id, session_id, run_id, agent_version_id,
           tool_definition_id, policy_decision_id, step_key, argument_hash,
-          arguments, status, approval_request_id, created_at
+          request_fingerprint, arguments, status, approval_request_id, created_at
         from tool_calls where owner_id = ${value.ownerId} and id = ${approval.tool_call_id}
         for update
       `;
