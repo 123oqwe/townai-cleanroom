@@ -8,7 +8,12 @@ import {
   createThreadRepository,
   createTurnRepository,
 } from "@town/agents";
-import { createDatabase, runMigrations } from "@town/db";
+import {
+  createDatabase,
+  createHarnessThreadStore,
+  runMigrations,
+} from "@town/db";
+import { createAppServer, createResponsesAgentFactory } from "@town/harness";
 import {
   createAccountRepository,
   createCredentialCipher,
@@ -37,11 +42,18 @@ import { createApp } from "./app.js";
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
   CREDENTIAL_MASTER_KEY_BASE64URL: z.string().min(1),
+  RESPONSES_API_ENDPOINT: z
+    .string()
+    .url()
+    .default("https://api.openai.com/v1/responses"),
+  RESPONSES_MODEL: z.string().min(1).default("gpt-5"),
+  RESPONSES_API_KEY: z.string().min(1).optional(),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
 });
 
 const environment = environmentSchema.parse(process.env);
-const { sql } = createDatabase(environment.DATABASE_URL);
+const database = createDatabase(environment.DATABASE_URL);
+const { sql } = database;
 await runMigrations(sql);
 
 const credentialCipher = createCredentialCipher(
@@ -66,6 +78,20 @@ const runtimeTransitionService = createRuntimeTransitionService(sql);
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
 
+const harnessServerFactory =
+  environment.RESPONSES_API_KEY === undefined
+    ? undefined
+    : (ownerId: string) =>
+        createAppServer({
+          store: createHarnessThreadStore(database.db, ownerId),
+          createAgent: createResponsesAgentFactory({
+            endpoint: environment.RESPONSES_API_ENDPOINT,
+            model: environment.RESPONSES_MODEL,
+            apiKey: async () => environment.RESPONSES_API_KEY as string,
+            tools: () => [],
+          }),
+        });
+
 const server = serve({
   fetch: createApp({
     identityService,
@@ -86,6 +112,7 @@ const server = serve({
     runtimeTransitionService,
     toolRegistryRepository,
     toolExecutionRepository,
+    ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
   }).fetch,
   port: environment.PORT,
 });

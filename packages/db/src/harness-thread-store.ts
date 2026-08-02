@@ -51,6 +51,7 @@ function toSnapshot(
 
 export function createHarnessThreadStore(
   db: TownDatabase,
+  ownerId: string,
 ): PersistentThreadStore {
   return {
     async now() {
@@ -65,7 +66,12 @@ export function createHarnessThreadStore(
       const [row] = await db
         .select()
         .from(harnessThreads)
-        .where(eq(harnessThreads.id, threadId));
+        .where(
+          and(
+            eq(harnessThreads.id, threadId),
+            eq(harnessThreads.ownerId, ownerId),
+          ),
+        );
       if (row === undefined) return undefined;
       return toSnapshot(threadId, row);
     },
@@ -78,6 +84,7 @@ export function createHarnessThreadStore(
         .insert(harnessThreads)
         .values({
           id: threadId,
+          ownerId,
           snapshot,
           revision: snapshot.revision,
           leaseOwner: snapshot.leaseOwner ?? null,
@@ -90,6 +97,7 @@ export function createHarnessThreadStore(
           target: harnessThreads.id,
           set: {
             snapshot,
+            ownerId,
             revision: snapshot.revision,
             leaseOwner: snapshot.leaseOwner ?? null,
             leaseExpiresAt:
@@ -120,6 +128,7 @@ export function createHarnessThreadStore(
         .where(
           and(
             eq(harnessThreads.id, threadId),
+            eq(harnessThreads.ownerId, ownerId),
             eq(harnessThreads.revision, expected.revision),
             expected.takeover === true
               ? expected.leaseOwner === undefined
@@ -154,6 +163,7 @@ export function createHarnessThreadStore(
         .where(
           and(
             eq(harnessThreads.id, threadId),
+            eq(harnessThreads.ownerId, ownerId),
             eq(harnessThreads.revision, expectedRevision),
             or(
               isNull(harnessThreads.leaseOwner),

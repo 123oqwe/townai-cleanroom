@@ -74,6 +74,7 @@ export interface AppDependencies {
   toolRegistryRepository?: ToolRegistryRepository;
   toolExecutionRepository?: ToolExecutionRepository;
   harnessServer?: AppServer;
+  harnessServerFactory?: (ownerId: string) => AppServer;
 }
 
 function runtimeDependencies(
@@ -449,6 +450,22 @@ export function createApp(dependencies?: AppDependencies) {
         const request = (await context.req.json()) as AppServerRequest;
         const response = await harnessServer.dispatch(request);
         return context.json(response);
+      });
+    }
+    const harnessServerFactory = dependencies.harnessServerFactory;
+    if (harnessServerFactory !== undefined) {
+      const servers = new Map<string, AppServer>();
+      app.use("/v1/harness", authenticate);
+      app.use("/v1/harness/*", authenticate);
+      app.post("/v1/harness", async (context) => {
+        const ownerId = context.get("identity").user.id;
+        let server = servers.get(ownerId);
+        if (server === undefined) {
+          server = harnessServerFactory(ownerId);
+          servers.set(ownerId, server);
+        }
+        const request = (await context.req.json()) as AppServerRequest;
+        return context.json(await server.dispatch(request));
       });
     }
   }

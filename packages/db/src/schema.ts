@@ -1315,6 +1315,7 @@ export const harnessThreads = pgTable(
   "harness_threads",
   {
     id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id"),
     snapshot: jsonb("snapshot").notNull(),
     revision: integer("revision").notNull(),
     leaseOwner: text("lease_owner"),
@@ -1330,6 +1331,11 @@ export const harnessThreads = pgTable(
     check(
       "harness_threads_lease_shape",
       sql`(${table.leaseOwner} is null and ${table.leaseExpiresAt} is null) or (${table.leaseOwner} is not null and ${table.leaseExpiresAt} is not null)`,
+    ),
+    index("harness_threads_owner_idx").on(
+      table.ownerId,
+      table.updatedAt,
+      table.id,
     ),
   ],
 );
