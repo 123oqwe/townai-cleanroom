@@ -12,3 +12,18 @@ export class AgentError extends Error {
     this.name = "AgentError";
   }
 }
+
+export type ThreadErrorCode =
+  | "THREAD_NOT_FOUND"
+  | "THREAD_REVISION_CONFLICT"
+  | "TASK_THREAD_REQUIRES_TASK_DELETE";
+
+export class ThreadError extends Error {
+  constructor(
+    readonly code: ThreadErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ThreadError";
+  }
+}

@@ -127,9 +127,7 @@ function safeSnapshot(value: {
   displayName: string;
   instructions: string;
   defaultApprovalMode:
-    | "respect_tool_setting"
-    | "require_approval"
-    | "autonomous";
+    "respect_tool_setting" | "require_approval" | "autonomous";
 }) {
   return agentVersionSnapshotSchema.parse({
     displayName: value.displayName,

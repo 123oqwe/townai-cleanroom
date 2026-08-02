@@ -44,3 +44,31 @@ export interface AgentVersionPage {
   items: AgentVersion[];
   nextCursor: string | null;
 }
+
+export const threadKindSchema = z.enum(["assistant", "task"]);
+export const threadStatusSchema = z.enum(["active", "archived"]);
+
+export type ThreadKind = z.infer<typeof threadKindSchema>;
+export type ThreadStatus = z.infer<typeof threadStatusSchema>;
+
+export interface ConversationThread {
+  id: Id<"thread">;
+  ownerId: Id<"user">;
+  agentId: Id<"agent">;
+  kind: ThreadKind;
+  title: string;
+  approvalMode: ApprovalMode;
+  status: ThreadStatus;
+  pinnedAt: Date | null;
+  revision: number;
+  lastTurnSequence: number;
+  readThroughSequence: number;
+  unread: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ThreadPage {
+  items: ConversationThread[];
+  nextCursor: string | null;
+}
