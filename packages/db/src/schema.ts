@@ -919,3 +919,296 @@ export const runtimeJobs = pgTable(
     ),
   ],
 );
+
+export const toolDefinitions = pgTable(
+  "tool_definitions",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    version: integer("version").notNull().default(1),
+    description: text("description").notNull(),
+    inputSchema: jsonb("input_schema").notNull(),
+    outputSchema: jsonb("output_schema"),
+    sideEffect: text("side_effect").notNull(),
+    dataSensitivity: text("data_sensitivity").notNull(),
+    accountBinding: text("account_binding").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("tool_definitions_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("tool_definitions_owner_name_version_unique").on(
+      table.ownerId,
+      table.name,
+      table.version,
+    ),
+    index("tool_definitions_owner_name_idx").on(
+      table.ownerId,
+      table.name,
+      table.version,
+      table.id,
+    ),
+    check(
+      "tool_definitions_input_schema_object",
+      sql`jsonb_typeof(${table.inputSchema}) = 'object'`,
+    ),
+    check(
+      "tool_definitions_side_effect_allowed",
+      sql`${table.sideEffect} in ('read', 'private_write', 'external_write', 'destructive')`,
+    ),
+  ],
+);
+
+export const agentToolBindings = pgTable(
+  "agent_tool_bindings",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentVersionId: uuid("agent_version_id").notNull(),
+    toolDefinitionId: uuid("tool_definition_id").notNull(),
+    modeOverride: text("mode_override"),
+    accountScope: jsonb("account_scope").notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.agentVersionId],
+      foreignColumns: [agentVersions.ownerId, agentVersions.id],
+      name: "agent_tool_bindings_owner_agent_version_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.toolDefinitionId],
+      foreignColumns: [toolDefinitions.ownerId, toolDefinitions.id],
+      name: "agent_tool_bindings_owner_tool_definition_fk",
+    }),
+    unique("agent_tool_bindings_owner_id_id_unique").on(
+      table.ownerId,
+      table.id,
+    ),
+    unique("agent_tool_bindings_owner_version_tool_unique").on(
+      table.ownerId,
+      table.agentVersionId,
+      table.toolDefinitionId,
+    ),
+    index("agent_tool_bindings_owner_version_idx").on(
+      table.ownerId,
+      table.agentVersionId,
+      table.createdAt,
+      table.id,
+    ),
+  ],
+);
+
+export const policyDecisions = pgTable(
+  "policy_decisions",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull(),
+    runId: uuid("run_id").notNull(),
+    toolCallId: uuid("tool_call_id"),
+    decision: text("decision").notNull(),
+    sessionMode: text("session_mode").notNull(),
+    routineMode: text("routine_mode").notNull(),
+    perToolOverride: text("per_tool_override"),
+    sideEffect: text("side_effect").notNull(),
+    dataSensitivity: text("data_sensitivity").notNull(),
+    inputTrust: text("input_trust").notNull(),
+    targetIsSelf: boolean("target_is_self").notNull(),
+    targetIsTrusted: boolean("target_is_trusted").notNull(),
+    accountId: uuid("account_id"),
+    riskFlags: jsonb("risk_flags").notNull().default([]),
+    rationale: text("rationale").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.sessionId],
+      foreignColumns: [runtimeSessions.ownerId, runtimeSessions.id],
+      name: "policy_decisions_owner_session_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.sessionId, table.runId],
+      foreignColumns: [
+        sessionRuns.ownerId,
+        sessionRuns.sessionId,
+        sessionRuns.id,
+      ],
+      name: "policy_decisions_owner_session_run_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.accountId],
+      foreignColumns: [connectedAccounts.ownerId, connectedAccounts.id],
+      name: "policy_decisions_owner_account_fk",
+    }),
+    unique("policy_decisions_owner_id_id_unique").on(table.ownerId, table.id),
+    index("policy_decisions_owner_run_idx").on(
+      table.ownerId,
+      table.sessionId,
+      table.runId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "policy_decisions_risk_flags_array",
+      sql`jsonb_typeof(${table.riskFlags}) = 'array'`,
+    ),
+  ],
+);
+
+export const toolCalls = pgTable(
+  "tool_calls",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull(),
+    runId: uuid("run_id").notNull(),
+    agentVersionId: uuid("agent_version_id").notNull(),
+    toolDefinitionId: uuid("tool_definition_id").notNull(),
+    policyDecisionId: uuid("policy_decision_id").notNull(),
+    stepKey: text("step_key").notNull(),
+    idempotencyKeyHash: bytea("idempotency_key_hash").notNull(),
+    argumentHash: bytea("argument_hash").notNull(),
+    arguments: jsonb("arguments").notNull(),
+    status: text("status").notNull().default("proposed"),
+    approvalRequestId: uuid("approval_request_id"),
+    result: jsonb("result"),
+    errorCode: text("error_code"),
+    ...timestamps,
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.sessionId],
+      foreignColumns: [runtimeSessions.ownerId, runtimeSessions.id],
+      name: "tool_calls_owner_session_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.sessionId, table.runId],
+      foreignColumns: [
+        sessionRuns.ownerId,
+        sessionRuns.sessionId,
+        sessionRuns.id,
+      ],
+      name: "tool_calls_owner_session_run_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.agentVersionId],
+      foreignColumns: [agentVersions.ownerId, agentVersions.id],
+      name: "tool_calls_owner_agent_version_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.toolDefinitionId],
+      foreignColumns: [toolDefinitions.ownerId, toolDefinitions.id],
+      name: "tool_calls_owner_tool_definition_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.policyDecisionId],
+      foreignColumns: [policyDecisions.ownerId, policyDecisions.id],
+      name: "tool_calls_owner_policy_decision_fk",
+    }),
+    unique("tool_calls_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("tool_calls_owner_step_idempotency_unique").on(
+      table.ownerId,
+      table.runId,
+      table.stepKey,
+      table.idempotencyKeyHash,
+    ),
+    index("tool_calls_owner_run_idx").on(
+      table.ownerId,
+      table.sessionId,
+      table.runId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "tool_calls_argument_hash_size",
+      sql`octet_length(${table.argumentHash}) = 32`,
+    ),
+    check(
+      "tool_calls_arguments_object",
+      sql`jsonb_typeof(${table.arguments}) = 'object'`,
+    ),
+  ],
+);
+
+export const approvalRequests = pgTable(
+  "approval_requests",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull(),
+    runId: uuid("run_id").notNull(),
+    toolCallId: uuid("tool_call_id").notNull(),
+    argumentHash: bytea("argument_hash").notNull(),
+    arguments: jsonb("arguments").notNull(),
+    state: text("state").notNull().default("pending"),
+    revision: integer("revision").notNull().default(1),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedBy: uuid("decided_by"),
+    decisionNote: text("decision_note"),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.sessionId],
+      foreignColumns: [runtimeSessions.ownerId, runtimeSessions.id],
+      name: "approval_requests_owner_session_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.sessionId, table.runId],
+      foreignColumns: [
+        sessionRuns.ownerId,
+        sessionRuns.sessionId,
+        sessionRuns.id,
+      ],
+      name: "approval_requests_owner_session_run_fk",
+    }),
+    foreignKey({
+      columns: [table.ownerId, table.toolCallId],
+      foreignColumns: [toolCalls.ownerId, toolCalls.id],
+      name: "approval_requests_owner_tool_call_fk",
+    }),
+    foreignKey({
+      columns: [table.decidedBy],
+      foreignColumns: [users.id],
+      name: "approval_requests_owner_decided_by_fk",
+    }),
+    unique("approval_requests_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("approval_requests_tool_call_unique").on(
+      table.ownerId,
+      table.toolCallId,
+    ),
+    index("approval_requests_owner_status_idx").on(
+      table.ownerId,
+      table.state,
+      table.requestedAt,
+      table.id,
+    ),
+    check(
+      "approval_requests_frozen_arguments_object",
+      sql`jsonb_typeof(${table.arguments}) = 'object'`,
+    ),
+  ],
+);

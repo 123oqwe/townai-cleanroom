@@ -13,7 +13,7 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe("persistent runtime migration", () => {
+describe("persistent runtime and tool-policy migrations", () => {
   it("creates owner-bound sessions, runs, events, and jobs", async () => {
     await runMigrations(sql);
 
@@ -39,6 +39,11 @@ describe("persistent runtime migration", () => {
         "runtime_sessions",
         "session_events",
         "session_runs",
+        "tool_definitions",
+        "agent_tool_bindings",
+        "policy_decisions",
+        "tool_calls",
+        "approval_requests",
       ]),
     );
     expect(constraints.map(({ constraint_name }) => constraint_name)).toEqual(
@@ -54,6 +59,13 @@ describe("persistent runtime migration", () => {
         "session_runs_lifecycle_valid",
         "session_runs_owner_session_idempotency_unique",
         "session_runs_owner_session_turn_unique",
+        "tool_definitions_side_effect_allowed",
+        "tool_definitions_input_schema_object",
+        "agent_tool_bindings_owner_agent_version_fk",
+        "policy_decisions_risk_flags_array",
+        "tool_calls_argument_hash_size",
+        "approval_requests_state_allowed",
+        "approval_requests_frozen_arguments_object",
       ]),
     );
     expect(indexes.map(({ indexname }) => indexname)).toEqual(
@@ -62,6 +74,11 @@ describe("persistent runtime migration", () => {
         "runtime_sessions_owner_state_activity_idx",
         "session_events_owner_session_sequence_idx",
         "session_runs_owner_session_created_idx",
+        "tool_definitions_owner_name_idx",
+        "agent_tool_bindings_owner_version_idx",
+        "policy_decisions_owner_run_idx",
+        "tool_calls_owner_run_idx",
+        "approval_requests_owner_status_idx",
       ]),
     );
     expect(triggers.map(({ trigger_name }) => trigger_name)).toEqual(
@@ -69,7 +86,7 @@ describe("persistent runtime migration", () => {
     );
   });
 
-  it("applies all four migrations exactly once", async () => {
+  it("applies all five migrations exactly once", async () => {
     await runMigrations(sql);
     await runMigrations(sql);
 
@@ -82,6 +99,7 @@ describe("persistent runtime migration", () => {
       "0002_knowledge.sql",
       "0003_agents_threads_tasks.sql",
       "0004_persistent_sessions.sql",
+      "0005_tools_policy_approvals.sql",
     ]);
   });
 });
