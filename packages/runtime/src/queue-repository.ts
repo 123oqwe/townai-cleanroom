@@ -43,7 +43,7 @@ interface CandidateRow {
   run_id: string;
 }
 
-interface JobRow extends CandidateRow {
+export interface RuntimeJobLeaseRow extends CandidateRow {
   state: "queued" | "leased";
   attempt: number;
   lease_token_hash: Buffer | null;
@@ -68,10 +68,10 @@ function hashLeaseToken(token: string): Buffer {
 }
 
 function assertCurrentLease(
-  row: JobRow | undefined,
+  row: RuntimeJobLeaseRow | undefined,
   tokenHash: Buffer,
   now: Date,
-): asserts row is JobRow & {
+): asserts row is RuntimeJobLeaseRow & {
   state: "leased";
   lease_token_hash: Buffer;
   leased_by: string;
@@ -100,8 +100,8 @@ function assertCurrentLease(
 async function lockJob(
   transaction: TransactionSql,
   runId: Id<"session-run">,
-): Promise<JobRow | undefined> {
-  const [row] = await transaction<JobRow[]>`
+): Promise<RuntimeJobLeaseRow | undefined> {
+  const [row] = await transaction<RuntimeJobLeaseRow[]>`
     select
       owner_id, session_id, run_id, state, attempt, lease_token_hash,
       leased_by, leased_at, lease_expires_at
@@ -109,6 +109,21 @@ async function lockJob(
     where run_id = ${runId}
     for update
   `;
+  return row;
+}
+
+export async function verifyRuntimeLeaseInTransaction(
+  transaction: TransactionSql,
+  input: {
+    runId: Id<"session-run">;
+    leaseToken: string;
+    now: Date;
+  },
+) {
+  const runId = asId<"session-run">(input.runId);
+  const leaseToken = leaseTokenSchema.parse(input.leaseToken);
+  const row = await lockJob(transaction, runId);
+  assertCurrentLease(row, hashLeaseToken(leaseToken), input.now);
   return row;
 }
 

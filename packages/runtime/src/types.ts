@@ -35,7 +35,7 @@ export const sessionEventKindSchema = z.enum([
   "run_cancelled",
 ]);
 
-export const runtimePayloadSchema = z.record(z.string(), z.unknown());
+export const runtimePayloadSchema = z.record(z.string(), z.json());
 
 export type RuntimeSessionState = z.infer<typeof runtimeSessionStateSchema>;
 export type SessionRunState = z.infer<typeof sessionRunStateSchema>;
