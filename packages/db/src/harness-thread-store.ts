@@ -80,7 +80,7 @@ export function createHarnessThreadStore(
         throw new Error(
           "HARNESS_THREAD_CORRUPT: snapshot threadId does not match row.",
         );
-      await db
+      const inserted = await db
         .insert(harnessThreads)
         .values({
           id: threadId,
@@ -93,20 +93,32 @@ export function createHarnessThreadStore(
               ? null
               : new Date(snapshot.leaseExpiresAt),
         })
-        .onConflictDoUpdate({
-          target: harnessThreads.id,
-          set: {
-            snapshot,
-            ownerId,
-            revision: snapshot.revision,
-            leaseOwner: snapshot.leaseOwner ?? null,
-            leaseExpiresAt:
-              snapshot.leaseExpiresAt === undefined
-                ? null
-                : new Date(snapshot.leaseExpiresAt),
-            updatedAt: new Date(),
-          },
-        });
+        .onConflictDoNothing()
+        .returning({ id: harnessThreads.id });
+      if (inserted.length > 0) return;
+      const updated = await db
+        .update(harnessThreads)
+        .set({
+          snapshot,
+          revision: snapshot.revision,
+          leaseOwner: snapshot.leaseOwner ?? null,
+          leaseExpiresAt:
+            snapshot.leaseExpiresAt === undefined
+              ? null
+              : new Date(snapshot.leaseExpiresAt),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(harnessThreads.id, threadId),
+            eq(harnessThreads.ownerId, ownerId),
+          ),
+        )
+        .returning({ id: harnessThreads.id });
+      if (updated.length === 0)
+        throw new Error(
+          "HARNESS_THREAD_OWNER_CONFLICT: thread belongs to another owner.",
+        );
     },
     async compareAndSet(threadId, expected, snapshot) {
       if (snapshot.threadId !== threadId)

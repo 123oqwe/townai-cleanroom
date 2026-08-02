@@ -1315,7 +1315,9 @@ export const harnessThreads = pgTable(
   "harness_threads",
   {
     id: uuid("id").primaryKey(),
-    ownerId: uuid("owner_id"),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     snapshot: jsonb("snapshot").notNull(),
     revision: integer("revision").notNull(),
     leaseOwner: text("lease_owner"),

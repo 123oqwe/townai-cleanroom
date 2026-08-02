@@ -168,6 +168,13 @@ function knowledgeDependencies(
 }
 
 export function createApp(dependencies?: AppDependencies) {
+  if (
+    dependencies?.harnessServer !== undefined &&
+    dependencies.harnessServerFactory !== undefined
+  )
+    throw new Error(
+      "HARNESS_CONFIGURATION_CONFLICT: provide harnessServer or harnessServerFactory, not both.",
+    );
   const app = new Hono<{ Variables: AuthVariables }>();
 
   app.onError((error, context) => {
