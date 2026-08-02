@@ -39,3 +39,29 @@ export class TurnError extends Error {
     this.name = "TurnError";
   }
 }
+
+export type TaskErrorCode =
+  "TASK_NOT_FOUND" | "TASK_REVISION_CONFLICT" | "REFERENCE_UNAVAILABLE";
+
+export class TaskError extends Error {
+  constructor(
+    readonly code: TaskErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "TaskError";
+  }
+}
+
+export type InputRequestErrorCode =
+  "INPUT_REQUEST_NOT_FOUND" | "INPUT_REQUEST_ALREADY_RESOLVED";
+
+export class InputRequestError extends Error {
+  constructor(
+    readonly code: InputRequestErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "InputRequestError";
+  }
+}

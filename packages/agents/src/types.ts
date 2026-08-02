@@ -109,3 +109,65 @@ export interface TurnPage {
   items: ThreadTurn[];
   nextCursor: string | null;
 }
+
+export const taskStatusSchema = z.enum(["open", "completed"]);
+export const taskSourceTypeSchema = z.enum([
+  "thread",
+  "need_to_know",
+  "email",
+  "calendar",
+  "routine_run",
+  "external",
+]);
+
+export interface Task {
+  id: Id<"task">;
+  ownerId: Id<"user">;
+  threadId: Id<"thread">;
+  title: string;
+  description: string;
+  status: z.infer<typeof taskStatusSchema>;
+  scheduledFor: Date | null;
+  revision: number;
+  completedAt: Date | null;
+  unread: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TaskSource {
+  id: Id<"task-source">;
+  sourceType: z.infer<typeof taskSourceTypeSchema>;
+  sourceRef: string;
+  accountId: Id<"connected-account"> | null;
+  sourceLabel: string | null;
+  createdAt: Date;
+}
+
+export interface TaskDetail {
+  task: Task;
+  thread: ConversationThread;
+  sources: TaskSource[];
+}
+
+export interface TaskPage {
+  items: TaskDetail[];
+  nextCursor: string | null;
+}
+
+export const inputRequestStatusSchema = z.enum([
+  "pending",
+  "answered",
+  "cancelled",
+]);
+
+export interface TaskInputRequest {
+  id: Id<"input-request">;
+  taskId: Id<"task">;
+  prompt: string;
+  status: z.infer<typeof inputRequestStatusSchema>;
+  response: string | null;
+  requestedAt: Date;
+  answeredAt: Date | null;
+  cancelledAt: Date | null;
+}
