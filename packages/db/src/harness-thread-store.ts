@@ -1,6 +1,10 @@
 import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
 
-import type { PersistentThreadStore, ThreadSnapshot } from "@town/harness";
+import {
+  threadSnapshotSchema,
+  type PersistentThreadStore,
+  type ThreadSnapshot,
+} from "@town/harness";
 
 import { createDatabase } from "./client.js";
 import { harnessThreads } from "./schema.js";
@@ -19,19 +23,23 @@ function toSnapshot(
   if (
     typeof row.snapshot !== "object" ||
     row.snapshot === null ||
-    Array.isArray(row.snapshot) ||
-    (row.snapshot as { threadId?: unknown }).threadId !== threadId ||
-    !Array.isArray((row.snapshot as { items?: unknown }).items)
+    Array.isArray(row.snapshot)
   )
     throw new Error("HARNESS_THREAD_CORRUPT: snapshot does not match its row.");
-  return {
-    ...(row.snapshot as ThreadSnapshot),
-    revision: row.revision,
-    ...(row.leaseOwner === null ? {} : { leaseOwner: row.leaseOwner }),
-    ...(row.leaseExpiresAt === null
-      ? {}
-      : { leaseExpiresAt: row.leaseExpiresAt.getTime() }),
-  };
+  try {
+    return threadSnapshotSchema.parse({
+      ...(row.snapshot as ThreadSnapshot),
+      revision: row.revision,
+      ...(row.leaseOwner === null ? {} : { leaseOwner: row.leaseOwner }),
+      ...(row.leaseExpiresAt === null
+        ? {}
+        : { leaseExpiresAt: row.leaseExpiresAt.getTime() }),
+    }) as unknown as ThreadSnapshot;
+  } catch {
+    throw new Error(
+      "HARNESS_THREAD_CORRUPT: snapshot failed schema validation.",
+    );
+  }
 }
 
 export function createHarnessThreadStore(
@@ -127,7 +135,7 @@ export function createHarnessThreadStore(
         .returning({ id: harnessThreads.id });
       return rows.length === 1;
     },
-    async acquireLease(threadId, leaseOwner, leaseMs) {
+    async acquireLease(threadId, expectedRevision, leaseOwner, leaseMs) {
       const rows = await db
         .update(harnessThreads)
         .set({
@@ -139,6 +147,7 @@ export function createHarnessThreadStore(
         .where(
           and(
             eq(harnessThreads.id, threadId),
+            eq(harnessThreads.revision, expectedRevision),
             or(
               isNull(harnessThreads.leaseOwner),
               lte(harnessThreads.leaseExpiresAt, sql`clock_timestamp()`),

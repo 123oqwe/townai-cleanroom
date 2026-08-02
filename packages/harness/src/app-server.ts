@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { newId } from "@town/contracts";
+import { z } from "zod";
 
 import {
   createHarness,
@@ -27,6 +28,54 @@ export interface ThreadSnapshot {
   };
 }
 
+const harnessItemSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("user_message"), text: z.string() }),
+  z.object({
+    type: z.literal("assistant_message"),
+    text: z.string(),
+  }),
+  z.object({
+    type: z.literal("assistant_tool_call"),
+    callId: z.string().min(1),
+    toolName: z.string().min(1),
+    arguments: z.record(z.string(), z.unknown()),
+    providerItem: z.record(z.string(), z.unknown()).optional(),
+  }),
+  z.object({
+    type: z.literal("tool_result"),
+    callId: z.string().min(1),
+    toolName: z.string().min(1),
+    output: z.string(),
+  }),
+  z.object({
+    type: z.literal("provider_item"),
+    item: z.record(z.string(), z.unknown()),
+  }),
+]);
+
+export const threadSnapshotSchema = z.object({
+  threadId: z.string().min(1),
+  items: z.array(harnessItemSchema),
+  pendingApproval: z
+    .object({
+      callId: z.string().min(1),
+      toolName: z.string().min(1),
+      arguments: z.record(z.string(), z.unknown()),
+    })
+    .optional(),
+  stepCount: z.number().int().nonnegative(),
+  revision: z.number().int().nonnegative(),
+  leaseOwner: z.string().min(1).optional(),
+  leaseExpiresAt: z.number().finite().optional(),
+  activeTool: z
+    .object({
+      callId: z.string().min(1),
+      toolName: z.string().min(1),
+      arguments: z.record(z.string(), z.unknown()),
+    })
+    .optional(),
+});
+
 export type ThreadStore = Map<string, ThreadSnapshot>;
 
 export interface PersistentThreadStore {
@@ -42,6 +91,7 @@ export interface PersistentThreadStore {
   now: () => number | Promise<number>;
   acquireLease?: (
     threadId: string,
+    expectedRevision: number,
     leaseOwner: string,
     leaseMs: number,
   ) => ThreadSnapshot | undefined | Promise<ThreadSnapshot | undefined>;
@@ -126,10 +176,11 @@ export function createAppServer(input: {
               return true;
             },
             now: () => Date.now(),
-            acquireLease: (threadId, leaseOwner, leaseMs) => {
+            acquireLease: (threadId, expectedRevision, leaseOwner, leaseMs) => {
               const current = mapStore.get(threadId);
               if (
                 current === undefined ||
+                current.revision !== expectedRevision ||
                 (current.leaseOwner !== undefined &&
                   (current.leaseExpiresAt ?? Number.POSITIVE_INFINITY) >
                     Date.now())
@@ -204,6 +255,7 @@ export function createAppServer(input: {
     if (store.acquireLease !== undefined) {
       const claimed = await store.acquireLease(
         runtime.snapshot.threadId,
+        runtime.snapshot.revision,
         serverId,
         leaseMs,
       );
@@ -528,6 +580,10 @@ export function createAppServer(input: {
               "threadId and non-empty text are required",
             );
           return withRuntime(request, threadId, async (runtime) => {
+            if (runtime.snapshot.activeTool !== undefined)
+              throw new Error(
+                "HARNESS_EXECUTION_RECOVERY_REQUIRED: an interrupted tool execution must be reconciled before continuing.",
+              );
             if (runtime.harness.getPendingApproval() !== undefined)
               throw new Error(
                 "HARNESS_APPROVAL_PENDING: resolve the pending approval first.",
@@ -552,6 +608,10 @@ export function createAppServer(input: {
             request,
             threadId,
             async (runtime, notifications) => {
+              if (runtime.snapshot.activeTool !== undefined)
+                throw new Error(
+                  "HARNESS_EXECUTION_RECOVERY_REQUIRED: an interrupted tool execution must be reconciled before continuing.",
+                );
               if (runtime.harness.getPendingApproval()?.callId !== approvalId)
                 throw new Error(
                   "HARNESS_APPROVAL_NOT_FOUND: the approval is not pending.",
