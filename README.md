@@ -110,4 +110,9 @@ heartbeats active leases, and records completion/failure transitions. It still
 requires an explicitly injected provider adapter; the worker itself never
 generates model content.
 
+For local durable execution, set `RESPONSES_API_KEY` and
+`WORKER_ENABLED=true` in the environment. The API process then runs one worker
+poller alongside the HTTP listener; leave the flag false in serverless
+deployments and run a separate long-lived worker process instead.
+
 The current product objective is recorded in [GOAL.md](./GOAL.md).
