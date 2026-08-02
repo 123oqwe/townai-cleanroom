@@ -42,6 +42,10 @@ control using your platform's secure secret-management workflow.
 - Atomic Tasks with linked task Threads, schedules, source references, computed
   unread state, optimistic lifecycle updates, and durable InputRequests with
   compare-and-set answer and cancellation behavior.
+- Persistent owner-isolated Sessions pinned to immutable AgentVersions;
+  idempotent message-to-Turn/Run submission; append-only reconnectable events;
+  PostgreSQL queue leases; and guarded start, wait/resume, completion, failure,
+  and cancellation transitions.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm
@@ -56,12 +60,18 @@ only be written by internal runtime code.
 
 Authenticated Agent, Thread, Turn-read, Task, and InputRequest resources are
 available under `/v1/agents`, `/v1/threads`, and `/v1/tasks`. Owner identity,
-runtime role, Turn sequence, and source provenance are server-derived; there is
-intentionally no public message or Turn-write endpoint in this module.
+runtime role, Turn sequence, and source provenance are server-derived.
 
-Module 3 stores and protects domain state only. It does not execute a model,
-tool, integration, or routine, and it does not manufacture assistant output.
-Durable Session execution, tool policy, and routine orchestration are separate
-backend modules that will bind to these versioned Agent and Thread boundaries.
+Authenticated message submission is available at
+`/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are
+available under `/v1/sessions`. Submission requires an idempotency key and
+returns queued state without inventing assistant content. Queue claims, leases,
+event writes, runtime roles, and assistant-output writes are internal only.
+
+Module 4 defines the durable execution boundary and a provider-neutral runtime
+adapter port. No model provider, tool executor, approval engine, routine engine,
+or Codex harness is configured yet. Without an installed worker/adapter, Runs
+remain honestly queued. Genuine assistant output can only be recorded by an
+internal worker holding the current unexpired Run lease.
 
 The current product objective is recorded in [GOAL.md](./GOAL.md).
