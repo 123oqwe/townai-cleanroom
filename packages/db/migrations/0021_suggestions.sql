@@ -1,0 +1,25 @@
+create table suggestions (
+  id uuid primary key,
+  owner_id uuid not null references users(id) on delete cascade,
+  kind text not null,
+  status text not null default 'open',
+  title text not null,
+  body text not null,
+  source_type text not null,
+  source_ref text not null,
+  fingerprint bytea not null,
+  metadata jsonb not null default '{}',
+  revision integer not null default 1,
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint suggestions_kind_allowed check (kind in ('assistant','task','routine')),
+  constraint suggestions_status_allowed check (status in ('open','dismissed','converted')),
+  constraint suggestions_text_shape check (length(btrim(title)) between 1 and 200 and length(btrim(body)) between 1 and 20000),
+  constraint suggestions_source_shape check (length(btrim(source_type)) between 1 and 100 and length(btrim(source_ref)) between 1 and 500),
+  constraint suggestions_fingerprint_size check (octet_length(fingerprint) = 32),
+  constraint suggestions_metadata_object check (jsonb_typeof(metadata) = 'object'),
+  constraint suggestions_revision_positive check (revision > 0),
+  constraint suggestions_owner_fingerprint_unique unique (owner_id, fingerprint)
+);
+create index suggestions_owner_status_idx on suggestions(owner_id, status, created_at desc, id desc);

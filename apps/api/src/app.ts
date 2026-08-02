@@ -77,6 +77,9 @@ import {
 import type { RoutineRepository } from "@town/routines";
 import { RoutineError } from "@town/routines";
 import { registerAccountRoutes } from "./account-routes.js";
+import { registerSuggestionRoutes } from "./suggestion-routes.js";
+import type { SuggestionRepository } from "@town/suggestions";
+import { SuggestionError } from "@town/suggestions";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -104,6 +107,7 @@ export interface AppDependencies {
   billingRepository?: BillingRepository;
   operationsRepository?: OperationsRepository;
   routineRepository?: RoutineRepository;
+  suggestionRepository?: SuggestionRepository;
   webOrigin?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
@@ -309,7 +313,9 @@ export function createApp(dependencies?: AppDependencies) {
           error.code === "DELIVERY_NOT_FOUND")) ||
       (error instanceof AccountError && error.code === "ACCOUNT_NOT_FOUND") ||
       (error instanceof RoutineError &&
-        ["ROUTINE_NOT_FOUND", "SYNC_RUN_NOT_FOUND"].includes(error.code))
+        ["ROUTINE_NOT_FOUND", "SYNC_RUN_NOT_FOUND"].includes(error.code)) ||
+      (error instanceof SuggestionError &&
+        error.code === "SUGGESTION_NOT_FOUND")
     ) {
       return context.json(
         {
@@ -348,6 +354,8 @@ export function createApp(dependencies?: AppDependencies) {
     if (
       (error instanceof RoutineError &&
         ["ROUTINE_CONFLICT", "SYNC_RUN_CONFLICT"].includes(error.code)) ||
+      (error instanceof SuggestionError &&
+        error.code === "SUGGESTION_CONFLICT") ||
       (error instanceof ToolRegistryError &&
         ["TOOL_NAME_CONFLICT", "TOOL_BINDING_CONFLICT"].includes(error.code)) ||
       (error instanceof ToolExecutionError &&
@@ -625,6 +633,11 @@ export function createApp(dependencies?: AppDependencies) {
           ? {}
           : { sessions: dependencies.sessionRepository }),
       });
+    }
+    if (dependencies.suggestionRepository !== undefined) {
+      app.use("/v1/suggestions", authenticate);
+      app.use("/v1/suggestions/*", authenticate);
+      registerSuggestionRoutes(app, dependencies.suggestionRepository);
     }
 
     const harnessServer = dependencies.harnessServer;

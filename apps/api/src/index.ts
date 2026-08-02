@@ -59,6 +59,7 @@ import {
 } from "./harness-tools.js";
 import { createHarnessRuntimeAdapter } from "./harness-runtime-adapter.js";
 import { createRoutineScheduler } from "./routine-scheduler.js";
+import { createSuggestionRepository } from "@town/suggestions";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -103,6 +104,7 @@ const inputRequestRepository = createInputRequestRepository(sql);
 const sessionRepository = createSessionRepository(sql);
 const runtimeTransitionService = createRuntimeTransitionService(sql);
 const routineRepository = createRoutineRepository(sql);
+const suggestionRepository = createSuggestionRepository(sql);
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
 const contentRepository = createContentRepository(sql);
@@ -231,6 +233,7 @@ const app = createApp({
   billingRepository,
   operationsRepository,
   routineRepository,
+  suggestionRepository,
   webOrigin: environment.WEB_ORIGIN,
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });

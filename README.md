@@ -62,6 +62,9 @@ control using your platform's secure secret-management workflow.
 - Owner-scoped Operations audit events with deduplication, opaque keyset
   pagination, authenticated audit reads, and live runtime backlog summaries for
   sessions, runs, approvals, and notification delivery recovery.
+- Owner-scoped Suggestions/Need-to-Know records with source provenance,
+  fingerprint deduplication, expiry, and optimistic dismiss/convert actions;
+  the API never invents suggestions when no internal candidate exists.
 - Owner-scoped Routine schedules with strict five-field cron validation,
   timezone/next-run metadata, authenticated CRUD APIs under `/v1/routines`,
   optimistic revisions, and transactional due-work claims for an internal
