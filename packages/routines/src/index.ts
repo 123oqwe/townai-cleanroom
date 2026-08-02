@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import type { Sql } from "postgres";
 import { z } from "zod";
 import { asId, newId, type Id } from "@town/contracts";
@@ -68,6 +69,18 @@ export interface IntegrationSyncRun {
   createdAt: Date;
   updatedAt: Date;
 }
+export interface RoutineWebhook {
+  id: Id<"routine-webhook">;
+  ownerId: Id<"user">;
+  routineScheduleId: Id<"routine-schedule">;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface WebhookDelivery {
+  runId: Id<"integration-sync-run">;
+  duplicate: boolean;
+}
 export class RoutineError extends Error {
   constructor(
     readonly code:
@@ -110,6 +123,14 @@ type SyncRunRow = {
   created_at: Date;
   updated_at: Date;
 };
+type WebhookRow = {
+  id: string;
+  owner_id: string;
+  routine_schedule_id: string;
+  enabled: boolean;
+  created_at: Date;
+  updated_at: Date;
+};
 function safeRun(row: SyncRunRow): IntegrationSyncRun {
   return {
     id: asId<"integration-sync-run">(row.id),
@@ -124,6 +145,16 @@ function safeRun(row: SyncRunRow): IntegrationSyncRun {
     errorCode: row.error_code,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+function safeWebhook(row: WebhookRow): RoutineWebhook {
+  return {
+    id: asId<"routine-webhook">(row.id),
+    ownerId: asId<"user">(row.owner_id),
+    routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
+    enabled: row.enabled,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -362,6 +393,91 @@ export function createRoutineRepository(sql: Sql) {
     }
     return safeRun(rows[0]);
   }
+  async function createWebhook(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+  ): Promise<{ webhook: RoutineWebhook; secret: string }> {
+    const secret = `whsec_${randomBytes(32).toString("base64url")}`;
+    const hash = createHash("sha256").update(secret).digest();
+    const id = newId<"routine-webhook">();
+    const rows = await sql<WebhookRow[]>`
+      insert into routine_webhooks (id, owner_id, routine_schedule_id, token_hash)
+      select ${id}, ${ownerId}, ${routineScheduleId}, ${hash}
+      where exists (select 1 from routine_schedules where owner_id=${ownerId} and id=${routineScheduleId})
+      on conflict (owner_id, routine_schedule_id) do update
+        set token_hash=excluded.token_hash, enabled=true, updated_at=now()
+      returning *
+    `;
+    if (!rows[0])
+      throw new RoutineError("ROUTINE_NOT_FOUND", "The routine was not found.");
+    return { webhook: safeWebhook(rows[0]), secret };
+  }
+  async function getWebhook(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+  ): Promise<RoutineWebhook | null> {
+    const [row] = await sql<WebhookRow[]>`
+      select * from routine_webhooks where owner_id=${ownerId} and routine_schedule_id=${routineScheduleId}
+    `;
+    return row ? safeWebhook(row) : null;
+  }
+  async function setWebhookEnabled(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+    enabled: boolean,
+  ): Promise<RoutineWebhook> {
+    const rows = await sql<WebhookRow[]>`
+      update routine_webhooks set enabled=${z.boolean().parse(enabled)}, updated_at=now()
+      where owner_id=${ownerId} and routine_schedule_id=${routineScheduleId} returning *
+    `;
+    if (!rows[0])
+      throw new RoutineError(
+        "ROUTINE_NOT_FOUND",
+        "The routine webhook was not found.",
+      );
+    return safeWebhook(rows[0]);
+  }
+  async function deliverWebhook(
+    secret: string,
+    idempotencyKey: string,
+    payload: Record<string, unknown>,
+  ): Promise<WebhookDelivery | null> {
+    const parsedSecret = z.string().startsWith("whsec_").min(20).parse(secret);
+    const key = z.string().trim().min(1).max(500).parse(idempotencyKey);
+    const body = z.record(z.string(), z.unknown()).parse(payload);
+    const hash = createHash("sha256").update(parsedSecret).digest();
+    return sql.begin(async (tx) => {
+      const [webhook] = await tx<WebhookRow[]>`
+        select * from routine_webhooks where token_hash=${hash} and enabled=true for update
+      `;
+      if (!webhook) return null;
+      const [existing] = await tx<{ run_id: string }[]>`
+        select run_id from routine_webhook_deliveries where webhook_id=${webhook.id} and idempotency_key=${key}
+      `;
+      if (existing)
+        return {
+          runId: asId<"integration-sync-run">(existing.run_id),
+          duplicate: true,
+        };
+      const [run] = await tx<{ id: string }[]>`
+        insert into integration_sync_runs (id,owner_id,account_id,routine_schedule_id,provider,status,cursor)
+        select ${newId<"integration-sync-run">()}, ${webhook.owner_id}, ca.id,
+          ${webhook.routine_schedule_id}, ca.provider, 'queued', ${tx.json(body as never)}
+        from connected_accounts ca where ca.owner_id=${webhook.owner_id} and ca.is_active=true
+        order by ca.is_primary desc, ca.created_at, ca.id limit 1 returning id
+      `;
+      if (!run)
+        throw new RoutineError(
+          "ROUTINE_CONFLICT",
+          "No active connected account is available for this webhook.",
+        );
+      await tx`
+        insert into routine_webhook_deliveries (id,owner_id,webhook_id,idempotency_key,payload,run_id)
+        values (${newId<"routine-webhook-delivery">()},${webhook.owner_id},${webhook.id},${key},${tx.json(body as never)},${run.id})
+      `;
+      return { runId: asId<"integration-sync-run">(run.id), duplicate: false };
+    });
+  }
   return {
     create,
     list,
@@ -374,6 +490,10 @@ export function createRoutineRepository(sql: Sql) {
     startRun,
     completeRun,
     failRun,
+    createWebhook,
+    getWebhook,
+    setWebhookEnabled,
+    deliverWebhook,
   };
 }
 export type RoutineRepository = ReturnType<typeof createRoutineRepository>;

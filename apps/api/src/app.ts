@@ -70,7 +70,10 @@ import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 import { registerChannelRoutes } from "./channel-routes.js";
 import { registerBillingRoutes } from "./billing-routes.js";
 import { registerOperationsRoutes } from "./operations-routes.js";
-import { registerRoutineRoutes } from "./routine-routes.js";
+import {
+  registerRoutineRoutes,
+  registerRoutineWebhookRoutes,
+} from "./routine-routes.js";
 import type { RoutineRepository } from "@town/routines";
 import { RoutineError } from "@town/routines";
 import { registerAccountRoutes } from "./account-routes.js";
@@ -305,7 +308,8 @@ export function createApp(dependencies?: AppDependencies) {
         (error.code === "CHANNEL_NOT_FOUND" ||
           error.code === "DELIVERY_NOT_FOUND")) ||
       (error instanceof AccountError && error.code === "ACCOUNT_NOT_FOUND") ||
-      (error instanceof RoutineError && error.code === "ROUTINE_NOT_FOUND")
+      (error instanceof RoutineError &&
+        ["ROUTINE_NOT_FOUND", "SYNC_RUN_NOT_FOUND"].includes(error.code))
     ) {
       return context.json(
         {
@@ -342,7 +346,8 @@ export function createApp(dependencies?: AppDependencies) {
       );
     }
     if (
-      (error instanceof RoutineError && error.code === "ROUTINE_CONFLICT") ||
+      (error instanceof RoutineError &&
+        ["ROUTINE_CONFLICT", "SYNC_RUN_CONFLICT"].includes(error.code)) ||
       (error instanceof ToolRegistryError &&
         ["TOOL_NAME_CONFLICT", "TOOL_BINDING_CONFLICT"].includes(error.code)) ||
       (error instanceof ToolExecutionError &&
@@ -506,6 +511,10 @@ export function createApp(dependencies?: AppDependencies) {
 
   if (dependencies !== undefined) {
     const authenticate = createAuthMiddleware(dependencies.identityService);
+    if (dependencies.routineRepository !== undefined)
+      registerRoutineWebhookRoutes(app, {
+        repository: dependencies.routineRepository,
+      });
     app.use("/v1/me", authenticate);
     app.use("/v1/accounts", authenticate);
 

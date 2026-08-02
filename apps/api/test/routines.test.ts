@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
 
 import type { AuthVariables } from "../src/auth.js";
-import { registerRoutineRoutes } from "../src/routine-routes.js";
+import {
+  registerRoutineRoutes,
+  registerRoutineWebhookRoutes,
+} from "../src/routine-routes.js";
 import type { RoutineRepository, RoutineSchedule } from "@town/routines";
 import { asId } from "@town/contracts";
 
@@ -21,6 +24,7 @@ function appWith(
     await next();
   });
   registerRoutineRoutes(app, { repository });
+  registerRoutineWebhookRoutes(app, { repository });
   return app;
 }
 
@@ -76,5 +80,38 @@ describe("routine routes", () => {
       routine: RoutineSchedule;
     };
     expect(responseBody.routine.name).toBe("Morning sync");
+  });
+
+  it("accepts authenticated webhook payloads and preserves idempotency", async () => {
+    const repository = {
+      deliverWebhook: async (
+        secret: string,
+        key: string,
+        payload: Record<string, unknown>,
+      ) => {
+        expect(secret).toBe("whsec_test_secret_123456");
+        expect(key).toBe("event-1");
+        expect(payload).toEqual({ event: "ping" });
+        return {
+          runId: asId<"integration-sync-run">(agentVersionId),
+          duplicate: true,
+        };
+      },
+    } as unknown as RoutineRepository;
+    const app = appWith(repository);
+    const response = await app.request(
+      `http://town.test/v1/routine-webhooks/${agentId}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer whsec_test_secret_123456",
+          "content-type": "application/json",
+          "x-town-idempotency-key": "event-1",
+        },
+        body: JSON.stringify({ event: "ping" }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ duplicate: true });
   });
 });

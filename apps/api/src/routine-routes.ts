@@ -89,6 +89,75 @@ export function registerRoutineRoutes(
     );
     return context.body(null, 204);
   });
+
+  app.get("/v1/routines/:routineId/webhook", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const webhook = await dependencies.repository.getWebhook(
+      ownerId,
+      asRoutineId(context.req.param("routineId")),
+    );
+    return webhook
+      ? context.json({ webhook })
+      : context.json({ error: "WEBHOOK_NOT_FOUND" }, 404);
+  });
+
+  app.post("/v1/routines/:routineId/webhook", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const result = await dependencies.repository.createWebhook(
+      ownerId,
+      asRoutineId(context.req.param("routineId")),
+    );
+    return context.json(result, 201);
+  });
+
+  app.patch("/v1/routines/:routineId/webhook", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const input = z
+      .object({ enabled: z.boolean() })
+      .strict()
+      .parse(await context.req.json());
+    return context.json({
+      webhook: await dependencies.repository.setWebhookEnabled(
+        ownerId,
+        asRoutineId(context.req.param("routineId")),
+        input.enabled,
+      ),
+    });
+  });
+}
+
+export function registerRoutineWebhookRoutes(
+  app: Hono<{ Variables: AuthVariables }>,
+  dependencies: RoutineDependencies,
+): void {
+  app.post("/v1/routine-webhooks/:routineId", async (context) => {
+    const contentType = context.req.header("content-type")?.split(";", 1)[0];
+    if (contentType !== "application/json" && contentType !== "text/plain")
+      return context.json({ error: "UNSUPPORTED_CONTENT_TYPE" }, 415);
+    const authorization = context.req.header("Authorization");
+    const secret = authorization?.match(/^Bearer ([^\s,]+)$/)?.[1];
+    const idempotencyKey = context.req.header("X-Town-Idempotency-Key");
+    if (!secret || !idempotencyKey)
+      return context.json({ error: "NOT_FOUND" }, 404);
+    const raw = await context.req.text();
+    let payload: Record<string, unknown>;
+    if (contentType === "application/json") {
+      const parsed: unknown = JSON.parse(raw);
+      payload = z.record(z.string(), z.unknown()).parse(parsed);
+    } else {
+      payload = { text: raw };
+    }
+    const delivery = await dependencies.repository.deliverWebhook(
+      secret,
+      idempotencyKey,
+      payload,
+    );
+    if (!delivery) return context.json({ error: "NOT_FOUND" }, 404);
+    return context.json(
+      { runId: delivery.runId, duplicate: delivery.duplicate },
+      202,
+    );
+  });
 }
 
 function asRoutineId(value: string) {

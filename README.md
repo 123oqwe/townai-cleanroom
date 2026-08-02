@@ -67,7 +67,10 @@ control using your platform's secure secret-management workflow.
   optimistic revisions, and transactional due-work claims for an internal
   worker. Sync-run records expose owner-scoped history plus queued → running →
   succeeded/failed transitions. Schedules with run history are protected from
-  destructive deletion; disable them instead.
+  destructive deletion; disable them instead. Routine webhooks support
+  one-time `whsec_` secrets, rotation by recreation, disable/enable state,
+  JSON/text payloads, bearer authentication, and idempotent asynchronous
+  enqueueing with HTTP 202.
 - A responsive, API-backed `apps/web` command center with explicit connection,
   empty, error, focus, and harness states; it uses no fabricated backend data.
 
