@@ -235,6 +235,18 @@ export async function compactHarnessContext(
     compact: (items: readonly HarnessItem[]) => Promise<readonly HarnessItem[]>;
   },
 ): Promise<readonly HarnessItem[]> {
+  const requiredProviderItems = items.filter(
+    (item) => item.type === "provider_item",
+  );
+  const canonical = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+    if (value !== null && typeof value === "object")
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`)
+        .join(",")}}`;
+    return JSON.stringify(value);
+  };
   return compactContext(items, {
     ...input,
     validate(compacted) {
@@ -269,9 +281,7 @@ export async function compactHarnessContext(
                 "HARNESS_CONTEXT_INVALID: provider arguments are invalid.",
               );
             }
-            if (
-              JSON.stringify(parsedArguments) !== JSON.stringify(item.arguments)
-            )
+            if (canonical(parsedArguments) !== canonical(item.arguments))
               throw new Error(
                 "HARNESS_CONTEXT_INVALID: provider arguments do not match tool call.",
               );
@@ -304,6 +314,23 @@ export async function compactHarnessContext(
           throw new Error(
             `HARNESS_CONTEXT_INVALID: tool call ${callId} has no matching tool result.`,
           );
+      let providerIndex = 0;
+      for (const item of compacted)
+        if (item.type === "provider_item") {
+          const required = requiredProviderItems[providerIndex];
+          if (
+            required === undefined ||
+            canonical(required.item) !== canonical(item.item)
+          )
+            throw new Error(
+              "HARNESS_CONTEXT_INVALID: provider output order or item was not preserved.",
+            );
+          providerIndex += 1;
+        }
+      if (providerIndex !== requiredProviderItems.length)
+        throw new Error(
+          "HARNESS_CONTEXT_INVALID: provider output item was dropped during compaction.",
+        );
     },
   });
 }
