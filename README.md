@@ -59,6 +59,9 @@ control using your platform's secure secret-management workflow.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.
+- Owner-scoped Operations audit events with deduplication, opaque keyset
+  pagination, authenticated audit reads, and live runtime backlog summaries for
+  sessions, runs, approvals, and notification delivery recovery.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

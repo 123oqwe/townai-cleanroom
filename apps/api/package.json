@@ -15,6 +15,7 @@
     "@town/content": "workspace:*",
     "@town/channels": "workspace:*",
     "@town/billing": "workspace:*",
+    "@town/operations": "workspace:*",
     "@town/teams": "workspace:*",
     "@town/harness": "workspace:*",
     "@town/db": "workspace:*",

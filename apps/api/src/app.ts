@@ -44,6 +44,7 @@ import type { AppServer, AppServerRequest } from "@town/harness";
 import { ContentError, type ContentRepository } from "@town/content";
 import { ChannelError, type ChannelRepository } from "@town/channels";
 import type { BillingRepository } from "@town/billing";
+import { OperationsError, type OperationsRepository } from "@town/operations";
 import {
   SquareError,
   type SquareRepository,
@@ -66,6 +67,7 @@ import { registerSquareRoutes } from "./square-routes.js";
 import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 import { registerChannelRoutes } from "./channel-routes.js";
 import { registerBillingRoutes } from "./billing-routes.js";
+import { registerOperationsRoutes } from "./operations-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -91,6 +93,7 @@ export interface AppDependencies {
   sharedAccountRepository?: SharedAccountRepository;
   channelRepository?: ChannelRepository;
   billingRepository?: BillingRepository;
+  operationsRepository?: OperationsRepository;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
 }
@@ -222,6 +225,19 @@ export function createApp(dependencies?: AppDependencies) {
           code: error.code,
         },
         400,
+      );
+    }
+    if (error instanceof OperationsError) {
+      const status = error.code === "AUDIT_CONFLICT" ? 409 : 400;
+      return context.json(
+        {
+          type: "https://town.local/problems/invalid-request",
+          title: "Invalid operations request",
+          status,
+          detail: error.message,
+          code: error.code,
+        },
+        status,
       );
     }
     if (error instanceof SquareError && error.code === "FORBIDDEN") {
@@ -560,6 +576,13 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/billing", authenticate);
       registerBillingRoutes(app, {
         repository: dependencies.billingRepository,
+      });
+    }
+    if (dependencies.operationsRepository !== undefined) {
+      app.use("/v1/operations", authenticate);
+      app.use("/v1/operations/*", authenticate);
+      registerOperationsRoutes(app, {
+        repository: dependencies.operationsRepository,
       });
     }
 

@@ -1936,3 +1936,49 @@ export const usageLedger = pgTable(
     ),
   ],
 );
+
+export const operationAuditEvents = pgTable(
+  "operation_audit_events",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    action: text("action").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: text("resource_id"),
+    outcome: text("outcome").notNull().default("succeeded"),
+    requestId: text("request_id"),
+    dedupeKey: text("dedupe_key"),
+    fingerprint: text("fingerprint").notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("operation_audit_dedupe_unique").on(table.ownerId, table.dedupeKey),
+    index("operation_audit_owner_created_idx").on(
+      table.ownerId,
+      table.createdAt,
+      table.id,
+    ),
+    index("operation_audit_owner_action_idx").on(
+      table.ownerId,
+      table.action,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "operation_audit_outcome_allowed",
+      sql`${table.outcome} in ('succeeded','failed')`,
+    ),
+    check(
+      "operation_audit_metadata_object",
+      sql`jsonb_typeof(${table.metadata}) = 'object'`,
+    ),
+  ],
+);
