@@ -47,8 +47,8 @@ describe("routine routes", () => {
         return [created];
       },
       create: async (input: Record<string, unknown>) => {
-        expect(input.ownerId).toBe(ownerId);
-        expect(input.nextRunAt).toBeInstanceOf(Date);
+        expect(input["ownerId"]).toBe(ownerId);
+        expect(input["nextRunAt"]).toBeInstanceOf(Date);
         return created;
       },
     } as unknown as RoutineRepository;
@@ -56,7 +56,8 @@ describe("routine routes", () => {
 
     const list = await app.request("http://town.test/v1/routines");
     expect(list.status).toBe(200);
-    expect((await list.json()).routines).toHaveLength(1);
+    const listBody = (await list.json()) as { routines: RoutineSchedule[] };
+    expect(listBody.routines).toHaveLength(1);
 
     const response = await app.request("http://town.test/v1/routines", {
       method: "POST",
@@ -71,6 +72,9 @@ describe("routine routes", () => {
       }),
     });
     expect(response.status).toBe(201);
-    expect((await response.json()).routine.name).toBe("Morning sync");
+    const responseBody = (await response.json()) as {
+      routine: RoutineSchedule;
+    };
+    expect(responseBody.routine.name).toBe("Morning sync");
   });
 });
