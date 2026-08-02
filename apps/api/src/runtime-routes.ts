@@ -33,6 +33,11 @@ const runPageQuerySchema = pageQuerySchema
   .extend({ state: sessionRunStateSchema.optional() })
   .strict();
 const emptyBodySchema = z.object({}).strict();
+const resumeSchema = z
+  .object({
+    expectedState: z.enum(["waiting_approval", "waiting_user_input"]),
+  })
+  .strict();
 
 export function registerRuntimeRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -52,6 +57,20 @@ export function registerRuntimeRoutes(
       ...body,
     });
     return context.json(submission, 202);
+  });
+
+  app.post("/v1/sessions/:sessionId/runs/:runId/resume", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const sessionId = asId<"runtime-session">(context.req.param("sessionId"));
+    const runId = asId<"session-run">(context.req.param("runId"));
+    const body = resumeSchema.parse(await context.req.json());
+    const run = await dependencies.runtimeTransitionService.resume({
+      ownerId,
+      sessionId,
+      runId,
+      expectedState: body.expectedState,
+    });
+    return context.json({ run }, 202);
   });
 
   app.get("/v1/sessions/:sessionId", async (context) => {

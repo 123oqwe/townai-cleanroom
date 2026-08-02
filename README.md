@@ -121,6 +121,11 @@ on a 2xx response, and scheduled for bounded exponential retry on provider
 failure. The executor runs from the protected internal worker endpoint and the
 local worker loop.
 
+Waiting runtime runs can be durably re-enqueued through
+`POST /v1/sessions/:sessionId/runs/:runId/resume` with an explicit
+`expectedState` of `waiting_approval` or `waiting_user_input`; stale or
+cross-owner resumes are rejected by the transition service.
+
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,
 and revision-checked transitions; private Memory and credentials are never

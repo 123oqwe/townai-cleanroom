@@ -362,4 +362,42 @@ describe("protected persistent Session API", () => {
     });
     expect(again.status).toBe(409);
   });
+
+  it("exposes state-checked resume without allowing queued or cross-owner runs", async () => {
+    const { app, owner, other } = await fixture();
+    const created = await createThread(app, owner.token);
+    const response = await app.request(
+      `/v1/threads/${created.thread.id}/messages`,
+      {
+        method: "POST",
+        headers: authorization(owner.token, "runtime-api-resume"),
+        body: JSON.stringify({
+          text: "Queue a waiting-state test.",
+          mentions: [],
+        }),
+      },
+    );
+    const submitted = (await response.json()) as {
+      session: { id: string };
+      run: { id: string };
+    };
+    const otherResume = await app.request(
+      `/v1/sessions/${submitted.session.id}/runs/${submitted.run.id}/resume`,
+      {
+        method: "POST",
+        headers: authorization(other.token),
+        body: JSON.stringify({ expectedState: "waiting_approval" }),
+      },
+    );
+    const queuedResume = await app.request(
+      `/v1/sessions/${submitted.session.id}/runs/${submitted.run.id}/resume`,
+      {
+        method: "POST",
+        headers: authorization(owner.token),
+        body: JSON.stringify({ expectedState: "waiting_approval" }),
+      },
+    );
+    expect(otherResume.status).toBe(404);
+    expect(queuedResume.status).toBe(409);
+  });
 });
