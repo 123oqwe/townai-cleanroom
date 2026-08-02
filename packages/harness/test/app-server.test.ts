@@ -509,4 +509,74 @@ describe("Codex-style bidirectional app server", () => {
       result: { kind: "completed", text: "reclaimed" },
     });
   });
+
+  it("renews an active lease during a long model request", async () => {
+    const store: ThreadStore = new Map();
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => (release = resolve));
+    const server1 = createAppServer({
+      store,
+      leaseMs: 30,
+      createAgent: () => ({
+        model: {
+          async respond() {
+            await waiting;
+            return { kind: "final" as const, text: "long" };
+          },
+        },
+        tools: [],
+      }),
+    });
+    await server1.dispatch({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {},
+    });
+    const started = await server1.dispatch({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "thread/start",
+      params: {},
+    });
+    const threadId = (started as { result: { threadId: string } }).result
+      .threadId;
+    const first = server1.dispatch({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "turn/start",
+      params: { threadId, text: "long" },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 70));
+    const server2 = createAppServer({
+      store,
+      leaseMs: 30,
+      createAgent: () => ({
+        model: {
+          async respond() {
+            return { kind: "final" as const, text: "wrong" };
+          },
+        },
+        tools: [],
+      }),
+    });
+    await server2.dispatch({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "initialize",
+      params: {},
+    });
+    await expect(
+      server2.dispatch({
+        jsonrpc: "2.0",
+        id: 5,
+        method: "turn/start",
+        params: { threadId, text: "steal" },
+      }),
+    ).resolves.toMatchObject({ error: { code: -32005 } });
+    release();
+    await expect(first).resolves.toMatchObject({
+      result: { kind: "completed", text: "long" },
+    });
+  });
 });

@@ -47,6 +47,7 @@ interface ThreadRuntime {
   snapshot: ThreadSnapshot;
   harness: Harness;
   busy: boolean;
+  leaseLost: boolean;
 }
 
 function errorResponse(
@@ -76,6 +77,7 @@ function invalidParams(
 
 export function createAppServer(input: {
   store: ThreadStore;
+  leaseMs?: number;
   createAgent: (threadId: string) => {
     model: ModelPort;
     tools: readonly ToolPort[];
@@ -83,10 +85,12 @@ export function createAppServer(input: {
 }) {
   let initialized = false;
   const serverId = randomUUID();
-  const leaseMs = 30_000;
+  const leaseMs = input.leaseMs ?? 30_000;
   const runtimes = new Map<string, ThreadRuntime>();
 
   function persist(runtime: ThreadRuntime, keepLease = true): void {
+    if (runtime.leaseLost)
+      throw new Error("THREAD_CONFLICT: runtime lease was lost.");
     const latest = input.store.get(runtime.snapshot.threadId);
     if (
       latest === undefined ||
@@ -142,6 +146,25 @@ export function createAppServer(input: {
     runtime.snapshot = released;
   }
 
+  function renew(runtime: ThreadRuntime): void {
+    const latest = input.store.get(runtime.snapshot.threadId);
+    if (
+      latest?.revision !== runtime.snapshot.revision ||
+      latest.leaseOwner !== serverId
+    ) {
+      runtime.leaseLost = true;
+      return;
+    }
+    const renewed: ThreadSnapshot = {
+      ...latest,
+      revision: latest.revision + 1,
+      leaseOwner: serverId,
+      leaseExpiresAt: Date.now() + leaseMs,
+    };
+    input.store.set(runtime.snapshot.threadId, renewed);
+    runtime.snapshot = renewed;
+  }
+
   function getRuntime(threadId: string): ThreadRuntime | undefined {
     const existing = runtimes.get(threadId);
     if (existing !== undefined) return existing;
@@ -157,7 +180,12 @@ export function createAppServer(input: {
         : { initialPendingApproval: snapshot.pendingApproval }),
     };
     const harness = createHarness(harnessInput);
-    const runtime: ThreadRuntime = { snapshot, harness, busy: false };
+    const runtime: ThreadRuntime = {
+      snapshot,
+      harness,
+      busy: false,
+      leaseLost: false,
+    };
     runtimes.set(threadId, runtime);
     return runtime;
   }
@@ -239,6 +267,12 @@ export function createAppServer(input: {
     }
 
     runtime.busy = true;
+    runtime.leaseLost = false;
+    const heartbeat = setInterval(
+      () => renew(runtime),
+      Math.max(1, Math.floor(leaseMs / 3)),
+    );
+    heartbeat.unref?.();
     const notifications: Array<ReturnType<typeof notification>> = [];
     runtime.harness.setEmitter((event: HarnessEvent) => {
       notifications.push(...eventNotifications(threadId, event));
@@ -255,6 +289,7 @@ export function createAppServer(input: {
       const code = message.startsWith("HARNESS_") ? -32010 : -32000;
       return errorResponse(request, code, message, notifications);
     } finally {
+      clearInterval(heartbeat);
       try {
         persist(runtime, true);
         release(runtime);
