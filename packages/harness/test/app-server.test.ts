@@ -579,4 +579,51 @@ describe("Codex-style bidirectional app server", () => {
       result: { kind: "completed", text: "long" },
     });
   });
+
+  it("returns a JSON-RPC conflict when a lease is fenced during execution", async () => {
+    const store: ThreadStore = new Map();
+    let threadId = "";
+    const server = createAppServer({
+      store,
+      leaseMs: 30,
+      createAgent: () => ({
+        model: {
+          async respond() {
+            await new Promise((resolve) => setTimeout(resolve, 40));
+            const current = store.get(threadId);
+            if (current !== undefined)
+              store.set(threadId, {
+                ...current,
+                revision: current.revision + 1,
+                leaseOwner: "intruder",
+                leaseExpiresAt: Date.now() + 1000,
+              });
+            return { kind: "final" as const, text: "lost" };
+          },
+        },
+        tools: [],
+      }),
+    });
+    await server.dispatch({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {},
+    });
+    const started = await server.dispatch({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "thread/start",
+      params: {},
+    });
+    threadId = (started as { result: { threadId: string } }).result.threadId;
+    await expect(
+      server.dispatch({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "turn/start",
+        params: { threadId, text: "fence" },
+      }),
+    ).resolves.toMatchObject({ error: { code: -32005 } });
+  });
 });

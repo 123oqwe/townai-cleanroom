@@ -283,10 +283,18 @@ export function createAppServer(input: {
       persist(runtime);
       return { jsonrpc: "2.0", id: request.id, result, notifications };
     } catch (error) {
-      persist(runtime);
+      try {
+        persist(runtime);
+      } catch {
+        // Preserve the original operation error and return it through JSON-RPC.
+      }
       const message =
         error instanceof Error ? error.message : "Request failed.";
-      const code = message.startsWith("HARNESS_") ? -32010 : -32000;
+      const code = message.startsWith("THREAD_")
+        ? -32005
+        : message.startsWith("HARNESS_")
+          ? -32010
+          : -32000;
       return errorResponse(request, code, message, notifications);
     } finally {
       clearInterval(heartbeat);
