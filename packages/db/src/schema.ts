@@ -1859,3 +1859,78 @@ export const notificationDeliveries = pgTable(
     ),
   ],
 );
+
+export const billingAccounts = pgTable(
+  "billing_accounts",
+  {
+    ownerId: uuid("owner_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    planName: text("plan_name").notNull(),
+    isBlocked: boolean("is_blocked").notNull().default(false),
+    isTrial: boolean("is_trial").notNull().default(false),
+    isEnterprise: boolean("is_enterprise").notNull().default(false),
+    creditBand: text("credit_band").notNull().default("healthy"),
+    creditBanners: jsonb("credit_banners").notNull().default([]),
+    periodStart: timestamp("period_start", { withTimezone: true }),
+    periodEnd: timestamp("period_end", { withTimezone: true }),
+    revision: integer("revision").notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "billing_accounts_credit_band_allowed",
+      sql`${table.creditBand} in ('healthy','warning','blocked')`,
+    ),
+    check(
+      "billing_accounts_banners_array",
+      sql`jsonb_typeof(${table.creditBanners}) = 'array'`,
+    ),
+    check("billing_accounts_revision_positive", sql`${table.revision} > 0`),
+    check(
+      "billing_accounts_period_shape",
+      sql`${table.periodStart} is null or ${table.periodEnd} is null or ${table.periodEnd} > ${table.periodStart}`,
+    ),
+  ],
+);
+
+export const usageLedger = pgTable(
+  "usage_ledger",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    category: text("category").notNull(),
+    quantity: integer("quantity").notNull(),
+    unit: text("unit").notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("usage_ledger_owner_key_unique").on(
+      table.ownerId,
+      table.idempotencyKey,
+    ),
+    index("usage_ledger_owner_time_idx").on(
+      table.ownerId,
+      table.occurredAt,
+      table.id,
+    ),
+    check(
+      "usage_ledger_category_allowed",
+      sql`${table.category} in ('model','tool','search','routine','storage')`,
+    ),
+    check("usage_ledger_quantity_positive", sql`${table.quantity} > 0`),
+    check(
+      "usage_ledger_metadata_object",
+      sql`jsonb_typeof(${table.metadata}) = 'object'`,
+    ),
+  ],
+);

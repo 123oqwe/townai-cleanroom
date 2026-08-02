@@ -43,6 +43,7 @@ import {
 import type { AppServer, AppServerRequest } from "@town/harness";
 import { ContentError, type ContentRepository } from "@town/content";
 import { ChannelError, type ChannelRepository } from "@town/channels";
+import type { BillingRepository } from "@town/billing";
 import {
   SquareError,
   type SquareRepository,
@@ -64,6 +65,7 @@ import { registerContentRoutes } from "./content-routes.js";
 import { registerSquareRoutes } from "./square-routes.js";
 import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 import { registerChannelRoutes } from "./channel-routes.js";
+import { registerBillingRoutes } from "./billing-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -88,6 +90,7 @@ export interface AppDependencies {
   squareRepository?: SquareRepository;
   sharedAccountRepository?: SharedAccountRepository;
   channelRepository?: ChannelRepository;
+  billingRepository?: BillingRepository;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
 }
@@ -551,6 +554,12 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/notification-deliveries", authenticate);
       registerChannelRoutes(app, {
         repository: dependencies.channelRepository,
+      });
+    }
+    if (dependencies.billingRepository !== undefined) {
+      app.use("/v1/billing", authenticate);
+      registerBillingRoutes(app, {
+        repository: dependencies.billingRepository,
       });
     }
 

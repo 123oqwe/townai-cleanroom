@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { z } from "zod";
 import { asId } from "@town/contracts";
 import { createChannelRepository } from "@town/channels";
+import { createBillingRepository } from "@town/billing";
 import { createContentRepository } from "@town/content";
 import {
   createSharedAccountRepository,
@@ -96,6 +97,7 @@ const contentRepository = createContentRepository(sql);
 const squareRepository = createSquareRepository(sql);
 const sharedAccountRepository = createSharedAccountRepository(sql);
 const channelRepository = createChannelRepository(sql);
+const billingRepository = createBillingRepository(sql);
 
 const harnessServerFactory =
   environment.RESPONSES_API_KEY === undefined
@@ -189,6 +191,7 @@ const server = serve({
     squareRepository,
     sharedAccountRepository,
     channelRepository,
+    billingRepository,
     ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
   }).fetch,
   port: environment.PORT,

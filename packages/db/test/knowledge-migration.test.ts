@@ -97,6 +97,7 @@ describe("knowledge migration", () => {
       "0012_squares.sql",
       "0013_square_account_shares.sql",
       "0014_channels.sql",
+      "0015_billing.sql",
     ]);
   });
 });

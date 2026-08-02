@@ -47,6 +47,9 @@ importers:
       '@town/agents':
         specifier: workspace:*
         version: link:../../packages/agents
+      '@town/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@town/channels':
         specifier: workspace:*
         version: link:../../packages/channels
@@ -102,6 +105,25 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
+
+  packages/billing:
+    dependencies:
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@town/db':
+        specifier: workspace:*
+        version: link:../db
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
       postgres:
         specifier: 3.4.9
         version: 3.4.9

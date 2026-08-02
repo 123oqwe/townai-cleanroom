@@ -56,6 +56,9 @@ control using your platform's secure secret-management workflow.
   with strict public configuration, disabled-channel controls, idempotent
   delivery outbox records, worker leases, claim-token completion, retry state,
   and no worker capability token in public delivery DTOs.
+- Explicit Billing state with `not_configured` behavior, optimistic revisions,
+  owner-scoped usage ledger entries, idempotent usage recording, and period
+  summaries; no external payment state is invented when no provider is wired.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm
