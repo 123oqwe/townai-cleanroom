@@ -40,6 +40,7 @@ import {
   type ToolExecutionRepository,
   type ToolRegistryRepository,
 } from "@town/tools";
+import type { AppServer, AppServerRequest } from "@town/harness";
 
 import { createAuthMiddleware, type AuthVariables } from "./auth.js";
 import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
@@ -72,6 +73,7 @@ export interface AppDependencies {
   runtimeTransitionService?: RuntimeTransitionService;
   toolRegistryRepository?: ToolRegistryRepository;
   toolExecutionRepository?: ToolExecutionRepository;
+  harnessServer?: AppServer;
 }
 
 function runtimeDependencies(
@@ -437,6 +439,16 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/approvals", authenticate);
       app.use("/v1/approvals/*", authenticate);
       registerToolRoutes(app, tools);
+    }
+
+    if (dependencies.harnessServer !== undefined) {
+      app.use("/v1/harness", authenticate);
+      app.use("/v1/harness/*", authenticate);
+      app.post("/v1/harness", async (context) => {
+        const request = (await context.req.json()) as AppServerRequest;
+        const response = await dependencies.harnessServer!.dispatch(request);
+        return context.json(response);
+      });
     }
   }
 

@@ -53,6 +53,9 @@ importers:
       '@town/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@town/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
       '@town/identity':
         specifier: workspace:*
         version: link:../../packages/identity
