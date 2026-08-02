@@ -256,6 +256,18 @@ describe("runtime transitions", () => {
       where run_id = ${lease.runId}
     `;
     expect(job?.count).toBe(0);
+
+    const retried = await createSessionRepository(sql).submitMessage({
+      ownerId,
+      threadId: submitted.turn.threadId,
+      idempotencyKey: "queued-after-failure",
+      text: "Queue fresh work after the prior Run failed.",
+      mentions: [],
+    });
+    expect(retried).toMatchObject({
+      session: { state: "idle" },
+      run: { state: "queued" },
+    });
   });
 
   it("reclaims an expired lease after start without losing Run progress", async () => {

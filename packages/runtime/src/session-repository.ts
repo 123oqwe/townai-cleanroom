@@ -20,6 +20,7 @@ import {
 } from "@town/contracts";
 
 import { RuntimeError } from "./errors.js";
+import { deriveRuntimeSessionStateInTransaction } from "./session-state.js";
 import {
   runtimePayloadSchema,
   runtimeSessionStateSchema,
@@ -477,9 +478,15 @@ export function createSessionRepository(sql: Sql) {
         insert into runtime_jobs (run_id, owner_id, session_id)
         values (${runId}, ${ownerId}, ${sessionId})
       `;
+      const sessionState = await deriveRuntimeSessionStateInTransaction(
+        transaction,
+        ownerId,
+        sessionId,
+      );
       const [sequence] = await transaction<{ last_event_sequence: number }[]>`
         update runtime_sessions
-        set last_event_sequence = last_event_sequence + 2,
+        set state = ${sessionState},
+            last_event_sequence = last_event_sequence + 2,
             revision = revision + 1, updated_at = now()
         where owner_id = ${ownerId} and id = ${sessionId}
         returning last_event_sequence
