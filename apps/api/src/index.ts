@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asId } from "@town/contracts";
 
 import {
+  AgentError,
   createAgentRepository,
   createInputRequestRepository,
   createTaskRepository,
@@ -42,6 +43,7 @@ import {
 import { createApp } from "./app.js";
 import {
   createTownMemoryAddHarnessBinding,
+  createRegistryHarnessBindings,
   createTownSearchHarnessBinding,
 } from "./harness-tools.js";
 
@@ -88,28 +90,70 @@ const toolExecutionRepository = createToolExecutionRepository(sql);
 const harnessServerFactory =
   environment.RESPONSES_API_KEY === undefined
     ? undefined
-    : (ownerId: string) =>
-        createAppServer({
+    : async (ownerId: string) => {
+        const typedOwnerId = asId<"user">(ownerId);
+        let registryDefinitions = [] as Awaited<
+          ReturnType<typeof toolRegistryRepository.listForAgentVersion>
+        >;
+        try {
+          const personalAgent = await agentRepository.getPersonal(typedOwnerId);
+          registryDefinitions =
+            await toolRegistryRepository.listForAgentVersion({
+              ownerId: typedOwnerId,
+              agentVersionId: personalAgent.activeVersion.id,
+            });
+        } catch (error) {
+          if (
+            !(error instanceof AgentError) ||
+            error.code !== "AGENT_NOT_FOUND"
+          )
+            throw error;
+        }
+        return createAppServer({
           store: createHarnessThreadStore(database.db, ownerId),
           createAgent: createResponsesAgentFactory({
             endpoint: environment.RESPONSES_API_ENDPOINT,
             model: environment.RESPONSES_MODEL,
             apiKey: async () => environment.RESPONSES_API_KEY as string,
-            tools: (threadId) => [
-              createTownSearchHarnessBinding(
-                asId<"user">(ownerId),
-                knowledgeSearchRepository,
-              ),
-              createTownMemoryAddHarnessBinding(
-                asId<"user">(ownerId),
-                memoryRepository,
+            tools: (threadId) => {
+              const builtIns = [
+                createTownSearchHarnessBinding(
+                  typedOwnerId,
+                  knowledgeSearchRepository,
+                ),
+                createTownMemoryAddHarnessBinding(
+                  typedOwnerId,
+                  memoryRepository,
+                  threadId,
+                  (owner, routineScheduleId) =>
+                    routineRepository.ownsSchedule(owner, routineScheduleId),
+                ),
+              ];
+              const handlers = new Map(
+                builtIns.map(({ definition, port }) => [
+                  definition.name,
+                  port.execute.bind(port),
+                ]),
+              );
+              const registryBindings = createRegistryHarnessBindings({
+                ownerId: typedOwnerId,
                 threadId,
-                (owner, routineScheduleId) =>
-                  routineRepository.ownsSchedule(owner, routineScheduleId),
-              ),
-            ],
+                definitions: registryDefinitions,
+                handlers,
+              });
+              const registryNames = new Set(
+                registryBindings.map(({ definition }) => definition.name),
+              );
+              return [
+                ...registryBindings,
+                ...builtIns.filter(
+                  ({ definition }) => !registryNames.has(definition.name),
+                ),
+              ];
+            },
           }),
         });
+      };
 
 const server = serve({
   fetch: createApp({

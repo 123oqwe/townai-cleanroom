@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { newId } from "@town/contracts";
+import type { ToolDefinition } from "@town/tools";
 import type {
   KnowledgeSearchRepository,
   MemoryRepository,
 } from "@town/knowledge";
 import {
+  createRegistryHarnessBindings,
   createTownMemoryAddHarnessBinding,
   createTownSearchHarnessBinding,
 } from "../src/harness-tools.js";
@@ -206,5 +208,90 @@ describe("Town Harness built-in tools", () => {
         content: "fact",
       }),
     ).toBe("deny");
+  });
+
+  it("wires only owner-scoped registry definitions with explicit handlers", async () => {
+    const ownerId = newId<"user">();
+    const definition: ToolDefinition & {
+      binding: import("@town/tools").AgentToolBinding;
+    } = {
+      id: newId<"tool-definition">(),
+      ownerId,
+      name: "registry_read",
+      version: 1,
+      description: "A registry read tool",
+      inputSchema: { type: "object" },
+      outputSchema: null,
+      sideEffect: "read",
+      dataSensitivity: "private",
+      accountBinding: "none",
+      enabled: true,
+      createdAt: new Date("2026-08-02T00:00:00Z"),
+      binding: {
+        id: newId<"agent-tool-binding">(),
+        ownerId,
+        agentVersionId: newId<"agent-version">(),
+        toolDefinitionId: newId<"tool-definition">(),
+        modeOverride: null,
+        accountScope: [],
+        createdAt: new Date("2026-08-02T00:00:00Z"),
+      },
+    };
+    const handler = vi
+      .fn()
+      .mockResolvedValue({ kind: "result", output: "real" });
+    const bindings = createRegistryHarnessBindings({
+      ownerId,
+      threadId: "thread-registry",
+      definitions: [definition],
+      handlers: new Map([[definition.name, handler]]),
+    });
+
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0]?.definition.name).toBe("registry_read");
+    expect(
+      (
+        bindings[0]?.port.requiresApproval as (
+          args: Record<string, unknown>,
+        ) => string
+      )({}),
+    ).toBe("allow");
+    await expect(bindings[0]?.port.execute({})).resolves.toEqual({
+      kind: "result",
+      output: "real",
+    });
+    expect(handler).toHaveBeenCalledWith({}, { approvalGranted: false });
+
+    const unhandled = createRegistryHarnessBindings({
+      ownerId,
+      threadId: "thread-registry",
+      definitions: [{ ...definition, ownerId: newId<"user">() }],
+      handlers: new Map(),
+    });
+    expect(unhandled).toEqual([]);
+
+    const readOnly = {
+      ...definition,
+      version: 2,
+      sideEffect: "private_write" as const,
+      binding: { ...definition.binding, modeOverride: "read_only" as const },
+    };
+    const denied = createRegistryHarnessBindings({
+      ownerId,
+      threadId: "thread-registry",
+      definitions: [definition, readOnly],
+      handlers: new Map([[definition.name, handler]]),
+    });
+    expect(denied).toHaveLength(1);
+    expect(
+      (
+        denied[0]?.port.requiresApproval as (
+          args: Record<string, unknown>,
+        ) => string
+      )({}),
+    ).toBe("deny");
+    await expect(denied[0]?.port.execute({})).rejects.toThrow(
+      "HARNESS_TOOL_POLICY_DENIED",
+    );
   });
 });

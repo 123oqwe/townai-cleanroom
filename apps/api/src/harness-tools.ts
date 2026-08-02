@@ -10,6 +10,7 @@ import type {
 } from "@town/knowledge";
 import { resourceTypeSchema } from "@town/knowledge";
 import type { Id } from "@town/contracts";
+import type { AgentToolBinding, ToolDefinition } from "@town/tools";
 
 const memoryArguments = z.discriminatedUnion("scope", [
   z
@@ -278,5 +279,51 @@ export function createTownMemoryAddHarnessBinding(
         }),
       };
     },
+  });
+}
+
+/**
+ * Converts only registry definitions with an explicitly registered handler.
+ * Definitions without a handler are intentionally omitted, never stubbed.
+ */
+export function createRegistryHarnessBindings(input: {
+  ownerId: Id<"user">;
+  threadId: string;
+  definitions: ReadonlyArray<ToolDefinition & { binding: AgentToolBinding }>;
+  handlers: ReadonlyMap<
+    string,
+    (
+      arguments_: Record<string, unknown>,
+    ) => ReturnType<NonNullable<HarnessToolBinding["port"]>["execute"]>
+  >;
+}): HarnessToolBinding[] {
+  const latestByName = new Map<
+    string,
+    ToolDefinition & { binding: AgentToolBinding }
+  >();
+  for (const definition of input.definitions) {
+    const current = latestByName.get(definition.name);
+    if (current === undefined || definition.version > current.version) {
+      latestByName.set(definition.name, definition);
+    }
+  }
+  return [...latestByName.values()].flatMap((definition) => {
+    const handler = input.handlers.get(definition.name);
+    if (handler === undefined || definition.ownerId !== input.ownerId)
+      return [];
+    const binding = createPolicyAwareHarnessTool({
+      definition: {
+        name: definition.name,
+        description: definition.description,
+        parameters: definition.inputSchema,
+      },
+      decide: () => {
+        if (definition.sideEffect === "read") return "allow";
+        if (definition.binding.modeOverride === "read_only") return "deny";
+        return "approval_required";
+      },
+      execute: handler,
+    });
+    return [binding];
   });
 }
