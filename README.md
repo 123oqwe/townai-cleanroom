@@ -88,8 +88,9 @@ Authenticated Agent, Thread, Turn-read, Task, and InputRequest resources are
 available under `/v1/agents`, `/v1/threads`, and `/v1/tasks`. Owner identity,
 runtime role, Turn sequence, and source provenance are server-derived.
 
-Routine Agents can be created and listed under `/v1/agents/routines`; their
-immutable active versions are then referenced by `/v1/routines` schedules.
+Routine Agents can be created, listed, and optimistically version-published
+under `/v1/agents/routines`; their immutable active versions are then
+referenced by `/v1/routines` schedules.
 
 Authenticated message submission is available at
 `/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are
