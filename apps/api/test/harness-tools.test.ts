@@ -7,10 +7,15 @@ import type {
   MemoryRepository,
 } from "@town/knowledge";
 import {
+  createInvokeRoutineHarnessBinding,
   createRegistryHarnessBindings,
   createTownMemoryAddHarnessBinding,
   createTownSearchHarnessBinding,
 } from "../src/harness-tools.js";
+import { AgentError } from "@town/agents";
+import type { AgentRepository, RoutineAgent } from "@town/agents";
+import type { SessionRepository } from "@town/runtime";
+import type { ThreadRepository } from "@town/agents";
 
 describe("Town Harness built-in tools", () => {
   it("binds owner-scoped knowledge search with a typed JSON result", async () => {
@@ -292,6 +297,62 @@ describe("Town Harness built-in tools", () => {
     ).toBe("deny");
     await expect(denied[0]?.port.execute({})).rejects.toThrow(
       "HARNESS_TOOL_POLICY_DENIED",
+    );
+  });
+
+  it("queues an allowlisted child routine through the durable session repository", async () => {
+    const ownerId = newId<"user">();
+    const parentId = newId<"agent">();
+    const childId = newId<"agent">();
+    const parent = {
+      id: parentId,
+      activeVersion: { snapshot: { callableRoutineIds: [childId] } },
+    } as unknown as RoutineAgent;
+    const child = {
+      id: childId,
+      activeVersion: {
+        snapshot: {
+          callableRoutineIds: [],
+          displayName: "Child",
+          defaultApprovalMode: "autonomous",
+        },
+      },
+    } as unknown as RoutineAgent;
+    const agents = {
+      getPersonal: vi
+        .fn()
+        .mockRejectedValue(new AgentError("AGENT_NOT_FOUND", "no personal")),
+      getRoutine: vi
+        .fn()
+        .mockResolvedValueOnce(child)
+        .mockResolvedValueOnce(parent),
+    } as unknown as AgentRepository;
+    const threads = {
+      get: vi.fn().mockResolvedValue({ agentId: parentId }),
+      createTask: vi.fn().mockResolvedValue({ id: newId<"thread">() }),
+    } as unknown as ThreadRepository;
+    const sessions = {
+      submitMessage: vi.fn().mockResolvedValue({
+        session: { id: newId<"runtime-session">() },
+        run: { id: newId<"session-run">() },
+        replayed: false,
+      }),
+    } as unknown as SessionRepository;
+    const binding = createInvokeRoutineHarnessBinding({
+      ownerId,
+      threadId: "parent-thread",
+      agents,
+      threads,
+      sessions,
+    });
+    await expect(
+      binding.port.execute(
+        { routineId: childId, input: "summarize this" },
+        { approvalGranted: true, policyDecision: "approval_required" },
+      ),
+    ).resolves.toMatchObject({ kind: "result" });
+    expect(sessions.submitMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "summarize this" }),
     );
   });
 });

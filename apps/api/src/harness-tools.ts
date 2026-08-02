@@ -4,6 +4,10 @@ import {
   createPolicyAwareHarnessTool,
   type HarnessToolBinding,
 } from "@town/harness";
+import type { AgentRepository, ThreadRepository } from "@town/agents";
+import { AgentError, approvalModeSchema } from "@town/agents";
+import type { SessionRepository } from "@town/runtime";
+import { createHash } from "node:crypto";
 import type {
   KnowledgeSearchRepository,
   MemoryRepository,
@@ -52,6 +56,13 @@ const searchArguments = z
       });
     }
   });
+
+const invokeRoutineArguments = z
+  .object({
+    routineId: z.uuidv7(),
+    input: z.string().trim().min(1).max(50_000),
+  })
+  .strict();
 
 const MAX_OUTPUT_CHARS = 12_000;
 const MAX_ITEM_TEXT_CHARS = 1_500;
@@ -276,6 +287,91 @@ export function createTownMemoryAddHarnessBinding(
             confidence: created.confidence,
             createdAt: created.createdAt,
           },
+        }),
+      };
+    },
+  });
+}
+
+/** Queues a child Routine only when the immutable parent version allowlists it. */
+export function createInvokeRoutineHarnessBinding(input: {
+  ownerId: Id<"user">;
+  threadId: string;
+  agents: AgentRepository;
+  threads: ThreadRepository;
+  sessions: SessionRepository;
+}): HarnessToolBinding {
+  return createPolicyAwareHarnessTool({
+    definition: {
+      name: "invoke_routine",
+      description: "Queue an explicitly allowlisted child Routine.",
+      parameters: {
+        type: "object",
+        properties: {
+          routineId: { type: "string", format: "uuid" },
+          input: { type: "string", minLength: 1, maxLength: 50_000 },
+        },
+        required: ["routineId", "input"],
+        additionalProperties: false,
+      },
+    },
+    decide: () => "approval_required",
+    async execute(arguments_) {
+      const value = invokeRoutineArguments.parse(arguments_);
+      const parent = await input.threads.get(
+        input.ownerId,
+        input.threadId as Id<"thread">,
+      );
+      const child = await input.agents.getRoutine(
+        input.ownerId,
+        value.routineId as Id<"agent">,
+      );
+      let parentAgent;
+      try {
+        const personal = await input.agents.getPersonal(input.ownerId);
+        parentAgent =
+          personal.id === parent.agentId
+            ? personal
+            : await input.agents.getRoutine(input.ownerId, parent.agentId);
+      } catch (error) {
+        if (!(error instanceof AgentError) || error.code !== "AGENT_NOT_FOUND")
+          throw error;
+        parentAgent = await input.agents.getRoutine(
+          input.ownerId,
+          parent.agentId,
+        );
+      }
+      if (
+        !parentAgent.activeVersion.snapshot.callableRoutineIds.includes(
+          child.id,
+        )
+      )
+        throw new Error("HARNESS_ROUTINE_NOT_ALLOWLISTED");
+      const childThread = await input.threads.createTask({
+        ownerId: input.ownerId,
+        agentId: child.id,
+        title: `Child Routine: ${child.activeVersion.snapshot.displayName}`,
+        approvalMode: approvalModeSchema.parse(
+          child.activeVersion.snapshot.defaultApprovalMode,
+        ),
+      });
+      const idempotencyKey = `invoke:${input.threadId}:${child.id}:${createHash("sha256").update(value.input).digest("base64url")}`;
+      const submission = await input.sessions.submitMessage({
+        ownerId: input.ownerId,
+        threadId: childThread.id,
+        idempotencyKey,
+        text: value.input,
+        mentions: [],
+      });
+      return {
+        kind: "result",
+        output: JSON.stringify({
+          routineId: child.id,
+          threadId: childThread.id,
+          sessionId: submission.session.id,
+          runId: submission.run.id,
+          queued: true,
+          replayed: submission.replayed,
         }),
       };
     },

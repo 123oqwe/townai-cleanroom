@@ -395,6 +395,32 @@ export function createAgentRepository(sql: Sql) {
     return rows.map(safeRoutineAgent);
   }
 
+  async function getRoutine(
+    ownerId: Id<"user">,
+    agentId: Id<"agent">,
+  ): Promise<RoutineAgent> {
+    const [row] = await sql<AgentRow[]>`
+      select
+        agent.id, agent.owner_id, agent.kind, agent.status,
+        agent.revision, agent.created_at, agent.updated_at,
+        version.id as version_id, version.agent_id as version_agent_id,
+        version.version, version.snapshot, version.change_reason,
+        version.created_by, version.created_at as version_created_at
+      from agents agent
+      join agent_versions version
+        on version.owner_id=agent.owner_id and version.agent_id=agent.id
+        and version.id=agent.active_version_id
+      where agent.owner_id=${ownerId} and agent.id=${agentId}
+        and agent.kind='routine' and agent.status='active'
+    `;
+    if (!row)
+      throw new AgentError(
+        "AGENT_NOT_FOUND",
+        "The Routine Agent was not found.",
+      );
+    return safeRoutineAgent(row);
+  }
+
   async function publishPersonal(
     input: z.input<typeof publishPersonalSchema>,
   ): Promise<PersonalAgent> {
@@ -508,6 +534,7 @@ export function createAgentRepository(sql: Sql) {
     createRoutine,
     getPersonal,
     listRoutines,
+    getRoutine,
     publishRoutine,
     listVersions,
     publishPersonal,

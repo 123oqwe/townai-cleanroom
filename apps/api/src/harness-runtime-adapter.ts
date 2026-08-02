@@ -28,11 +28,17 @@ export function createHarnessRuntimeAdapter(input: {
       if (existing === undefined) {
         const snapshot: ThreadSnapshot = {
           threadId,
+          agentVersionId: context.session.agentVersion.id,
           items: [],
           stepCount: 0,
           revision: 0,
         };
         await store.set(threadId, snapshot);
+      } else if (existing.agentVersionId === undefined) {
+        await store.set(threadId, {
+          ...existing,
+          agentVersionId: context.session.agentVersion.id,
+        });
       }
       const turn = await input.turns.get({
         ownerId,

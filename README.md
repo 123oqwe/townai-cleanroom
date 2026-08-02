@@ -73,7 +73,9 @@ control using your platform's secure secret-management workflow.
   enqueueing with HTTP 202.
 - Routine Agent versions persist an explicit `callableRoutineIds` allowlist;
   publication rejects missing, disabled, cross-owner, and self-referential
-  child routines before the immutable version is activated.
+  child routines before the immutable version is activated. The harness exposes
+  `invoke_routine` as an approval-gated operation that creates a child Task
+  thread and durable queued Session Run using the child’s immutable version.
 - A responsive, API-backed `apps/web` command center with explicit connection,
   empty, error, focus, and harness states; it uses no fabricated backend data.
 

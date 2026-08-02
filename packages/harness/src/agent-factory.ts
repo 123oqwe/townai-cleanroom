@@ -17,13 +17,23 @@ export function createResponsesAgentFactory(input: {
   headers?: Record<string, string>;
   apiKey?: () => Promise<string>;
   fetch?: typeof globalThis.fetch;
-  tools?: (threadId: string) => readonly HarnessToolBinding[];
-}): (threadId: string) => {
+  tools?: (
+    threadId: string,
+    agentVersionId?: string,
+  ) => readonly HarnessToolBinding[];
+  agentVersionForThread?: (
+    agentVersionId: string | undefined,
+  ) => { instructions: string } | undefined;
+}): (
+  threadId: string,
+  agentVersionId?: string,
+) => {
   model: ModelPort;
   tools: readonly ToolPort[];
 } {
-  return (threadId) => {
-    const bindings = input.tools?.(threadId) ?? [];
+  return (threadId, agentVersionId) => {
+    const selected = input.agentVersionForThread?.(agentVersionId);
+    const bindings = input.tools?.(threadId, agentVersionId) ?? [];
     const definitionNames = new Set<string>();
     const portNames = new Set<string>();
     for (const { definition, port } of bindings) {
@@ -46,9 +56,9 @@ export function createResponsesAgentFactory(input: {
       model: createResponsesModel({
         endpoint: input.endpoint,
         model: input.model,
-        ...(input.instructions === undefined
+        ...((selected?.instructions ?? input.instructions) === undefined
           ? {}
-          : { instructions: input.instructions }),
+          : { instructions: selected?.instructions ?? input.instructions }),
         ...(input.headers === undefined ? {} : { headers: input.headers }),
         ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
         ...(input.fetch === undefined ? {} : { fetch: input.fetch }),

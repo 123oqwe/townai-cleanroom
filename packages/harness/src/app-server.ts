@@ -15,6 +15,7 @@ import {
 
 export interface ThreadSnapshot {
   threadId: string;
+  agentVersionId?: string;
   items: HarnessItem[];
   pendingApproval?: PendingApprovalSnapshot;
   stepCount: number;
@@ -55,6 +56,7 @@ const harnessItemSchema = z.discriminatedUnion("type", [
 
 export const threadSnapshotSchema = z.object({
   threadId: z.string().min(1),
+  agentVersionId: z.string().min(1).optional(),
   items: z.array(harnessItemSchema),
   pendingApproval: z
     .object({
@@ -153,7 +155,10 @@ function invalidParams(
 export function createAppServer(input: {
   store: ThreadStore | PersistentThreadStore;
   leaseMs?: number;
-  createAgent: (threadId: string) => {
+  createAgent: (
+    threadId: string,
+    agentVersionId?: string,
+  ) => {
     model: ModelPort;
     tools: readonly ToolPort[];
   };
@@ -342,7 +347,7 @@ export function createAppServer(input: {
     const snapshot = await store.get(threadId);
     if (snapshot === undefined) return undefined;
     const harnessInput = {
-      ...input.createAgent(threadId),
+      ...input.createAgent(threadId, snapshot.agentVersionId),
       initialItems: snapshot.items,
       initialStepCount: snapshot.stepCount,
       emit: () => undefined,

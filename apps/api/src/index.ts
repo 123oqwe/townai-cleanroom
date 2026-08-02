@@ -12,7 +12,6 @@ import {
 } from "@town/teams";
 
 import {
-  AgentError,
   createAgentRepository,
   createInputRequestRepository,
   createTaskRepository,
@@ -54,6 +53,7 @@ import {
 import { createApp } from "./app.js";
 import {
   createTownMemoryAddHarnessBinding,
+  createInvokeRoutineHarnessBinding,
   createRegistryHarnessBindings,
   createTownSearchHarnessBinding,
 } from "./harness-tools.js";
@@ -116,30 +116,48 @@ const harnessServerFactory =
     ? undefined
     : async (ownerId: string) => {
         const typedOwnerId = asId<"user">(ownerId);
-        let registryDefinitions = [] as Awaited<
-          ReturnType<typeof toolRegistryRepository.listForAgentVersion>
-        >;
-        try {
-          const personalAgent = await agentRepository.getPersonal(typedOwnerId);
-          registryDefinitions =
-            await toolRegistryRepository.listForAgentVersion({
-              ownerId: typedOwnerId,
-              agentVersionId: personalAgent.activeVersion.id,
-            });
-        } catch (error) {
-          if (
-            !(error instanceof AgentError) ||
-            error.code !== "AGENT_NOT_FOUND"
-          )
-            throw error;
-        }
+        const personalAgent = await agentRepository
+          .getPersonal(typedOwnerId)
+          .catch(() => undefined);
+        const routineAgents = await agentRepository.listRoutines(typedOwnerId);
+        const activeAgents = [personalAgent, ...routineAgents].filter(
+          (agent) => agent !== undefined,
+        );
+        const versions = new Map(
+          activeAgents.map(
+            (agent) =>
+              [
+                String(agent.activeVersion.id),
+                agent.activeVersion.snapshot,
+              ] as const,
+          ),
+        );
+        const registryByVersion = new Map<
+          string,
+          Awaited<ReturnType<typeof toolRegistryRepository.listForAgentVersion>>
+        >();
+        await Promise.all(
+          activeAgents.map(async (agent) => {
+            registryByVersion.set(
+              agent.activeVersion.id,
+              await toolRegistryRepository.listForAgentVersion({
+                ownerId: typedOwnerId,
+                agentVersionId: agent.activeVersion.id,
+              }),
+            );
+          }),
+        );
         return createAppServer({
           store: createHarnessThreadStore(database.db, ownerId),
           createAgent: createResponsesAgentFactory({
             endpoint: environment.RESPONSES_API_ENDPOINT,
             model: environment.RESPONSES_MODEL,
+            agentVersionForThread: (agentVersionId) =>
+              agentVersionId === undefined
+                ? undefined
+                : versions.get(agentVersionId),
             apiKey: async () => environment.RESPONSES_API_KEY as string,
-            tools: (threadId) => {
+            tools: (threadId, agentVersionId) => {
               const builtIns = [
                 createTownSearchHarnessBinding(
                   typedOwnerId,
@@ -152,6 +170,13 @@ const harnessServerFactory =
                   (owner, routineScheduleId) =>
                     routineRepository.ownsSchedule(owner, routineScheduleId),
                 ),
+                createInvokeRoutineHarnessBinding({
+                  ownerId: typedOwnerId,
+                  threadId,
+                  agents: agentRepository,
+                  threads: threadRepository,
+                  sessions: sessionRepository,
+                }),
               ];
               const handlers = new Map(
                 builtIns.map(({ definition, port }) => [
@@ -162,7 +187,7 @@ const harnessServerFactory =
               const registryBindings = createRegistryHarnessBindings({
                 ownerId: typedOwnerId,
                 threadId,
-                definitions: registryDefinitions,
+                definitions: registryByVersion.get(agentVersionId ?? "") ?? [],
                 handlers,
               });
               const registryNames = new Set(
