@@ -44,3 +44,14 @@ The API entrypoint now exports the Hono app as the default from
 `apps/api/src/index.ts` when `VERCEL=1`; local development still uses the Node
 server listener. This keeps serverless invocation separate from local process
 shutdown and does not weaken the API's database or authentication requirements.
+
+Once the owner-visible Vercel project ID is available, protection is applied
+with the source-controlled command below. It sends only the documented project
+settings patch and reads credentials from the shell environment:
+
+```sh
+VERCEL_TOKEN="$YOUR_TOKEN" \
+VERCEL_PROJECT_ID="$YOUR_PROJECT_ID" \
+VERCEL_TEAM_ID="$YOUR_TEAM_ID" \
+pnpm vercel:protect
+```
