@@ -297,9 +297,19 @@ describe("Task repository", () => {
         }),
       );
     }
+    const februaryTask = created[2];
+    const [marchDate, januaryDate, februaryDate] = dates;
+    if (
+      februaryTask === undefined ||
+      marchDate === undefined ||
+      januaryDate === undefined ||
+      februaryDate === undefined
+    ) {
+      throw new Error("Expected complete schedule fixtures.");
+    }
     await createTurnRepository(sql).appendRuntime({
       ownerId,
-      threadId: created[2]!.thread.id,
+      threadId: februaryTask.thread.id,
       role: "assistant",
       text: "Task requires attention.",
       sourceRef: "synthetic-task-session",
@@ -308,12 +318,12 @@ describe("Task repository", () => {
 
     const unread = await tasks.list({ ownerId, unread: true, limit: 10 });
     expect(unread.items.map(({ task }) => task.id)).toEqual([
-      created[2]!.task.id,
+      februaryTask.task.id,
     ]);
     const page1 = await tasks.list({ ownerId, statuses: ["open"], limit: 2 });
     expect(
       page1.items.map(({ task }) => task.scheduledFor?.toISOString()),
-    ).toEqual([dates[1]!.toISOString(), dates[2]!.toISOString()]);
+    ).toEqual([januaryDate.toISOString(), februaryDate.toISOString()]);
     if (page1.nextCursor === null) throw new Error("Expected a cursor.");
     const page2 = await tasks.list({
       ownerId,
@@ -323,10 +333,10 @@ describe("Task repository", () => {
     });
     expect(
       page2.items.map(({ task }) => task.scheduledFor?.toISOString()),
-    ).toEqual([dates[0]!.toISOString()]);
-    await tasks.markRead({ ownerId, taskId: created[2]!.task.id });
+    ).toEqual([marchDate.toISOString()]);
+    await tasks.markRead({ ownerId, taskId: februaryTask.task.id });
     await expect(
-      tasks.get(ownerId, created[2]!.task.id),
+      tasks.get(ownerId, februaryTask.task.id),
     ).resolves.toMatchObject({ task: { unread: false } });
   });
 });
