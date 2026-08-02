@@ -11,6 +11,21 @@ const gmailSearchSchema = z
     resultSizeEstimate: z.number().optional(),
   })
   .passthrough();
+const gmailMessageSchema = z
+  .object({
+    id: z.string(),
+    threadId: z.string(),
+    labelIds: z.array(z.string()).optional(),
+    payload: z.record(z.string(), z.json()).optional(),
+  })
+  .passthrough();
+const calendarEventSchema = z
+  .object({
+    id: z.string().optional(),
+    status: z.string().optional(),
+    htmlLink: z.string().optional(),
+  })
+  .passthrough();
 const freeBusySchema = z
   .object({
     calendars: z.record(
@@ -119,6 +134,18 @@ export function createGoogleApiClient(input: {
         gmailSearchSchema,
       );
     },
+    async gmailGetMessage(input_: {
+      ownerId: Id<"user">;
+      accountId: Id<"connected-account">;
+      messageId: string;
+    }) {
+      return json(
+        input_.ownerId,
+        input_.accountId,
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(input_.messageId)}?format=full`,
+        gmailMessageSchema,
+      );
+    },
     async calendarFreeBusy(input_: {
       ownerId: Id<"user">;
       accountId: Id<"connected-account">;
@@ -153,6 +180,49 @@ export function createGoogleApiClient(input: {
         throw new GoogleApiError(
           "GOOGLE_API_INVALID",
           "Google Calendar returned an unexpected response.",
+        );
+      return parsed.data;
+    },
+    async calendarCreateEvent(
+      input_: {
+        ownerId: Id<"user">;
+        accountId: Id<"connected-account">;
+        calendarId: string;
+        event: Record<string, unknown>;
+      },
+      retried = false,
+    ): Promise<z.infer<typeof calendarEventSchema>> {
+      const response = await request(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(input_.calendarId)}/events`,
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            authorization: `Bearer ${await accessToken(input_.ownerId, input_.accountId)}`,
+          },
+          body: JSON.stringify(input_.event),
+        },
+      );
+      if (
+        response.status === 401 &&
+        !retried &&
+        input.refresher !== undefined
+      ) {
+        await input.refresher.refresh(input_.ownerId, input_.accountId);
+        return this.calendarCreateEvent(input_, true);
+      }
+      if (!response.ok)
+        throw new GoogleApiError(
+          "GOOGLE_API_HTTP",
+          `Google Calendar API returned HTTP ${response.status}.`,
+          response.status,
+        );
+      const parsed = calendarEventSchema.safeParse(await response.json());
+      if (!parsed.success)
+        throw new GoogleApiError(
+          "GOOGLE_API_INVALID",
+          "Google Calendar returned an unexpected event response.",
         );
       return parsed.data;
     },

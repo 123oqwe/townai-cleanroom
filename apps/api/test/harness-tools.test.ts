@@ -11,6 +11,7 @@ import {
   createRegistryHarnessBindings,
   createTownMemoryAddHarnessBinding,
   createTownSearchHarnessBinding,
+  createGoogleCalendarCreateEventHarnessBinding,
 } from "../src/harness-tools.js";
 import { AgentError } from "@town/agents";
 import type { AgentRepository, RoutineAgent } from "@town/agents";
@@ -353,6 +354,31 @@ describe("Town Harness built-in tools", () => {
     ).resolves.toMatchObject({ kind: "result" });
     expect(sessions.submitMessage).toHaveBeenCalledWith(
       expect.objectContaining({ text: "summarize this" }),
+    );
+  });
+
+  it("requires approval before creating an external Google Calendar event", async () => {
+    const ownerId = newId<"user">();
+    const accountId = newId<"connected-account">();
+    const google = {
+      calendarCreateEvent: vi.fn().mockResolvedValue({ id: "event-1" }),
+    };
+    const binding = createGoogleCalendarCreateEventHarnessBinding(
+      ownerId,
+      google as never,
+    );
+    const arguments_ = { accountId, event: { summary: "Focus" } };
+    await expect(binding.port.execute(arguments_)).rejects.toThrow(
+      "APPROVAL_REQUIRED",
+    );
+    await expect(
+      binding.port.execute(arguments_, {
+        approvalGranted: true,
+        policyDecision: "approval_required",
+      }),
+    ).resolves.toMatchObject({ kind: "result" });
+    expect(google.calendarCreateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId, accountId }),
     );
   });
 });

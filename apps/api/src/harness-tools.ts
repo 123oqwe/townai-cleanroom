@@ -72,6 +72,12 @@ const gmailSearchArguments = z
     maxResults: z.number().int().min(1).max(50).default(10),
   })
   .strict();
+const gmailMessageArguments = z
+  .object({
+    accountId: googleAccountId,
+    messageId: z.string().trim().min(1).max(500),
+  })
+  .strict();
 const calendarFreeBusyArguments = z
   .object({
     accountId: googleAccountId,
@@ -91,6 +97,13 @@ const calendarFreeBusyArguments = z
         message: "timeMax must be after timeMin",
       });
   });
+const calendarCreateEventArguments = z
+  .object({
+    accountId: googleAccountId,
+    calendarId: z.string().trim().min(1).max(500).default("primary"),
+    event: z.record(z.string(), z.json()),
+  })
+  .strict();
 
 const MAX_OUTPUT_CHARS = 12_000;
 const MAX_ITEM_TEXT_CHARS = 1_500;
@@ -359,6 +372,49 @@ export function createGoogleGmailSearchHarnessBinding(
   };
 }
 
+/** Read-only Gmail message retrieval through an owner-selected account. */
+export function createGoogleGmailGetMessageHarnessBinding(
+  ownerId: Id<"user">,
+  google: GoogleApiClient,
+): HarnessToolBinding {
+  return {
+    definition: {
+      name: "google_gmail_get_message",
+      description:
+        "Read one Gmail message on an explicitly selected connected Google account.",
+      parameters: {
+        type: "object",
+        properties: {
+          accountId: { type: "string", format: "uuid" },
+          messageId: { type: "string", minLength: 1, maxLength: 500 },
+        },
+        required: ["accountId", "messageId"],
+        additionalProperties: false,
+      },
+    },
+    port: {
+      name: "google_gmail_get_message",
+      requiresApproval: false,
+      async execute(arguments_) {
+        const value = gmailMessageArguments.parse(arguments_);
+        const result = await google.gmailGetMessage({
+          ownerId,
+          accountId: value.accountId as Id<"connected-account">,
+          messageId: value.messageId,
+        });
+        const output = JSON.stringify(result);
+        return {
+          kind: "result",
+          output:
+            output.length > MAX_OUTPUT_CHARS
+              ? `${output.slice(0, MAX_OUTPUT_CHARS)}… [truncated]`
+              : output,
+        };
+      },
+    },
+  };
+}
+
 /** Read-only Calendar free/busy lookup through an owner-selected account. */
 export function createGoogleCalendarFreeBusyHarnessBinding(
   ownerId: Id<"user">,
@@ -401,6 +457,41 @@ export function createGoogleCalendarFreeBusyHarnessBinding(
       },
     },
   };
+}
+
+/** Creates an external Calendar event only after the Harness approval boundary resumes. */
+export function createGoogleCalendarCreateEventHarnessBinding(
+  ownerId: Id<"user">,
+  google: GoogleApiClient,
+): HarnessToolBinding {
+  return createPolicyAwareHarnessTool({
+    definition: {
+      name: "google_calendar_create_event",
+      description:
+        "Create a Calendar event on an explicitly selected connected Google account after approval.",
+      parameters: {
+        type: "object",
+        properties: {
+          accountId: { type: "string", format: "uuid" },
+          calendarId: { type: "string", minLength: 1, maxLength: 500 },
+          event: { type: "object" },
+        },
+        required: ["accountId", "event"],
+        additionalProperties: false,
+      },
+    },
+    decide: () => "approval_required",
+    async execute(arguments_) {
+      const value = calendarCreateEventArguments.parse(arguments_);
+      const result = await google.calendarCreateEvent({
+        ownerId,
+        accountId: value.accountId as Id<"connected-account">,
+        calendarId: value.calendarId,
+        event: value.event,
+      });
+      return { kind: "result", output: JSON.stringify(result) };
+    },
+  });
 }
 
 /** Queues a child Routine only when the immutable parent version allowlists it. */

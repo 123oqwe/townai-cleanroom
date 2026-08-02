@@ -58,7 +58,9 @@ import {
   createRegistryHarnessBindings,
   createTownSearchHarnessBinding,
   createGoogleGmailSearchHarnessBinding,
+  createGoogleGmailGetMessageHarnessBinding,
   createGoogleCalendarFreeBusyHarnessBinding,
+  createGoogleCalendarCreateEventHarnessBinding,
 } from "./harness-tools.js";
 import { createHarnessRuntimeAdapter } from "./harness-runtime-adapter.js";
 import { createRoutineScheduler } from "./routine-scheduler.js";
@@ -203,7 +205,15 @@ const harnessServerFactory =
                   sessions: sessionRepository,
                 }),
                 createGoogleGmailSearchHarnessBinding(typedOwnerId, googleApi),
+                createGoogleGmailGetMessageHarnessBinding(
+                  typedOwnerId,
+                  googleApi,
+                ),
                 createGoogleCalendarFreeBusyHarnessBinding(
+                  typedOwnerId,
+                  googleApi,
+                ),
+                createGoogleCalendarCreateEventHarnessBinding(
                   typedOwnerId,
                   googleApi,
                 ),

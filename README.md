@@ -108,6 +108,9 @@ The Harness now exposes owner-scoped read-only `google_gmail_search` and
 `google_calendar_freebusy` tools. They use the selected connected account,
 refresh once on expiry/401 when configured, and validate provider responses;
 they do not fabricate connector data.
+It also exposes read-only `google_gmail_get_message` and approval-gated
+`google_calendar_create_event`; external event creation cannot execute until
+the durable Harness approval context is resumed.
 
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,

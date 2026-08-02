@@ -90,4 +90,42 @@ describe("Google API client", () => {
     });
     expect(result.calendars["primary"]?.busy).toEqual([]);
   });
+
+  it("retrieves one Gmail message with full format", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url) => {
+      expect(String(url)).toContain("messages/message-1");
+      return new Response(
+        JSON.stringify({ id: "message-1", threadId: "thread-1", payload: {} }),
+        { status: 200 },
+      );
+    });
+    const result = await createGoogleApiClient({
+      accounts: accounts(),
+      fetch,
+    }).gmailGetMessage({ ownerId, accountId, messageId: "message-1" });
+    expect(result.threadId).toBe("thread-1");
+  });
+
+  it("creates a Calendar event with a provider write request", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (_url, options) => {
+      expect(options?.method).toBe("POST");
+      expect(JSON.parse(String(options?.body))).toMatchObject({
+        summary: "Focus",
+      });
+      return new Response(
+        JSON.stringify({ id: "event-1", status: "confirmed" }),
+        { status: 200 },
+      );
+    });
+    const result = await createGoogleApiClient({
+      accounts: accounts(),
+      fetch,
+    }).calendarCreateEvent({
+      ownerId,
+      accountId,
+      calendarId: "primary",
+      event: { summary: "Focus" },
+    });
+    expect(result.id).toBe("event-1");
+  });
 });
