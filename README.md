@@ -49,6 +49,9 @@ control using your platform's secure secret-management workflow.
 - Owner-scoped Content Library with document/file metadata, immutable content
   revisions, collections, object-storage references, and privacy-safe expiring
   share tokens. Public share responses never expose storage keys or tenant/session metadata.
+- Owner-scoped Squares with active memberships, owner/admin/member roles,
+  canonical-owner invariants, team policy revisions, and authenticated API
+  boundaries for member administration.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm
