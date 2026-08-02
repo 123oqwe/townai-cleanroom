@@ -617,13 +617,17 @@ describe("Codex-style bidirectional app server", () => {
       params: {},
     });
     threadId = (started as { result: { threadId: string } }).result.threadId;
-    await expect(
-      server.dispatch({
-        jsonrpc: "2.0",
-        id: 3,
-        method: "turn/start",
-        params: { threadId, text: "fence" },
-      }),
-    ).resolves.toMatchObject({ error: { code: -32005 } });
+    const fenced = await server.dispatch({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "turn/start",
+      params: { threadId, text: "fence" },
+    });
+    expect(fenced).toMatchObject({ error: { code: -32005 } });
+    expect(
+      (
+        fenced as { notifications: Array<{ method: string }> }
+      ).notifications.map((item) => item.method),
+    ).toEqual(["turn/started"]);
   });
 });

@@ -275,8 +275,9 @@ export function createAppServer(input: {
     heartbeat.unref?.();
     const notifications: Array<ReturnType<typeof notification>> = [];
     runtime.harness.setEmitter((event: HarnessEvent) => {
-      notifications.push(...eventNotifications(threadId, event));
+      const mapped = eventNotifications(threadId, event);
       persist(runtime);
+      notifications.push(...mapped);
     });
     try {
       const result = await operation(runtime, notifications);
@@ -290,11 +291,12 @@ export function createAppServer(input: {
       }
       const message =
         error instanceof Error ? error.message : "Request failed.";
-      const code = message.startsWith("THREAD_")
-        ? -32005
-        : message.startsWith("HARNESS_")
-          ? -32010
-          : -32000;
+      const code =
+        runtime.leaseLost || message.startsWith("THREAD_")
+          ? -32005
+          : message.startsWith("HARNESS_")
+            ? -32010
+            : -32000;
       return errorResponse(request, code, message, notifications);
     } finally {
       clearInterval(heartbeat);
