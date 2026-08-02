@@ -17,6 +17,7 @@
     "@town/identity": "workspace:*",
     "@town/knowledge": "workspace:*",
     "@town/runtime": "workspace:*",
+    "@town/routines": "workspace:*",
     "@town/tools": "workspace:*",
     "hono": "4.12.29",
     "postgres": "3.4.9",

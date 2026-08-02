@@ -306,7 +306,12 @@ export function createAgentRepository(sql: Sql) {
     return { items, nextCursor };
   }
 
-  return { createPersonal, getPersonal, listVersions, publishPersonal };
+  return {
+    createPersonal,
+    getPersonal,
+    listVersions,
+    publishPersonal,
+  };
 }
 
 export type AgentRepository = ReturnType<typeof createAgentRepository>;

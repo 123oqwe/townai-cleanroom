@@ -118,6 +118,16 @@ export function createRoutineRepository(sql: Sql) {
     >`select * from routine_schedules where owner_id=${ownerId} order by next_run_at, id`;
     return rows.map(safe);
   }
+  async function ownsSchedule(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+  ): Promise<boolean> {
+    const [row] = await sql<{ id: string }[]>`
+      select id from routine_schedules
+      where owner_id=${ownerId} and id=${routineScheduleId}
+    `;
+    return row !== undefined;
+  }
   async function claimDue(
     ownerId: Id<"user">,
     now = new Date(),
@@ -136,6 +146,6 @@ export function createRoutineRepository(sql: Sql) {
       return claimed;
     });
   }
-  return { create, list, claimDue };
+  return { create, list, ownsSchedule, claimDue };
 }
 export type RoutineRepository = ReturnType<typeof createRoutineRepository>;

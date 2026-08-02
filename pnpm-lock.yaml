@@ -62,6 +62,9 @@ importers:
       '@town/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@town/routines':
+        specifier: workspace:*
+        version: link:../../packages/routines
       '@town/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime

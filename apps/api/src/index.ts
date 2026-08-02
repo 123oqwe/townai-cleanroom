@@ -33,13 +33,17 @@ import {
   createRuntimeTransitionService,
   createSessionRepository,
 } from "@town/runtime";
+import { createRoutineRepository } from "@town/routines";
 import {
   createToolExecutionRepository,
   createToolRegistryRepository,
 } from "@town/tools";
 
 import { createApp } from "./app.js";
-import { createTownSearchHarnessBinding } from "./harness-tools.js";
+import {
+  createTownMemoryAddHarnessBinding,
+  createTownSearchHarnessBinding,
+} from "./harness-tools.js";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -77,6 +81,7 @@ const taskRepository = createTaskRepository(sql);
 const inputRequestRepository = createInputRequestRepository(sql);
 const sessionRepository = createSessionRepository(sql);
 const runtimeTransitionService = createRuntimeTransitionService(sql);
+const routineRepository = createRoutineRepository(sql);
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
 
@@ -90,10 +95,17 @@ const harnessServerFactory =
             endpoint: environment.RESPONSES_API_ENDPOINT,
             model: environment.RESPONSES_MODEL,
             apiKey: async () => environment.RESPONSES_API_KEY as string,
-            tools: () => [
+            tools: (threadId) => [
               createTownSearchHarnessBinding(
                 asId<"user">(ownerId),
                 knowledgeSearchRepository,
+              ),
+              createTownMemoryAddHarnessBinding(
+                asId<"user">(ownerId),
+                memoryRepository,
+                threadId,
+                (owner, routineScheduleId) =>
+                  routineRepository.ownsSchedule(owner, routineScheduleId),
               ),
             ],
           }),
