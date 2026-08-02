@@ -61,6 +61,7 @@ export const threadSnapshotSchema = z.object({
       callId: z.string().min(1),
       toolName: z.string().min(1),
       arguments: z.record(z.string(), z.unknown()),
+      policyDecision: z.literal("approval_required").optional(),
     })
     .optional(),
   stepCount: z.number().int().nonnegative(),

@@ -44,9 +44,17 @@ export interface ModelPort {
 
 export interface ToolPort {
   name: string;
-  requiresApproval?: boolean;
+  requiresApproval?:
+    | boolean
+    | ((
+        arguments_: Record<string, unknown>,
+      ) => boolean | "allow" | "approval_required" | "deny");
   execute(
     arguments_: Record<string, unknown>,
+    context?: {
+      approvalGranted: boolean;
+      policyDecision?: "allow" | "approval_required" | "deny";
+    },
   ): Promise<{ kind: "result"; output: string }>;
 }
 
@@ -81,12 +89,14 @@ interface PendingApproval {
   callId: string;
   tool: ToolPort;
   arguments: Record<string, unknown>;
+  policyDecision?: "approval_required";
 }
 
 export interface PendingApprovalSnapshot {
   callId: string;
   toolName: string;
   arguments: Record<string, unknown>;
+  policyDecision?: "approval_required";
 }
 
 export function createHarness(input: {
@@ -117,6 +127,9 @@ export function createHarness(input: {
       arguments: toolArgumentsSchema.parse(
         input.initialPendingApproval.arguments,
       ),
+      ...(input.initialPendingApproval.policyDecision === undefined
+        ? {}
+        : { policyDecision: input.initialPendingApproval.policyDecision }),
     };
   }
 
@@ -178,8 +191,29 @@ export function createHarness(input: {
         });
         continue;
       }
-      if (tool.requiresApproval === true) {
-        pending = { callId: response.callId, tool, arguments: arguments_ };
+      const approvalDecision =
+        typeof tool.requiresApproval === "function"
+          ? tool.requiresApproval(arguments_)
+          : tool.requiresApproval === true
+            ? true
+            : false;
+      const requiresApproval =
+        approvalDecision === true || approvalDecision === "approval_required";
+      if (approvalDecision === "deny") {
+        await recordToolFailure(
+          response.callId,
+          tool.name,
+          "HARNESS_TOOL_POLICY_DENIED: policy denied this action.",
+        );
+        continue;
+      }
+      if (requiresApproval) {
+        pending = {
+          callId: response.callId,
+          tool,
+          arguments: arguments_,
+          policyDecision: "approval_required",
+        };
         await add({
           type: "approval_requested",
           approvalId: response.callId,
@@ -202,6 +236,10 @@ export function createHarness(input: {
     callId: string,
     tool: ToolPort,
     arguments_: Record<string, unknown>,
+    context: {
+      approvalGranted: boolean;
+      policyDecision?: "allow" | "approval_required" | "deny";
+    } = { approvalGranted: false },
   ): Promise<void> {
     await add({
       type: "tool_started",
@@ -211,7 +249,9 @@ export function createHarness(input: {
     });
     let output: string;
     try {
-      const result = toolResultSchema.parse(await tool.execute(arguments_));
+      const result = toolResultSchema.parse(
+        await tool.execute(arguments_, context),
+      );
       output = result.output;
     } catch (error) {
       const message =
@@ -233,6 +273,18 @@ export function createHarness(input: {
       { type: "tool_result", callId, toolName: tool.name, output },
     ];
     await add({ type: "tool_succeeded", callId, toolName: tool.name, output });
+  }
+
+  async function recordToolFailure(
+    callId: string,
+    toolName: string,
+    error: string,
+  ): Promise<void> {
+    items = [
+      ...items,
+      { type: "tool_result", callId, toolName, output: error },
+    ];
+    await add({ type: "tool_failed", callId, toolName, error });
   }
 
   return {
@@ -285,7 +337,12 @@ export function createHarness(input: {
         await add({ type: "turn_rejected", approvalId: decision.approvalId });
         return { kind: "rejected" };
       }
-      await executeTool(current.callId, current.tool, current.arguments);
+      await executeTool(current.callId, current.tool, current.arguments, {
+        approvalGranted: true,
+        ...(current.policyDecision === undefined
+          ? {}
+          : { policyDecision: current.policyDecision }),
+      });
       return continueLoop();
     },
     getItems(): readonly HarnessItem[] {
@@ -297,6 +354,9 @@ export function createHarness(input: {
         callId: pending.callId,
         toolName: pending.tool.name,
         arguments: { ...pending.arguments },
+        ...(pending.policyDecision === undefined
+          ? { policyDecision: "approval_required" as const }
+          : { policyDecision: pending.policyDecision }),
       };
     },
     getStepCount(): number {
@@ -331,3 +391,4 @@ export type Harness = ReturnType<typeof createHarness>;
 export * from "./app-server.js";
 export * from "./responses.js";
 export * from "./agent-factory.js";
+export * from "./policy-tools.js";
