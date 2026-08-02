@@ -27,3 +27,15 @@ export class ThreadError extends Error {
     this.name = "ThreadError";
   }
 }
+
+export type TurnErrorCode = "REFERENCE_UNAVAILABLE" | "TASK_NOT_FOUND";
+
+export class TurnError extends Error {
+  constructor(
+    readonly code: TurnErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "TurnError";
+  }
+}

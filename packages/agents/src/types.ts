@@ -72,3 +72,40 @@ export interface ThreadPage {
   items: ConversationThread[];
   nextCursor: string | null;
 }
+
+export const mentionTargetTypeSchema = z.enum([
+  "agent",
+  "thread",
+  "task",
+  "routine",
+  "content",
+]);
+export const turnRoleSchema = z.enum(["user", "assistant", "system"]);
+export const turnSourceTypeSchema = z.enum(["user", "runtime", "channel"]);
+
+export interface ThreadMention {
+  id: Id<"thread-mention">;
+  position: number;
+  targetType: z.infer<typeof mentionTargetTypeSchema>;
+  targetId: Id<"mention-target">;
+  label: string;
+  createdAt: Date;
+}
+
+export interface ThreadTurn {
+  id: Id<"thread-turn">;
+  ownerId: Id<"user">;
+  threadId: Id<"thread">;
+  sequence: number;
+  role: z.infer<typeof turnRoleSchema>;
+  text: string;
+  sourceType: z.infer<typeof turnSourceTypeSchema>;
+  sourceRef: string | null;
+  mentions: ThreadMention[];
+  createdAt: Date;
+}
+
+export interface TurnPage {
+  items: ThreadTurn[];
+  nextCursor: string | null;
+}

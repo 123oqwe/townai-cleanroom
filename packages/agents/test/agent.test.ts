@@ -90,6 +90,15 @@ describe("personal Agent repository", () => {
     expect(history.items[1]?.snapshot.instructions).toBe(
       "Prefer concise synthetic test output.",
     );
+    await expect(sql`
+      update agent_versions
+      set snapshot = ${sql.json({
+        displayName: "Mutated",
+        instructions: "Historical versions must not change.",
+        defaultApprovalMode: "autonomous",
+      })}
+      where id = ${version1.activeVersion.id}
+    `).rejects.toMatchObject({ code: "55000" });
   });
 
   it("rejects duplicate creation, stale publication, and cross-owner lookup", async () => {

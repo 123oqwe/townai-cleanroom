@@ -28,6 +28,10 @@ describe("agent, thread, and task migration", () => {
     const indexes = await sql<{ indexname: string }[]>`
       select indexname from pg_indexes where schemaname = 'public'
     `;
+    const triggers = await sql<{ trigger_name: string }[]>`
+      select trigger_name from information_schema.triggers
+      where trigger_schema = 'public'
+    `;
 
     expect(tables.map(({ table_name }) => table_name)).toEqual(
       expect.arrayContaining([
@@ -69,6 +73,13 @@ describe("agent, thread, and task migration", () => {
         "thread_mentions_owner_turn_idx",
         "thread_turns_owner_thread_sequence_idx",
         "threads_owner_status_activity_idx",
+      ]),
+    );
+    expect(triggers.map(({ trigger_name }) => trigger_name)).toEqual(
+      expect.arrayContaining([
+        "agent_versions_immutable_update",
+        "thread_mentions_immutable_update",
+        "thread_turns_immutable_update",
       ]),
     );
   });
