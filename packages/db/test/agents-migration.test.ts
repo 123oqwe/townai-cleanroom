@@ -97,6 +97,7 @@ describe("agent, thread, and task migration", () => {
       "0002_knowledge.sql",
       "0003_agents_threads_tasks.sql",
       "0004_persistent_sessions.sql",
+      "0005_tools_policy_approvals.sql",
     ]);
   });
 });
