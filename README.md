@@ -100,8 +100,14 @@ event writes, runtime roles, and assistant-output writes are internal only.
 Module 4 defines the durable execution boundary and a provider-neutral runtime
 adapter port. The Responses/Codex-compatible harness adapter is wired only when
 its explicit API key is configured; no provider call or assistant output is
-fabricated otherwise. Without an installed worker/adapter, Runs remain honestly
+fabricated otherwise. Without an injected provider adapter, Runs remain honestly
 queued. Genuine assistant output can only be recorded by an internal worker
 holding the current unexpired Run lease.
+
+The runtime package now includes a durable `createRuntimeWorker` loop that
+claims queue leases, forwards adapter phases/output, handles wait states,
+heartbeats active leases, and records completion/failure transitions. It still
+requires an explicitly injected provider adapter; the worker itself never
+generates model content.
 
 The current product objective is recorded in [GOAL.md](./GOAL.md).
