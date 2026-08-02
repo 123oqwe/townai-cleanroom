@@ -7,6 +7,33 @@ import { harnessThreads } from "./schema.js";
 
 type TownDatabase = ReturnType<typeof createDatabase>["db"];
 
+function toSnapshot(
+  threadId: string,
+  row: {
+    snapshot: unknown;
+    revision: number;
+    leaseOwner: string | null;
+    leaseExpiresAt: Date | null;
+  },
+): ThreadSnapshot {
+  if (
+    typeof row.snapshot !== "object" ||
+    row.snapshot === null ||
+    Array.isArray(row.snapshot) ||
+    (row.snapshot as { threadId?: unknown }).threadId !== threadId ||
+    !Array.isArray((row.snapshot as { items?: unknown }).items)
+  )
+    throw new Error("HARNESS_THREAD_CORRUPT: snapshot does not match its row.");
+  return {
+    ...(row.snapshot as ThreadSnapshot),
+    revision: row.revision,
+    ...(row.leaseOwner === null ? {} : { leaseOwner: row.leaseOwner }),
+    ...(row.leaseExpiresAt === null
+      ? {}
+      : { leaseExpiresAt: row.leaseExpiresAt.getTime() }),
+  };
+}
+
 export function createHarnessThreadStore(
   db: TownDatabase,
 ): PersistentThreadStore {
@@ -25,24 +52,7 @@ export function createHarnessThreadStore(
         .from(harnessThreads)
         .where(eq(harnessThreads.id, threadId));
       if (row === undefined) return undefined;
-      if (
-        typeof row.snapshot !== "object" ||
-        row.snapshot === null ||
-        Array.isArray(row.snapshot) ||
-        (row.snapshot as { threadId?: unknown }).threadId !== threadId ||
-        !Array.isArray((row.snapshot as { items?: unknown }).items)
-      )
-        throw new Error(
-          "HARNESS_THREAD_CORRUPT: snapshot does not match its row.",
-        );
-      return {
-        ...(row.snapshot as ThreadSnapshot),
-        revision: row.revision,
-        ...(row.leaseOwner === null ? {} : { leaseOwner: row.leaseOwner }),
-        ...(row.leaseExpiresAt === null
-          ? {}
-          : { leaseExpiresAt: row.leaseExpiresAt.getTime() }),
-      };
+      return toSnapshot(threadId, row);
     },
     async set(threadId, snapshot) {
       if (snapshot.threadId !== threadId)
@@ -116,6 +126,28 @@ export function createHarnessThreadStore(
         )
         .returning({ id: harnessThreads.id });
       return rows.length === 1;
+    },
+    async acquireLease(threadId, leaseOwner, leaseMs) {
+      const rows = await db
+        .update(harnessThreads)
+        .set({
+          revision: sql`${harnessThreads.revision} + 1`,
+          leaseOwner,
+          leaseExpiresAt: sql`clock_timestamp() + (${leaseMs} * interval '1 millisecond')`,
+          updatedAt: sql`clock_timestamp()`,
+        })
+        .where(
+          and(
+            eq(harnessThreads.id, threadId),
+            or(
+              isNull(harnessThreads.leaseOwner),
+              lte(harnessThreads.leaseExpiresAt, sql`clock_timestamp()`),
+            ),
+          ),
+        )
+        .returning();
+      const row = rows[0];
+      return row === undefined ? undefined : toSnapshot(threadId, row);
     },
   };
 }

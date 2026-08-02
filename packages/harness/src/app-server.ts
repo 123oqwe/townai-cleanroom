@@ -40,6 +40,11 @@ export interface PersistentThreadStore {
     snapshot: ThreadSnapshot,
   ) => boolean | Promise<boolean>;
   now: () => number | Promise<number>;
+  acquireLease?: (
+    threadId: string,
+    leaseOwner: string,
+    leaseMs: number,
+  ) => ThreadSnapshot | undefined | Promise<ThreadSnapshot | undefined>;
 }
 
 export interface AppServerRequest {
@@ -121,6 +126,24 @@ export function createAppServer(input: {
               return true;
             },
             now: () => Date.now(),
+            acquireLease: (threadId, leaseOwner, leaseMs) => {
+              const current = mapStore.get(threadId);
+              if (
+                current === undefined ||
+                (current.leaseOwner !== undefined &&
+                  (current.leaseExpiresAt ?? Number.POSITIVE_INFINITY) >
+                    Date.now())
+              )
+                return undefined;
+              const claimed = {
+                ...current,
+                revision: current.revision + 1,
+                leaseOwner,
+                leaseExpiresAt: Date.now() + leaseMs,
+              };
+              mapStore.set(threadId, claimed);
+              return claimed;
+            },
           };
         })()
       : input.store;
@@ -178,6 +201,17 @@ export function createAppServer(input: {
   }
 
   async function claim(runtime: ThreadRuntime): Promise<void> {
+    if (store.acquireLease !== undefined) {
+      const claimed = await store.acquireLease(
+        runtime.snapshot.threadId,
+        serverId,
+        leaseMs,
+      );
+      if (claimed === undefined)
+        throw new Error("THREAD_CONFLICT: thread is stale or busy.");
+      runtime.snapshot = claimed;
+      return;
+    }
     const latest = await store.get(runtime.snapshot.threadId);
     if (latest === undefined) throw new Error("THREAD_NOT_FOUND");
     if (

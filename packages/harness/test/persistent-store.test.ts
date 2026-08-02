@@ -109,14 +109,15 @@ describe("persistent thread store boundary", () => {
           {
             name: "side-effect",
             async execute() {
+              const snapshot = snapshots.get(threadId);
               sawDurableCall =
-                snapshots
-                  .get(threadId)
-                  ?.items.some(
-                    (item) =>
-                      item.type === "assistant_tool_call" &&
-                      item.callId === "call-1",
-                  ) ?? false;
+                (snapshot?.items.some(
+                  (item) =>
+                    item.type === "assistant_tool_call" &&
+                    item.callId === "call-1",
+                ) ??
+                  false) &&
+                snapshot?.activeTool?.callId === "call-1";
               return { kind: "result", output: "ok" as const };
             },
           },
