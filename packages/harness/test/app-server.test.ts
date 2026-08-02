@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createAppServer,
-  type AppServerRequest,
-  type ThreadStore,
-} from "../src/app-server.js";
+import { createAppServer, type ThreadStore } from "../src/app-server.js";
 
 describe("Codex-style bidirectional app server", () => {
   it("requires initialize and exposes a thread/turn notification stream", async () => {
