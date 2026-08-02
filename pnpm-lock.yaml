@@ -71,6 +71,9 @@ importers:
       '@town/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@town/teams':
+        specifier: workspace:*
+        version: link:../../packages/teams
       '@town/tools':
         specifier: workspace:*
         version: link:../../packages/tools
@@ -219,6 +222,25 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
+
+  packages/teams:
+    dependencies:
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@town/db':
+        specifier: workspace:*
+        version: link:../db
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
       postgres:
         specifier: 3.4.9
         version: 3.4.9

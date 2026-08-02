@@ -42,6 +42,7 @@ import {
 } from "@town/tools";
 import type { AppServer, AppServerRequest } from "@town/harness";
 import { ContentError, type ContentRepository } from "@town/content";
+import { SquareError, type SquareRepository } from "@town/teams";
 
 import { createAuthMiddleware, type AuthVariables } from "./auth.js";
 import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
@@ -55,6 +56,7 @@ import {
 } from "./runtime-routes.js";
 import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
 import { registerContentRoutes } from "./content-routes.js";
+import { registerSquareRoutes } from "./square-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -76,6 +78,7 @@ export interface AppDependencies {
   toolRegistryRepository?: ToolRegistryRepository;
   toolExecutionRepository?: ToolExecutionRepository;
   contentRepository?: ContentRepository;
+  squareRepository?: SquareRepository;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
 }
@@ -193,6 +196,19 @@ export function createApp(dependencies?: AppDependencies) {
         400,
       );
     }
+    if (error instanceof SquareError && error.code === "FORBIDDEN") {
+      return context.json(
+        {
+          type: "https://town.local/problems/forbidden",
+          title: "Forbidden",
+          status: 403,
+          detail:
+            "The authenticated user cannot perform this Square operation.",
+          code: error.code,
+        },
+        403,
+      );
+    }
     if (
       (error instanceof ProfileError && error.code === "PROFILE_NOT_FOUND") ||
       (error instanceof MemoryError && error.code === "MEMORY_NOT_FOUND") ||
@@ -205,7 +221,10 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof ContentError &&
         (error.code === "CONTENT_NOT_FOUND" ||
           error.code === "COLLECTION_NOT_FOUND" ||
-          error.code === "SHARE_NOT_FOUND"))
+          error.code === "SHARE_NOT_FOUND")) ||
+      (error instanceof SquareError &&
+        (error.code === "SQUARE_NOT_FOUND" ||
+          error.code === "MEMBERSHIP_NOT_FOUND"))
     ) {
       return context.json(
         {
@@ -297,7 +316,11 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof ContentError &&
         (error.code === "CONTENT_CONFLICT" ||
           error.code === "CONTENT_ALREADY_EXISTS" ||
-          error.code === "COLLECTION_ALREADY_EXISTS"))
+          error.code === "COLLECTION_ALREADY_EXISTS")) ||
+      (error instanceof SquareError &&
+        (error.code === "SQUARE_ALREADY_EXISTS" ||
+          error.code === "MEMBERSHIP_CONFLICT" ||
+          error.code === "POLICY_CONFLICT"))
     ) {
       return context.json(
         {
@@ -465,6 +488,11 @@ export function createApp(dependencies?: AppDependencies) {
       registerContentRoutes(app, {
         repository: dependencies.contentRepository,
       });
+    }
+    if (dependencies.squareRepository !== undefined) {
+      app.use("/v1/squares", authenticate);
+      app.use("/v1/squares/*", authenticate);
+      registerSquareRoutes(app, { repository: dependencies.squareRepository });
     }
 
     const harnessServer = dependencies.harnessServer;

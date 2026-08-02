@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { z } from "zod";
 import { asId } from "@town/contracts";
 import { createContentRepository } from "@town/content";
+import { createSquareRepository } from "@town/teams";
 
 import {
   AgentError,
@@ -88,6 +89,7 @@ const routineRepository = createRoutineRepository(sql);
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
 const contentRepository = createContentRepository(sql);
+const squareRepository = createSquareRepository(sql);
 
 const harnessServerFactory =
   environment.RESPONSES_API_KEY === undefined
@@ -178,6 +180,7 @@ const server = serve({
     toolRegistryRepository,
     toolExecutionRepository,
     contentRepository,
+    squareRepository,
     ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
   }).fetch,
   port: environment.PORT,

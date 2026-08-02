@@ -94,6 +94,7 @@ describe("knowledge migration", () => {
       "0009_harness_thread_owners.sql",
       "0010_routine_step_results.sql",
       "0011_content_library.sql",
+      "0012_squares.sql",
     ]);
   });
 });

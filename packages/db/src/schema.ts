@@ -1572,3 +1572,125 @@ export const contentShareTokens = pgTable(
     }).onDelete("cascade"),
   ],
 );
+
+export const squares = pgTable(
+  "squares",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status").notNull().default("active"),
+    settings: jsonb("settings").notNull().default({}),
+    ...timestamps,
+  },
+  (table) => [
+    unique("squares_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("squares_owner_slug_unique").on(table.ownerId, table.slug),
+    index("squares_owner_status_idx").on(
+      table.ownerId,
+      table.status,
+      table.updatedAt,
+      table.id,
+    ),
+    check(
+      "squares_status_allowed",
+      sql`${table.status} in ('active','archived')`,
+    ),
+    check(
+      "squares_settings_object",
+      sql`jsonb_typeof(${table.settings}) = 'object'`,
+    ),
+  ],
+);
+export const squareMemberships = pgTable(
+  "square_memberships",
+  {
+    squareId: uuid("square_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    status: text("status").notNull().default("active"),
+    invitedBy: uuid("invited_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({ columns: [table.squareId, table.userId] }),
+    index("square_memberships_user_status_idx").on(
+      table.userId,
+      table.status,
+      table.squareId,
+    ),
+    index("square_memberships_square_role_idx").on(
+      table.squareId,
+      table.status,
+      table.role,
+      table.userId,
+    ),
+    check(
+      "square_memberships_role_allowed",
+      sql`${table.role} in ('owner','admin','member')`,
+    ),
+    check(
+      "square_memberships_status_allowed",
+      sql`${table.status} in ('invited','active','suspended')`,
+    ),
+    check(
+      "square_memberships_owner_invariant",
+      sql`(${table.userId} = ${table.ownerId} and ${table.role} = 'owner' and ${table.status} = 'active') or (${table.userId} <> ${table.ownerId} and ${table.role} <> 'owner')`,
+    ),
+    foreignKey({
+      columns: [table.ownerId, table.squareId],
+      foreignColumns: [squares.ownerId, squares.id],
+      name: "square_memberships_owner_square_fk",
+    }).onDelete("cascade"),
+  ],
+);
+export const squarePolicies = pgTable(
+  "square_policies",
+  {
+    squareId: uuid("square_id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    defaultMode: text("default_mode").notNull().default("approval_required"),
+    allowedDomains: jsonb("allowed_domains").notNull().default([]),
+    allowedToolNames: jsonb("allowed_tool_names").notNull().default([]),
+    settings: jsonb("settings").notNull().default({}),
+    revision: integer("revision").notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "square_policies_mode_allowed",
+      sql`${table.defaultMode} in ('read_only','approval_required','autonomous')`,
+    ),
+    check(
+      "square_policies_domains_array",
+      sql`jsonb_typeof(${table.allowedDomains}) = 'array'`,
+    ),
+    check(
+      "square_policies_tools_array",
+      sql`jsonb_typeof(${table.allowedToolNames}) = 'array'`,
+    ),
+    check(
+      "square_policies_settings_object",
+      sql`jsonb_typeof(${table.settings}) = 'object'`,
+    ),
+    check("square_policies_revision_positive", sql`${table.revision} > 0`),
+    foreignKey({
+      columns: [table.ownerId, table.squareId],
+      foreignColumns: [squares.ownerId, squares.id],
+      name: "square_policies_owner_square_fk",
+    }).onDelete("cascade"),
+  ],
+);
