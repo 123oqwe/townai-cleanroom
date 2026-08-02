@@ -88,6 +88,8 @@ describe("knowledge migration", () => {
       "0003_agents_threads_tasks.sql",
       "0004_persistent_sessions.sql",
       "0005_tools_policy_approvals.sql",
+      "0006_routines_integrations.sql",
+      "0007_routine_cron_constraint.sql",
     ]);
   });
 });
