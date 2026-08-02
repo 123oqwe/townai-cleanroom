@@ -3,14 +3,17 @@ import {
   boolean,
   check,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -117,6 +120,7 @@ export const connectedAccounts = pgTable(
     ...timestamps,
   },
   (table) => [
+    unique("connected_accounts_owner_id_id_unique").on(table.ownerId, table.id),
     unique("connected_accounts_owner_provider_identity_unique").on(
       table.ownerId,
       table.provider,
@@ -336,6 +340,340 @@ export const knowledgeConflicts = pgTable(
       table.ownerId,
       table.status,
       table.createdAt,
+      table.id,
+    ),
+  ],
+);
+
+export const agents = pgTable(
+  "agents",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    activeVersionId: uuid("active_version_id"),
+    revision: integer("revision").notNull().default(1),
+    status: text("status").notNull().default("active"),
+    ...timestamps,
+  },
+  (table) => [
+    unique("agents_owner_id_id_unique").on(table.ownerId, table.id),
+    uniqueIndex("agents_one_personal_per_owner_idx")
+      .on(table.ownerId)
+      .where(sql`${table.kind} = 'personal'`),
+    index("agents_owner_status_idx").on(
+      table.ownerId,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
+    check("agents_kind_allowed", sql`${table.kind} in ('personal', 'routine')`),
+    check(
+      "agents_status_allowed",
+      sql`${table.status} in ('active', 'disabled')`,
+    ),
+    check("agents_revision_positive", sql`${table.revision} > 0`),
+  ],
+);
+
+export const agentVersions = pgTable(
+  "agent_versions",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id").notNull(),
+    version: integer("version").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    changeReason: text("change_reason"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.agentId],
+      foreignColumns: [agents.ownerId, agents.id],
+      name: "agent_versions_owner_agent_fk",
+    }).onDelete("cascade"),
+    unique("agent_versions_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("agent_versions_owner_agent_id_id_unique").on(
+      table.ownerId,
+      table.agentId,
+      table.id,
+    ),
+    unique("agent_versions_owner_agent_version_unique").on(
+      table.ownerId,
+      table.agentId,
+      table.version,
+    ),
+    index("agent_versions_owner_agent_version_idx").on(
+      table.ownerId,
+      table.agentId,
+      table.version,
+      table.id,
+    ),
+    check("agent_versions_version_positive", sql`${table.version} > 0`),
+    check(
+      "agent_versions_snapshot_object",
+      sql`jsonb_typeof(${table.snapshot}) = 'object'`,
+    ),
+    check(
+      "agent_versions_created_by_allowed",
+      sql`${table.createdBy} in ('user', 'system')`,
+    ),
+  ],
+);
+
+export const threads = pgTable(
+  "threads",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id").notNull(),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    approvalMode: text("approval_mode").notNull(),
+    status: text("status").notNull().default("active"),
+    pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+    revision: integer("revision").notNull().default(1),
+    lastTurnSequence: integer("last_turn_sequence").notNull().default(0),
+    ...timestamps,
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.agentId],
+      foreignColumns: [agents.ownerId, agents.id],
+      name: "threads_owner_agent_fk",
+    }),
+    unique("threads_owner_id_id_unique").on(table.ownerId, table.id),
+    index("threads_owner_status_activity_idx").on(
+      table.ownerId,
+      table.status,
+      table.pinnedAt,
+      table.updatedAt,
+      table.id,
+    ),
+    check("threads_kind_allowed", sql`${table.kind} in ('assistant', 'task')`),
+    check(
+      "threads_approval_mode_allowed",
+      sql`${table.approvalMode} in ('respect_tool_setting', 'require_approval', 'autonomous')`,
+    ),
+    check(
+      "threads_status_allowed",
+      sql`${table.status} in ('active', 'archived', 'deleted')`,
+    ),
+    check(
+      "threads_last_turn_sequence_nonnegative",
+      sql`${table.lastTurnSequence} >= 0`,
+    ),
+  ],
+);
+
+export const threadTurns = pgTable(
+  "thread_turns",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    threadId: uuid("thread_id").notNull(),
+    sequence: integer("sequence").notNull(),
+    role: text("role").notNull(),
+    text: text("text").notNull(),
+    sourceType: text("source_type").notNull(),
+    sourceRef: text("source_ref"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.threadId],
+      foreignColumns: [threads.ownerId, threads.id],
+      name: "thread_turns_owner_thread_fk",
+    }).onDelete("cascade"),
+    unique("thread_turns_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("thread_turns_owner_thread_sequence_unique").on(
+      table.ownerId,
+      table.threadId,
+      table.sequence,
+    ),
+    index("thread_turns_owner_thread_sequence_idx").on(
+      table.ownerId,
+      table.threadId,
+      table.sequence,
+      table.id,
+    ),
+  ],
+);
+
+export const threadMentions = pgTable(
+  "thread_mentions",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    turnId: uuid("turn_id").notNull(),
+    position: integer("position").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    label: text("label").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.turnId],
+      foreignColumns: [threadTurns.ownerId, threadTurns.id],
+      name: "thread_mentions_owner_turn_fk",
+    }).onDelete("cascade"),
+    unique("thread_mentions_owner_turn_position_unique").on(
+      table.ownerId,
+      table.turnId,
+      table.position,
+    ),
+    index("thread_mentions_owner_turn_idx").on(
+      table.ownerId,
+      table.turnId,
+      table.position,
+      table.id,
+    ),
+  ],
+);
+
+export const threadReadStates = pgTable(
+  "thread_read_states",
+  {
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    threadId: uuid("thread_id").notNull(),
+    readThroughSequence: integer("read_through_sequence").notNull().default(0),
+    forceUnread: boolean("force_unread").notNull().default(false),
+    readAt: timestamp("read_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.threadId],
+      foreignColumns: [threads.ownerId, threads.id],
+      name: "thread_read_states_owner_thread_fk",
+    }).onDelete("cascade"),
+    primaryKey({
+      columns: [table.ownerId, table.threadId],
+      name: "thread_read_states_owner_thread_unique",
+    }),
+  ],
+);
+
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    threadId: uuid("thread_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status").notNull().default("open"),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+    revision: integer("revision").notNull().default(1),
+    ...timestamps,
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.threadId],
+      foreignColumns: [threads.ownerId, threads.id],
+      name: "tasks_owner_thread_fk",
+    }),
+    unique("tasks_owner_id_id_unique").on(table.ownerId, table.id),
+    unique("tasks_owner_thread_unique").on(table.ownerId, table.threadId),
+    index("tasks_owner_status_schedule_idx").on(
+      table.ownerId,
+      table.status,
+      table.scheduledFor,
+      table.updatedAt,
+      table.id,
+    ),
+  ],
+);
+
+export const taskSourceRefs = pgTable(
+  "task_source_refs",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").notNull(),
+    sourceType: text("source_type").notNull(),
+    sourceRef: text("source_ref").notNull(),
+    accountId: uuid("account_id"),
+    sourceLabel: text("source_label"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.taskId],
+      foreignColumns: [tasks.ownerId, tasks.id],
+      name: "task_source_refs_owner_task_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.ownerId, table.accountId],
+      foreignColumns: [connectedAccounts.ownerId, connectedAccounts.id],
+      name: "task_source_refs_owner_account_fk",
+    }).onDelete("set null"),
+    index("task_source_refs_owner_task_idx").on(
+      table.ownerId,
+      table.taskId,
+      table.createdAt,
+      table.id,
+    ),
+  ],
+);
+
+export const taskInputRequests = pgTable(
+  "task_input_requests",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").notNull(),
+    prompt: text("prompt").notNull(),
+    status: text("status").notNull().default("pending"),
+    response: text("response"),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.ownerId, table.taskId],
+      foreignColumns: [tasks.ownerId, tasks.id],
+      name: "task_input_requests_owner_task_fk",
+    }).onDelete("cascade"),
+    index("task_input_requests_owner_task_status_idx").on(
+      table.ownerId,
+      table.taskId,
+      table.status,
+      table.requestedAt,
       table.id,
     ),
   ],
