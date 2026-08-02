@@ -69,6 +69,8 @@ import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 import { registerChannelRoutes } from "./channel-routes.js";
 import { registerBillingRoutes } from "./billing-routes.js";
 import { registerOperationsRoutes } from "./operations-routes.js";
+import { registerRoutineRoutes } from "./routine-routes.js";
+import type { RoutineRepository } from "@town/routines";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -95,6 +97,7 @@ export interface AppDependencies {
   channelRepository?: ChannelRepository;
   billingRepository?: BillingRepository;
   operationsRepository?: OperationsRepository;
+  routineRepository?: RoutineRepository;
   webOrigin?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
@@ -595,6 +598,13 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/operations/*", authenticate);
       registerOperationsRoutes(app, {
         repository: dependencies.operationsRepository,
+      });
+    }
+    if (dependencies.routineRepository !== undefined) {
+      app.use("/v1/routines", authenticate);
+      app.use("/v1/routines/*", authenticate);
+      registerRoutineRoutes(app, {
+        repository: dependencies.routineRepository,
       });
     }
 

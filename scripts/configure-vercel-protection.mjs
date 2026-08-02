@@ -9,7 +9,7 @@ if (!token || !projectId) {
 }
 
 const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : "";
-const response = await fetch(
+const response = await globalThis.fetch(
   `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}${query}`,
   {
     method: "PATCH",

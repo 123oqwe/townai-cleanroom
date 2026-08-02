@@ -195,6 +195,7 @@ const app = createApp({
   channelRepository,
   billingRepository,
   operationsRepository,
+  routineRepository,
   webOrigin: environment.WEB_ORIGIN,
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });
