@@ -637,7 +637,11 @@ export function createApp(dependencies?: AppDependencies) {
     if (dependencies.suggestionRepository !== undefined) {
       app.use("/v1/suggestions", authenticate);
       app.use("/v1/suggestions/*", authenticate);
-      registerSuggestionRoutes(app, dependencies.suggestionRepository);
+      registerSuggestionRoutes(
+        app,
+        dependencies.suggestionRepository,
+        dependencies.agentRepository,
+      );
     }
 
     const harnessServer = dependencies.harnessServer;

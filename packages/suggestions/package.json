@@ -20,6 +20,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@town/agents": "workspace:*",
     "@town/contracts": "workspace:*",
     "zod": "catalog:"
   },

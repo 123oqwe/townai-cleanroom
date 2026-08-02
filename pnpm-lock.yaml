@@ -299,6 +299,9 @@ importers:
 
   packages/suggestions:
     dependencies:
+      '@town/agents':
+        specifier: workspace:*
+        version: link:../agents
       '@town/contracts':
         specifier: workspace:*
         version: link:../contracts

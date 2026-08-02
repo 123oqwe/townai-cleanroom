@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
+import type { AgentRepository } from "@town/agents";
 import {
   suggestionStatusSchema,
   type SuggestionRepository,
@@ -11,6 +12,7 @@ import type { AuthVariables } from "./auth.js";
 export function registerSuggestionRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   repository: SuggestionRepository,
+  agents?: AgentRepository,
 ): void {
   app.get("/v1/suggestions", async (context) => {
     const ownerId = context.get("identity").user.id;
@@ -34,13 +36,29 @@ export function registerSuggestionRoutes(
       })
       .strict()
       .parse(await context.req.json());
-    return context.json({
-      suggestion: await repository.transition(
+    const suggestionId = asId<"suggestion">(
+      z.uuidv7().parse(context.req.param("suggestionId")),
+    );
+    if (body.status === "dismissed")
+      return context.json({
+        suggestion: await repository.transition(
+          ownerId,
+          suggestionId,
+          body.expectedRevision,
+          body.status,
+        ),
+      });
+    if (agents === undefined)
+      return context.json({ error: "RUNTIME_NOT_CONFIGURED" }, 503);
+    const agent = await agents.getPersonal(ownerId);
+    return context.json(
+      await repository.convertToTask({
         ownerId,
-        asId<"suggestion">(z.uuidv7().parse(context.req.param("suggestionId"))),
-        body.expectedRevision,
-        body.status,
-      ),
-    });
+        id: suggestionId,
+        expectedRevision: body.expectedRevision,
+        agentId: agent.id,
+        approvalMode: agent.activeVersion.snapshot.defaultApprovalMode,
+      }),
+    );
   });
 }

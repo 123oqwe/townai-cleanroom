@@ -3,6 +3,7 @@ import type { Sql } from "postgres";
 import { z } from "zod";
 
 import { asId, idSchema, newId, type Id } from "@town/contracts";
+import { approvalModeSchema } from "@town/agents";
 
 export const suggestionKindSchema = z.enum(["assistant", "task", "routine"]);
 export const suggestionStatusSchema = z.enum([
@@ -27,6 +28,7 @@ export interface Suggestion {
   expiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  convertedTaskId: Id<"task"> | null;
 }
 
 export class SuggestionError extends Error {
@@ -53,6 +55,7 @@ type Row = {
   expires_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  converted_task_id: string | null;
 };
 const createSchema = z
   .object({
@@ -82,6 +85,9 @@ function safe(row: Row): Suggestion {
     expiresAt: row.expires_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    convertedTaskId: row.converted_task_id
+      ? asId<"task">(row.converted_task_id)
+      : null,
   };
 }
 
@@ -138,7 +144,59 @@ export function createSuggestionRepository(sql: Sql) {
     }
     return safe(rows[0]);
   }
-  return { create, list, transition };
+  async function convertToTask(input: {
+    ownerId: Id<"user">;
+    id: Id<"suggestion">;
+    expectedRevision: number;
+    agentId: Id<"agent">;
+    approvalMode: z.infer<typeof approvalModeSchema>;
+  }): Promise<{ suggestion: Suggestion; taskId: Id<"task"> }> {
+    const revision = z.number().int().positive().parse(input.expectedRevision);
+    const mode = approvalModeSchema.parse(input.approvalMode);
+    return sql.begin(async (tx) => {
+      const [current] = await tx<Row[]>`
+        select * from suggestions where owner_id=${input.ownerId} and id=${input.id} for update
+      `;
+      if (!current)
+        throw new SuggestionError(
+          "SUGGESTION_NOT_FOUND",
+          "The suggestion was not found.",
+        );
+      if (current.status !== "open" || current.revision !== revision)
+        throw new SuggestionError(
+          "SUGGESTION_CONFLICT",
+          "The suggestion changed since it was read.",
+        );
+      const threadId = newId<"thread">();
+      const taskId = newId<"task">();
+      const thread = await tx`
+        insert into threads (id,owner_id,agent_id,kind,title,approval_mode,status)
+        select ${threadId},${input.ownerId},${input.agentId},'task',${current.title},${mode},'active'
+        where exists (select 1 from agents where owner_id=${input.ownerId} and id=${input.agentId} and status='active')
+        returning id
+      `;
+      if (thread.count !== 1)
+        throw new SuggestionError(
+          "SUGGESTION_CONFLICT",
+          "The target Agent is not active.",
+        );
+      await tx`insert into thread_read_states (owner_id,thread_id,read_through_sequence,force_unread) values (${input.ownerId},${threadId},0,false)`;
+      await tx`insert into tasks (id,owner_id,thread_id,title,description,status) values (${taskId},${input.ownerId},${threadId},${current.title},${current.body},'open')`;
+      await tx`insert into task_source_refs (id,owner_id,task_id,source_type,source_ref,source_label) values (${newId<"task-source">()},${input.ownerId},${taskId},'external',${`suggestion:${current.id}`},'Suggestion')`;
+      const [updated] = await tx<Row[]>`
+        update suggestions set status='converted',converted_task_id=${taskId},revision=revision+1,updated_at=now()
+        where owner_id=${input.ownerId} and id=${input.id} and status='open' and revision=${revision}
+        returning *
+      `;
+      if (!updated)
+        throw new SuggestionError(
+          "SUGGESTION_CONFLICT",
+          "The suggestion changed during conversion.",
+        );
+      return { suggestion: safe(updated), taskId: asId<"task">(taskId) };
+    });
+  }
+  return { create, list, transition, convertToTask };
 }
 export type SuggestionRepository = ReturnType<
   typeof createSuggestionRepository
