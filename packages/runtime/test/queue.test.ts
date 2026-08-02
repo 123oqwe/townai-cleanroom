@@ -152,6 +152,13 @@ describe("runtime queue leases", () => {
       new Date("2030-08-02T02:00:25.000Z"),
     );
     await expect(
+      queue.claim({
+        workerId: "worker-must-respect-heartbeat",
+        leaseMs: 10_000,
+        now: new Date("2030-08-02T02:00:11.000Z"),
+      }),
+    ).resolves.toBeNull();
+    await expect(
       queue.heartbeat({
         runId: lease.runId,
         leaseToken: "A".repeat(43),
