@@ -57,11 +57,14 @@ import {
   createInvokeRoutineHarnessBinding,
   createRegistryHarnessBindings,
   createTownSearchHarnessBinding,
+  createGoogleGmailSearchHarnessBinding,
+  createGoogleCalendarFreeBusyHarnessBinding,
 } from "./harness-tools.js";
 import { createHarnessRuntimeAdapter } from "./harness-runtime-adapter.js";
 import { createRoutineScheduler } from "./routine-scheduler.js";
 import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
+import { createGoogleApiClient } from "@town/google";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -119,6 +122,10 @@ const googleTokenRefresher = createGoogleTokenRefresher({
   ...(environment.GOOGLE_OAUTH_CLIENT_SECRET === undefined
     ? {}
     : { clientSecret: environment.GOOGLE_OAUTH_CLIENT_SECRET }),
+});
+const googleApi = createGoogleApiClient({
+  accounts: accountRepository,
+  refresher: googleTokenRefresher,
 });
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
@@ -195,6 +202,11 @@ const harnessServerFactory =
                   threads: threadRepository,
                   sessions: sessionRepository,
                 }),
+                createGoogleGmailSearchHarnessBinding(typedOwnerId, googleApi),
+                createGoogleCalendarFreeBusyHarnessBinding(
+                  typedOwnerId,
+                  googleApi,
+                ),
               ];
               const handlers = new Map(
                 builtIns.map(({ definition, port }) => [

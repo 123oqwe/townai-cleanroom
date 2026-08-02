@@ -104,6 +104,10 @@ credentials and a registered redirect URI.
 Server-side Google access-token refresh is available at
 `POST /v1/accounts/:accountId/refresh`; plaintext credentials stay inside the
 provider boundary and the response is only the safe connected-account view.
+The Harness now exposes owner-scoped read-only `google_gmail_search` and
+`google_calendar_freebusy` tools. They use the selected connected account,
+refresh once on expiry/401 when configured, and validate provider responses;
+they do not fabricate connector data.
 
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,

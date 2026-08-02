@@ -12,6 +12,7 @@
     "@hono/node-server": "2.0.8",
     "@town/agents": "workspace:*",
     "@town/a2a": "workspace:*",
+    "@town/google": "workspace:*",
     "@town/contracts": "workspace:*",
     "@town/content": "workspace:*",
     "@town/channels": "workspace:*",

@@ -15,6 +15,7 @@ import type {
 import { resourceTypeSchema } from "@town/knowledge";
 import type { Id } from "@town/contracts";
 import type { AgentToolBinding, ToolDefinition } from "@town/tools";
+import type { GoogleApiClient } from "@town/google";
 
 const memoryArguments = z.discriminatedUnion("scope", [
   z
@@ -63,6 +64,33 @@ const invokeRoutineArguments = z
     input: z.string().trim().min(1).max(50_000),
   })
   .strict();
+const googleAccountId = z.uuidv7();
+const gmailSearchArguments = z
+  .object({
+    accountId: googleAccountId,
+    query: z.string().trim().min(1).max(500),
+    maxResults: z.number().int().min(1).max(50).default(10),
+  })
+  .strict();
+const calendarFreeBusyArguments = z
+  .object({
+    accountId: googleAccountId,
+    timeMin: z.iso.datetime(),
+    timeMax: z.iso.datetime(),
+    calendarIds: z
+      .array(z.string().trim().min(1).max(500))
+      .max(20)
+      .default(["primary"]),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (new Date(value.timeMax).getTime() <= new Date(value.timeMin).getTime())
+      context.addIssue({
+        code: "custom",
+        path: ["timeMax"],
+        message: "timeMax must be after timeMin",
+      });
+  });
 
 const MAX_OUTPUT_CHARS = 12_000;
 const MAX_ITEM_TEXT_CHARS = 1_500;
@@ -291,6 +319,88 @@ export function createTownMemoryAddHarnessBinding(
       };
     },
   });
+}
+
+/** Read-only Gmail search through an owner-selected connected Google account. */
+export function createGoogleGmailSearchHarnessBinding(
+  ownerId: Id<"user">,
+  google: GoogleApiClient,
+): HarnessToolBinding {
+  return {
+    definition: {
+      name: "google_gmail_search",
+      description:
+        "Search Gmail on an explicitly selected connected Google account.",
+      parameters: {
+        type: "object",
+        properties: {
+          accountId: { type: "string", format: "uuid" },
+          query: { type: "string", minLength: 1, maxLength: 500 },
+          maxResults: { type: "integer", minimum: 1, maximum: 50 },
+        },
+        required: ["accountId", "query"],
+        additionalProperties: false,
+      },
+    },
+    port: {
+      name: "google_gmail_search",
+      requiresApproval: false,
+      async execute(arguments_) {
+        const value = gmailSearchArguments.parse(arguments_);
+        const result = await google.gmailSearch({
+          ownerId,
+          accountId: value.accountId as Id<"connected-account">,
+          query: value.query,
+          maxResults: value.maxResults,
+        });
+        return { kind: "result", output: JSON.stringify(result) };
+      },
+    },
+  };
+}
+
+/** Read-only Calendar free/busy lookup through an owner-selected account. */
+export function createGoogleCalendarFreeBusyHarnessBinding(
+  ownerId: Id<"user">,
+  google: GoogleApiClient,
+): HarnessToolBinding {
+  return {
+    definition: {
+      name: "google_calendar_freebusy",
+      description:
+        "Read Calendar free/busy data on an explicitly selected connected Google account.",
+      parameters: {
+        type: "object",
+        properties: {
+          accountId: { type: "string", format: "uuid" },
+          timeMin: { type: "string", format: "date-time" },
+          timeMax: { type: "string", format: "date-time" },
+          calendarIds: {
+            type: "array",
+            items: { type: "string", minLength: 1, maxLength: 500 },
+            maxItems: 20,
+          },
+        },
+        required: ["accountId", "timeMin", "timeMax"],
+        additionalProperties: false,
+      },
+    },
+    port: {
+      name: "google_calendar_freebusy",
+      requiresApproval: false,
+      async execute(arguments_) {
+        const value = calendarFreeBusyArguments.parse(arguments_);
+        const result = await google.calendarFreeBusy({
+          ownerId,
+          accountId: value.accountId as Id<"connected-account">,
+          timeMin: value.timeMin,
+          timeMax: value.timeMax,
+          calendarIds: value.calendarIds,
+        });
+        return { kind: "result", output: JSON.stringify(result) };
+      },
+    },
+  };
 }
 
 /** Queues a child Routine only when the immutable parent version allowlists it. */
