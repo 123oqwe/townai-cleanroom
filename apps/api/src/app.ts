@@ -34,6 +34,12 @@ import {
   type RuntimeTransitionService,
   type SessionRepository,
 } from "@town/runtime";
+import {
+  ToolExecutionError,
+  ToolRegistryError,
+  type ToolExecutionRepository,
+  type ToolRegistryRepository,
+} from "@town/tools";
 
 import { createAuthMiddleware, type AuthVariables } from "./auth.js";
 import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
@@ -45,6 +51,7 @@ import {
   registerRuntimeRoutes,
   type RuntimeDependencies,
 } from "./runtime-routes.js";
+import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -63,6 +70,8 @@ export interface AppDependencies {
   inputRequestRepository?: InputRequestRepository;
   sessionRepository?: SessionRepository;
   runtimeTransitionService?: RuntimeTransitionService;
+  toolRegistryRepository?: ToolRegistryRepository;
+  toolExecutionRepository?: ToolExecutionRepository;
 }
 
 function runtimeDependencies(
@@ -76,6 +85,21 @@ function runtimeDependencies(
     return null;
   }
   return { sessionRepository, runtimeTransitionService };
+}
+
+function toolDependencies(
+  dependencies: AppDependencies,
+): ToolDependencies | null {
+  if (
+    dependencies.toolRegistryRepository === undefined ||
+    dependencies.toolExecutionRepository === undefined
+  ) {
+    return null;
+  }
+  return {
+    registry: dependencies.toolRegistryRepository,
+    execution: dependencies.toolExecutionRepository,
+  };
 }
 
 function agentDependencies(
@@ -175,6 +199,49 @@ export function createApp(dependencies?: AppDependencies) {
           code: error.code,
         },
         404,
+      );
+    }
+    if (
+      (error instanceof ToolRegistryError &&
+        ["TOOL_NOT_FOUND", "TOOL_BINDING_NOT_FOUND"].includes(error.code)) ||
+      (error instanceof ToolExecutionError &&
+        [
+          "RUN_NOT_FOUND",
+          "TOOL_CALL_NOT_FOUND",
+          "APPROVAL_NOT_FOUND",
+          "TOOL_BINDING_NOT_FOUND",
+        ].includes(error.code))
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/not-found",
+          title: "Resource not found",
+          status: 404,
+          detail: "The requested Tool or Approval was not found.",
+          code: error.code,
+        },
+        404,
+      );
+    }
+    if (
+      (error instanceof ToolRegistryError &&
+        ["TOOL_NAME_CONFLICT", "TOOL_BINDING_CONFLICT"].includes(error.code)) ||
+      (error instanceof ToolExecutionError &&
+        [
+          "IDEMPOTENCY_CONFLICT",
+          "APPROVAL_STATE_CONFLICT",
+          "APPROVAL_REVISION_CONFLICT",
+        ].includes(error.code))
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/conflict",
+          title: "Tool execution conflict",
+          status: 409,
+          detail: "The Tool proposal or Approval changed concurrently.",
+          code: error.code,
+        },
+        409,
       );
     }
     if (
@@ -357,6 +424,17 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/sessions", authenticate);
       app.use("/v1/sessions/*", authenticate);
       registerRuntimeRoutes(app, runtime);
+    }
+
+    const tools = toolDependencies(dependencies);
+    if (tools !== null) {
+      app.use("/v1/tools", authenticate);
+      app.use("/v1/tools/*", authenticate);
+      app.use("/v1/tool-calls", authenticate);
+      app.use("/v1/tool-calls/*", authenticate);
+      app.use("/v1/approvals", authenticate);
+      app.use("/v1/approvals/*", authenticate);
+      registerToolRoutes(app, tools);
     }
   }
 

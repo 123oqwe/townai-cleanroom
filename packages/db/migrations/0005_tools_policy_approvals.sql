@@ -35,6 +35,20 @@ create table tool_definitions (
   )
 );
 
+alter table session_events
+  drop constraint session_events_kind_allowed;
+
+alter table session_events
+  add constraint session_events_kind_allowed check (
+    kind in (
+      'run_queued', 'run_started', 'phase_changed', 'input_observed',
+      'assistant_output_recorded', 'run_waiting', 'run_resumed',
+      'run_completed', 'run_failed', 'run_cancelled',
+      'tool_call_proposed', 'policy_decided', 'approval_requested',
+      'approval_resolved', 'tool_started', 'tool_succeeded', 'tool_failed'
+    )
+  );
+
 create index tool_definitions_owner_name_idx
   on tool_definitions(owner_id, name, version desc, id);
 
@@ -227,7 +241,8 @@ create table approval_requests (
   constraint approval_requests_revision_positive check (revision > 0),
   constraint approval_requests_decision_shape check (
     (state = 'pending' and decided_at is null and decided_by is null) or
-    (state <> 'pending' and decided_at is not null and decided_by is not null)
+    (state <> 'pending' and decided_at is not null and
+      (state = 'expired' or decided_by is not null))
   )
 );
 

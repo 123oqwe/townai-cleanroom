@@ -33,6 +33,13 @@ export const sessionEventKindSchema = z.enum([
   "run_completed",
   "run_failed",
   "run_cancelled",
+  "tool_call_proposed",
+  "policy_decided",
+  "approval_requested",
+  "approval_resolved",
+  "tool_started",
+  "tool_succeeded",
+  "tool_failed",
 ]);
 
 export const runtimePayloadSchema = z.record(z.string(), z.json());

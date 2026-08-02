@@ -108,6 +108,19 @@ export function createToolRegistryRepository(sql: Sql) {
     return safeDefinition(row);
   }
 
+  async function list(ownerId: Id<"user">): Promise<ToolDefinition[]> {
+    const value = idSchema.parse(ownerId);
+    const rows = await sql<ToolDefinitionRow[]>`
+      select id, owner_id, name, version, description, input_schema,
+        output_schema, side_effect, data_sensitivity, account_binding,
+        enabled, created_at
+      from tool_definitions
+      where owner_id = ${value} and enabled = true
+      order by name, version desc, id
+    `;
+    return rows.map(safeDefinition);
+  }
+
   async function create(
     input: {
       ownerId: Id<"user">;
@@ -247,5 +260,9 @@ export function createToolRegistryRepository(sql: Sql) {
     }));
   }
 
-  return { get, create, bind, listForAgentVersion };
+  return { get, list, create, bind, listForAgentVersion };
 }
+
+export type ToolRegistryRepository = ReturnType<
+  typeof createToolRegistryRepository
+>;

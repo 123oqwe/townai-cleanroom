@@ -27,6 +27,10 @@ import {
   createRuntimeTransitionService,
   createSessionRepository,
 } from "@town/runtime";
+import {
+  createToolExecutionRepository,
+  createToolRegistryRepository,
+} from "@town/tools";
 
 import { createApp } from "./app.js";
 
@@ -59,6 +63,8 @@ const taskRepository = createTaskRepository(sql);
 const inputRequestRepository = createInputRequestRepository(sql);
 const sessionRepository = createSessionRepository(sql);
 const runtimeTransitionService = createRuntimeTransitionService(sql);
+const toolRegistryRepository = createToolRegistryRepository(sql);
+const toolExecutionRepository = createToolExecutionRepository(sql);
 
 const server = serve({
   fetch: createApp({
@@ -78,6 +84,8 @@ const server = serve({
     inputRequestRepository,
     sessionRepository,
     runtimeTransitionService,
+    toolRegistryRepository,
+    toolExecutionRepository,
   }).fetch,
   port: environment.PORT,
 });

@@ -62,6 +62,9 @@ importers:
       '@town/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@town/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
       hono:
         specifier: 4.12.29
         version: 4.12.29
@@ -179,6 +182,9 @@ importers:
       '@town/db':
         specifier: workspace:*
         version: link:../db
+      '@town/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       postgres:
         specifier: 3.4.9
         version: 3.4.9

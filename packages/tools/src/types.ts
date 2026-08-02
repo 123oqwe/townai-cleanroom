@@ -99,3 +99,57 @@ export interface AgentToolBinding {
   accountScope: string[];
   createdAt: Date;
 }
+
+export const toolCallStatusSchema = z.enum([
+  "proposed",
+  "allowed",
+  "waiting_approval",
+  "denied",
+  "approved",
+  "executing",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
+export const approvalStateSchema = z.enum([
+  "pending",
+  "approved",
+  "rejected",
+  "expired",
+  "cancelled",
+]);
+
+export type ToolCallStatus = z.infer<typeof toolCallStatusSchema>;
+export type ApprovalState = z.infer<typeof approvalStateSchema>;
+
+export interface ToolCall {
+  id: Id<"tool-call">;
+  ownerId: Id<"user">;
+  sessionId: Id<"runtime-session">;
+  runId: Id<"session-run">;
+  agentVersionId: Id<"agent-version">;
+  toolDefinitionId: Id<"tool-definition">;
+  policyDecisionId: Id<"policy-decision">;
+  stepKey: string;
+  argumentHash: string;
+  arguments: Record<string, unknown>;
+  status: ToolCallStatus;
+  approvalRequestId: Id<"approval-request"> | null;
+  createdAt: Date;
+}
+
+export interface ApprovalRequest {
+  id: Id<"approval-request">;
+  ownerId: Id<"user">;
+  sessionId: Id<"runtime-session">;
+  runId: Id<"session-run">;
+  toolCallId: Id<"tool-call">;
+  argumentHash: string;
+  arguments: Record<string, unknown>;
+  state: ApprovalState;
+  revision: number;
+  expiresAt: Date | null;
+  decidedAt: Date | null;
+  decidedBy: Id<"user"> | null;
+  decisionNote: string | null;
+}
