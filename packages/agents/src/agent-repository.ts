@@ -25,6 +25,12 @@ const createPersonalSchema = agentVersionSnapshotSchema.extend({
   ownerId: idSchema,
 });
 const createRoutineSchema = createPersonalSchema;
+const publishRoutineSchema = agentVersionSnapshotSchema.extend({
+  ownerId: idSchema,
+  agentId: idSchema,
+  expectedRevision: z.number().int().positive(),
+  changeReason: z.string().trim().min(1).max(500).optional(),
+});
 const publishPersonalSchema = agentVersionSnapshotSchema.extend({
   ownerId: idSchema,
   expectedRevision: z.number().int().positive(),
@@ -275,6 +281,70 @@ export function createAgentRepository(sql: Sql) {
     return safeRoutineAgent(row);
   }
 
+  async function publishRoutine(
+    input: z.input<typeof publishRoutineSchema>,
+  ): Promise<RoutineAgent> {
+    const value = publishRoutineSchema.parse(input);
+    const ownerId = asId<"user">(value.ownerId);
+    const agentId = asId<"agent">(value.agentId);
+    const versionId = newId<"agent-version">();
+    const snapshot = safeSnapshot(value);
+    await sql.begin(async (transaction) => {
+      const [agent] = await transaction<LockedAgentRow[]>`
+        select id, revision from agents
+        where owner_id = ${ownerId} and id = ${agentId}
+          and kind = 'routine' and status = 'active'
+        for update
+      `;
+      if (agent === undefined)
+        throw new AgentError("AGENT_NOT_FOUND", "The Agent was not found.");
+      if (agent.revision !== value.expectedRevision)
+        throw new AgentError(
+          "AGENT_REVISION_CONFLICT",
+          "The Agent has changed since it was read.",
+        );
+      const nextVersion = agent.revision + 1;
+      await transaction`
+        insert into agent_versions (
+          id, owner_id, agent_id, version, snapshot, change_reason, created_by
+        ) values (
+          ${versionId}, ${ownerId}, ${agentId}, ${nextVersion},
+          ${transaction.json(snapshot)}, ${value.changeReason ?? null}, 'user'
+        )
+      `;
+      const updated = await transaction`
+        update agents
+        set active_version_id = ${versionId}, revision = revision + 1,
+            updated_at = now()
+        where id = ${agentId} and owner_id = ${ownerId}
+          and kind = 'routine' and revision = ${value.expectedRevision}
+      `;
+      if (updated.count !== 1)
+        throw new AgentError(
+          "AGENT_REVISION_CONFLICT",
+          "The Agent has changed since it was read.",
+        );
+    });
+    const [row] = await sql<AgentRow[]>`
+      select
+        agent.id, agent.owner_id, agent.kind, agent.status, agent.revision,
+        agent.created_at, agent.updated_at,
+        version.id as version_id, version.agent_id as version_agent_id,
+        version.version, version.snapshot, version.change_reason,
+        version.created_by, version.created_at as version_created_at
+      from agents agent
+      join agent_versions version
+        on version.owner_id = agent.owner_id
+        and version.agent_id = agent.id
+        and version.id = agent.active_version_id
+      where agent.owner_id = ${ownerId} and agent.id = ${agentId}
+        and agent.kind = 'routine' and agent.status = 'active'
+    `;
+    if (row === undefined)
+      throw new AgentError("AGENT_NOT_FOUND", "The Agent was not found.");
+    return safeRoutineAgent(row);
+  }
+
   async function listRoutines(ownerId: Id<"user">): Promise<RoutineAgent[]> {
     const rows = await sql<AgentRow[]>`
       select
@@ -402,6 +472,7 @@ export function createAgentRepository(sql: Sql) {
     createRoutine,
     getPersonal,
     listRoutines,
+    publishRoutine,
     listVersions,
     publishPersonal,
   };

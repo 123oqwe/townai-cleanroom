@@ -147,6 +147,17 @@ export function registerAgentRoutes(
     });
   });
 
+  app.put("/v1/agents/routines/:agentId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = agentPublishSchema.parse(await context.req.json());
+    const agent = await dependencies.agentRepository.publishRoutine({
+      ownerId,
+      agentId: asId<"agent">(z.uuidv7().parse(context.req.param("agentId"))),
+      ...body,
+    });
+    return context.json({ agent });
+  });
+
   app.put("/v1/agents/personal", async (context) => {
     const ownerId = context.get("identity").user.id;
     const body = agentPublishSchema.parse(await context.req.json());

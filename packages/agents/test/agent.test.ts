@@ -225,6 +225,33 @@ describe("routine Agent repository", () => {
     expect((await agents.listRoutines(ownerId)).map(({ id }) => id)).toEqual([
       routine.id,
     ]);
+    const published = await agents.publishRoutine({
+      ownerId,
+      agentId: routine.id,
+      expectedRevision: 1,
+      displayName: "Morning routine v2",
+      instructions: "Ask for approval before external actions.",
+      defaultApprovalMode: "require_approval",
+      changeReason: "Tighten routine safety",
+    });
+    expect(published).toMatchObject({
+      id: routine.id,
+      revision: 2,
+      activeVersion: {
+        version: 2,
+        snapshot: { displayName: "Morning routine v2" },
+      },
+    });
+    await expect(
+      agents.publishRoutine({
+        ownerId,
+        agentId: routine.id,
+        expectedRevision: 1,
+        displayName: "Stale",
+        instructions: "Must reject stale writes.",
+        defaultApprovalMode: "autonomous",
+      }),
+    ).rejects.toMatchObject({ code: "AGENT_REVISION_CONFLICT" });
     expect(await agents.listRoutines(otherOwnerId)).toEqual([]);
   });
 });
