@@ -65,31 +65,26 @@ describe("runtime transitions", () => {
     const submitted = await queuedRun("complete-run");
     const queue = createRuntimeQueueRepository(sql);
     const transitions = createRuntimeTransitionService(sql);
-    const startedAt = new Date("2030-08-02T04:00:00.000Z");
     const lease = await queue.claim({
       workerId: "worker-complete",
       leaseMs: 60_000,
-      now: startedAt,
     });
     if (lease === null) throw new Error("Expected a lease.");
 
     await transitions.start({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
-      now: startedAt,
     });
     await transitions.recordPhase({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
       phase: "model_running",
-      now: new Date("2030-08-02T04:00:01.000Z"),
     });
     const output = await transitions.recordAssistantOutput({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
       text: "Explicit deterministic adapter output.",
       mentions: [],
-      now: new Date("2030-08-02T04:00:02.000Z"),
     });
     expect(output).toMatchObject({
       role: "assistant",
@@ -101,7 +96,6 @@ describe("runtime transitions", () => {
       runId: lease.runId,
       leaseToken: lease.leaseToken,
       outcome: { summary: "Synthetic completion" },
-      now: new Date("2030-08-02T04:00:03.000Z"),
     });
     expect(completed).toMatchObject({
       state: "completed",
@@ -142,7 +136,6 @@ describe("runtime transitions", () => {
         ownerId,
         sessionId: submitted.session.id,
         runId: lease.runId,
-        now: new Date("2030-08-02T04:00:04.000Z"),
       }),
     ).rejects.toMatchObject({ code: "RUN_STATE_CONFLICT" });
   });
@@ -154,20 +147,17 @@ describe("runtime transitions", () => {
     const lease = await queue.claim({
       workerId: "worker-wait",
       leaseMs: 60_000,
-      now: new Date("2030-08-02T05:00:00.000Z"),
     });
     if (lease === null) throw new Error("Expected a lease.");
     await transitions.start({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
-      now: new Date("2030-08-02T05:00:00.000Z"),
     });
     const waiting = await transitions.wait({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
       state: "waiting_approval",
       reason: "Synthetic approval boundary",
-      now: new Date("2030-08-02T05:00:01.000Z"),
     });
     expect(waiting).toMatchObject({
       state: "waiting_approval",
@@ -182,13 +172,11 @@ describe("runtime transitions", () => {
       sessionId: submitted.session.id,
       runId: lease.runId,
       expectedState: "waiting_approval",
-      now: new Date("2030-08-02T05:00:02.000Z"),
     });
     expect(resumed).toMatchObject({ state: "queued", attempt: 1 });
     const nextLease = await queue.claim({
       workerId: "worker-resume",
       leaseMs: 60_000,
-      now: new Date("2030-08-02T05:00:03.000Z"),
     });
     expect(nextLease).toMatchObject({ runId: lease.runId, attempt: 2 });
     const events = await sql<{ sequence: number; kind: string }[]>`
@@ -212,19 +200,16 @@ describe("runtime transitions", () => {
     const lease = await queue.claim({
       workerId: "worker-cancel",
       leaseMs: 60_000,
-      now: new Date("2030-08-02T06:00:00.000Z"),
     });
     if (lease === null) throw new Error("Expected a lease.");
     await transitions.start({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
-      now: new Date("2030-08-02T06:00:00.000Z"),
     });
     const cancelled = await transitions.cancel({
       ownerId,
       sessionId: submitted.session.id,
       runId: lease.runId,
-      now: new Date("2030-08-02T06:00:01.000Z"),
     });
     expect(cancelled).toMatchObject({ state: "cancelled" });
     await expect(
@@ -233,7 +218,6 @@ describe("runtime transitions", () => {
         leaseToken: lease.leaseToken,
         text: "This late output must never be committed.",
         mentions: [],
-        now: new Date("2030-08-02T06:00:02.000Z"),
       }),
     ).rejects.toMatchObject({ code: "LEASE_NOT_FOUND" });
     const [assistantTurns] = await sql<{ count: number }[]>`
@@ -249,19 +233,16 @@ describe("runtime transitions", () => {
     const lease = await queue.claim({
       workerId: "worker-fail",
       leaseMs: 60_000,
-      now: new Date("2030-08-02T07:00:00.000Z"),
     });
     if (lease === null) throw new Error("Expected a lease.");
     await transitions.start({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
-      now: new Date("2030-08-02T07:00:00.000Z"),
     });
     const failed = await transitions.fail({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
       errorCode: "TEST_ADAPTER_FAILURE",
-      now: new Date("2030-08-02T07:00:01.000Z"),
     });
     expect(failed).toMatchObject({
       state: "failed",
@@ -284,19 +265,23 @@ describe("runtime transitions", () => {
     const lease = await queue.claim({
       workerId: "worker-before-crash",
       leaseMs: 10_000,
-      now: new Date("2030-08-02T08:00:00.000Z"),
     });
     if (lease === null) throw new Error("Expected a lease.");
     await transitions.start({
       runId: lease.runId,
       leaseToken: lease.leaseToken,
-      now: new Date("2030-08-02T08:00:00.000Z"),
     });
+
+    await sql`
+      update runtime_jobs
+      set leased_at = clock_timestamp() - interval '2 seconds',
+          lease_expires_at = clock_timestamp() - interval '1 second'
+      where run_id = ${lease.runId}
+    `;
 
     const reclaimed = await queue.claim({
       workerId: "worker-after-crash",
       leaseMs: 60_000,
-      now: new Date("2030-08-02T08:00:11.000Z"),
     });
     expect(reclaimed).toMatchObject({
       runId: lease.runId,
@@ -317,7 +302,6 @@ describe("runtime transitions", () => {
         leaseToken: lease.leaseToken,
         text: "The expired worker must not commit.",
         mentions: [],
-        now: new Date("2030-08-02T08:00:12.000Z"),
       }),
     ).rejects.toMatchObject({ code: "LEASE_NOT_FOUND" });
     await expect(
@@ -326,11 +310,75 @@ describe("runtime transitions", () => {
         leaseToken: reclaimed.leaseToken,
         text: "The replacement worker owns this output.",
         mentions: [],
-        now: new Date("2030-08-02T08:00:12.000Z"),
       }),
     ).resolves.toMatchObject({
       sourceRef: lease.runId,
       text: "The replacement worker owns this output.",
     });
+  });
+
+  it("derives Session state when cancelling or resuming a non-current Run", async () => {
+    const first = await queuedRun("session-state-first");
+    const sessions = createSessionRepository(sql);
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const firstLease = await queue.claim({
+      workerId: "worker-current-a",
+      leaseMs: 60_000,
+    });
+    if (firstLease === null) throw new Error("Expected the first lease.");
+    await transitions.start({
+      runId: firstLease.runId,
+      leaseToken: firstLease.leaseToken,
+    });
+
+    const second = await sessions.submitMessage({
+      ownerId,
+      threadId: first.turn.threadId,
+      idempotencyKey: "session-state-second",
+      text: "Queue a non-current Run for cancellation.",
+      mentions: [],
+    });
+    await transitions.cancel({
+      ownerId,
+      sessionId: second.session.id,
+      runId: second.run.id,
+    });
+    await expect(
+      sessions.get(ownerId, first.session.id),
+    ).resolves.toMatchObject({ state: "running" });
+
+    await transitions.wait({
+      runId: firstLease.runId,
+      leaseToken: firstLease.leaseToken,
+      state: "waiting_approval",
+      reason: "Pause the first Run while another starts.",
+    });
+    const third = await sessions.submitMessage({
+      ownerId,
+      threadId: first.turn.threadId,
+      idempotencyKey: "session-state-third",
+      text: "Run while the first Run is waiting.",
+      mentions: [],
+    });
+    const thirdLease = await queue.claim({
+      workerId: "worker-current-c",
+      leaseMs: 60_000,
+    });
+    expect(thirdLease?.runId).toBe(third.run.id);
+    if (thirdLease === null) throw new Error("Expected the third lease.");
+    await transitions.start({
+      runId: thirdLease.runId,
+      leaseToken: thirdLease.leaseToken,
+    });
+    await transitions.resume({
+      ownerId,
+      sessionId: first.session.id,
+      runId: first.run.id,
+      expectedState: "waiting_approval",
+    });
+    await expect(
+      sessions.get(ownerId, first.session.id),
+    ).resolves.toMatchObject({ state: "running" });
   });
 });

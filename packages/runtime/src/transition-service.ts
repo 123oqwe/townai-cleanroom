@@ -13,6 +13,7 @@ import { verifyRuntimeLeaseInTransaction } from "./queue-repository.js";
 import { createSessionRepository } from "./session-repository.js";
 import {
   runtimePayloadSchema,
+  runtimeSessionStateSchema,
   sessionEventKindSchema,
   type RuntimePayload,
   type RuntimeSessionState,
@@ -25,7 +26,6 @@ const leasedRunSchema = z
   .object({
     runId: idSchema,
     leaseToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
-    now: z.date(),
   })
   .strict();
 
@@ -63,7 +63,6 @@ const resumeSchema = z
     sessionId: idSchema,
     runId: idSchema,
     expectedState: z.enum(["waiting_approval", "waiting_user_input"]),
-    now: z.date(),
   })
   .strict();
 const cancelSchema = z
@@ -71,7 +70,6 @@ const cancelSchema = z
     ownerId: idSchema,
     sessionId: idSchema,
     runId: idSchema,
-    now: z.date(),
   })
   .strict();
 
@@ -112,6 +110,45 @@ function requireState(run: LockedRunRow, ...states: SessionRunState[]): void {
       "The Run is not in a state that permits this transition.",
     );
   }
+}
+
+async function deriveSessionState(
+  transaction: TransactionSql,
+  ownerId: string,
+  sessionId: string,
+): Promise<RuntimeSessionState> {
+  const [row] = await transaction<{ state: string }[]>`
+    select case
+      when exists (
+        select 1 from session_runs
+        where owner_id = ${ownerId} and session_id = ${sessionId}
+          and state = 'running'
+      ) then 'running'
+      when exists (
+        select 1 from session_runs
+        where owner_id = ${ownerId} and session_id = ${sessionId}
+          and state = 'waiting_approval'
+      ) then 'waiting_approval'
+      when exists (
+        select 1 from session_runs
+        where owner_id = ${ownerId} and session_id = ${sessionId}
+          and state = 'waiting_user_input'
+      ) then 'waiting_user_input'
+      when exists (
+        select 1 from session_runs
+        where owner_id = ${ownerId} and session_id = ${sessionId}
+          and state = 'queued'
+      ) then 'idle'
+      else coalesce((
+        select case when state = 'failed' then 'failed' else 'idle' end
+        from session_runs
+        where owner_id = ${ownerId} and session_id = ${sessionId}
+        order by created_at desc, id desc
+        limit 1
+      ), 'idle')
+    end as state
+  `;
+  return runtimeSessionStateSchema.parse(row?.state);
 }
 
 async function appendEvent(
@@ -170,7 +207,6 @@ export function createRuntimeTransitionService(sql: Sql) {
       const current = await verifyRuntimeLeaseInTransaction(transaction, {
         runId,
         leaseToken: value.leaseToken,
-        now: value.now,
       });
       const run = await lockRun(transaction, {
         ownerId: current.owner_id,
@@ -181,7 +217,7 @@ export function createRuntimeTransitionService(sql: Sql) {
       await transaction`
         update session_runs
         set state = 'running', attempt = ${current.attempt},
-            started_at = ${value.now}, updated_at = ${value.now}
+            started_at = clock_timestamp(), updated_at = clock_timestamp()
         where id = ${runId}
       `;
       await appendEvent(transaction, {
@@ -190,7 +226,11 @@ export function createRuntimeTransitionService(sql: Sql) {
         runId,
         kind: "run_started",
         payload: { attempt: current.attempt, workerId: current.leased_by },
-        sessionState: "running",
+        sessionState: await deriveSessionState(
+          transaction,
+          current.owner_id,
+          current.session_id,
+        ),
       });
       return current;
     });
@@ -210,7 +250,6 @@ export function createRuntimeTransitionService(sql: Sql) {
       const lease = await verifyRuntimeLeaseInTransaction(transaction, {
         runId,
         leaseToken: value.leaseToken,
-        now: value.now,
       });
       const run = await lockRun(transaction, {
         ownerId: lease.owner_id,
@@ -237,7 +276,6 @@ export function createRuntimeTransitionService(sql: Sql) {
       const lease = await verifyRuntimeLeaseInTransaction(transaction, {
         runId,
         leaseToken: value.leaseToken,
-        now: value.now,
       });
       const run = await lockRun(transaction, {
         ownerId: lease.owner_id,
@@ -268,7 +306,6 @@ export function createRuntimeTransitionService(sql: Sql) {
   async function finishWithLease(input: {
     runId: Id<"session-run">;
     leaseToken: string;
-    now: Date;
     state: "completed" | "failed";
     outcome?: RuntimePayload;
     errorCode?: string;
@@ -289,7 +326,7 @@ export function createRuntimeTransitionService(sql: Sql) {
         set state = ${input.state}, outcome = ${
           input.outcome === undefined ? null : transaction.json(input.outcome)
         }, error_code = ${input.errorCode ?? null},
-            finished_at = ${input.now}, updated_at = ${input.now}
+            finished_at = clock_timestamp(), updated_at = clock_timestamp()
         where id = ${input.runId}
       `;
       await transaction`
@@ -304,7 +341,11 @@ export function createRuntimeTransitionService(sql: Sql) {
           input.state === "completed"
             ? { outcome: input.outcome ?? {} }
             : { errorCode: input.errorCode ?? "UNKNOWN_RUNTIME_FAILURE" },
-        sessionState: input.state === "completed" ? "idle" : "failed",
+        sessionState: await deriveSessionState(
+          transaction,
+          run.owner_id,
+          run.session_id,
+        ),
       });
       return run;
     });
@@ -322,7 +363,6 @@ export function createRuntimeTransitionService(sql: Sql) {
     return finishWithLease({
       runId: asId<"session-run">(value.runId),
       leaseToken: value.leaseToken,
-      now: value.now,
       state: "completed",
       outcome: value.outcome,
     });
@@ -333,7 +373,6 @@ export function createRuntimeTransitionService(sql: Sql) {
     return finishWithLease({
       runId: asId<"session-run">(value.runId),
       leaseToken: value.leaseToken,
-      now: value.now,
       state: "failed",
       errorCode: value.errorCode,
     });
@@ -346,7 +385,6 @@ export function createRuntimeTransitionService(sql: Sql) {
       const lease = await verifyRuntimeLeaseInTransaction(transaction, {
         runId,
         leaseToken: value.leaseToken,
-        now: value.now,
       });
       const run = await lockRun(transaction, {
         ownerId: lease.owner_id,
@@ -357,7 +395,7 @@ export function createRuntimeTransitionService(sql: Sql) {
       await transaction`
         update session_runs
         set state = ${value.state}, wait_reason = ${value.reason},
-            updated_at = ${value.now}
+            updated_at = clock_timestamp()
         where id = ${runId}
       `;
       await transaction`delete from runtime_jobs where run_id = ${runId}`;
@@ -367,7 +405,11 @@ export function createRuntimeTransitionService(sql: Sql) {
         runId,
         kind: "run_waiting",
         payload: { state: value.state, reason: value.reason },
-        sessionState: value.state,
+        sessionState: await deriveSessionState(
+          transaction,
+          run.owner_id,
+          run.session_id,
+        ),
       });
       return run;
     });
@@ -392,7 +434,7 @@ export function createRuntimeTransitionService(sql: Sql) {
         update session_runs
         set state = 'queued', wait_reason = null, started_at = null,
             finished_at = null, outcome = null, error_code = null,
-            updated_at = ${value.now}
+            updated_at = clock_timestamp()
         where id = ${runId}
       `;
       await transaction`
@@ -400,8 +442,8 @@ export function createRuntimeTransitionService(sql: Sql) {
           run_id, owner_id, session_id, attempt, available_at,
           created_at, updated_at
         ) values (
-          ${runId}, ${ownerId}, ${sessionId}, ${run.attempt}, ${value.now},
-          ${value.now}, ${value.now}
+          ${runId}, ${ownerId}, ${sessionId}, ${run.attempt},
+          clock_timestamp(), clock_timestamp(), clock_timestamp()
         )
       `;
       await appendEvent(transaction, {
@@ -410,7 +452,7 @@ export function createRuntimeTransitionService(sql: Sql) {
         runId,
         kind: "run_resumed",
         payload: { previousState: value.expectedState },
-        sessionState: "idle",
+        sessionState: await deriveSessionState(transaction, ownerId, sessionId),
       });
     });
     return sessions.getRun(ownerId, sessionId, runId);
@@ -436,8 +478,8 @@ export function createRuntimeTransitionService(sql: Sql) {
       await transaction`
         update session_runs
         set state = 'cancelled', wait_reason = null, outcome = null,
-            error_code = null, finished_at = ${value.now},
-            updated_at = ${value.now}
+            error_code = null, finished_at = clock_timestamp(),
+            updated_at = clock_timestamp()
         where id = ${runId}
       `;
       await appendEvent(transaction, {
@@ -446,7 +488,7 @@ export function createRuntimeTransitionService(sql: Sql) {
         runId,
         kind: "run_cancelled",
         payload: { previousState: run.state },
-        sessionState: "idle",
+        sessionState: await deriveSessionState(transaction, ownerId, sessionId),
       });
     });
     return sessions.getRun(ownerId, sessionId, runId);

@@ -82,12 +82,9 @@ describe("runtime queue leases", () => {
       end
     `;
     const queue = createRuntimeQueueRepository(sql);
-    const now = new Date("2030-08-02T01:00:00.000Z");
-
     const lease1 = await queue.claim({
       workerId: "worker-a",
       leaseMs: 60_000,
-      now,
     });
     expect(lease1).toMatchObject({
       runId: first.run.id,
@@ -100,7 +97,6 @@ describe("runtime queue leases", () => {
     const lease2 = await queue.claim({
       workerId: "worker-b",
       leaseMs: 60_000,
-      now,
     });
     expect(lease2).toMatchObject({
       runId: otherSession.run.id,
@@ -109,7 +105,6 @@ describe("runtime queue leases", () => {
     const noParallelSameSession = await queue.claim({
       workerId: "worker-c",
       leaseMs: 60_000,
-      now,
     });
     expect(noParallelSameSession).toBeNull();
 
@@ -133,11 +128,9 @@ describe("runtime queue leases", () => {
     const thread = await createThreadFixture("Lease lifecycle");
     const submission = await submit(thread.id, "lease-lifecycle");
     const queue = createRuntimeQueueRepository(sql);
-    const started = new Date("2030-08-02T02:00:00.000Z");
     const lease = await queue.claim({
       workerId: "worker-lifecycle",
       leaseMs: 10_000,
-      now: started,
     });
     expect(lease?.runId).toBe(submission.run.id);
     if (lease === null) throw new Error("Expected a lease.");
@@ -146,16 +139,14 @@ describe("runtime queue leases", () => {
       runId: lease.runId,
       leaseToken: lease.leaseToken,
       leaseMs: 20_000,
-      now: new Date("2030-08-02T02:00:05.000Z"),
     });
-    expect(heartbeat.leaseExpiresAt).toEqual(
-      new Date("2030-08-02T02:00:25.000Z"),
+    expect(heartbeat.leaseExpiresAt.getTime()).toBeGreaterThan(
+      lease.leaseExpiresAt.getTime(),
     );
     await expect(
       queue.claim({
         workerId: "worker-must-respect-heartbeat",
         leaseMs: 10_000,
-        now: new Date("2030-08-02T02:00:11.000Z"),
       }),
     ).resolves.toBeNull();
     await expect(
@@ -163,7 +154,6 @@ describe("runtime queue leases", () => {
         runId: lease.runId,
         leaseToken: "A".repeat(43),
         leaseMs: 20_000,
-        now: new Date("2030-08-02T02:00:06.000Z"),
       }),
     ).rejects.toMatchObject({ code: "LEASE_NOT_FOUND" });
 
@@ -171,19 +161,21 @@ describe("runtime queue leases", () => {
       runId: lease.runId,
       leaseToken: lease.leaseToken,
       delayMs: 30_000,
-      now: new Date("2030-08-02T02:00:06.000Z"),
     });
     expect(
       await queue.claim({
         workerId: "worker-too-early",
         leaseMs: 10_000,
-        now: new Date("2030-08-02T02:00:35.000Z"),
       }),
     ).toBeNull();
+    await sql`
+      update runtime_jobs
+      set available_at = clock_timestamp() - interval '1 second'
+      where run_id = ${lease.runId}
+    `;
     const reclaimed = await queue.claim({
       workerId: "worker-retry",
       leaseMs: 10_000,
-      now: new Date("2030-08-02T02:00:36.000Z"),
     });
     expect(reclaimed).toMatchObject({ runId: lease.runId, attempt: 2 });
     await expect(
@@ -191,18 +183,30 @@ describe("runtime queue leases", () => {
         runId: lease.runId,
         leaseToken: lease.leaseToken,
         leaseMs: 10_000,
-        now: new Date("2030-08-02T02:00:37.000Z"),
       }),
     ).rejects.toMatchObject({ code: "LEASE_NOT_FOUND" });
     if (reclaimed === null) throw new Error("Expected a reclaimed lease.");
+    await sql`
+      update runtime_jobs
+      set leased_at = clock_timestamp() - interval '2 seconds',
+          lease_expires_at = clock_timestamp() - interval '1 second'
+      where run_id = ${reclaimed.runId}
+    `;
     await expect(
       queue.heartbeat({
         runId: reclaimed.runId,
         leaseToken: reclaimed.leaseToken,
         leaseMs: 10_000,
-        now: new Date("2030-08-02T02:00:47.001Z"),
       }),
     ).rejects.toMatchObject({ code: "LEASE_EXPIRED" });
+    await expect(
+      queue.heartbeat({
+        runId: reclaimed.runId,
+        leaseToken: reclaimed.leaseToken,
+        leaseMs: 10_000,
+        now: new Date("2000-01-01T00:00:00.000Z"),
+      } as never),
+    ).rejects.toMatchObject({ name: "ZodError" });
   });
 
   it("allows only one concurrent worker to claim a single job", async () => {
@@ -214,7 +218,6 @@ describe("runtime queue leases", () => {
         queue.claim({
           workerId: `worker-${index}`,
           leaseMs: 60_000,
-          now: new Date("2030-08-02T03:00:00.000Z"),
         }),
       ),
     );

@@ -100,7 +100,6 @@ export function registerRuntimeRoutes(
       ownerId,
       sessionId,
       runId,
-      now: new Date(),
     });
     return context.json({ run });
   });
