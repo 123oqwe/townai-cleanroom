@@ -100,6 +100,7 @@ describe("agent, thread, and task migration", () => {
       "0005_tools_policy_approvals.sql",
       "0006_routines_integrations.sql",
       "0007_routine_cron_constraint.sql",
+      "0008_harness_threads.sql",
     ]);
   });
 });
