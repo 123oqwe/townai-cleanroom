@@ -51,6 +51,7 @@ describe("billing and usage", () => {
       category: "model",
       quantity: 10,
       unit: "credits",
+      metadata: { model: "a" },
     });
     await expect(
       repository.recordUsage({
@@ -59,6 +60,7 @@ describe("billing and usage", () => {
         category: "model",
         quantity: 10,
         unit: "credits",
+        metadata: { model: "a" },
       }),
     ).resolves.toMatchObject({ id: entry.id });
     await expect(
@@ -68,6 +70,16 @@ describe("billing and usage", () => {
         category: "tool",
         quantity: 1,
         unit: "calls",
+      }),
+    ).rejects.toMatchObject({ code: "USAGE_CONFLICT" });
+    await expect(
+      repository.recordUsage({
+        ownerId,
+        idempotencyKey: "run-1",
+        category: "model",
+        quantity: 10,
+        unit: "credits",
+        metadata: { model: "b" },
       }),
     ).rejects.toMatchObject({ code: "USAGE_CONFLICT" });
     await expect(

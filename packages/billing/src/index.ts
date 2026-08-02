@@ -130,6 +130,16 @@ function safeUsage(row: UsageRow): UsageEntry {
     occurredAt: row.occurred_at,
   };
 }
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value !== null && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, entry]) => [key, canonical(entry)]),
+    );
+  return value;
+}
 export function createBillingRepository(sql: Sql) {
   async function get(ownerId: Id<"user">): Promise<BillingState | null> {
     const [row] = await sql<
@@ -166,7 +176,9 @@ export function createBillingRepository(sql: Sql) {
       existing &&
       existing.category === value.category &&
       existing.quantity === value.quantity &&
-      existing.unit === value.unit
+      existing.unit === value.unit &&
+      JSON.stringify(canonical(existing.metadata)) ===
+        JSON.stringify(canonical(value.metadata))
     )
       return safeUsage(existing);
     throw new BillingError(
