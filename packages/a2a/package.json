@@ -21,6 +21,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@town/db": "workspace:*",
     "@types/node": "24.13.3",
     "postgres": "3.4.9"
   }
