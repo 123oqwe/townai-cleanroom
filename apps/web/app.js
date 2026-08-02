@@ -1,4 +1,4 @@
-/* global document, fetch, localStorage, location */
+/* global document, fetch, localStorage, location, sessionStorage */
 
 const storageKeys = {
   base: "town.api.base",
@@ -7,7 +7,7 @@ const storageKeys = {
 };
 const state = {
   base: localStorage.getItem(storageKeys.base) || "http://localhost:3000",
-  token: localStorage.getItem(storageKeys.token) || "",
+  token: sessionStorage.getItem(storageKeys.token) || "",
   connected: false,
 };
 const $ = (selector) => document.querySelector(selector);
@@ -136,7 +136,7 @@ $("#connect-form").addEventListener("submit", async (event) => {
   try {
     await api("/v1/me");
     localStorage.setItem(storageKeys.base, state.base);
-    localStorage.setItem(storageKeys.token, state.token);
+    sessionStorage.setItem(storageKeys.token, state.token);
     closeDialog($("#connect-dialog"));
     await refresh();
   } catch {
