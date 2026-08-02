@@ -51,13 +51,18 @@ export function createRoutineScheduler(
             title: routine.name,
             approvalMode: agent.activeVersion.snapshot.defaultApprovalMode,
           });
-          await dependencies.sessions.submitMessage({
+          const submission = await dependencies.sessions.submitMessage({
             ownerId,
             threadId: thread.id,
             idempotencyKey: `schedule:${routine.id}:${routine.claimId}`,
             text: `Run scheduled routine: ${routine.name}`,
             mentions: [],
           });
+          await dependencies.routines.attachRuntimeRun(
+            ownerId,
+            routine.claimId,
+            submission.run.id,
+          );
           queued += 1;
         } catch {
           try {

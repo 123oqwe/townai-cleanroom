@@ -66,6 +66,7 @@ export interface IntegrationSyncRun {
   errorCode: string | null;
   startedAt: Date | null;
   finishedAt: Date | null;
+  runtimeRunId: Id<"session-run"> | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,6 +121,7 @@ type SyncRunRow = {
   error_code: string | null;
   started_at: Date | null;
   finished_at: Date | null;
+  runtime_run_id: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -145,6 +147,9 @@ function safeRun(row: SyncRunRow): IntegrationSyncRun {
     errorCode: row.error_code,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
+    runtimeRunId: row.runtime_run_id
+      ? asId<"session-run">(row.runtime_run_id)
+      : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -404,6 +409,27 @@ export function createRoutineRepository(sql: Sql) {
     }
     return safeRun(rows[0]);
   }
+  async function attachRuntimeRun(
+    ownerId: Id<"user">,
+    id: Id<"integration-sync-run">,
+    runtimeRunId: Id<"session-run">,
+  ): Promise<IntegrationSyncRun> {
+    const rows = await sql<SyncRunRow[]>`
+      update integration_sync_runs
+      set runtime_run_id=${runtimeRunId}, updated_at=now()
+      where owner_id=${ownerId} and id=${id}
+        and status='queued' and runtime_run_id is null
+      returning *
+    `;
+    if (!rows[0]) {
+      await getRun(ownerId, id);
+      throw new RoutineError(
+        "SYNC_RUN_CONFLICT",
+        "The sync run is already linked or not queued.",
+      );
+    }
+    return safeRun(rows[0]);
+  }
   async function createWebhook(
     ownerId: Id<"user">,
     routineScheduleId: Id<"routine-schedule">,
@@ -502,6 +528,7 @@ export function createRoutineRepository(sql: Sql) {
     startRun,
     completeRun,
     failRun,
+    attachRuntimeRun,
     createWebhook,
     getWebhook,
     setWebhookEnabled,

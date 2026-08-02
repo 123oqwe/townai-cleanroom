@@ -106,7 +106,8 @@ referenced by `/v1/routines` schedules. An authenticated
 returns queued state for the worker; it never reports a fabricated completion.
 The local/serverless worker tick also claims due schedules and submits them
 through that same Session queue; trigger failures are recorded as failed sync
-runs.
+runs, and each claimed sync run stores the resulting runtime `runId` for
+reconciliation and recovery.
 
 Authenticated message submission is available at
 `/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are

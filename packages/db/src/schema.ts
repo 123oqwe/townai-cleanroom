@@ -1282,6 +1282,7 @@ export const integrationSyncRuns = pgTable(
     errorCode: text("error_code"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
+    runtimeRunId: uuid("runtime_run_id"),
     ...timestamps,
   },
   (table) => [
@@ -1302,6 +1303,11 @@ export const integrationSyncRuns = pgTable(
       table.id,
     ),
     unique("integration_sync_runs_owner_id_unique").on(table.ownerId, table.id),
+    foreignKey({
+      columns: [table.ownerId, table.runtimeRunId],
+      foreignColumns: [sessionRuns.ownerId, sessionRuns.id],
+      name: "integration_sync_runs_owner_runtime_run_fk",
+    }).onDelete("set null"),
     check(
       "integration_sync_runs_cursor_object",
       sql`jsonb_typeof(${table.cursor}) = 'object'`,

@@ -21,6 +21,7 @@ describe("routine scheduler", () => {
     const sql = vi.fn().mockResolvedValue([{ owner_id: ownerId }]);
     const routines = {
       claimDue: vi.fn().mockResolvedValue([schedule]),
+      attachRuntimeRun: vi.fn(),
       startRun: vi.fn(),
       failRun: vi.fn(),
     } as unknown as RoutineRepository;
@@ -35,7 +36,9 @@ describe("routine scheduler", () => {
         .fn()
         .mockResolvedValue({ id: "01900000-0000-7000-8000-000000000005" }),
     } as unknown as ThreadRepository;
-    const submitMessage = vi.fn().mockResolvedValue({});
+    const submitMessage = vi.fn().mockResolvedValue({
+      run: { id: asId<"session-run">("01900000-0000-7000-8000-000000000006") },
+    });
     const sessions = { submitMessage } as unknown as SessionRepository;
     const result = await createRoutineScheduler({
       sql: sql as never,
