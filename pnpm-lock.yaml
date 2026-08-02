@@ -113,6 +113,15 @@ importers:
         specifier: 12.0.4
         version: 12.0.4
 
+  packages/harness:
+    dependencies:
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+
   packages/identity:
     dependencies:
       '@town/contracts':
