@@ -46,6 +46,9 @@ control using your platform's secure secret-management workflow.
   idempotent message-to-Turn/Run submission; append-only reconnectable events;
   PostgreSQL queue leases; and guarded start, wait/resume, completion, failure,
   and cancellation transitions.
+- Owner-scoped Content Library with document/file metadata, immutable content
+  revisions, collections, object-storage references, and privacy-safe expiring
+  share tokens. Public share responses never expose storage keys or tenant/session metadata.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm
