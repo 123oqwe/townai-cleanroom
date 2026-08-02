@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { newId } from "@town/contracts";
 
 import {
@@ -15,6 +17,8 @@ export interface ThreadSnapshot {
   items: HarnessItem[];
   pendingApproval?: PendingApprovalSnapshot;
   stepCount: number;
+  revision: number;
+  leaseOwner?: string;
 }
 
 export type ThreadStore = Map<string, ThreadSnapshot>;
@@ -28,7 +32,7 @@ export interface AppServerRequest {
 
 export interface AppServerResponse {
   jsonrpc: "2.0";
-  id: string | number;
+  id: string | number | null;
   result?: unknown;
   error?: { code: number; message: string };
   notifications?: Array<{
@@ -48,8 +52,18 @@ function errorResponse(
   request: AppServerRequest,
   code: number,
   message: string,
+  notifications?: Array<{
+    jsonrpc: "2.0";
+    method: string;
+    params: Record<string, unknown>;
+  }>,
 ): AppServerResponse {
-  return { jsonrpc: "2.0", id: request.id, error: { code, message } };
+  return {
+    jsonrpc: "2.0",
+    id: request.id,
+    error: { code, message },
+    ...(notifications === undefined ? {} : { notifications }),
+  };
 }
 
 function invalidParams(
@@ -67,19 +81,58 @@ export function createAppServer(input: {
   };
 }) {
   let initialized = false;
+  const serverId = randomUUID();
   const runtimes = new Map<string, ThreadRuntime>();
 
-  function persist(runtime: ThreadRuntime): void {
+  function persist(runtime: ThreadRuntime, keepLease = true): void {
+    const latest = input.store.get(runtime.snapshot.threadId);
+    if (
+      latest === undefined ||
+      latest.revision !== runtime.snapshot.revision ||
+      latest.leaseOwner !== serverId
+    )
+      throw new Error("THREAD_CONFLICT: thread state changed while running.");
     const snapshot: ThreadSnapshot = {
       threadId: runtime.snapshot.threadId,
       items: [...runtime.harness.getItems()],
       stepCount: runtime.harness.getStepCount(),
+      revision: latest.revision + 1,
+      ...(keepLease ? { leaseOwner: serverId } : {}),
     };
     const pendingApproval = runtime.harness.getPendingApproval();
     if (pendingApproval !== undefined)
       snapshot.pendingApproval = pendingApproval;
     runtime.snapshot = snapshot;
     input.store.set(runtime.snapshot.threadId, runtime.snapshot);
+  }
+
+  function claim(runtime: ThreadRuntime): void {
+    const latest = input.store.get(runtime.snapshot.threadId);
+    if (latest === undefined) throw new Error("THREAD_NOT_FOUND");
+    if (
+      latest.revision !== runtime.snapshot.revision ||
+      latest.leaseOwner !== undefined
+    )
+      throw new Error("THREAD_CONFLICT: thread is stale or busy.");
+    const claimed: ThreadSnapshot = {
+      ...latest,
+      revision: latest.revision + 1,
+      leaseOwner: serverId,
+    };
+    input.store.set(runtime.snapshot.threadId, claimed);
+    runtime.snapshot = claimed;
+  }
+
+  function release(runtime: ThreadRuntime): void {
+    const latest = input.store.get(runtime.snapshot.threadId);
+    if (latest?.leaseOwner !== serverId) return;
+    const released: ThreadSnapshot = {
+      ...latest,
+      revision: latest.revision + 1,
+    };
+    delete released.leaseOwner;
+    input.store.set(runtime.snapshot.threadId, released);
+    runtime.snapshot = released;
   }
 
   function getRuntime(threadId: string): ThreadRuntime | undefined {
@@ -137,6 +190,14 @@ export function createAppServer(input: {
             approvalId: event.approvalId,
           }),
         ];
+      case "turn_rejected":
+        return [
+          notification("turn/completed", {
+            threadId,
+            status: "rejected",
+            approvalId: event.approvalId,
+          }),
+        ];
       case "assistant_message":
         return [
           notification("item/started", { threadId, item: event }),
@@ -159,6 +220,16 @@ export function createAppServer(input: {
     if (runtime === undefined)
       return errorResponse(request, -32004, "thread not found");
     if (runtime.busy) return errorResponse(request, -32005, "thread is busy");
+    try {
+      claim(runtime);
+    } catch (error) {
+      runtimes.delete(threadId);
+      return errorResponse(
+        request,
+        -32005,
+        error instanceof Error ? error.message : "thread is busy",
+      );
+    }
 
     runtime.busy = true;
     const notifications: Array<ReturnType<typeof notification>> = [];
@@ -175,8 +246,14 @@ export function createAppServer(input: {
       const message =
         error instanceof Error ? error.message : "Request failed.";
       const code = message.startsWith("HARNESS_") ? -32010 : -32000;
-      return errorResponse(request, code, message);
+      return errorResponse(request, code, message, notifications);
     } finally {
+      try {
+        persist(runtime, true);
+        release(runtime);
+      } catch {
+        // A stale owner cannot overwrite a newer store revision.
+      }
       runtime.busy = false;
     }
   }
@@ -184,6 +261,22 @@ export function createAppServer(input: {
   return {
     async dispatch(request: AppServerRequest): Promise<AppServerResponse> {
       try {
+        if (
+          request === null ||
+          typeof request !== "object" ||
+          request.jsonrpc !== "2.0" ||
+          (typeof request.id !== "string" && typeof request.id !== "number") ||
+          typeof request.method !== "string" ||
+          request.params === null ||
+          typeof request.params !== "object" ||
+          Array.isArray(request.params)
+        ) {
+          return {
+            jsonrpc: "2.0",
+            id: null,
+            error: { code: -32600, message: "invalid JSON-RPC request" },
+          };
+        }
         if (!initialized && request.method !== "initialize")
           return errorResponse(
             request,
@@ -217,6 +310,7 @@ export function createAppServer(input: {
             threadId,
             items: [],
             stepCount: 0,
+            revision: 0,
           });
           return { jsonrpc: "2.0", id: request.id, result: { threadId } };
         }
@@ -257,6 +351,10 @@ export function createAppServer(input: {
             request,
             threadId,
             async (runtime, notifications) => {
+              if (runtime.harness.getPendingApproval()?.callId !== approvalId)
+                throw new Error(
+                  "HARNESS_APPROVAL_NOT_FOUND: the approval is not pending.",
+                );
               notifications.unshift(
                 notification("approval/resolved", {
                   threadId,

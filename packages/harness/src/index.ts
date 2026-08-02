@@ -49,6 +49,7 @@ export type HarnessEvent =
   | { type: "tool_failed"; callId: string; toolName: string; error: string }
   | { type: "approval_requested"; approvalId: string; toolName: string }
   | { type: "approval_rejected"; approvalId: string }
+  | { type: "turn_rejected"; approvalId: string }
   | { type: "assistant_message"; text: string }
   | { type: "turn_completed"; text: string };
 
@@ -230,7 +231,24 @@ export function createHarness(input: {
       const current = pending;
       pending = undefined;
       if (decision.decision === "reject") {
+        const output = "Approval rejected.";
+        items = [
+          ...items,
+          {
+            type: "tool_result",
+            callId: current.callId,
+            toolName: current.tool.name,
+            output,
+          },
+        ];
         add({ type: "approval_rejected", approvalId: decision.approvalId });
+        add({
+          type: "tool_failed",
+          callId: current.callId,
+          toolName: current.tool.name,
+          error: output,
+        });
+        add({ type: "turn_rejected", approvalId: decision.approvalId });
         return { kind: "rejected" };
       }
       await executeTool(current.callId, current.tool, current.arguments);

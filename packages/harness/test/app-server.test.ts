@@ -363,15 +363,104 @@ describe("Codex-style bidirectional app server", () => {
     });
     const threadId = (started as { result: { threadId: string } }).result
       .threadId;
-    await expect(
-      server.dispatch({
-        jsonrpc: "2.0",
-        id: 3,
-        method: "turn/start",
-        params: { threadId, text: "fail" },
-      }),
-    ).resolves.toMatchObject({
+    const failed = await server.dispatch({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "turn/start",
+      params: { threadId, text: "fail" },
+    });
+    expect(failed).toMatchObject({
       error: { code: -32000, message: "model unavailable" },
     });
+    expect(
+      (
+        failed as { notifications: Array<{ method: string }> }
+      ).notifications.map((item) => item.method),
+    ).toContain("turn/started");
+  });
+
+  it("rejects a stale approval from another server instance", async () => {
+    const store: ThreadStore = new Map();
+    let executions = 0;
+    const makeAgent = (final = false) => ({
+      model: {
+        async respond() {
+          return final
+            ? { kind: "final" as const, text: "done" }
+            : {
+                kind: "tool_call" as const,
+                callId: "shared-approval",
+                toolName: "send",
+                arguments: {},
+              };
+        },
+      },
+      tools: [
+        {
+          name: "send",
+          requiresApproval: true,
+          async execute() {
+            executions += 1;
+            return { kind: "result" as const, output: "ok" };
+          },
+        },
+      ],
+    });
+    const server1 = createAppServer({ store, createAgent: () => makeAgent() });
+    await server1.dispatch({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {},
+    });
+    const started = await server1.dispatch({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "thread/start",
+      params: {},
+    });
+    const threadId = (started as { result: { threadId: string } }).result
+      .threadId;
+    await server1.dispatch({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "turn/start",
+      params: { threadId, text: "send" },
+    });
+    const server2 = createAppServer({
+      store,
+      createAgent: () => makeAgent(true),
+    });
+    await server2.dispatch({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "initialize",
+      params: {},
+    });
+    await expect(
+      server2.dispatch({
+        jsonrpc: "2.0",
+        id: 5,
+        method: "approval/resolve",
+        params: {
+          threadId,
+          approvalId: "shared-approval",
+          decision: "approve",
+        },
+      }),
+    ).resolves.toMatchObject({ result: { kind: "completed" } });
+    await expect(
+      server1.dispatch({
+        jsonrpc: "2.0",
+        id: 6,
+        method: "approval/resolve",
+        params: {
+          threadId,
+          approvalId: "shared-approval",
+          decision: "approve",
+        },
+      }),
+    ).resolves.toMatchObject({ error: { code: -32005 } });
+    expect(executions).toBe(1);
   });
 });

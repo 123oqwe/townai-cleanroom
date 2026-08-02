@@ -81,6 +81,21 @@ describe("Codex-style harness loop", () => {
     await expect(
       harness.resume({ approvalId: "call-2", decision: "reject" }),
     ).resolves.toEqual({ kind: "rejected" });
+    expect(harness.getItems()).toEqual([
+      { type: "user_message", text: "Send it." },
+      {
+        type: "assistant_tool_call",
+        callId: "call-2",
+        toolName: "send_email",
+        arguments: { to: "person@example.invalid" },
+      },
+      {
+        type: "tool_result",
+        callId: "call-2",
+        toolName: "send_email",
+        output: "Approval rejected.",
+      },
+    ]);
   });
 
   it("does not reset the step budget across approval pauses", async () => {
