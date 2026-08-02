@@ -197,6 +197,15 @@ export function createRuntimeQueueRepository(sql: Sql) {
       if (claimed === undefined) {
         throw new Error("Runtime job claim returned no row.");
       }
+      if (candidate.run_state === "running") {
+        await transaction`
+          update session_runs
+          set attempt = ${claimed.attempt}, updated_at = ${value.now}
+          where owner_id = ${candidate.owner_id}
+            and session_id = ${candidate.session_id}
+            and id = ${candidate.run_id} and state = 'running'
+        `;
+      }
       return {
         ownerId: asId<"user">(candidate.owner_id),
         sessionId: asId<"runtime-session">(candidate.session_id),

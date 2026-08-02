@@ -305,6 +305,13 @@ describe("runtime transitions", () => {
     });
     if (reclaimed === null) throw new Error("Expected a reclaimed lease.");
     await expect(
+      createSessionRepository(sql).getRun(
+        reclaimed.ownerId,
+        reclaimed.sessionId,
+        reclaimed.runId,
+      ),
+    ).resolves.toMatchObject({ state: "running", attempt: 2 });
+    await expect(
       transitions.recordAssistantOutput({
         runId: lease.runId,
         leaseToken: lease.leaseToken,
