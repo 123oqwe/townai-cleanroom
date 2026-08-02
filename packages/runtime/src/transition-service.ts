@@ -9,7 +9,11 @@ import {
 import { asId, idSchema, newId, type Id } from "@town/contracts";
 
 import { RuntimeError } from "./errors.js";
-import { verifyRuntimeLeaseInTransaction } from "./queue-repository.js";
+import {
+  lockRuntimeJobInTransaction,
+  lockRuntimeSessionInTransaction,
+  verifyRuntimeLeaseInTransaction,
+} from "./queue-repository.js";
 import { createSessionRepository } from "./session-repository.js";
 import {
   runtimePayloadSchema,
@@ -428,6 +432,7 @@ export function createRuntimeTransitionService(sql: Sql) {
     const sessionId = asId<"runtime-session">(value.sessionId);
     const runId = asId<"session-run">(value.runId);
     await sql.begin(async (transaction) => {
+      await lockRuntimeSessionInTransaction(transaction, ownerId, sessionId);
       const run = await lockRun(transaction, { ownerId, sessionId, runId });
       requireState(run, value.expectedState);
       await transaction`
@@ -466,6 +471,8 @@ export function createRuntimeTransitionService(sql: Sql) {
     const sessionId = asId<"runtime-session">(value.sessionId);
     const runId = asId<"session-run">(value.runId);
     await sql.begin(async (transaction) => {
+      await lockRuntimeSessionInTransaction(transaction, ownerId, sessionId);
+      await lockRuntimeJobInTransaction(transaction, ownerId, sessionId, runId);
       const run = await lockRun(transaction, { ownerId, sessionId, runId });
       requireState(
         run,

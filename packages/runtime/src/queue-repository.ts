@@ -118,6 +118,35 @@ async function lockJob(
   return row;
 }
 
+export async function lockRuntimeSessionInTransaction(
+  transaction: TransactionSql,
+  ownerId: string,
+  sessionId: string,
+): Promise<void> {
+  const [session] = await transaction<{ id: string }[]>`
+    select id from runtime_sessions
+    where owner_id = ${ownerId} and id = ${sessionId}
+    for update
+  `;
+  if (session === undefined) {
+    throw new RuntimeError("SESSION_NOT_FOUND", "The Session was not found.");
+  }
+}
+
+export async function lockRuntimeJobInTransaction(
+  transaction: TransactionSql,
+  ownerId: string,
+  sessionId: string,
+  runId: Id<"session-run">,
+): Promise<void> {
+  await transaction`
+    select run_id from runtime_jobs
+    where owner_id = ${ownerId} and session_id = ${sessionId}
+      and run_id = ${runId}
+    for update
+  `;
+}
+
 export async function verifyRuntimeLeaseInTransaction(
   transaction: TransactionSql,
   input: {
@@ -127,6 +156,25 @@ export async function verifyRuntimeLeaseInTransaction(
 ) {
   const runId = asId<"session-run">(input.runId);
   const leaseToken = leaseTokenSchema.parse(input.leaseToken);
+  const [located] = await transaction<
+    {
+      owner_id: string;
+      session_id: string;
+    }[]
+  >`
+    select owner_id, session_id from runtime_jobs where run_id = ${runId}
+  `;
+  if (located === undefined) {
+    throw new RuntimeError(
+      "LEASE_NOT_FOUND",
+      "The runtime lease was not found.",
+    );
+  }
+  await lockRuntimeSessionInTransaction(
+    transaction,
+    located.owner_id,
+    located.session_id,
+  );
   const row = await lockJob(transaction, runId);
   assertCurrentLease(row, hashLeaseToken(leaseToken));
   return row;

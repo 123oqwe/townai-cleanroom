@@ -373,44 +373,59 @@ export function createSessionRepository(sql: Sql) {
       .digest();
 
     const result = await sql.begin(async (transaction) => {
-      const [thread] = await transaction<
-        {
-          id: string;
-          agent_id: string;
-          active_version_id: string;
-        }[]
-      >`
-        select thread.id, thread.agent_id, agent.active_version_id
-        from threads thread
+      let [session] = await transaction<{ id: string }[]>`
+        select id from runtime_sessions
+        where owner_id = ${ownerId} and thread_id = ${threadId}
+        for update
+      `;
+      if (session === undefined) {
+        const [threadSnapshot] = await transaction<
+          { agent_id: string; active_version_id: string }[]
+        >`
+          select thread.agent_id, agent.active_version_id
+          from threads thread
+          join agents agent
+            on agent.owner_id = thread.owner_id and agent.id = thread.agent_id
+          where thread.owner_id = ${ownerId} and thread.id = ${threadId}
+            and thread.status <> 'deleted' and agent.status = 'active'
+            and agent.active_version_id is not null
+        `;
+        if (threadSnapshot === undefined) {
+          throw new ThreadError(
+            "THREAD_NOT_FOUND",
+            "The Thread was not found.",
+          );
+        }
+        await transaction`
+          insert into runtime_sessions (
+            id, owner_id, thread_id, agent_id, agent_version_id
+          ) values (
+            ${newId<"runtime-session">()}, ${ownerId}, ${threadId},
+            ${threadSnapshot.agent_id}, ${threadSnapshot.active_version_id}
+          )
+          on conflict (owner_id, thread_id) do nothing
+        `;
+        [session] = await transaction<{ id: string }[]>`
+          select id from runtime_sessions
+          where owner_id = ${ownerId} and thread_id = ${threadId}
+          for update
+        `;
+      }
+      if (session === undefined) {
+        throw new Error("Session creation returned no row.");
+      }
+      const sessionId = asId<"runtime-session">(session.id);
+      const [thread] = await transaction<{ id: string }[]>`
+        select thread.id from threads thread
         join agents agent
           on agent.owner_id = thread.owner_id and agent.id = thread.agent_id
         where thread.owner_id = ${ownerId} and thread.id = ${threadId}
           and thread.status <> 'deleted' and agent.status = 'active'
-          and agent.active_version_id is not null
         for update of thread
       `;
       if (thread === undefined) {
         throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
       }
-
-      const newSessionId = newId<"runtime-session">();
-      await transaction`
-        insert into runtime_sessions (
-          id, owner_id, thread_id, agent_id, agent_version_id
-        ) values (
-          ${newSessionId}, ${ownerId}, ${threadId}, ${thread.agent_id},
-          ${thread.active_version_id}
-        )
-        on conflict (owner_id, thread_id) do nothing
-      `;
-      const [session] = await transaction<{ id: string }[]>`
-        select id from runtime_sessions
-        where owner_id = ${ownerId} and thread_id = ${threadId}
-      `;
-      if (session === undefined) {
-        throw new Error("Session creation returned no row.");
-      }
-      const sessionId = asId<"runtime-session">(session.id);
 
       const [existing] = await transaction<
         {

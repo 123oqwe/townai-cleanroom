@@ -381,4 +381,80 @@ describe("runtime transitions", () => {
       sessions.get(ownerId, first.session.id),
     ).resolves.toMatchObject({ state: "running" });
   });
+
+  it("serializes concurrent completion and cancellation before deriving Session state", async () => {
+    const first = await queuedRun("concurrent-state-first");
+    const sessions = createSessionRepository(sql);
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const lease = await queue.claim({
+      workerId: "worker-concurrent-state",
+      leaseMs: 60_000,
+    });
+    if (lease === null) throw new Error("Expected a lease.");
+    await transitions.start({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+    });
+    const second = await sessions.submitMessage({
+      ownerId,
+      threadId: first.turn.threadId,
+      idempotencyKey: "concurrent-state-second",
+      text: "Cancel concurrently with the active Run completion.",
+      mentions: [],
+    });
+
+    await expect(
+      Promise.all([
+        transitions.complete({
+          runId: lease.runId,
+          leaseToken: lease.leaseToken,
+          outcome: { summary: "Concurrent completion" },
+        }),
+        transitions.cancel({
+          ownerId,
+          sessionId: second.session.id,
+          runId: second.run.id,
+        }),
+      ]),
+    ).resolves.toHaveLength(2);
+    await expect(
+      sessions.get(ownerId, first.session.id),
+    ).resolves.toMatchObject({ state: "idle" });
+  });
+
+  it("does not deadlock concurrent cancellation and worker output", async () => {
+    const submitted = await queuedRun("concurrent-cancel-output");
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const lease = await queue.claim({
+      workerId: "worker-concurrent-cancel",
+      leaseMs: 60_000,
+    });
+    if (lease === null) throw new Error("Expected a lease.");
+    await transitions.start({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+    });
+
+    const results = await Promise.allSettled([
+      transitions.cancel({
+        ownerId,
+        sessionId: submitted.session.id,
+        runId: submitted.run.id,
+      }),
+      transitions.recordAssistantOutput({
+        runId: lease.runId,
+        leaseToken: lease.leaseToken,
+        text: "Output racing with explicit cancellation.",
+        mentions: [],
+      }),
+    ]);
+    expect(results[0]?.status).toBe("fulfilled");
+    const outputResult = results[1];
+    if (outputResult?.status === "rejected") {
+      expect(outputResult.reason).toMatchObject({ code: "LEASE_NOT_FOUND" });
+      expect(outputResult.reason).not.toMatchObject({ code: "40P01" });
+    }
+  });
 });
