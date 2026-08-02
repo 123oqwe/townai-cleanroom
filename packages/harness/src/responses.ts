@@ -206,6 +206,7 @@ export async function compactContext<T>(
   input: {
     maxItems: number;
     compact: (items: readonly T[]) => Promise<readonly T[]>;
+    validate?: (items: readonly T[]) => void;
   },
 ): Promise<readonly T[]> {
   if (!Number.isInteger(input.maxItems) || input.maxItems < 1)
@@ -218,5 +219,31 @@ export async function compactContext<T>(
     throw new Error(
       "HARNESS_CONTEXT_LIMIT_EXCEEDED: context compaction exceeded maxItems.",
     );
+  input.validate?.(compacted);
   return compacted;
+}
+
+/** Fail-closed compaction for Harness history: tool outputs cannot be orphaned. */
+export async function compactHarnessContext(
+  items: readonly HarnessItem[],
+  input: {
+    maxItems: number;
+    compact: (items: readonly HarnessItem[]) => Promise<readonly HarnessItem[]>;
+  },
+): Promise<readonly HarnessItem[]> {
+  return compactContext(items, {
+    ...input,
+    validate(compacted) {
+      const calls = new Set(
+        compacted
+          .filter((item) => item.type === "assistant_tool_call")
+          .map((item) => item.callId),
+      );
+      for (const item of compacted)
+        if (item.type === "tool_result" && !calls.has(item.callId))
+          throw new Error(
+            `HARNESS_CONTEXT_INVALID: tool result ${item.callId} has no matching tool call.`,
+          );
+    },
+  });
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createResponsesModel, compactContext } from "../src/responses.js";
+import {
+  compactHarnessContext,
+  compactContext,
+  createResponsesModel,
+} from "../src/responses.js";
 
 describe("Responses API adapter", () => {
   it("maps a Responses message into a final harness response", async () => {
@@ -218,5 +222,19 @@ describe("Responses API adapter", () => {
     await expect(
       compactContext(items, { maxItems: 2, compact: async () => items }),
     ).rejects.toThrow("context compaction exceeded");
+    await expect(
+      compactHarnessContext(
+        [
+          { type: "user_message", text: "x" },
+          {
+            type: "tool_result",
+            callId: "orphan",
+            toolName: "read",
+            output: "x",
+          },
+        ],
+        { maxItems: 1, compact: async (value) => value.slice(1) },
+      ),
+    ).rejects.toThrow("no matching tool call");
   });
 });
