@@ -636,7 +636,7 @@ describe("Codex-style bidirectional app server", () => {
     const createAgent = () => ({
       model: {
         async respond() {
-          return { kind: "final", text: "done" as const };
+          return { kind: "final" as const, text: "done" };
         },
       },
       tools: [],
