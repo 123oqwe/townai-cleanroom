@@ -99,6 +99,12 @@ describe("personal Agent repository", () => {
       })}
       where id = ${version1.activeVersion.id}
     `).rejects.toMatchObject({ code: "55000" });
+    await expect(sql`
+      delete from agent_versions where id = ${version1.activeVersion.id}
+    `).rejects.toMatchObject({ code: "55000" });
+    await expect(sql`
+      delete from users where id = ${ownerId}
+    `).resolves.toBeDefined();
   });
 
   it("rejects duplicate creation, stale publication, and cross-owner lookup", async () => {

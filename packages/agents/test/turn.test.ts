@@ -96,6 +96,11 @@ describe("Turn repository", () => {
       sourceType: "runtime",
       sourceRef: "test-session-reference",
     });
+    const mention = user.mentions[0];
+    if (mention === undefined) throw new Error("Expected a persisted Mention.");
+    await expect(sql`
+      delete from thread_mentions where id = ${mention.id}
+    `).rejects.toMatchObject({ code: "55000" });
     expect(() =>
       turns.appendUser({
         ownerId,
@@ -234,6 +239,9 @@ describe("Turn repository", () => {
     expect(page2.nextCursor).toBeNull();
     await expect(sql`
       update thread_turns set text = 'Mutated history' where id = ${first.id}
+    `).rejects.toMatchObject({ code: "55000" });
+    await expect(sql`
+      delete from thread_turns where id = ${first.id}
     `).rejects.toMatchObject({ code: "55000" });
 
     await createThreadRepository(sql).removeAssistant({

@@ -89,7 +89,7 @@ describe("Task repository", () => {
         approvalMode: "respect_tool_setting",
         sourceThreads: [invalidSource],
       }),
-    ).rejects.toMatchObject({ code: "THREAD_NOT_FOUND" });
+    ).rejects.toMatchObject({ code: "REFERENCE_UNAVAILABLE" });
     const [counts] = await sql<{ tasks: number; task_threads: number }[]>`
       select
         (select count(*)::int from tasks) as tasks,
@@ -226,7 +226,7 @@ describe("Task repository", () => {
         approvalMode: "respect_tool_setting",
         sourceThreads: [otherThread.id],
       }),
-    ).rejects.toMatchObject({ code: "THREAD_NOT_FOUND" });
+    ).rejects.toMatchObject({ code: "REFERENCE_UNAVAILABLE" });
     await expect(
       tasks.createInternal({
         ownerId,

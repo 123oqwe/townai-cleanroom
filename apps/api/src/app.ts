@@ -200,7 +200,8 @@ export function createApp(dependencies?: AppDependencies) {
           error.code === "PERSONAL_AGENT_ALREADY_EXISTS")) ||
       (error instanceof ThreadError &&
         (error.code === "THREAD_REVISION_CONFLICT" ||
-          error.code === "TASK_THREAD_REQUIRES_TASK_DELETE")) ||
+          error.code === "TASK_THREAD_REQUIRES_TASK_DELETE" ||
+          error.code === "TASK_THREAD_REQUIRES_TASK_UPDATE")) ||
       (error instanceof TaskError && error.code === "TASK_REVISION_CONFLICT") ||
       (error instanceof InputRequestError &&
         error.code === "INPUT_REQUEST_ALREADY_RESOLVED")

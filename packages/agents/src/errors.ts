@@ -16,7 +16,8 @@ export class AgentError extends Error {
 export type ThreadErrorCode =
   | "THREAD_NOT_FOUND"
   | "THREAD_REVISION_CONFLICT"
-  | "TASK_THREAD_REQUIRES_TASK_DELETE";
+  | "TASK_THREAD_REQUIRES_TASK_DELETE"
+  | "TASK_THREAD_REQUIRES_TASK_UPDATE";
 
 export class ThreadError extends Error {
   constructor(

@@ -14,6 +14,7 @@ import { runMigrations } from "@town/db";
 
 import { createAgentRepository } from "../src/agent-repository.js";
 import { createThreadRepository } from "../src/thread-repository.js";
+import { createTurnRepository } from "../src/turn-repository.js";
 
 let sql: Sql;
 let ownerId: Id<"user">;
@@ -80,8 +81,23 @@ describe("Thread repository", () => {
     });
     expect(updated.pinnedAt).toBeInstanceOf(Date);
 
-    await threads.appendSequence({ ownerId, threadId: thread.id });
-    await threads.appendSequence({ ownerId, threadId: thread.id });
+    const turns = createTurnRepository(sql);
+    await turns.appendRuntime({
+      ownerId,
+      threadId: thread.id,
+      role: "assistant",
+      text: "Synthetic first response.",
+      sourceRef: "thread-read-test-1",
+      mentions: [],
+    });
+    await turns.appendRuntime({
+      ownerId,
+      threadId: thread.id,
+      role: "assistant",
+      text: "Synthetic second response.",
+      sourceRef: "thread-read-test-2",
+      mentions: [],
+    });
     const read = await threads.markRead({
       ownerId,
       threadId: thread.id,
@@ -191,6 +207,20 @@ describe("Thread repository", () => {
       }),
     ).rejects.toMatchObject({
       code: "TASK_THREAD_REQUIRES_TASK_DELETE",
+    });
+    await expect(
+      threads.update({
+        ownerId,
+        threadId: taskThread.id,
+        expectedRevision: 1,
+        title: "Divergent Task title",
+        status: "active",
+        pinned: false,
+        approvalMode: "respect_tool_setting",
+        forceUnread: false,
+      }),
+    ).rejects.toMatchObject({
+      code: "TASK_THREAD_REQUIRES_TASK_UPDATE",
     });
   });
 

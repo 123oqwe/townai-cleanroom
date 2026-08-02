@@ -265,25 +265,28 @@ create table task_input_requests (
 create index task_input_requests_owner_task_status_idx
   on task_input_requests(owner_id, task_id, status, requested_at, id);
 
-create function reject_immutable_history_update()
+create function reject_immutable_history_mutation()
 returns trigger
 language plpgsql
 as $$
 begin
+  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+    return old;
+  end if;
   raise exception using
     errcode = '55000',
-    message = 'immutable history records cannot be updated';
+    message = 'immutable history records cannot be changed';
 end;
 $$;
 
 create trigger agent_versions_immutable_update
-before update on agent_versions
-for each row execute function reject_immutable_history_update();
+before update or delete on agent_versions
+for each row execute function reject_immutable_history_mutation();
 
 create trigger thread_turns_immutable_update
-before update on thread_turns
-for each row execute function reject_immutable_history_update();
+before update or delete on thread_turns
+for each row execute function reject_immutable_history_mutation();
 
 create trigger thread_mentions_immutable_update
-before update on thread_mentions
-for each row execute function reject_immutable_history_update();
+before update or delete on thread_mentions
+for each row execute function reject_immutable_history_mutation();

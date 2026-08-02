@@ -91,6 +91,7 @@ interface ThreadRow {
 interface LockedThreadRow {
   id: string;
   kind: ThreadKind;
+  title: string;
   revision: number;
   last_turn_sequence: number;
 }
@@ -203,7 +204,7 @@ export function createThreadRepository(sql: Sql) {
     const threadId = asId<"thread">(value.threadId);
     await sql.begin(async (transaction) => {
       const [current] = await transaction<LockedThreadRow[]>`
-        select id, kind, revision, last_turn_sequence from threads
+        select id, kind, title, revision, last_turn_sequence from threads
         where id = ${threadId} and owner_id = ${ownerId}
           and status <> 'deleted'
         for update
@@ -215,6 +216,12 @@ export function createThreadRepository(sql: Sql) {
         throw new ThreadError(
           "THREAD_REVISION_CONFLICT",
           "The Thread has changed since it was read.",
+        );
+      }
+      if (current.kind === "task" && current.title !== value.title) {
+        throw new ThreadError(
+          "TASK_THREAD_REQUIRES_TASK_UPDATE",
+          "Task Thread titles must be changed through the Task lifecycle.",
         );
       }
       const changed = await transaction`
@@ -255,7 +262,7 @@ export function createThreadRepository(sql: Sql) {
     const threadId = asId<"thread">(value.threadId);
     await sql.begin(async (transaction) => {
       const [current] = await transaction<LockedThreadRow[]>`
-        select id, kind, revision, last_turn_sequence from threads
+        select id, kind, title, revision, last_turn_sequence from threads
         where id = ${threadId} and owner_id = ${ownerId}
           and status <> 'deleted'
         for update
@@ -283,23 +290,6 @@ export function createThreadRepository(sql: Sql) {
     return get(ownerId, threadId);
   }
 
-  async function appendSequence(
-    input: z.input<typeof ownerThreadSchema>,
-  ): Promise<number> {
-    const value = ownerThreadSchema.parse(input);
-    const [row] = await sql<{ last_turn_sequence: number }[]>`
-      update threads
-      set last_turn_sequence = last_turn_sequence + 1, updated_at = now()
-      where id = ${value.threadId} and owner_id = ${value.ownerId}
-        and status <> 'deleted'
-      returning last_turn_sequence
-    `;
-    if (row === undefined) {
-      throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
-    }
-    return row.last_turn_sequence;
-  }
-
   async function removeAssistant(
     input: z.input<typeof removeThreadSchema>,
   ): Promise<void> {
@@ -308,7 +298,7 @@ export function createThreadRepository(sql: Sql) {
     const threadId = asId<"thread">(value.threadId);
     await sql.begin(async (transaction) => {
       const [current] = await transaction<LockedThreadRow[]>`
-        select id, kind, revision, last_turn_sequence from threads
+        select id, kind, title, revision, last_turn_sequence from threads
         where id = ${threadId} and owner_id = ${ownerId}
           and status <> 'deleted'
         for update
@@ -447,7 +437,6 @@ export function createThreadRepository(sql: Sql) {
   }
 
   return {
-    appendSequence,
     createAssistant,
     createTask,
     get,

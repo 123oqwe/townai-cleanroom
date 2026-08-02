@@ -11,13 +11,13 @@ import {
 import postgres, { type Sql } from "postgres";
 
 import {
-  TaskError,
   createAgentRepository,
   createInputRequestRepository,
   createTaskRepository,
   createThreadRepository,
   createTurnRepository,
 } from "@town/agents";
+import { newId } from "@town/contracts";
 import { runMigrations } from "@town/db";
 import {
   createAccountRepository,
@@ -368,26 +368,9 @@ describe("protected Agent, Thread, and Task API", () => {
     expect(removed.status).toBe(204);
   });
 
-  it("maps unavailable references to a stable 422 problem", async () => {
-    const { dependencies, owner } = await fixture();
-    const app = createApp({
-      ...dependencies,
-      taskRepository: {
-        ...dependencies.taskRepository,
-        create: async () => {
-          throw new TaskError(
-            "REFERENCE_UNAVAILABLE",
-            "Synthetic unavailable reference.",
-          );
-        },
-      },
-    });
-    await dependencies.agentRepository.createPersonal({
-      ownerId: owner.user.id,
-      displayName: "Test",
-      instructions: "Synthetic.",
-      defaultApprovalMode: "respect_tool_setting",
-    });
+  it("maps a real unavailable source reference to a stable 422 problem", async () => {
+    const { app, owner } = await fixture();
+    await createPersonal(app, owner.token);
     const response = await app.request("/v1/tasks", {
       method: "POST",
       headers: authorization(owner.token),
@@ -395,7 +378,7 @@ describe("protected Agent, Thread, and Task API", () => {
         title: "Unavailable",
         description: "Synthetic.",
         approvalMode: "respect_tool_setting",
-        sourceThreads: [],
+        sourceThreads: [newId<"thread">()],
       }),
     });
 

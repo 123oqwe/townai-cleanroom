@@ -12,7 +12,7 @@ import {
   type Id,
 } from "@town/contracts";
 
-import { AgentError, TaskError, ThreadError } from "./errors.js";
+import { AgentError, TaskError } from "./errors.js";
 import { createThreadRepository } from "./thread-repository.js";
 import {
   approvalModeSchema,
@@ -201,7 +201,10 @@ async function validateSource(
   if (source.sourceType === "thread") {
     const parsed = idSchema.safeParse(source.sourceRef);
     if (!parsed.success) {
-      throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
+      throw new TaskError(
+        "REFERENCE_UNAVAILABLE",
+        "The source Thread is unavailable.",
+      );
     }
     const rows = await transaction`
       select id from threads
@@ -209,7 +212,10 @@ async function validateSource(
         and status <> 'deleted'
     `;
     if (rows.count !== 1) {
-      throw new ThreadError("THREAD_NOT_FOUND", "The Thread was not found.");
+      throw new TaskError(
+        "REFERENCE_UNAVAILABLE",
+        "The source Thread is unavailable.",
+      );
     }
   }
   if (source.accountId !== undefined) {
