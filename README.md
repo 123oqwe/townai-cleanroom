@@ -101,6 +101,9 @@ Google OAuth callback wiring is implemented with PKCE, one-time state, offline
 refresh scope, userinfo verification, and encrypted credential persistence. It
 returns `OAUTH_NOT_CONFIGURED` until the deployment supplies Google client
 credentials and a registered redirect URI.
+Server-side Google access-token refresh is available at
+`POST /v1/accounts/:accountId/refresh`; plaintext credentials stay inside the
+provider boundary and the response is only the safe connected-account view.
 
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,

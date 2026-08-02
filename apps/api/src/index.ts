@@ -28,6 +28,7 @@ import {
   createAccountRepository,
   createCredentialCipher,
   createIdentityService,
+  createGoogleTokenRefresher,
 } from "@town/identity";
 import {
   createKnowledgeConflictService,
@@ -110,6 +111,15 @@ const runtimeTransitionService = createRuntimeTransitionService(sql);
 const routineRepository = createRoutineRepository(sql);
 const suggestionRepository = createSuggestionRepository(sql);
 const a2aRepository = createA2ARepository(sql);
+const googleTokenRefresher = createGoogleTokenRefresher({
+  accounts: accountRepository,
+  ...(environment.GOOGLE_OAUTH_CLIENT_ID === undefined
+    ? {}
+    : { clientId: environment.GOOGLE_OAUTH_CLIENT_ID }),
+  ...(environment.GOOGLE_OAUTH_CLIENT_SECRET === undefined
+    ? {}
+    : { clientSecret: environment.GOOGLE_OAUTH_CLIENT_SECRET }),
+});
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
 const contentRepository = createContentRepository(sql);
@@ -254,6 +264,7 @@ const app = createApp({
       ? {}
       : { redirectUri: environment.GOOGLE_OAUTH_REDIRECT_URI }),
   },
+  googleTokenRefresher,
   webOrigin: environment.WEB_ORIGIN,
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });

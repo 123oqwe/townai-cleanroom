@@ -5,6 +5,7 @@ import { asId, newId, type Id } from "@town/contracts";
 
 import type {
   CredentialCipher,
+  CredentialEnvelope,
   CredentialSecret,
 } from "./credential-cipher.js";
 
@@ -166,6 +167,7 @@ export function createAccountRepository(sql: Sql, cipher: CredentialCipher) {
       ownerId: Id<"user">,
       accountId: Id<"connected-account">,
       credential: CredentialSecret,
+      tokenExpiresAt?: Date | null,
     ): Promise<void> {
       await sql.begin(async (transaction) => {
         const [account] = await transaction<
@@ -198,7 +200,55 @@ export function createAccountRepository(sql: Sql, cipher: CredentialCipher) {
               updated_at = now()
           where id = ${credentialId} and owner_id = ${ownerId}
         `;
+        await transaction`
+          update connected_accounts
+          set token_expires_at=${tokenExpiresAt ?? null}, needs_reauth=false,
+              updated_at=now()
+          where id=${accountId} and owner_id=${ownerId}
+        `;
       });
+    },
+
+    /** Internal provider boundary. Callers receive plaintext only inside server code. */
+    async getCredential(
+      ownerId: Id<"user">,
+      accountId: Id<"connected-account">,
+    ): Promise<{
+      account: SafeConnectedAccount;
+      credential: CredentialSecret;
+    }> {
+      const rows = await sql<
+        (AccountRow & { credential_envelope: CredentialEnvelope | null })[]
+      >`
+        select account.id, account.owner_id, account.provider, account.provider_user_id,
+          account.email::text, account.is_primary, account.is_active, account.capabilities,
+          account.credential_id, account.token_expires_at, account.needs_reauth,
+          account.reauth_blocked_by_org_policy, account.created_at, account.updated_at,
+          credential.envelope as credential_envelope
+        from connected_accounts account
+        left join oauth_credentials credential on credential.id=account.credential_id
+        where account.id=${accountId} and account.owner_id=${ownerId}
+      `;
+      const row = rows[0];
+      if (
+        row === undefined ||
+        row.credential_id === null ||
+        row.credential_envelope === null
+      )
+        throw new AccountError(
+          "ACCOUNT_NOT_FOUND",
+          "The account credential was not found.",
+        );
+      const provider = providerSchema.parse(row.provider);
+      return {
+        account: safeAccount(row),
+        credential: cipher.decrypt(row.credential_envelope, {
+          credentialId: asId<"credential">(row.credential_id),
+          ownerId,
+          accountId,
+          provider,
+        }),
+      };
     },
 
     async remove(

@@ -2,11 +2,19 @@ import type { Hono } from "hono";
 import { z } from "zod";
 
 import { asId, type Id } from "@town/contracts";
-import type { AccountRepository, CredentialSecret } from "@town/identity";
+import type {
+  AccountRepository,
+  CredentialSecret,
+  SafeConnectedAccount,
+} from "@town/identity";
 import type { AuthVariables } from "./auth.js";
 
 export interface AccountDependencies {
   repository: AccountRepository;
+  refreshGoogle?: (
+    ownerId: Id<"user">,
+    accountId: Id<"connected-account">,
+  ) => Promise<SafeConnectedAccount>;
 }
 
 const credentialSchema = z
@@ -43,6 +51,16 @@ export function registerAccountRoutes(
       credential,
     );
     return context.body(null, 204);
+  });
+
+  app.post("/v1/accounts/:accountId/refresh", async (context) => {
+    if (dependencies.refreshGoogle === undefined)
+      return context.json({ code: "GOOGLE_REFRESH_NOT_CONFIGURED" }, 503);
+    const account = await dependencies.refreshGoogle(
+      context.get("identity").user.id,
+      accountId(context.req.param("accountId")),
+    );
+    return context.json({ account });
   });
 
   app.delete("/v1/accounts/:accountId", async (context) => {

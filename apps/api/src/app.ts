@@ -14,8 +14,12 @@ import {
   type ThreadRepository,
   type TurnRepository,
 } from "@town/agents";
-import type { AccountRepository, IdentityService } from "@town/identity";
-import { AccountError } from "@town/identity";
+import type {
+  AccountRepository,
+  IdentityService,
+  GoogleTokenRefresher,
+} from "@town/identity";
+import { AccountError, GoogleTokenError } from "@town/identity";
 import {
   KnowledgeSearchError,
   MemoryError,
@@ -117,6 +121,7 @@ export interface AppDependencies {
   suggestionRepository?: SuggestionRepository;
   a2aRepository?: A2ARepository;
   googleOAuth?: GoogleOAuthDependencies;
+  googleTokenRefresher?: GoogleTokenRefresher;
   webOrigin?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
@@ -233,6 +238,19 @@ export function createApp(dependencies?: AppDependencies) {
     );
 
   app.onError((error, context) => {
+    if (error instanceof GoogleTokenError) {
+      const status = error.code === "GOOGLE_TOKEN_NOT_CONFIGURED" ? 503 : 502;
+      return context.json(
+        {
+          type: "https://town.local/problems/google-token",
+          title: "Google token refresh failed",
+          status,
+          detail: error.message,
+          code: error.code,
+        },
+        status,
+      );
+    }
     if (error instanceof z.ZodError || error instanceof SyntaxError) {
       return context.json(
         {
@@ -543,7 +561,12 @@ export function createApp(dependencies?: AppDependencies) {
       return context.json({ user: identity.user });
     });
 
-    registerAccountRoutes(app, { repository: dependencies.accountRepository });
+    registerAccountRoutes(app, {
+      repository: dependencies.accountRepository,
+      ...(dependencies.googleTokenRefresher === undefined
+        ? {}
+        : { refreshGoogle: dependencies.googleTokenRefresher.refresh }),
+    });
     if (dependencies.googleOAuth !== undefined)
       registerGoogleOAuthRoutes(app, dependencies.googleOAuth);
     if (dependencies.a2aRepository !== undefined) {
