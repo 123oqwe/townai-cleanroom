@@ -19,6 +19,21 @@ The preview was created with Vercel's deployment connector. The first tiny
 probe deployment was superseded by the full UI deployment and is not used as a
 release artifact.
 
+A production-target UI deployment was also created for smoke validation:
+
+- Deployment: `dpl_6TBYK3KFzWjjj1TvjvWQ4bnunhby`
+- Production alias: `https://town-clear.vercel.app`
+- State: `READY`
+- Access check: unauthenticated fetch currently returns `200` (public).
+
+This production deployment is therefore **not accepted as the final release**
+until project-level Deployment Protection is enabled for all deployments. The
+protected preview above remains the only accepted hosted artifact at this
+stage. Vercel's documentation states that protecting production domains with
+"All Deployments" requires a plan that supports production Deployment
+Protection; the project setting must be verified before claiming a restricted
+production release.
+
 The API entrypoint now exports the Hono app as the default from
 `apps/api/src/index.ts` when `VERCEL=1`; local development still uses the Node
 server listener. This keeps serverless invocation separate from local process
