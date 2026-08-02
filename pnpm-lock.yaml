@@ -66,6 +66,22 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
 
+  packages/agents:
+    dependencies:
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@town/db':
+        specifier: workspace:*
+        version: link:../db
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
+
   packages/contracts:
     dependencies:
       uuid:
