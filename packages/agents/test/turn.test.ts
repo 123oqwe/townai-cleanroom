@@ -243,6 +243,9 @@ describe("Turn repository", () => {
     await expect(sql`
       delete from thread_turns where id = ${first.id}
     `).rejects.toMatchObject({ code: "55000" });
+    await expect(sql`
+      delete from threads where id = ${thread.id}
+    `).rejects.toMatchObject({ code: "55000" });
 
     await createThreadRepository(sql).removeAssistant({
       ownerId,

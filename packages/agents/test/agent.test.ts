@@ -103,6 +103,9 @@ describe("personal Agent repository", () => {
       delete from agent_versions where id = ${version1.activeVersion.id}
     `).rejects.toMatchObject({ code: "55000" });
     await expect(sql`
+      delete from agents where id = ${version1.id}
+    `).rejects.toMatchObject({ code: "55000" });
+    await expect(sql`
       delete from users where id = ${ownerId}
     `).resolves.toBeDefined();
   });

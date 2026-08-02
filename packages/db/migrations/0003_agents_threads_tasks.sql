@@ -270,7 +270,9 @@ returns trigger
 language plpgsql
 as $$
 begin
-  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+  if tg_op = 'DELETE' and not exists (
+    select 1 from users where id = old.owner_id
+  ) then
     return old;
   end if;
   raise exception using
