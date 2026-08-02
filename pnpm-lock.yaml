@@ -166,9 +166,22 @@ importers:
 
   packages/tools:
     dependencies:
+      '@town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       zod:
         specifier: 'catalog:'
         version: 4.4.3
+    devDependencies:
+      '@town/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@town/db':
+        specifier: workspace:*
+        version: link:../db
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
 
 packages:
 

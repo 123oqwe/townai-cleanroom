@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { Id } from "@town/contracts";
+
 export const toolSideEffectSchema = z.enum([
   "read",
   "private_write",
@@ -71,4 +73,29 @@ export interface PolicyResult {
   decision: PolicyDecision;
   riskFlags: string[];
   rationale: string;
+}
+
+export interface ToolDefinition {
+  id: Id<"tool-definition">;
+  ownerId: Id<"user">;
+  name: string;
+  version: number;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  outputSchema: Record<string, unknown> | null;
+  sideEffect: ToolSideEffect;
+  dataSensitivity: DataSensitivity;
+  accountBinding: AccountBinding;
+  enabled: boolean;
+  createdAt: Date;
+}
+
+export interface AgentToolBinding {
+  id: Id<"agent-tool-binding">;
+  ownerId: Id<"user">;
+  agentVersionId: Id<"agent-version">;
+  toolDefinitionId: Id<"tool-definition">;
+  modeOverride: ExecutionMode | null;
+  accountScope: string[];
+  createdAt: Date;
 }
