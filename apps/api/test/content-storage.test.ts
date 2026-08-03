@@ -30,6 +30,18 @@ describe("file content storage", () => {
     });
   });
 
+  it("writes bounded blobs below the configured root", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "town-content-"));
+    temporaryRoots.push(root);
+    const storage = createFileContentStorage(root);
+
+    await storage.write("objects/new.txt", new TextEncoder().encode("new"));
+
+    await expect(
+      fs.readFile(path.join(root, "objects", "new.txt"), "utf8"),
+    ).resolves.toBe("new");
+  });
+
   it("returns null for a missing object and rejects path traversal", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "town-content-"));
     temporaryRoots.push(root);
@@ -39,5 +51,22 @@ describe("file content storage", () => {
     await expect(storage.read("../outside.bin")).rejects.toThrow(
       "CONTENT_STORAGE_PATH_DENIED",
     );
+  });
+
+  it("rejects writes through a symlink that escapes the root", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "town-content-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "town-outside-"));
+    temporaryRoots.push(root, outside);
+    await fs.symlink(outside, path.join(root, "escape"), "dir");
+    const storage = createFileContentStorage(root);
+
+    await expect(
+      storage.write("escape/secret.txt", new TextEncoder().encode("secret")),
+    ).rejects.toThrow("CONTENT_STORAGE_PATH_DENIED");
+    await expect(
+      fs.stat(path.join(outside, "secret.txt")),
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 });

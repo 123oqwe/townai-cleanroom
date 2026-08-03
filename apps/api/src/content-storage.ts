@@ -54,5 +54,36 @@ export function createFileContentStorage(root: string): ContentStorage {
         contentType: contentTypeFor(relative),
       };
     },
+    async write(key, body) {
+      const relative = key.trim();
+      if (relative.length === 0 || path.isAbsolute(relative))
+        throw new Error("CONTENT_STORAGE_PATH_DENIED");
+      const target = path.resolve(base, relative);
+      if (target !== base && !target.startsWith(`${base}${path.sep}`))
+        throw new Error("CONTENT_STORAGE_PATH_DENIED");
+      if (body.byteLength > MAX_CONTENT_BLOB_BYTES)
+        throw new Error("CONTENT_STORAGE_BLOB_TOO_LARGE");
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      const rootReal = await fs.realpath(base).catch(() => base);
+      const parentReal = await fs.realpath(path.dirname(target));
+      if (
+        parentReal !== rootReal &&
+        !parentReal.startsWith(`${rootReal}${path.sep}`)
+      )
+        throw new Error("CONTENT_STORAGE_PATH_DENIED");
+      const existingTarget = await fs
+        .realpath(target)
+        .catch((error: unknown) => {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+          throw error;
+        });
+      if (
+        existingTarget !== null &&
+        existingTarget !== rootReal &&
+        !existingTarget.startsWith(`${rootReal}${path.sep}`)
+      )
+        throw new Error("CONTENT_STORAGE_PATH_DENIED");
+      await fs.writeFile(target, body);
+    },
   };
 }

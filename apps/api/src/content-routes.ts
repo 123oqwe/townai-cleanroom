@@ -19,7 +19,9 @@ export interface ContentStorage {
     body: Uint8Array;
     contentType?: string;
   } | null>;
+  write?(key: string, body: Uint8Array, contentType?: string): Promise<void>;
 }
+const MAX_CONTENT_BLOB_BYTES = 50 * 1024 * 1024;
 const payload = z
   .object({
     kind: contentKindSchema,
@@ -188,6 +190,40 @@ export function registerContentRoutes(
         "cache-control": "private, no-store",
       },
     });
+  });
+  app.put("/v1/content/:contentId/blob", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.storage?.write === undefined)
+      return context.json({ error: "CONTENT_STORAGE_NOT_CONFIGURED" }, 503);
+    const content = await dependencies.repository.get(
+      ownerId,
+      asId<"content">(context.req.param("contentId")),
+    );
+    const declaredLength = context.req.header("content-length");
+    if (
+      declaredLength !== undefined &&
+      Number.isFinite(Number(declaredLength)) &&
+      Number(declaredLength) > MAX_CONTENT_BLOB_BYTES
+    )
+      return context.json({ error: "CONTENT_BLOB_TOO_LARGE" }, 413);
+    const body = new Uint8Array(await context.req.arrayBuffer());
+    if (body.byteLength > MAX_CONTENT_BLOB_BYTES)
+      return context.json({ error: "CONTENT_BLOB_TOO_LARGE" }, 413);
+    const storageKey = content.storageKey ?? `content/${String(content.id)}`;
+    const contentType =
+      context.req.header("content-type") ?? content.mimeType ?? undefined;
+    await dependencies.storage.write(storageKey, body, contentType);
+    const updated = await dependencies.repository.update({
+      ownerId,
+      contentId: content.id,
+      expectedRevision: content.currentRevision,
+      title: content.title,
+      mimeType: contentType ?? null,
+      storageKey,
+      body: null,
+      metadata: content.metadata,
+    });
+    return context.json({ content: updated });
   });
   app.get("/v1/content/:contentId/revisions", async (context) => {
     const ownerId = context.get("identity").user.id;

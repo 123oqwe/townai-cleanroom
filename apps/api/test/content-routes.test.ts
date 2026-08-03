@@ -105,4 +105,63 @@ describe("content share route", () => {
       "private/object-key",
     );
   });
+
+  it("uploads an owner-scoped blob and records its storage key", async () => {
+    const contentId = "01900000-0000-7000-8000-000000000013";
+    const content = {
+      id: contentId,
+      title: "Upload",
+      kind: "file",
+      mimeType: null,
+      storageKey: null,
+      body: null,
+      metadata: {},
+      currentRevision: 1,
+    };
+    const repository = {
+      get: vi.fn().mockResolvedValue(content),
+      update: vi
+        .fn()
+        .mockResolvedValue({ ...content, storageKey: `content/${contentId}` }),
+    } as unknown as ContentRepository;
+    const write = vi.fn().mockResolvedValue(undefined);
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", async (context, next) => {
+      context.set("identity", {
+        user: { id: "01900000-0000-7000-8000-000000000001" },
+      } as AuthVariables["identity"]);
+      await next();
+    });
+    registerContentRoutes(app, {
+      repository,
+      storage: { read: vi.fn(), write },
+    });
+
+    const response = await app.request(
+      `http://town.test/v1/content/${contentId}/blob`,
+      {
+        method: "PUT",
+        headers: { "content-type": "text/plain" },
+        body: "uploaded",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      content: { storageKey: `content/${contentId}` },
+    });
+    expect(write).toHaveBeenCalledWith(
+      `content/${contentId}`,
+      expect.any(Uint8Array),
+      "text/plain",
+    );
+    expect(repository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentId,
+        expectedRevision: 1,
+        storageKey: `content/${contentId}`,
+        body: null,
+      }),
+    );
+  });
 });
