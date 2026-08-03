@@ -38,11 +38,13 @@ source row does not imply that an external provider is configured.
 
 ## Verification snapshot
 
-At the latest full verification on 2026-08-04 (after Harness routing, bounded
-knowledge context, Routine Step Executor, Wiki upkeep, Slack Events, Twilio
-Voice adapters, and ElevenLabs TTS), the repository passed source-only policy,
-formatting, lint, typecheck, all 73 test files (332 tests), and all workspace
-builds. The current protected UI deployment is recorded in
+The last completed full verification on 2026-08-04 (before the analytics event
+migration) passed source-only policy, formatting, lint, typecheck, all 73 test
+files (332 tests), and all workspace builds. After the analytics migration,
+the focused database and operations regression suite passes 4 files / 9 tests;
+the subsequent serial full-suite probe produced only passing dots for 22
+minutes but was interrupted before Vitest emitted its final summary, so it is
+not counted as a completed full-suite result. The current protected UI deployment is recorded in
 [`deployment.md`](./deployment.md). This ledger intentionally does not mark
 the overall product goal complete while the production API and project-level
 deployment protection remain unverified.
