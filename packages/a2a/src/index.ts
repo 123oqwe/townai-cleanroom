@@ -93,7 +93,7 @@ export function createA2ARepository(sql: Sql) {
     ): Promise<A2ARequest[]> {
       const rows = await sql<
         Row[]
-      >`select ${sql.unsafe(columns)} from a2a_requests where (requester_id=${userId} or recipient_id=${userId}) and (${status ?? null}::text is null or status=${status ?? null}) order by created_at desc, id desc`;
+      >`select ${sql.unsafe(columns)} from a2a_requests where (requester_id=${userId} or recipient_id=${userId}) and (${status ?? null}::text is null or status=${status ?? null}) and (status <> 'pending' or expires_at is null or expires_at > now()) order by created_at desc, id desc`;
       return rows.map(safe);
     },
     async transition(input: {
@@ -109,7 +109,7 @@ export function createA2ARepository(sql: Sql) {
           : "requester_id";
       const rows = await sql<
         Row[]
-      >`update a2a_requests set status=${input.status}, result=coalesce(${input.result ? sql.json(input.result as never) : null}, result), revision=revision+1, updated_at=now() where id=${input.requestId} and ${sql.unsafe(allowed)}=${input.userId} and revision=${input.revision} and status in ('pending','accepted') returning ${sql.unsafe(columns)}`;
+      >`update a2a_requests set status=${input.status}, result=coalesce(${input.result ? sql.json(input.result as never) : null}, result), revision=revision+1, updated_at=now() where id=${input.requestId} and ${sql.unsafe(allowed)}=${input.userId} and revision=${input.revision} and status in ('pending','accepted') and (status <> 'pending' or expires_at is null or expires_at > now()) returning ${sql.unsafe(columns)}`;
       if (!rows[0]) {
         const existing = await sql<
           { id: string }[]

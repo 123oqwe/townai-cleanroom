@@ -179,7 +179,8 @@ continuing the persisted Harness thread.
 
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,
-and revision-checked transitions; private Memory and credentials are never
+and revision-checked transitions; expired pending requests are hidden from the
+pending view and cannot be accepted. Private Memory and credentials are never
 shared by this clean-room protocol.
 
 Authenticated Agent, Thread, Turn-read, Task, and InputRequest resources are

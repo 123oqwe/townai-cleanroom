@@ -71,4 +71,24 @@ describe("A2A requests", () => {
     expect(completed.status).toBe("completed");
     expect(completed.result).toEqual({ slots: ["2026-08-04T10:00:00Z"] });
   });
+
+  it("does not expose or accept expired pending requests", async () => {
+    const repository = createA2ARepository(sql);
+    const request = await repository.create({
+      requesterId: requester,
+      recipientId: recipient,
+      capability: "calendar.find-time",
+      request: { window: "expired" },
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+    expect(await repository.listForUser(recipient, "pending")).toEqual([]);
+    await expect(
+      repository.transition({
+        userId: recipient,
+        requestId: request.id,
+        status: "accepted",
+        revision: request.revision,
+      }),
+    ).rejects.toMatchObject({ code: "A2A_CONFLICT" });
+  });
 });
