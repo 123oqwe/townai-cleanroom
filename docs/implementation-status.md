@@ -110,3 +110,8 @@ trigger list.
 Content Library cards now expose the owner-scoped archive action through
 `POST /v1/content/:contentId/archive`; after success the active list reloads
 from the server, so archived content is not merely hidden in the client.
+
+Content Library now supports creating owner-scoped content from the UI using
+the server's real content-kind enum, title, body, and metadata contract. The
+new item is persisted through `POST /v1/content` and the active list reloads
+from server truth.

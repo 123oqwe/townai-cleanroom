@@ -493,6 +493,15 @@ async function loadContentHistory(card) {
     card.append(error);
   }
 }
+async function saveContent() {
+  const title = $("#content-title").value.trim();
+  const error = $("#content-error");
+  if (!title || !state.token) { error.textContent = "Title is required."; error.hidden = false; return; }
+  try {
+    await apiJson("/v1/content", { kind: $("#content-kind").value, title, body: $("#content-body").value, metadata: {} });
+    $("#content-title").value = ""; $("#content-body").value = ""; $("#content-add-form").hidden = true; error.hidden = true; await loadLibrary();
+  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save content."; error.hidden = false; }
+}
 let libraryContentCursor = null;
 async function loadMoreLibraryContent() {
   if (!state.token || !libraryContentCursor) return;
@@ -2330,6 +2339,8 @@ $("#library-content-list").addEventListener("click", (event) => {
   if (!button) return;
   void createContentShare(card.dataset.contentId, card);
 });
+$("#content-add-toggle").addEventListener("click", () => { $("#content-add-form").hidden = !$("#content-add-form").hidden; if (!$("#content-add-form").hidden) $("#content-title").focus(); });
+$("#content-save").addEventListener("click", () => void saveContent());
 $("#library-content-more").addEventListener(
   "click",
   () => void loadMoreLibraryContent(),
