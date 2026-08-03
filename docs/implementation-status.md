@@ -258,6 +258,12 @@ runtime readiness flags, and owner-scoped Operations backlog counts. It does
 not claim Town's private admin implementation and never returns prompts,
 credentials, or provider payloads; an empty admin allowlist denies the route.
 
+The same admin boundary now exposes
+`GET /v1/admin/billing-reconciliation/:userId` with a bounded period, internal
+usage-ledger totals, and current Billing state. External payment data is never
+invented: `reconciliation.externalProvider` and `discrepancy` remain explicitly
+`not_configured`/`null` until a real provider adapter exists.
+
 The Harness dialog now consumes the same readiness contract before creating a
 thread or queuing a turn. When the worker is not configured, the composer and
 thread controls are disabled and the UI explains that data/settings remain

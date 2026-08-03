@@ -19,6 +19,7 @@ import postgres, { type Sql } from "postgres";
 import { createApp } from "../src/app.js";
 import { createChannelRepository } from "@town/channels";
 import { createOperationsRepository } from "@town/operations";
+import { createBillingRepository } from "@town/billing";
 
 let sql: Sql;
 
@@ -83,6 +84,7 @@ async function fixture() {
       accountRepository,
       channelRepository: createChannelRepository(sql),
       operationsRepository: createOperationsRepository(sql),
+      billingRepository: createBillingRepository(sql),
       adminAllowlistEmails: ["owner@example.test"],
     }),
     identityService,
@@ -299,5 +301,25 @@ describe("protected identity API", () => {
     );
     expect(denied.status).toBe(403);
     expect(await denied.json()).toMatchObject({ code: "ADMIN_NOT_AUTHORIZED" });
+  });
+
+  it("keeps admin billing reconciliation explicit when no external provider exists", async () => {
+    const { app, owner, other } = await fixture();
+    const response = await app.request(
+      `/v1/admin/billing-reconciliation/${other.user.id}`,
+      { headers: { Authorization: `Bearer ${owner.token}` } },
+    );
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      user: { id: other.user.id, email: other.user.email },
+      status: "not_configured",
+      billing: null,
+      usage: [],
+      reconciliation: {
+        externalProvider: "not_configured",
+        discrepancy: null,
+      },
+    });
   });
 });

@@ -146,6 +146,10 @@ existing allowlist state.
   `ADMIN_ALLOWLIST_EMAILS` environment variable. They return only safe user
   identity, runtime readiness, and owner-scoped backlog counters; prompts,
   credentials, and provider payloads are never exposed.
+- The matching `/v1/admin/billing-reconciliation/:userId` endpoint exposes the
+  internal period usage ledger and billing state to the same admin boundary.
+  External payment reconciliation remains an explicit `not_configured` state
+  until a real billing provider adapter is supplied.
 - Owner-scoped Suggestions/Need-to-Know records with source provenance,
   fingerprint deduplication, expiry, and optimistic dismiss/convert actions;
   converting a suggestion atomically creates a Task thread and source

@@ -825,6 +825,9 @@ export function createApp(dependencies?: AppDependencies) {
           dependencies.harnessServerFactory !== undefined,
         workerEnabled: dependencies.workerEnabled === true,
         googleOAuthReady: dependencies.googleOAuth !== undefined,
+        ...(dependencies.billingRepository === undefined
+          ? {}
+          : { billing: dependencies.billingRepository }),
       });
     }
     if (dependencies.routineRepository !== undefined) {
