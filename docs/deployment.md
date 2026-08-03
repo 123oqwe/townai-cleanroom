@@ -1014,3 +1014,13 @@ reported no runtime errors and the protected alias continues to return the
 expected `302` SSO redirect. The API remains unclaimed as operational until
 its real database/encryption environment and a reproducible workspace install
 are available.
+
+After adding npm workspace links and replacing internal workspace protocol
+references with equivalent local file references, the full 162-file source
+deployment built successfully: \`dpl_48EKVcVFK7gpTMR4a2sGy7R81pro\`,
+\`https://town-clear-current-ir9ygk4sl-123oqwes-projects.vercel.app\`, state
+\`READY\`, with Node.js Lambda runtime detected. Vercel reported no runtime
+errors, and the protected alias returned \`302\` SSO. This is the first verified
+full-source build artifact; API requests still require the real database,
+credential master key, and allowlist environment before they can be claimed
+operational.
