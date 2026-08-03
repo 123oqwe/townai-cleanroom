@@ -33,3 +33,7 @@ The latest local rerun also passes the database-backed routine suite (10/10).
 The full Vitest suite was started with Testcontainers PostgreSQL and produced
 continuous progress, but exceeded the local 300-second observation window; it
 is therefore not counted as a new full-suite pass in this ledger.
+
+The current repository inventory is 60 test files and 258 `it` cases. That
+inventory is descriptive only; it does not replace a completed full-suite
+run.
