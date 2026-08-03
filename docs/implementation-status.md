@@ -38,21 +38,17 @@ source row does not imply that an external provider is configured.
 
 ## Verification snapshot
 
-At the last full verification, the repository passed source-only policy,
-formatting, lint, typecheck, all 56 test files (238 tests), and all workspace
-builds. The current protected UI deployment is recorded in
+At the latest full verification on 2026-08-03, the repository passed
+source-only policy, formatting, lint, typecheck, all 67 test files (306 tests),
+and all workspace builds. The current protected UI deployment is recorded in
 [`deployment.md`](./deployment.md). This ledger intentionally does not mark
 the overall product goal complete while the production API and project-level
 deployment protection remain unverified.
 
-The latest local rerun also passes the database-backed routine suite (10/10).
-The full Vitest suite was started with Testcontainers PostgreSQL and produced
-continuous progress, but exceeded the local 300-second observation window; it
-is therefore not counted as a new full-suite pass in this ledger.
-
-The current repository inventory is 60 test files and 258 `it` cases. That
-inventory is descriptive only; it does not replace a completed full-suite
-run.
+The full Vitest run used Testcontainers PostgreSQL and completed in about 226
+seconds with 67/67 files and 306/306 tests passing. The repository inventory
+therefore now has a completed full-suite evidence point rather than only a
+descriptive test count.
 
 Routine version history is now exposed through the protected
 `GET /v1/routines/:routineId/versions` route and the Routine dialog's immutable
