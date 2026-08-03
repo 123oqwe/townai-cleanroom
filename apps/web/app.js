@@ -970,10 +970,28 @@ function renderRoutines(result) {
       void loadRoutineWebhook();
       void loadRoutineRuns();
       void loadRoutineVersions();
+      void loadRoutineTriggers();
       renderRoutines(result);
       $("#routine-input").focus();
     });
   });
+}
+async function loadRoutineTriggers() {
+  if (!selectedRoutineId || !state.token) return;
+  const target = $("#routine-trigger-list");
+  target.innerHTML = '<p class="harness-empty">Reading routine triggers…</p>';
+  try {
+    const triggers = (await api(`/v1/routines/${selectedRoutineId}/triggers`)).triggers || [];
+    target.innerHTML = triggers.length ? `<p class="eyebrow">Triggers</p>${triggers.map((trigger) => `<div class="routine-trigger-row" data-trigger-id="${escapeHtml(trigger.id)}" data-revision="${escapeHtml(trigger.revision)}"><div><strong>${escapeHtml(trigger.kind)}</strong><small>${escapeHtml(JSON.stringify(trigger.config || {}))}</small></div><button class="quiet-button routine-trigger-toggle" type="button">${trigger.enabled ? "Disable" : "Enable"}</button></div>`).join("")` : '<p class="harness-empty">No triggers configured.</p>';
+  } catch (cause) { target.innerHTML = `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Triggers unavailable.")}</p>`; }
+}
+async function toggleRoutineTrigger(row) {
+  if (!row) return;
+  const current = row.querySelector(".routine-trigger-toggle").textContent.trim() === "Disable";
+  try {
+    await api(`/v1/routine-triggers/${row.dataset.triggerId}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: Number(row.dataset.revision), config: {}, enabled: !current }) });
+    await loadRoutineTriggers();
+  } catch (cause) { $("#routine-history-error").textContent = cause instanceof Error ? cause.message : "Could not update trigger."; $("#routine-history-error").hidden = false; }
 }
 async function loadRoutineVersions() {
   if (!selectedRoutineId || !state.token) return;
@@ -2378,6 +2396,10 @@ $("#routines-open").addEventListener("click", () => {
   void loadRoutines();
 });
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
+$("#routine-trigger-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".routine-trigger-toggle");
+  if (button) void toggleRoutineTrigger(button.closest(".routine-trigger-row"));
+});
 $("#routine-template-install").addEventListener(
   "click",
   () => void installRoutineTemplate(),

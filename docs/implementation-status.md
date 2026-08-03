@@ -96,3 +96,8 @@ Notification channels now expose the existing owner-scoped disable action in
 the Web surface. Active channel cards can be disabled through
 `DELETE /v1/channels/:channelId`, then reload server truth; no provider
 credentials or delivery result is fabricated.
+
+Routine trigger state is now visible and controllable in the Routine dialog:
+the client reads owner-scoped trigger kind/config/revision and enables or
+disables triggers through the existing optimistic `PATCH /v1/routine-triggers`
+route. It does not invent trigger configuration or provider events.
