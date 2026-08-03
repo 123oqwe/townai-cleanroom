@@ -141,7 +141,7 @@ describe("operations audit and summary", () => {
     const second = await repository.timeline({
       ownerId,
       limit: 10,
-      cursor: first.nextCursor ?? undefined,
+      ...(first.nextCursor === null ? {} : { cursor: first.nextCursor }),
     });
     expect(second.items.some((item) => item.kind === "audit")).toBe(true);
     expect(second.items).not.toEqual(
@@ -158,7 +158,7 @@ describe("operations audit and summary", () => {
     const replay = await repository.timeline({
       ownerId,
       limit: 1,
-      cursor: first.nextCursor ?? undefined,
+      ...(first.nextCursor === null ? {} : { cursor: first.nextCursor }),
     });
     expect(replay.items.map((item) => item.id)).toEqual(
       second.items.slice(0, 1).map((item) => item.id),
