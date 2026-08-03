@@ -49,6 +49,7 @@
 .routine-trigger-list { display: grid; gap: 8px; margin-top: 1rem; }
 .routine-trigger-row { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .65rem 0; border-bottom: 1px solid var(--line); }
 .routine-trigger-row small { display: block; max-width: 260px; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.routine-trigger-actions { display: flex; gap: .45rem; }
 .routine-trigger-add { display: grid; gap: 6px; margin-top: .8rem; }
 .routine-trigger-add select, .routine-trigger-add textarea { width: 100%; }
 .routine-run-card {

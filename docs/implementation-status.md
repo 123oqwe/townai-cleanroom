@@ -107,6 +107,10 @@ the server's trigger-kind contract, validates config as a JSON object, submits
 to the protected owner-scoped create route, and reloads the authoritative
 trigger list.
 
+Routine triggers can now be removed from the same surface through the
+revision-checked `DELETE /v1/routine-triggers/:triggerId` route. The client
+reloads the authoritative list after removal and surfaces stale-write errors.
+
 Content Library cards now expose the owner-scoped archive action through
 `POST /v1/content/:contentId/archive`; after success the active list reloads
 from the server, so archived content is not merely hidden in the client.
