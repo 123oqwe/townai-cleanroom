@@ -13,6 +13,7 @@ const state = {
   connected: false,
   profileRevision: null,
   operationsCursor: null,
+  suggestionsCursor: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -1114,30 +1115,46 @@ async function loadBilling() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Billing unavailable.")}</p>`;
   }
 }
-function renderSuggestions(result) {
+function renderSuggestions(result, append = false) {
   const target = $("#suggestion-list");
   const suggestions = result.suggestions || [];
-  if (!suggestions.length) {
+  if (!suggestions.length && !append) {
     target.innerHTML =
       '<p class="harness-empty">Nothing needs your attention right now.</p>';
+    state.suggestionsCursor = null;
+    $("#suggestions-more").hidden = true;
     return;
   }
-  target.innerHTML = suggestions
+  const html = suggestions
     .map(
       (suggestion) =>
         `<article class="suggestion-card" data-suggestion-id="${escapeHtml(suggestion.id)}" data-suggestion-revision="${escapeHtml(suggestion.revision)}"><div class="suggestion-copy"><span class="suggestion-kind">${escapeHtml(suggestion.kind)} · ${escapeHtml(suggestion.sourceType)}</span><strong>${escapeHtml(suggestion.title)}</strong><p>${escapeHtml(suggestion.body)}</p><small>${escapeHtml(suggestion.sourceRef)}</small></div><div class="suggestion-actions"><button class="quiet-button suggestion-dismiss" type="button">Dismiss</button><button class="primary-button suggestion-convert" type="button">Make task <span>→</span></button></div></article>`,
     )
     .join("");
+  if (append) target.insertAdjacentHTML("beforeend", html);
+  else target.innerHTML = html;
+  state.suggestionsCursor = result.nextCursor || null;
+  $("#suggestions-more").hidden = !state.suggestionsCursor;
 }
-async function loadSuggestions() {
+async function loadSuggestions(loadMore = false) {
   if (!state.token) {
+    state.suggestionsCursor = null;
+    $("#suggestions-more").hidden = true;
     $("#suggestion-list").innerHTML =
       '<p class="harness-empty">Connect the API to load suggestions.</p>';
     return;
   }
   try {
-    renderSuggestions(await api("/v1/suggestions?status=open&limit=50"));
+    const cursor = loadMore ? state.suggestionsCursor : null;
+    const query = new URLSearchParams({ status: "open", limit: "20" });
+    if (cursor) query.set("cursor", cursor);
+    renderSuggestions(
+      await api("/v1/suggestions?" + query.toString()),
+      loadMore,
+    );
   } catch (error) {
+    state.suggestionsCursor = null;
+    $("#suggestions-more").hidden = true;
     $("#suggestion-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Suggestions unavailable.")}</p>`;
   }
@@ -1615,8 +1632,13 @@ $("#billing-open").addEventListener("click", () => {
 });
 $("#suggestions-open").addEventListener("click", () => {
   $("#suggestions-error").hidden = true;
+  state.suggestionsCursor = null;
+  $("#suggestions-more").hidden = true;
   openDialog($("#suggestions-dialog"));
   void loadSuggestions();
+});
+$("#suggestions-more").addEventListener("click", () => {
+  void loadSuggestions(true).catch(() => undefined);
 });
 $("#suggestion-list").addEventListener("click", (event) => {
   const button = event.target.closest("button");
