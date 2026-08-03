@@ -306,6 +306,14 @@ owner-scoped idempotent queue and database constraint path as manual, email,
 and calendar triggers. An unauthenticated curl receives the Vercel SSO `302`
 protection redirect.
 
+The channel credential/account configuration UI is deployed in
+`dpl_7Un8xSa93ZykLfPmjXNJGKt3C5Fn`, built from commit `6a53822`. Its protected
+direct URL is
+`https://town-clear-current-kd3zxmk4b-123oqwes-projects.vercel.app`, state
+`READY`; the UI exposes only public account/reference fields and never asks for
+provider secrets. An unauthenticated curl receives the Vercel SSO `302`
+protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
