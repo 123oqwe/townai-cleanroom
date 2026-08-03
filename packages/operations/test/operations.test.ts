@@ -108,6 +108,14 @@ describe("operations audit and summary", () => {
       dedupeKey: "audit-before-timeline",
       metadata: { attempts: 1 },
     });
+    await repository.append({
+      ownerId: otherId,
+      action: "private.notification.delivery.failed",
+      resourceType: "notification-delivery",
+      outcome: "failed",
+      dedupeKey: "other-owner-timeline",
+      metadata: { attempts: 1 },
+    });
     const channelId = newId<"notification-channel">();
     await sql`
       insert into notification_channels (id, owner_id, kind, address, config)
@@ -136,5 +144,24 @@ describe("operations audit and summary", () => {
       cursor: first.nextCursor ?? undefined,
     });
     expect(second.items.some((item) => item.kind === "audit")).toBe(true);
+    expect(second.items).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: first.items[0]?.id }),
+      ]),
+    );
+    expect(
+      second.items.some(
+        (item) =>
+          item.data["action"] === "private.notification.delivery.failed",
+      ),
+    ).toBe(false);
+    const replay = await repository.timeline({
+      ownerId,
+      limit: 1,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(replay.items.map((item) => item.id)).toEqual(
+      second.items.slice(0, 1).map((item) => item.id),
+    );
   });
 });
