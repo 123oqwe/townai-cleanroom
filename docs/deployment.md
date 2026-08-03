@@ -590,3 +590,12 @@ overdue tasks and enabled routines due within 24 hours, and the browser refreshe
 these candidates before loading the paginated list. An unauthenticated request
 to `/v1/health` returns the Vercel SSO `302`; Vercel reported no runtime errors
 in the verification window.
+
+Content revision history is deployed in
+`dpl_HEYpzu3zoWtfNRhES2KcHFHUKh5K`, built from commit `ba2984f`. Its protected
+direct URL is
+`https://town-clear-current-nbwfmf8cg-123oqwes-projects.vercel.app`, state
+`READY`; `GET /v1/content/:contentId/revisions` exposes owner-scoped immutable
+revisions and the Library “History” control renders them inline. An
+unauthenticated request to `/v1/health` returns the Vercel SSO `302`; Vercel
+reported no runtime errors in the verification window.
