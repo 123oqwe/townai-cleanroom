@@ -197,7 +197,14 @@ type SyncRunRow = {
   provider: string;
   status: SyncRunStatus;
   trigger_type:
-    "schedule" | "manual" | "webhook" | "incoming_email" | "calendar";
+    | "schedule"
+    | "manual"
+    | "webhook"
+    | "incoming_email"
+    | "email_to_assistant"
+    | "calendar"
+    | "voice_transcribed"
+    | "slack_mention";
   trigger_data: Record<string, unknown>;
   idempotency_key: string | null;
   replay_of_run_id: string | null;

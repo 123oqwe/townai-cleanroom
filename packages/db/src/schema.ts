@@ -1324,7 +1324,7 @@ export const integrationSyncRuns = pgTable(
     ),
     check(
       "integration_sync_runs_trigger_type_allowed",
-      sql`${table.triggerType} in ('schedule','manual','webhook','incoming_email','calendar','voice_transcribed','slack_mention')`,
+      sql`${table.triggerType} in ('schedule','manual','webhook','incoming_email','email_to_assistant','calendar','voice_transcribed','slack_mention')`,
     ),
     check(
       "integration_sync_runs_trigger_data_object",
