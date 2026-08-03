@@ -613,10 +613,16 @@ export function registerRoutineWebhookRoutes(
     if (!secret || !idempotencyKey)
       return context.json({ error: "NOT_FOUND" }, 404);
     const raw = await context.req.text();
+    if (Buffer.byteLength(raw, "utf8") > 256_000)
+      return context.json({ error: "PAYLOAD_TOO_LARGE" }, 413);
     let payload: Record<string, unknown>;
     if (contentType === "application/json") {
-      const parsed: unknown = JSON.parse(raw);
-      payload = z.record(z.string(), z.unknown()).parse(parsed);
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        payload = z.record(z.string(), z.unknown()).parse(parsed);
+      } catch {
+        return context.json({ error: "INVALID_JSON" }, 400);
+      }
     } else {
       payload = { text: raw };
     }

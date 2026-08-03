@@ -189,6 +189,41 @@ describe("routine routes", () => {
     expect(await response.json()).toMatchObject({ duplicate: true });
   });
 
+  it("rejects malformed or oversized webhook payloads before repository access", async () => {
+    const deliverWebhook = vi.fn();
+    const app = appWith({ deliverWebhook } as unknown as RoutineRepository);
+    const malformed = await app.request(
+      `http://town.test/v1/routine-webhooks/${agentId}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer whsec_test_secret_123456",
+          "content-type": "application/json",
+          "x-town-idempotency-key": "event-bad-json",
+        },
+        body: "{not-json",
+      },
+    );
+    expect(malformed.status).toBe(400);
+    expect(await malformed.json()).toEqual({ error: "INVALID_JSON" });
+
+    const oversized = await app.request(
+      `http://town.test/v1/routine-webhooks/${agentId}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer whsec_test_secret_123456",
+          "content-type": "text/plain",
+          "x-town-idempotency-key": "event-large",
+        },
+        body: "x".repeat(256_001),
+      },
+    );
+    expect(oversized.status).toBe(413);
+    expect(await oversized.json()).toEqual({ error: "PAYLOAD_TOO_LARGE" });
+    expect(deliverWebhook).not.toHaveBeenCalled();
+  });
+
   it("replays a terminal routine run through an idempotent endpoint", async () => {
     const replayed = {
       id: asId<"integration-sync-run">("01900000-0000-7000-8000-000000000018"),

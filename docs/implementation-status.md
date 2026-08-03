@@ -332,3 +332,9 @@ than only checking variable presence: `DATABASE_URL` must use PostgreSQL,
 `WEB_ORIGIN` must be an HTTP(S) URL. Malformed deployments therefore report
 `api:false`/`auth:false` and retain the generic `API_NOT_CONFIGURED` boundary
 instead of claiming an executable API.
+
+Routine webhook ingestion now rejects bodies over 256 KiB with `413`, malformed
+JSON with `400`, and does so before calling the durable repository. Valid
+payloads retain the existing bearer-secret and `X-Town-Idempotency-Key`
+contract; this is a clean-room reliability boundary, not a claim about
+Slack/Voice provider-specific signatures.
