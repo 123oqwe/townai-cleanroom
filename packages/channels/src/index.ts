@@ -302,6 +302,27 @@ export function createChannelRepository(sql: Sql) {
     >`select * from notification_channels where owner_id=${idSchema.parse(ownerId)} order by created_at desc,id desc`;
     return rows.map(safeChannel);
   }
+  async function listDeliveries(
+    ownerId: Id<"user">,
+    options: { status?: DeliveryStatus; limit?: number } = {},
+  ): Promise<NotificationDelivery[]> {
+    const parsedOwnerId = idSchema.parse(ownerId);
+    const limit = z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .parse(options.limit ?? 50);
+    const status = options.status;
+    const rows = await sql<DeliveryRow[]>`
+      select * from notification_deliveries
+      where owner_id=${parsedOwnerId}
+        and (${status ?? null}::text is null or status=${status ?? null})
+      order by created_at desc,id desc
+      limit ${limit}
+    `;
+    return rows.map(safeDelivery);
+  }
   async function disable(
     ownerId: Id<"user">,
     channelId: Id<"notification-channel">,
@@ -554,6 +575,15 @@ export function createChannelRepository(sql: Sql) {
     });
     return { delivery, claimed: true };
   }
-  return { create, list, disable, enqueue, claimNext, complete, deliverNext };
+  return {
+    create,
+    list,
+    listDeliveries,
+    disable,
+    enqueue,
+    claimNext,
+    complete,
+    deliverNext,
+  };
 }
 export type ChannelRepository = ReturnType<typeof createChannelRepository>;

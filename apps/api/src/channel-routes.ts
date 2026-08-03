@@ -1,7 +1,11 @@
 import type { Hono } from "hono";
 import { z } from "zod";
 
-import { channelKindSchema, type ChannelRepository } from "@town/channels";
+import {
+  channelKindSchema,
+  deliveryStatusSchema,
+  type ChannelRepository,
+} from "@town/channels";
 import { asId } from "@town/contracts";
 import type { AuthVariables } from "./auth.js";
 
@@ -69,5 +73,23 @@ export function registerChannelRoutes(
       },
       201,
     );
+  });
+  app.get("/v1/notification-deliveries", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const query = context.req.query();
+    const status =
+      query["status"] === undefined
+        ? undefined
+        : deliveryStatusSchema.parse(query["status"]);
+    const limit =
+      query["limit"] === undefined
+        ? undefined
+        : z.coerce.number().parse(query["limit"]);
+    return context.json({
+      deliveries: await dependencies.repository.listDeliveries(ownerId, {
+        ...(status === undefined ? {} : { status }),
+        ...(limit === undefined ? {} : { limit }),
+      }),
+    });
   });
 }

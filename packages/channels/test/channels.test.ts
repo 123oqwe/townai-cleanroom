@@ -155,6 +155,33 @@ describe("notification channels", () => {
     ).resolves.toMatchObject({ status: "succeeded", sentAt: expect.any(Date) });
   });
 
+  it("lists delivery failures with owner scoping and status filtering", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/observability",
+      config: { headers: {} },
+    });
+    await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.failed",
+      idempotencyKey: "delivery-visible",
+      payload: { runId: "visible" },
+    });
+    const visible = await repository.listDeliveries(ownerId, {
+      status: "queued",
+    });
+    expect(visible).toHaveLength(1);
+    expect(visible[0]).toMatchObject({
+      ownerId,
+      eventType: "routine.failed",
+      status: "queued",
+    });
+    await expect(repository.listDeliveries(otherId)).resolves.toEqual([]);
+  });
+
   it("stops enqueueing after disable and prevents cross-owner access", async () => {
     const repository = createChannelRepository(sql);
     const channel = await repository.create({
