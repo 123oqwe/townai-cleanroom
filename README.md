@@ -38,8 +38,9 @@ control using your platform's secure secret-management workflow.
 
 For an allowlisted deployment, set `ACCESS_ALLOWLIST_EMAILS` to a comma-separated
 list of approved email addresses. Startup idempotently enables those rows in
-the server-side allowlist; it never disables or deletes unlisted rows. Leave it
-empty to preserve the database's existing allowlist state.
+the server-side allowlist and disables previously enabled rows that are no
+longer listed. It never deletes rows. Leave it empty to preserve the database's
+existing allowlist state.
 
 ## Implemented backend modules
 

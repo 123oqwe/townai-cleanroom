@@ -90,8 +90,9 @@ Cron execution is only effective after the deployment supplies `DATABASE_URL`,
 
 The API also accepts `ACCESS_ALLOWLIST_EMAILS` at deployment startup. It
 idempotently enables the listed email rows in `access_allowlist`; an empty value
-preserves database state, and unlisted rows are never disabled or deleted
-automatically. This is application-level access control and does not replace
+preserves database state. When a non-empty list is supplied, previously enabled
+rows not in that list are disabled but never deleted. This is application-level
+access control and does not replace
 Vercel project-level Deployment Protection.
 
 This deployment also contains the owner-scoped Routine Agent version-history
