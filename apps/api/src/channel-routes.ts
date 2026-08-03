@@ -30,6 +30,11 @@ const enqueueSchema = z
     payload: z.record(z.string(), z.json()),
   })
   .strict();
+const replaySchema = z
+  .object({
+    idempotencyKey: z.string().trim().min(1).max(500),
+  })
+  .strict();
 
 export function registerChannelRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -76,6 +81,34 @@ export function registerChannelRoutes(
       201,
     );
   });
+  app.post(
+    "/v1/notification-deliveries/:deliveryId/replay",
+    async (context) => {
+      const ownerId = context.get("identity").user.id;
+      const delivery = await dependencies.repository.replay({
+        ownerId,
+        deliveryId: asId<"notification-delivery">(
+          context.req.param("deliveryId"),
+        ),
+        ...replaySchema.parse(await context.req.json()),
+      });
+      if (dependencies.audit !== undefined) {
+        await dependencies.audit.append({
+          ownerId,
+          actorId: ownerId,
+          action: "notification.delivery.replay",
+          resourceType: "notification-delivery",
+          resourceId: delivery.id,
+          dedupeKey: `notification-replay:${delivery.id}`,
+          metadata: {
+            sourceDeliveryId: delivery.replayOfDeliveryId,
+            replayDeliveryId: delivery.id,
+          },
+        });
+      }
+      return context.json({ delivery }, 201);
+    },
+  );
   app.get("/v1/notification-deliveries", async (context) => {
     const ownerId = context.get("identity").user.id;
     const query = context.req.query();

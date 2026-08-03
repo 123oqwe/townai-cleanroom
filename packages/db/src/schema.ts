@@ -1834,6 +1834,7 @@ export const notificationDeliveries = pgTable(
     idempotencyKey: text("idempotency_key").notNull(),
     payload: jsonb("payload").notNull(),
     fingerprint: text("fingerprint").notNull(),
+    replayOfDeliveryId: uuid("replay_of_delivery_id"),
     status: text("status").notNull().default("queued"),
     attempts: integer("attempts").notNull().default(0),
     claimedBy: text("claimed_by"),
@@ -1851,9 +1852,18 @@ export const notificationDeliveries = pgTable(
       foreignColumns: [notificationChannels.ownerId, notificationChannels.id],
       name: "notification_deliveries_owner_channel_fk",
     }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.ownerId, table.replayOfDeliveryId],
+      foreignColumns: [table.ownerId, table.id],
+      name: "notification_deliveries_owner_replay_fk",
+    }).onDelete("restrict"),
     unique("notification_deliveries_owner_key_unique").on(
       table.ownerId,
       table.idempotencyKey,
+    ),
+    unique("notification_deliveries_owner_id_unique").on(
+      table.ownerId,
+      table.id,
     ),
     index("notification_deliveries_claim_idx").on(
       table.status,

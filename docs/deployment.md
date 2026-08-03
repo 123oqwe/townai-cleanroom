@@ -1088,3 +1088,12 @@ deployment remains `READY` and Vercel reported no runtime error clusters in the
 last seven days. The protected direct health URL still returns the expected
 Vercel SSO `302`; this verifies the access boundary, not database-backed API
 readiness.
+
+The notification dead-letter replay source state is deployed as
+`https://town-clear-current-98i8k4tbh-123oqwes-projects.vercel.app`, deployment
+`dpl_BLtU3mECZVziqsKSXzqj6M6XA1j2`, state `READY`, with Node.js Lambda runtime
+detection. The build downloaded 170 source files and completed successfully;
+Vercel reported no runtime errors in the following hour. The protected direct
+URL remains SSO-gated. This deployment includes migration
+`0041_notification_delivery_replays.sql`, the owner-authenticated replay API,
+and the Web delivery-record Replay action.

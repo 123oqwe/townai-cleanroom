@@ -49,6 +49,7 @@ export interface NotificationDelivery {
   attempts: number;
   nextAttemptAt: Date | null;
   lastError: string | null;
+  replayOfDeliveryId: Id<"notification-delivery"> | null;
   sentAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +66,7 @@ export class ChannelError extends Error {
       | "DELIVERY_NOT_FOUND"
       | "CHANNEL_DISABLED"
       | "DELIVERY_CONFLICT"
+      | "DELIVERY_NOT_REPLAYABLE"
       | "FORBIDDEN"
       | "INVALID_CHANNEL_CONFIG"
       | "CHANNEL_CREDENTIAL_UNAVAILABLE",
@@ -97,6 +99,7 @@ type DeliveryRow = {
   attempts: number;
   next_attempt_at: Date | null;
   last_error: string | null;
+  replay_of_delivery_id: string | null;
   claimed_by: string | null;
   claim_token: string | null;
   claimed_at: Date | null;
@@ -149,6 +152,13 @@ const enqueueInput = z
     eventType: z.string().trim().min(1).max(200),
     idempotencyKey: z.string().trim().min(1).max(500),
     payload: z.record(z.string(), z.json()),
+  })
+  .strict();
+const replayInput = z
+  .object({
+    ownerId: idSchema,
+    deliveryId: idSchema,
+    idempotencyKey: z.string().trim().min(1).max(500),
   })
   .strict();
 
@@ -234,6 +244,9 @@ function safeDelivery(row: DeliveryRow): NotificationDelivery {
     attempts: row.attempts,
     nextAttemptAt: row.next_attempt_at,
     lastError: row.last_error,
+    replayOfDeliveryId: row.replay_of_delivery_id
+      ? asId<"notification-delivery">(row.replay_of_delivery_id)
+      : null,
     sentAt: row.sent_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -391,6 +404,64 @@ export function createChannelRepository(
         return raced;
       }
       return delivery;
+    });
+    return safeDelivery(row);
+  }
+  async function replay(
+    input: z.input<typeof replayInput>,
+  ): Promise<NotificationDelivery> {
+    const value = replayInput.parse(input);
+    const row = await sql.begin(async (tx) => {
+      const [source] = await tx<DeliveryRow[]>`
+        select * from notification_deliveries
+        where owner_id=${value.ownerId} and id=${value.deliveryId}
+        for update`;
+      if (!source)
+        throw new ChannelError(
+          "DELIVERY_NOT_FOUND",
+          "The notification delivery was not found.",
+        );
+      const terminal =
+        source.status === "failed" &&
+        (source.next_attempt_at === null ||
+          source.attempts >= MAX_DELIVERY_ATTEMPTS);
+      if (!terminal)
+        throw new ChannelError(
+          "DELIVERY_NOT_REPLAYABLE",
+          "Only terminal failed deliveries can be replayed.",
+        );
+      const channel = await getChannel(
+        tx,
+        value.ownerId as Id<"user">,
+        source.channel_id as Id<"notification-channel">,
+      );
+      if (channel.status !== "active")
+        throw new ChannelError(
+          "CHANNEL_DISABLED",
+          "The notification channel is disabled.",
+        );
+      const [created] = await tx<DeliveryRow[]>`
+        insert into notification_deliveries
+          (id,owner_id,channel_id,event_type,idempotency_key,payload,fingerprint,replay_of_delivery_id)
+        values
+          (${newId<"notification-delivery">()},${value.ownerId},${source.channel_id},${source.event_type},${value.idempotencyKey},${tx.json(source.payload as never)},${source.fingerprint},${source.id})
+        on conflict (owner_id,idempotency_key) do nothing
+        returning *`;
+      if (created) return created;
+      const [existing] = await tx<DeliveryRow[]>`
+        select * from notification_deliveries
+        where owner_id=${value.ownerId} and idempotency_key=${value.idempotencyKey}
+        for update`;
+      if (
+        !existing ||
+        existing.fingerprint !== source.fingerprint ||
+        existing.replay_of_delivery_id !== source.id
+      )
+        throw new ChannelError(
+          "DELIVERY_CONFLICT",
+          "The replay idempotency key is already bound to a different delivery.",
+        );
+      return existing;
     });
     return safeDelivery(row);
   }
@@ -597,6 +668,7 @@ export function createChannelRepository(
     listDeliveries,
     disable,
     enqueue,
+    replay,
     claimNext,
     complete,
     deliverNext,

@@ -2717,10 +2717,28 @@ function renderChannelDeliveries(result) {
     ? deliveries
         .map(
           (delivery) =>
-            `<article class="channel-delivery-item"><div><strong>${escapeHtml(delivery.eventType)}</strong><small>${escapeHtml(delivery.status)} · ${escapeHtml(delivery.channelId.slice(0, 8))} · attempts ${escapeHtml(String(delivery.attempts))}</small></div><time>${escapeHtml(formatTime(new Date(delivery.createdAt)))}</time>${delivery.lastError ? `<p>${escapeHtml(delivery.lastError)}</p>` : ""}</article>`,
+            `<article class="channel-delivery-item" data-delivery-id="${escapeHtml(delivery.id)}"><div><strong>${escapeHtml(delivery.eventType)}</strong><small>${escapeHtml(delivery.status)} · ${escapeHtml(delivery.channelId.slice(0, 8))} · attempts ${escapeHtml(String(delivery.attempts))}</small></div><time>${escapeHtml(formatTime(new Date(delivery.createdAt)))}</time>${delivery.lastError ? `<p>${escapeHtml(delivery.lastError)}</p>` : ""}${delivery.status === "failed" && (delivery.nextAttemptAt === null || delivery.attempts >= 10) ? '<button class="quiet-button channel-delivery-replay" type="button">Replay</button>' : ""}</article>`,
         )
         .join("")
     : '<p class="harness-empty">No delivery records match this filter.</p>';
+}
+async function replayChannelDelivery(card) {
+  const deliveryId = card?.dataset.deliveryId;
+  if (!deliveryId) return;
+  const button = card.querySelector(".channel-delivery-replay");
+  if (button) button.disabled = true;
+  try {
+    await apiJson(`/v1/notification-deliveries/${deliveryId}/replay`, {
+      idempotencyKey: `delivery-replay:${deliveryId}:${crypto.randomUUID()}`,
+    });
+    await Promise.all([loadChannelDeliveries(), loadChannelTimeline()]);
+  } catch (cause) {
+    const error = $("#channel-error");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not replay delivery.";
+    error.hidden = false;
+    if (button) button.disabled = false;
+  }
 }
 async function loadChannelDeliveries() {
   if (!state.token) return;
@@ -3888,6 +3906,11 @@ $("#channel-delivery-status").addEventListener(
   "change",
   () => void loadChannelDeliveries(),
 );
+$("#channel-delivery-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".channel-delivery-replay");
+  const card = event.target.closest(".channel-delivery-item");
+  if (button && card) void replayChannelDelivery(card);
+});
 $("#channel-add-toggle").addEventListener("click", () => {
   $("#channel-add-form").hidden = !$("#channel-add-form").hidden;
   if (!$("#channel-add-form").hidden) $("#channel-address").focus();

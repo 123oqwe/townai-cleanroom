@@ -520,4 +520,82 @@ describe("notification channels", () => {
       null,
     );
   });
+
+  it("replays terminal failures into a new idempotent delivery", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/replay",
+      config: { headers: {} },
+    });
+    const source = await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.failed",
+      idempotencyKey: "delivery-terminal",
+      payload: { runId: "terminal" },
+    });
+    await sql`
+      update notification_deliveries
+      set status='failed', attempts=10, next_attempt_at=null,
+          last_error='CHANNEL_HTTP_401'
+      where owner_id=${ownerId} and id=${source.id}
+    `;
+    const replay = await repository.replay({
+      ownerId,
+      deliveryId: source.id,
+      idempotencyKey: "delivery-terminal-replay",
+    });
+    expect(replay).toMatchObject({
+      ownerId,
+      channelId: channel.id,
+      status: "queued",
+      attempts: 0,
+      replayOfDeliveryId: source.id,
+    });
+    await expect(
+      repository.replay({
+        ownerId,
+        deliveryId: source.id,
+        idempotencyKey: "delivery-terminal-replay",
+      }),
+    ).resolves.toMatchObject({ id: replay.id });
+    await expect(
+      repository.replay({
+        ownerId: otherId,
+        deliveryId: source.id,
+        idempotencyKey: "other-owner-replay",
+      }),
+    ).rejects.toMatchObject({ code: "DELIVERY_NOT_FOUND" });
+  });
+
+  it("does not bypass the normal retry schedule when replaying", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/replay-pending",
+      config: { headers: {} },
+    });
+    const pending = await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.failed",
+      idempotencyKey: "delivery-pending-retry",
+      payload: { runId: "pending" },
+    });
+    await sql`
+      update notification_deliveries
+      set status='failed', attempts=1, next_attempt_at=now() + interval '1 hour'
+      where owner_id=${ownerId} and id=${pending.id}
+    `;
+    await expect(
+      repository.replay({
+        ownerId,
+        deliveryId: pending.id,
+        idempotencyKey: "delivery-pending-replay",
+      }),
+    ).rejects.toMatchObject({ code: "DELIVERY_NOT_REPLAYABLE" });
+  });
 });

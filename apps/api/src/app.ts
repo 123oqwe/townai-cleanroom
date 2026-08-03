@@ -771,6 +771,7 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/channels", authenticate);
       app.use("/v1/channels/*", authenticate);
       app.use("/v1/notification-deliveries", authenticate);
+      app.use("/v1/notification-deliveries/*", authenticate);
       registerChannelRoutes(app, {
         repository: dependencies.channelRepository,
         ...(dependencies.operationsRepository === undefined

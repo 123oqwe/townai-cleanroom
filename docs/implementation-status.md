@@ -238,6 +238,14 @@ response and shows “Harness ready”, “Harness queued”, or “data only”
 connected database is not presented as an executable AI runtime when the
 Responses provider or worker is unconfigured.
 
+Notification recovery now has an explicit dead-letter replay boundary. A
+terminal failed delivery (non-retryable or exhausted) can be replayed only by
+its authenticated owner into a new queued delivery linked by
+`replay_of_delivery_id`. The source failure remains immutable, the new request
+uses its own idempotency key, and the replay is recorded in the operations audit
+timeline. Non-terminal failures, disabled channels, and cross-owner requests
+remain rejected.
+
 The Harness dialog now consumes the same readiness contract before creating a
 thread or queuing a turn. When the worker is not configured, the composer and
 thread controls are disabled and the UI explains that data/settings remain

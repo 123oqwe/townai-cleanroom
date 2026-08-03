@@ -17,6 +17,7 @@ import {
 import postgres, { type Sql } from "postgres";
 
 import { createApp } from "../src/app.js";
+import { createChannelRepository } from "@town/channels";
 
 let sql: Sql;
 
@@ -75,7 +76,11 @@ async function fixture() {
   });
 
   return {
-    app: createApp({ identityService, accountRepository }),
+    app: createApp({
+      identityService,
+      accountRepository,
+      channelRepository: createChannelRepository(sql),
+    }),
     identityService,
     owner,
   };
@@ -220,6 +225,20 @@ describe("protected identity API", () => {
     });
 
     expect(response.status).toBe(401);
+  });
+
+  it("protects notification delivery replay routes", async () => {
+    const { app } = await fixture();
+    const response = await app.request(
+      "/v1/notification-deliveries/01900000-0000-7000-8000-000000000000/replay",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ idempotencyKey: "replay-unauthenticated" }),
+      },
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED" });
   });
 
   it("lets the authenticated user revoke the current session", async () => {

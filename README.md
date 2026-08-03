@@ -79,6 +79,9 @@ existing allowlist state.
   and Slack use provider HTTP requests with `credentialRef` values resolved
   from the deployment-only `CHANNEL_CREDENTIALS_JSON` secret map. Credentials
   are never persisted in channel rows.
+  Terminal failed deliveries can be replayed through a new idempotent queued
+  delivery linked by `replay_of_delivery_id`; replay never mutates the failed
+  record and requires the authenticated owner plus an active channel.
 - Owner-scoped MCP server metadata under `/v1/mcp-servers` with HTTPS URL,
   `streamable_http`/`sse` transport, optional credential reference, and
   revision-checked disable. Servers can be explicitly enabled per immutable
