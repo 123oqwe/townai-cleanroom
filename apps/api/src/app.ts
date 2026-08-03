@@ -410,6 +410,7 @@ export function createApp(dependencies?: AppDependencies) {
         [
           "IDEMPOTENCY_CONFLICT",
           "RUN_STATE_CONFLICT",
+          "TOOL_STATE_CONFLICT",
           "APPROVAL_STATE_CONFLICT",
           "APPROVAL_REVISION_CONFLICT",
         ].includes(error.code))

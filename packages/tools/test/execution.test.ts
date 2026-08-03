@@ -215,6 +215,66 @@ describe("durable ToolCall proposals and approvals", () => {
     ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
   });
 
+  it("starts and completes an approved ToolCall under the active lease", async () => {
+    const seeded = await fixture();
+    const execution = createToolExecutionRepository(sql);
+    const proposed = await execution.propose({
+      ownerId,
+      sessionId: seeded.submission.session.id,
+      runId: seeded.submission.run.id,
+      leaseToken: seeded.leaseToken,
+      agentVersionId: seeded.agent.activeVersion.id,
+      toolDefinitionId: seeded.tool.id,
+      stepKey: "durable-mcp-call",
+      idempotencyKey: "durable-mcp-1",
+      arguments: { value: "frozen" },
+      policy: {
+        sessionMode: "allow_all",
+        routineMode: "autonomous",
+        perToolOverride: null,
+        sideEffect: "external_write",
+        dataSensitivity: "private",
+        inputTrust: "untrusted_data",
+        targetIsSelf: false,
+        targetIsTrusted: false,
+        accountBound: true,
+      },
+    });
+    if (proposed.approval === null) throw new Error("Expected approval.");
+    const approved = await execution.decideApproval({
+      ownerId,
+      approvalId: proposed.approval.id,
+      expectedRevision: proposed.approval.revision,
+      decidedBy: ownerId,
+      decision: "approve",
+    });
+    await expect(
+      execution.start({
+        ownerId,
+        toolCallId: approved.toolCall.id,
+        leaseToken: seeded.leaseToken,
+      }),
+    ).resolves.toMatchObject({ status: "executing" });
+    await expect(
+      execution.succeed({
+        ownerId,
+        toolCallId: approved.toolCall.id,
+        leaseToken: seeded.leaseToken,
+        result: { content: [{ type: "text", text: "remote result" }] },
+      }),
+    ).resolves.toMatchObject({
+      status: "succeeded",
+      result: { content: [{ text: "remote result" }] },
+    });
+    const events = await sql<{ kind: string }[]>`
+      select kind from session_events
+      where session_id=${seeded.submission.session.id}
+      order by sequence
+    `;
+    expect(events.map(({ kind }) => kind)).toContain("tool_started");
+    expect(events.map(({ kind }) => kind)).toContain("tool_succeeded");
+  });
+
   it("approves the frozen action with CAS and rejects stale decisions", async () => {
     const seeded = await fixture();
     const execution = createToolExecutionRepository(sql);

@@ -135,6 +135,10 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
   status: ToolCallStatus;
   approvalRequestId: Id<"approval-request"> | null;
+  result: Record<string, unknown> | null;
+  errorCode: string | null;
+  startedAt: Date | null;
+  finishedAt: Date | null;
   createdAt: Date;
 }
 

@@ -40,6 +40,7 @@ export class ToolExecutionError extends Error {
       | "ACCOUNT_NOT_FOUND"
       | "TOOL_BINDING_NOT_FOUND"
       | "TOOL_CALL_NOT_FOUND"
+      | "TOOL_STATE_CONFLICT"
       | "APPROVAL_NOT_FOUND"
       | "IDEMPOTENCY_CONFLICT"
       | "APPROVAL_STATE_CONFLICT"
@@ -65,6 +66,10 @@ interface ToolCallRow {
   arguments: Record<string, unknown>;
   status: ToolCall["status"];
   approval_request_id: string | null;
+  result: Record<string, unknown> | null;
+  error_code: string | null;
+  started_at: Date | null;
+  finished_at: Date | null;
   created_at: Date;
 }
 
@@ -101,6 +106,10 @@ function safeCall(row: ToolCallRow): ToolCall {
       row.approval_request_id === null
         ? null
         : asId<"approval-request">(row.approval_request_id),
+    result: row.result,
+    errorCode: row.error_code,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
     createdAt: row.created_at,
   };
 }
@@ -164,7 +173,8 @@ export function createToolExecutionRepository(sql: Sql) {
     const [row] = await sql<ToolCallRow[]>`
       select id, owner_id, session_id, run_id, agent_version_id,
         tool_definition_id, policy_decision_id, step_key, argument_hash,
-        request_fingerprint, arguments, status, approval_request_id, created_at
+        request_fingerprint, arguments, status, approval_request_id, result,
+        error_code, started_at, finished_at, created_at
       from tool_calls where owner_id = ${ownerId} and id = ${toolCallId}
     `;
     if (row === undefined) {
@@ -392,7 +402,8 @@ export function createToolExecutionRepository(sql: Sql) {
       const [existing] = await transaction<ToolCallRow[]>`
         select id, owner_id, session_id, run_id, agent_version_id,
         tool_definition_id, policy_decision_id, step_key, argument_hash,
-          request_fingerprint, arguments, status, approval_request_id, created_at
+          request_fingerprint, arguments, status, approval_request_id, result,
+          error_code, started_at, finished_at, created_at
         from tool_calls
         where owner_id = ${value.ownerId} and run_id = ${value.runId}
           and step_key = ${value.stepKey}
@@ -595,7 +606,8 @@ export function createToolExecutionRepository(sql: Sql) {
       const [call] = await transaction<ToolCallRow[]>`
         select id, owner_id, session_id, run_id, agent_version_id,
           tool_definition_id, policy_decision_id, step_key, argument_hash,
-          request_fingerprint, arguments, status, approval_request_id, created_at
+          request_fingerprint, arguments, status, approval_request_id, result,
+          error_code, started_at, finished_at, created_at
         from tool_calls where owner_id = ${value.ownerId} and id = ${approval.tool_call_id}
         for update
       `;
@@ -651,6 +663,212 @@ export function createToolExecutionRepository(sql: Sql) {
         asId<"tool-call">(result.callId),
       ),
     };
+  }
+
+  async function start(input: {
+    ownerId: Id<"user">;
+    toolCallId: Id<"tool-call">;
+    leaseToken: string;
+  }): Promise<ToolCall> {
+    const value = z
+      .object({
+        ownerId: idSchema,
+        toolCallId: idSchema,
+        leaseToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+      })
+      .strict()
+      .parse(input);
+    await sql.begin(async (transaction) => {
+      const [call] = await transaction<ToolCallRow[]>`
+        select id, owner_id, session_id, run_id, agent_version_id,
+          tool_definition_id, policy_decision_id, step_key, argument_hash,
+          request_fingerprint, arguments, status, approval_request_id, result,
+          error_code, started_at, finished_at, created_at
+        from tool_calls
+        where owner_id=${value.ownerId} and id=${value.toolCallId}
+        for update
+      `;
+      if (!call)
+        throw new ToolExecutionError(
+          "TOOL_CALL_NOT_FOUND",
+          "The ToolCall was not found.",
+        );
+      const lease = await verifyRuntimeLeaseInTransaction(transaction, {
+        runId: asId<"session-run">(call.run_id),
+        leaseToken: value.leaseToken,
+      });
+      if (
+        lease.owner_id !== value.ownerId ||
+        lease.session_id !== call.session_id
+      )
+        throw new ToolExecutionError(
+          "TOOL_CALL_NOT_FOUND",
+          "The ToolCall was not found.",
+        );
+      if (call.status === "executing") return;
+      if (call.status !== "allowed" && call.status !== "approved")
+        throw new ToolExecutionError(
+          "TOOL_STATE_CONFLICT",
+          "The ToolCall is not approved for execution.",
+        );
+      await transaction`
+        update tool_calls set status='executing', started_at=coalesce(started_at, clock_timestamp())
+        where owner_id=${value.ownerId} and id=${value.toolCallId}
+      `;
+      await appendToolEvents(transaction, {
+        ownerId: value.ownerId,
+        sessionId: call.session_id,
+        runId: call.run_id,
+        events: [
+          {
+            kind: "tool_started",
+            payload: {
+              toolCallId: call.id,
+              toolDefinitionId: call.tool_definition_id,
+            },
+          },
+        ],
+      });
+    });
+    return getCall(
+      asId<"user">(value.ownerId),
+      asId<"tool-call">(value.toolCallId),
+    );
+  }
+
+  async function succeed(input: {
+    ownerId: Id<"user">;
+    toolCallId: Id<"tool-call">;
+    leaseToken: string;
+    result: Record<string, unknown>;
+  }): Promise<ToolCall> {
+    const value = z
+      .object({
+        ownerId: idSchema,
+        toolCallId: idSchema,
+        leaseToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+        result: jsonObjectSchema,
+      })
+      .strict()
+      .parse(input);
+    await sql.begin(async (transaction) => {
+      const [call] = await transaction<ToolCallRow[]>`
+        select id, owner_id, session_id, run_id, agent_version_id,
+          tool_definition_id, policy_decision_id, step_key, argument_hash,
+          request_fingerprint, arguments, status, approval_request_id, result,
+          error_code, started_at, finished_at, created_at
+        from tool_calls where owner_id=${value.ownerId} and id=${value.toolCallId}
+        for update
+      `;
+      if (!call)
+        throw new ToolExecutionError(
+          "TOOL_CALL_NOT_FOUND",
+          "The ToolCall was not found.",
+        );
+      const lease = await verifyRuntimeLeaseInTransaction(transaction, {
+        runId: asId<"session-run">(call.run_id),
+        leaseToken: value.leaseToken,
+      });
+      if (
+        lease.owner_id !== value.ownerId ||
+        lease.session_id !== call.session_id
+      )
+        throw new ToolExecutionError(
+          "TOOL_CALL_NOT_FOUND",
+          "The ToolCall was not found.",
+        );
+      if (call.status === "succeeded") return;
+      if (call.status !== "executing")
+        throw new ToolExecutionError(
+          "TOOL_STATE_CONFLICT",
+          "The ToolCall is not executing.",
+        );
+      await transaction`
+        update tool_calls set status='succeeded', result=${transaction.json(value.result)},
+          error_code=null, finished_at=clock_timestamp()
+        where owner_id=${value.ownerId} and id=${value.toolCallId}
+      `;
+      await appendToolEvents(transaction, {
+        ownerId: value.ownerId,
+        sessionId: call.session_id,
+        runId: call.run_id,
+        events: [{ kind: "tool_succeeded", payload: { toolCallId: call.id } }],
+      });
+    });
+    return getCall(
+      asId<"user">(value.ownerId),
+      asId<"tool-call">(value.toolCallId),
+    );
+  }
+
+  async function fail(input: {
+    ownerId: Id<"user">;
+    toolCallId: Id<"tool-call">;
+    leaseToken: string;
+    errorCode: string;
+  }): Promise<ToolCall> {
+    const value = z
+      .object({
+        ownerId: idSchema,
+        toolCallId: idSchema,
+        leaseToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+        errorCode: z.string().trim().min(1).max(200),
+      })
+      .strict()
+      .parse(input);
+    await sql.begin(async (transaction) => {
+      const [call] = await transaction<ToolCallRow[]>`
+        select id, owner_id, session_id, run_id, agent_version_id,
+          tool_definition_id, policy_decision_id, step_key, argument_hash,
+          request_fingerprint, arguments, status, approval_request_id, result,
+          error_code, started_at, finished_at, created_at
+        from tool_calls where owner_id=${value.ownerId} and id=${value.toolCallId}
+        for update
+      `;
+      if (!call)
+        throw new ToolExecutionError(
+          "TOOL_CALL_NOT_FOUND",
+          "The ToolCall was not found.",
+        );
+      const lease = await verifyRuntimeLeaseInTransaction(transaction, {
+        runId: asId<"session-run">(call.run_id),
+        leaseToken: value.leaseToken,
+      });
+      if (
+        lease.owner_id !== value.ownerId ||
+        lease.session_id !== call.session_id
+      )
+        throw new ToolExecutionError(
+          "TOOL_CALL_NOT_FOUND",
+          "The ToolCall was not found.",
+        );
+      if (call.status === "failed") return;
+      if (call.status !== "executing")
+        throw new ToolExecutionError(
+          "TOOL_STATE_CONFLICT",
+          "The ToolCall is not executing.",
+        );
+      await transaction`
+        update tool_calls set status='failed', error_code=${value.errorCode},
+          finished_at=clock_timestamp()
+        where owner_id=${value.ownerId} and id=${value.toolCallId}
+      `;
+      await appendToolEvents(transaction, {
+        ownerId: value.ownerId,
+        sessionId: call.session_id,
+        runId: call.run_id,
+        events: [
+          {
+            kind: "tool_failed",
+            payload: { toolCallId: call.id, errorCode: value.errorCode },
+          },
+        ],
+      });
+    });
+    return getCall(
+      asId<"user">(value.ownerId),
+      asId<"tool-call">(value.toolCallId),
+    );
   }
 
   async function expireApproval(input: {
@@ -711,7 +929,8 @@ export function createToolExecutionRepository(sql: Sql) {
       const [call] = await transaction<ToolCallRow[]>`
         select id, owner_id, session_id, run_id, agent_version_id,
           tool_definition_id, policy_decision_id, step_key, argument_hash,
-          request_fingerprint, arguments, status, approval_request_id, created_at
+          request_fingerprint, arguments, status, approval_request_id, result,
+          error_code, started_at, finished_at, created_at
         from tool_calls where owner_id = ${value.ownerId} and id = ${approval.tool_call_id}
         for update
       `;
@@ -753,7 +972,16 @@ export function createToolExecutionRepository(sql: Sql) {
     };
   }
 
-  return { getCall, getApproval, propose, decideApproval, expireApproval };
+  return {
+    getCall,
+    getApproval,
+    propose,
+    decideApproval,
+    expireApproval,
+    start,
+    succeed,
+    fail,
+  };
 }
 
 export type ToolExecutionRepository = ReturnType<

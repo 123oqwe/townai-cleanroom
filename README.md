@@ -7,6 +7,8 @@ Town Clean-Room is an evidence-driven implementation of a durable personal AI op
 - Observed behavior and clean-room engineering choices remain explicitly distinguishable.
 - Product paths use real persistence and explicit `not_configured` states; they never invent dashboard data.
 - External side effects require policy evaluation, idempotency, and an immutable execution record.
+- Durable ToolCalls now have lease-checked `allowed/approved → executing → succeeded/failed`
+  transitions with immutable session events and bounded result/error fields.
 - Reverse-engineering captures, personal data, credentials, and investigation notes never enter this repository.
 - Each module is verified and pushed independently.
 
