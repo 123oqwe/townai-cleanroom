@@ -351,7 +351,12 @@ export function createApp(dependencies?: AppDependencies) {
       );
     }
     if (error instanceof OperationsError) {
-      const status = error.code === "AUDIT_CONFLICT" ? 409 : 400;
+      const status =
+        error.code === "AUDIT_CONFLICT"
+          ? 409
+          : error.code === "RATE_LIMITED"
+            ? 429
+            : 400;
       return context.json(
         {
           type: "https://town.local/problems/invalid-request",

@@ -460,4 +460,6 @@ The observed unauthenticated web-vital path now has a separate
 opaque client session key, bounded event metadata, and an optional idempotency
 key; it stores no IP, cookie, credential, or user-agent identity and returns a
 minimal receipt. Owner analytics remain authenticated and isolated. Town's
-private downstream analytics transport and event taxonomy are not claimed.
+private downstream analytics transport and event taxonomy are not claimed. The
+public session is additionally limited to 100 writes per rolling minute in
+the durable store and returns `429` after the bound.

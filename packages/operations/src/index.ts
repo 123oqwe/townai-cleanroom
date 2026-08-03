@@ -81,7 +81,8 @@ export interface OperationSummary {
 }
 export class OperationsError extends Error {
   constructor(
-    readonly code: "AUDIT_CONFLICT" | "INVALID_CURSOR" | "INVALID_METADATA",
+    readonly code:
+      "AUDIT_CONFLICT" | "INVALID_CURSOR" | "INVALID_METADATA" | "RATE_LIMITED",
     message: string,
   ) {
     super(message);
@@ -434,6 +435,16 @@ export function createOperationsRepository(sql: Sql) {
     input: z.input<typeof publicAnalyticsSchema>,
   ): Promise<PublicAnalyticsReceipt> {
     const value = publicAnalyticsSchema.parse(input);
+    const [rate] = await sql<{ count: number }[]>`
+      select count(*)::int as count
+      from public_analytics_events
+      where session_key=${value.sessionKey}
+        and created_at >= now() - interval '1 minute'`;
+    if ((rate?.count ?? 0) >= 100)
+      throw new OperationsError(
+        "RATE_LIMITED",
+        "The public analytics session exceeded its write rate limit.",
+      );
     const metadata = safeMetadata(value.metadata);
     const requestFingerprint = publicAnalyticsFingerprint({
       eventName: value.eventName,

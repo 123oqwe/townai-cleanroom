@@ -23,6 +23,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await sql`truncate table users cascade`;
+  await sql`truncate table public_analytics_events`;
   ownerId = newId<"user">();
   otherId = newId<"user">();
   await sql`insert into users (id,email) values (${ownerId},'ops-owner@example.invalid'),(${otherId},'ops-other@example.invalid')`;
@@ -279,5 +280,24 @@ describe("operations audit and summary", () => {
         eventName: "web_vital_recorded",
       }),
     ).rejects.toThrow();
+  });
+
+  it("rate-limits a public analytics session in the durable store", async () => {
+    const repository = createOperationsRepository(sql);
+    for (let index = 0; index < 100; index += 1)
+      await repository.appendPublicAnalytics({
+        sessionKey: "rate-limited-session",
+        eventName: "web_vital_recorded",
+        dedupeKey: `vital-${index}`,
+        metadata: { metric: "FCP", value: index },
+      });
+    await expect(
+      repository.appendPublicAnalytics({
+        sessionKey: "rate-limited-session",
+        eventName: "web_vital_recorded",
+        dedupeKey: "vital-100",
+        metadata: { metric: "FCP", value: 100 },
+      }),
+    ).rejects.toMatchObject({ code: "RATE_LIMITED" });
   });
 });
