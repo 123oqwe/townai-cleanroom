@@ -1703,6 +1703,39 @@ async function addRoutineTrigger() {
     error.hidden = false;
   }
 }
+async function queueRoutineExternalTrigger() {
+  if (!selectedRoutineId) return;
+  const error = $("#routine-external-error");
+  let data;
+  try {
+    data = JSON.parse($("#routine-external-data").value || "{}");
+  } catch {
+    error.textContent = "Event data must be valid JSON.";
+    error.hidden = false;
+    return;
+  }
+  if (!data || Array.isArray(data) || typeof data !== "object") {
+    error.textContent = "Event data must be a JSON object.";
+    error.hidden = false;
+    return;
+  }
+  try {
+    const result = await apiJson(
+      `/v1/routines/${selectedRoutineId}/trigger`,
+      { kind: $("#routine-external-kind").value, data },
+      { "Idempotency-Key": crypto.randomUUID() },
+    );
+    error.textContent = `Queued ${result.run.state}.`;
+    error.hidden = false;
+    await loadRoutineRuns();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error
+        ? cause.message
+        : "Could not queue external trigger.";
+    error.hidden = false;
+  }
+}
 async function loadRoutineEmailAccounts() {
   const select = $("#routine-email-account");
   if (!state.token || !select) return;
@@ -3559,6 +3592,10 @@ $("#routine-trigger-list").addEventListener("click", (event) => {
 $("#routine-trigger-add-button").addEventListener(
   "click",
   () => void addRoutineTrigger(),
+);
+$("#routine-external-send").addEventListener(
+  "click",
+  () => void queueRoutineExternalTrigger(),
 );
 $("#routine-email-ingest-button").addEventListener(
   "click",

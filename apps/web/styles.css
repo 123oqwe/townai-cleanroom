@@ -76,6 +76,23 @@
   gap: 6px;
   margin-top: 0.8rem;
 }
+.routine-external-trigger {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.routine-external-trigger label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.routine-external-trigger input,
+.routine-external-trigger select,
+.routine-external-trigger textarea {
+  width: 100%;
+}
 .routine-trigger-add select,
 .routine-trigger-add textarea {
   width: 100%;

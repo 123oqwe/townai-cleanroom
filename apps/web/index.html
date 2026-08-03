@@ -1124,6 +1124,32 @@
               hidden
             ></p>
           </div>
+          <div class="routine-external-trigger">
+            <label for="routine-external-kind">Queue external trigger</label>
+            <select id="routine-external-kind">
+              <option value="calendar">Calendar</option>
+              <option value="webhook">Webhook</option>
+              <option value="voice_transcribed">Voice transcribed</option>
+              <option value="slack_mention">Slack mention</option>
+              <option value="incoming_email">Incoming email</option>
+            </select>
+            <label for="routine-external-data">Event data JSON</label
+            ><textarea id="routine-external-data" rows="3" spellcheck="false">
+{}</textarea>
+            <button
+              class="quiet-button"
+              id="routine-external-send"
+              type="button"
+            >
+              Queue event
+            </button>
+            <p
+              class="dialog-error"
+              id="routine-external-error"
+              role="alert"
+              hidden
+            ></p>
+          </div>
           <div class="routine-email-ingest">
             <label for="routine-email-account"
               >Ingest Gmail into this routine</label
