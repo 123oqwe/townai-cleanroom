@@ -402,6 +402,14 @@ protected direct URL is
 tables, rather than approximating pagination in application memory. An
 unauthenticated curl receives the Vercel SSO `302` protection redirect.
 
+The Notifications UI now renders the server-truth delivery/audit timeline in
+deployment `dpl_94f2M1GWdEJzjXvfbJeaxeyhhiuT`, built from commit `4d33270`. Its
+protected direct URL is
+`https://town-clear-current-953bgiapm-123oqwes-projects.vercel.app`, state
+`READY`; the panel shows persisted status, attempts, errors, and timestamps,
+and renders explicit empty/unavailable states. An unauthenticated curl receives
+the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
