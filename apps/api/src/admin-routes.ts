@@ -149,6 +149,63 @@ export function registerAdminRoutes(
       })),
     });
   });
+  app.get("/v1/admin/teams/:squareId", async (context) => {
+    const squareId = userIdSchema.parse(context.req.param("squareId"));
+    const [square] = await dependencies.sql<
+      {
+        id: string;
+        owner_id: string;
+        owner_email: string;
+        name: string;
+        slug: string;
+        description: string;
+        status: string;
+        created_at: Date;
+        updated_at: Date;
+        active_members: number;
+        invited_members: number;
+        suspended_members: number;
+        policy_mode: string | null;
+        policy_revision: number | null;
+      }[]
+    >`
+      select s.id,s.owner_id,u.email as owner_email,s.name,s.slug,s.description,
+        s.status,s.created_at,s.updated_at,
+        (select count(*)::int from square_memberships m where m.square_id=s.id and m.status='active') as active_members,
+        (select count(*)::int from square_memberships m where m.square_id=s.id and m.status='invited') as invited_members,
+        (select count(*)::int from square_memberships m where m.square_id=s.id and m.status='suspended') as suspended_members,
+        p.default_mode as policy_mode,p.revision as policy_revision
+      from squares s
+      join users u on u.id=s.owner_id
+      left join square_policies p on p.square_id=s.id and p.owner_id=s.owner_id
+      where s.id=${squareId}
+    `;
+    if (!square) return context.json({ code: "SQUARE_NOT_FOUND" }, 404);
+    return context.json({
+      square: {
+        id: square.id,
+        name: square.name,
+        slug: square.slug,
+        description: square.description,
+        status: square.status,
+        createdAt: square.created_at,
+        updatedAt: square.updated_at,
+      },
+      owner: { id: square.owner_id, email: square.owner_email },
+      membershipCounts: {
+        active: square.active_members,
+        invited: square.invited_members,
+        suspended: square.suspended_members,
+      },
+      policy:
+        square.policy_mode === null
+          ? null
+          : {
+              defaultMode: square.policy_mode,
+              revision: square.policy_revision,
+            },
+    });
+  });
   app.get("/v1/admin/billing-reconciliation/:userId", async (context) => {
     const userId = userIdSchema.parse(context.req.param("userId"));
     const [user] = await dependencies.sql<

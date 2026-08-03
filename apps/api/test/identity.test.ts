@@ -9,6 +9,7 @@ import {
   it,
 } from "vitest";
 import { runMigrations } from "@town/db";
+import { newId } from "@town/contracts";
 import {
   createAccountRepository,
   createCredentialCipher,
@@ -317,6 +318,27 @@ describe("protected identity API", () => {
           credentialPresent: true,
         },
       ],
+    });
+
+    const squareId = newId<"square">();
+    await sql`
+      insert into squares (id,owner_id,name,slug,description)
+      values (${squareId},${other.user.id},'Admin test team','admin-test-team','Safe team detail')
+    `;
+    await sql`
+      insert into square_memberships (square_id,user_id,owner_id,role,status)
+      values (${squareId},${other.user.id},${other.user.id},'owner','active')
+    `;
+    const teamResponse = await app.request(`/v1/admin/teams/${squareId}`, {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    const team = await teamResponse.json();
+    expect(teamResponse.status).toBe(200);
+    expect(team).toMatchObject({
+      square: { id: squareId, slug: "admin-test-team", status: "active" },
+      owner: { id: other.user.id, email: other.user.email },
+      membershipCounts: { active: 1, invited: 0, suspended: 0 },
+      policy: null,
     });
 
     const denied = await app.request(

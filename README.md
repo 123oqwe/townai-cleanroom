@@ -153,6 +153,9 @@ existing allowlist state.
 - `/v1/admin/users/:userId` exposes a safe administrative user projection,
   resource counts, and connected-account metadata without credentials or
   private knowledge content.
+- `/v1/admin/teams/:squareId` exposes a safe Square/team projection, owner
+  identity, membership-state counts, and policy mode/revision to the same
+  administrator boundary; it does not grant team access or expose secrets.
 - Owner-scoped Suggestions/Need-to-Know records with source provenance,
   fingerprint deduplication, expiry, and optimistic dismiss/convert actions;
   converting a suggestion atomically creates a Task thread and source

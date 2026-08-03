@@ -270,6 +270,11 @@ identity projection, active resource counts, and connected-account metadata.
 Credential material and private knowledge content remain excluded by contract;
 the endpoint is unavailable to users outside the deployment admin allowlist.
 
+The corresponding admin team surface now exposes
+`GET /v1/admin/teams/:squareId` with a safe Square projection, owner identity,
+membership-state counts, and policy mode/revision. It is read-only and does not
+grant membership or expose connected-account credentials.
+
 The Harness dialog now consumes the same readiness contract before creating a
 thread or queuing a turn. When the worker is not configured, the composer and
 thread controls are disabled and the UI explains that data/settings remain
