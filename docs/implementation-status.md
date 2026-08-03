@@ -38,8 +38,8 @@ source row does not imply that an external provider is configured.
 
 ## Verification snapshot
 
-At the latest full verification on 2026-08-04 (after allowlisted admin Agent
-health and Billing reconciliation), the repository passed source-only policy,
+At the latest full verification on 2026-08-04 (after Harness routing, bounded
+knowledge context, Routine Step Executor, and Wiki upkeep), the repository passed source-only policy,
 formatting, lint, typecheck,
 all 67 test files (312 tests),
 and all workspace builds. The current protected UI deployment is recorded in
@@ -47,10 +47,11 @@ and all workspace builds. The current protected UI deployment is recorded in
 the overall product goal complete while the production API and project-level
 deployment protection remain unverified.
 
-The full Vitest run used Testcontainers PostgreSQL and completed in about 242
-seconds with 67/67 files and 312/312 tests passing. The repository inventory
-therefore now has a completed full-suite evidence point rather than only a
-descriptive test count.
+The full Vitest run used Testcontainers PostgreSQL and completed in about 255
+seconds with 70/70 files and 322/322 tests passing. The repository inventory
+therefore now has a fresh completed full-suite evidence point covering the
+Harness model router, bounded knowledge context, Routine Step Executor, and
+Wiki upkeep scanner rather than only a descriptive test count.
 
 Routine version history is now exposed through the protected
 `GET /v1/routines/:routineId/versions` route and the Routine dialog's immutable
