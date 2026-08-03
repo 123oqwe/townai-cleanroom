@@ -5,6 +5,7 @@ import { asId, idSchema, newId, type Id } from "@town/contracts";
 
 export * from "./step-repository.js";
 export * from "./result-repository.js";
+export * from "./catalog.js";
 
 const cronSchema = z
   .string()

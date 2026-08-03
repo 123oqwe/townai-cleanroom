@@ -7,6 +7,7 @@ import type { SessionRepository } from "@town/runtime";
 import type { ThreadRepository } from "@town/agents";
 import type { GoogleApiClient } from "@town/google";
 import {
+  listRoutineTemplates,
   routineTriggerKindSchema,
   type RoutineRepository,
   type RoutineResultRepository,
@@ -105,6 +106,10 @@ export function registerRoutineRoutes(
       routines: await dependencies.repository.list(ownerId),
     });
   });
+
+  app.get("/v1/routine-templates", (context) =>
+    context.json({ templates: listRoutineTemplates() }),
+  );
 
   app.post("/v1/routine-runs/:runId/replay", async (context) => {
     const ownerId = context.get("identity").user.id;
