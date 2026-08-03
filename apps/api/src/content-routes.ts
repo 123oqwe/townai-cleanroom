@@ -12,6 +12,13 @@ import { acceptsHtml, contentShareHtml } from "./public-share-html.js";
 
 export interface ContentDependencies {
   repository: ContentRepository;
+  storage?: ContentStorage;
+}
+export interface ContentStorage {
+  read(key: string): Promise<{
+    body: Uint8Array;
+    contentType?: string;
+  } | null>;
 }
 const payload = z
   .object({
@@ -138,6 +145,28 @@ export function registerContentRoutes(
         ownerId,
         asId<"content">(context.req.param("contentId")),
       ),
+    });
+  });
+  app.get("/v1/content/:contentId/blob", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.storage === undefined)
+      return context.json({ error: "CONTENT_STORAGE_NOT_CONFIGURED" }, 503);
+    const content = await dependencies.repository.get(
+      ownerId,
+      asId<"content">(context.req.param("contentId")),
+    );
+    if (content.storageKey === null)
+      return context.json({ error: "CONTENT_BLOB_NOT_AVAILABLE" }, 409);
+    const object = await dependencies.storage.read(content.storageKey);
+    if (object === null)
+      return context.json({ error: "CONTENT_BLOB_NOT_FOUND" }, 404);
+    return new Response(object.body, {
+      status: 200,
+      headers: {
+        "content-type":
+          object.contentType ?? content.mimeType ?? "application/octet-stream",
+        "cache-control": "private, no-store",
+      },
     });
   });
   app.get("/v1/content/:contentId/revisions", async (context) => {

@@ -403,3 +403,9 @@ two public HTTP redirects, blocks localhost/private address patterns, enforces
 a ten-second request timeout and bounded text output, strips executable HTML
 content, and labels the returned page text as `untrusted_data`. It does not
 claim Town's private browser automation or sandbox implementation.
+
+Content media now has an owner-scoped `GET /v1/content/:contentId/blob` read
+boundary. It requires a configured storage adapter, verifies ownership through
+the Content repository, returns the provider's actual bytes with a private
+no-store response, and fails explicitly when storage or the object is absent;
+the API never fabricates file data.

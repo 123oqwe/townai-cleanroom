@@ -74,7 +74,10 @@ import {
 import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
 import { registerMcpRoutes } from "./mcp-routes.js";
 import type { McpRepository } from "@town/tools";
-import { registerContentRoutes } from "./content-routes.js";
+import {
+  registerContentRoutes,
+  type ContentStorage,
+} from "./content-routes.js";
 import { registerSquareRoutes } from "./square-routes.js";
 import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 import { registerChannelRoutes } from "./channel-routes.js";
@@ -135,6 +138,7 @@ export interface AppDependencies {
   toolExecutionRepository?: ToolExecutionRepository;
   mcpRepository?: McpRepository;
   contentRepository?: ContentRepository;
+  contentStorage?: ContentStorage;
   squareRepository?: SquareRepository;
   sharedAccountRepository?: SharedAccountRepository;
   channelRepository?: ChannelRepository;
@@ -833,6 +837,9 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/content/*", authenticate);
       registerContentRoutes(app, {
         repository: dependencies.contentRepository,
+        ...(dependencies.contentStorage === undefined
+          ? {}
+          : { storage: dependencies.contentStorage }),
       });
     }
     if (dependencies.squareRepository !== undefined) {

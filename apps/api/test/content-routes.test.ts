@@ -38,4 +38,39 @@ describe("content share route", () => {
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;b&gt;safe text&lt;/b&gt;");
   });
+
+  it("reads an owner-scoped stored blob through the configured storage port", async () => {
+    const contentId = "01900000-0000-7000-8000-000000000011";
+    const repository = {
+      get: vi.fn().mockResolvedValue({
+        id: contentId,
+        storageKey: "objects/report.pdf",
+        mimeType: "application/pdf",
+      }),
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", async (context, next) => {
+      context.set("identity", {
+        user: { id: "01900000-0000-7000-8000-000000000001" },
+      } as AuthVariables["identity"]);
+      await next();
+    });
+    registerContentRoutes(app, {
+      repository,
+      storage: {
+        read: vi.fn().mockResolvedValue({
+          body: new Uint8Array([1, 2, 3]),
+          contentType: "application/pdf",
+        }),
+      },
+    });
+    const response = await app.request(
+      `http://town.test/v1/content/${contentId}/blob`,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/pdf");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
+  });
 });
