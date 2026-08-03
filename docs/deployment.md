@@ -1236,3 +1236,10 @@ The provider-gated voice playback UI source state is deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The UI hides playback controls
 when `voiceSynthesis` is false; the direct URL remains SSO-gated.
+
+The Vapi voice event adapter source state is deployed as
+`https://town-clear-11dipouje-123oqwes-projects.vercel.app`, deployment
+`dpl_94kWb6n7U8gAjgEbSeaxrANa2JRa`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The endpoint remains inactive
+until `VAPI_WEBHOOK_SECRET` is configured; the direct URL remains SSO-gated.
