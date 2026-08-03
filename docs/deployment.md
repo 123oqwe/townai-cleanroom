@@ -394,6 +394,14 @@ direct URL is
 and audit items by their persisted creation time. An unauthenticated curl
 receives the Vercel SSO `302` protection redirect.
 
+The timeline now uses a database-level union and stable cursor pagination in
+deployment `dpl_8Qgas976NJSgUvEE3m2UxdoUbGzt`, built from commit `bbfbdcb`. Its
+protected direct URL is
+`https://town-clear-current-kift6x6fw-123oqwes-projects.vercel.app`, state
+`READY`; the endpoint returns `nextCursor` based on `(created_at,id)` across both
+tables, rather than approximating pagination in application memory. An
+unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
