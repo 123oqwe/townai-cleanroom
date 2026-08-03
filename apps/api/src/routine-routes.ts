@@ -198,7 +198,7 @@ export function registerRoutineRoutes(
         accountId,
         messageId: message.id,
       });
-      const detailLabels = detail["labelIds"] ?? message.labelIds ?? [];
+      const detailLabels = detail["labelIds"] ?? message["labelIds"] ?? [];
       runs.push(
         await dependencies.repository.queueTrigger(
           ownerId,
