@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   auditOutcomeSchema,
+  presenceSurfaceSchema,
   type OperationsRepository,
 } from "@town/operations";
 import type { AuthVariables } from "./auth.js";
@@ -30,6 +31,16 @@ const analyticsQuerySchema = z
     eventName: z.string().trim().min(1).max(200).optional(),
     cursor: z.string().min(1).max(500).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+const presenceSchema = z
+  .object({
+    sessionId: z.string().trim().min(1).max(200),
+    surface: presenceSurfaceSchema,
+    clientSha: z.string().trim().min(1).max(200).nullable().optional(),
+    deploymentTime: z.coerce.date().nullable().optional(),
+    userAgent: z.string().trim().max(1_000).nullable().optional(),
+    intervalSeconds: z.coerce.number().int().min(5).max(120).default(30),
   })
   .strict();
 
@@ -72,6 +83,22 @@ export function registerOperationsRoutes(
         ownerId,
         ...analyticsQuerySchema.parse(context.req.query()),
       }),
+    });
+  });
+  app.post("/v1/presence/heartbeat", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = presenceSchema.parse(await context.req.json());
+    return context.json({
+      presence: await dependencies.repository.heartbeatPresence({
+        ownerId,
+        ...body,
+      }),
+    });
+  });
+  app.get("/v1/presence", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      presence: await dependencies.repository.listPresence(ownerId),
     });
   });
 }

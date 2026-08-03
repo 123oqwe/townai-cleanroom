@@ -440,3 +440,10 @@ by operations audit events, supports idempotent dedupe keys and stable cursor
 pagination, and never forwards event payloads to an unconfigured third party.
 This records the observed product-analytics contract without claiming Town's
 private event taxonomy or downstream Axiom pipeline.
+
+Presence is now persisted through `POST /v1/presence/heartbeat` and queried
+through `GET /v1/presence`. Heartbeats upsert by owner/session, retain only
+bounded client metadata, expire after a bounded interval, and never expose
+another owner's sessions. This is the durable presence boundary observed in
+the product; a Convex-compatible multiplexed WebSocket transport is not
+claimed yet.

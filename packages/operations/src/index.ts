@@ -44,6 +44,29 @@ export interface AnalyticsPage {
   items: AnalyticsEvent[];
   nextCursor: string | null;
 }
+export const presenceSurfaceSchema = z.enum([
+  "web",
+  "ios",
+  "macos",
+  "email",
+  "slack",
+  "whatsapp",
+  "telegram",
+  "imessage",
+]);
+export type PresenceSurface = z.infer<typeof presenceSurfaceSchema>;
+export interface PresenceSession {
+  id: Id<"presence-session">;
+  ownerId: Id<"user">;
+  sessionId: string;
+  surface: PresenceSurface;
+  clientSha: string | null;
+  deploymentTime: Date | null;
+  userAgent: string | null;
+  lastSeenAt: Date;
+  expiresAt: Date;
+  createdAt: Date;
+}
 export interface OperationSummary {
   activeSessions: number;
   queuedRuns: number;
@@ -85,6 +108,18 @@ type AnalyticsRow = {
   fingerprint: string;
   created_at: Date;
 };
+type PresenceRow = {
+  id: string;
+  owner_id: string;
+  session_id: string;
+  surface: PresenceSurface;
+  client_sha: string | null;
+  deployment_time: Date | null;
+  user_agent: string | null;
+  last_seen_at: Date;
+  expires_at: Date;
+  created_at: Date;
+};
 const appendSchema = z
   .object({
     ownerId: idSchema,
@@ -121,6 +156,17 @@ const analyticsListSchema = z
     eventName: z.string().trim().min(1).max(200).optional(),
     cursor: z.string().min(1).max(500).optional(),
     limit: z.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+const presenceHeartbeatSchema = z
+  .object({
+    ownerId: idSchema,
+    sessionId: z.string().trim().min(1).max(200),
+    surface: presenceSurfaceSchema,
+    clientSha: z.string().trim().min(1).max(200).nullable().optional(),
+    deploymentTime: z.coerce.date().nullable().optional(),
+    userAgent: z.string().trim().max(1_000).nullable().optional(),
+    intervalSeconds: z.number().int().min(5).max(120).default(30),
   })
   .strict();
 const sensitiveKey =
@@ -215,6 +261,20 @@ function safeAnalytics(row: AnalyticsRow): AnalyticsEvent {
     eventName: row.event_name,
     metadata: row.metadata,
     dedupeKey: row.dedupe_key,
+    createdAt: row.created_at,
+  };
+}
+function safePresence(row: PresenceRow): PresenceSession {
+  return {
+    id: asId<"presence-session">(row.id),
+    ownerId: asId<"user">(row.owner_id),
+    sessionId: row.session_id,
+    surface: row.surface,
+    clientSha: row.client_sha,
+    deploymentTime: row.deployment_time,
+    userAgent: row.user_agent,
+    lastSeenAt: row.last_seen_at,
+    expiresAt: row.expires_at,
     createdAt: row.created_at,
   };
 }
@@ -372,6 +432,38 @@ export function createOperationsRepository(sql: Sql) {
           : null,
     };
   }
+  async function heartbeatPresence(
+    input: z.input<typeof presenceHeartbeatSchema>,
+  ): Promise<PresenceSession> {
+    const value = presenceHeartbeatSchema.parse(input);
+    const [row] = await sql<PresenceRow[]>`
+      insert into presence_sessions
+        (id,owner_id,session_id,surface,client_sha,deployment_time,user_agent,last_seen_at,expires_at)
+      values
+        (${newId<"presence-session">()},${value.ownerId},${value.sessionId},${value.surface},${value.clientSha ?? null},${value.deploymentTime ?? null},${value.userAgent ?? null},now(),now() + (${value.intervalSeconds * 3} * interval '1 second'))
+      on conflict (owner_id,session_id) do update set
+        surface=excluded.surface,
+        client_sha=excluded.client_sha,
+        deployment_time=excluded.deployment_time,
+        user_agent=excluded.user_agent,
+        last_seen_at=now(),
+        expires_at=excluded.expires_at
+      returning *`;
+    if (!row)
+      throw new OperationsError(
+        "AUDIT_CONFLICT",
+        "Presence heartbeat was not persisted.",
+      );
+    return safePresence(row);
+  }
+  async function listPresence(ownerId: Id<"user">): Promise<PresenceSession[]> {
+    const value = idSchema.parse(ownerId);
+    const rows = await sql<PresenceRow[]>`
+      select * from presence_sessions
+      where owner_id=${value} and expires_at > now()
+      order by last_seen_at desc, id desc`;
+    return rows.map(safePresence);
+  }
   async function timeline(input: {
     ownerId: Id<"user">;
     cursor?: string;
@@ -432,7 +524,16 @@ export function createOperationsRepository(sql: Sql) {
           : null,
     };
   }
-  return { append, list, summary, timeline, appendAnalytics, listAnalytics };
+  return {
+    append,
+    list,
+    summary,
+    timeline,
+    appendAnalytics,
+    listAnalytics,
+    heartbeatPresence,
+    listPresence,
+  };
 }
 export type OperationsRepository = ReturnType<
   typeof createOperationsRepository

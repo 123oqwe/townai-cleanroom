@@ -185,7 +185,7 @@ describe("operations audit and summary", () => {
         ownerId,
         eventName: first.eventName,
         dedupeKey: "vital-1",
-        metadata: first.metadata,
+        metadata: { metric: "FCP", value: 1080, pathname: "/assistant" },
       }),
     ).resolves.toMatchObject({ id: first.id });
     await expect(
@@ -212,5 +212,39 @@ describe("operations audit and summary", () => {
       value: 1080,
       pathname: "/assistant",
     });
+  });
+
+  it("upserts presence heartbeats and hides expired or other-owner sessions", async () => {
+    const repository = createOperationsRepository(sql);
+    const first = await repository.heartbeatPresence({
+      ownerId,
+      sessionId: "browser-session-1",
+      surface: "web",
+      clientSha: "sha-1",
+      intervalSeconds: 30,
+      userAgent: "TownCleanroom/1.0",
+    });
+    const second = await repository.heartbeatPresence({
+      ownerId,
+      sessionId: "browser-session-1",
+      surface: "web",
+      clientSha: "sha-2",
+      intervalSeconds: 60,
+    });
+    expect(second.id).toBe(first.id);
+    expect(second.clientSha).toBe("sha-2");
+    await repository.heartbeatPresence({
+      ownerId: otherId,
+      sessionId: "other-session",
+      surface: "ios",
+      intervalSeconds: 30,
+    });
+    await sql`
+      update presence_sessions
+      set expires_at=now() - interval '1 second'
+      where owner_id=${ownerId} and session_id='browser-session-1'
+    `;
+    expect(await repository.listPresence(ownerId)).toEqual([]);
+    expect(await repository.listPresence(otherId)).toHaveLength(1);
   });
 });
