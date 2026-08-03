@@ -488,3 +488,12 @@ direct URL is
 `nextCursor` while retaining the legacy `suggestions` array. An
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
+
+Need to Know pagination is now wired into the browser card list in deployment
+`dpl_Gf1ujYy7Ty59LNUjG6ruU1QWyCvV`, built from commit `3c8a7e4`. Its protected
+direct URL is
+`https://town-clear-current-glmlqph04-123oqwes-projects.vercel.app`, state
+`READY`; the UI keeps the server cursor, appends `Load more` pages, and clears
+stale cursor state on disconnect or load failure. An unauthenticated request
+returns the Vercel SSO `302`; Vercel reported no runtime errors in the
+verification window.
