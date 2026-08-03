@@ -489,6 +489,15 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+The Content Library cursor-pagination module is deployed in
+`dpl_D59mve1jRdtixjgvEE6zdhCUhAQT`, built from commit `8571100`. Its protected
+direct URL is
+`https://town-clear-current-8yz9fs0vg-123oqwes-projects.vercel.app`, state
+`READY`; the API and browser now use a stable `(updated_at,id)` cursor for
+owner-scoped content pages, with a Library “Load more” control. Unauthenticated
+requests to `/` and `/v1/health` return the Vercel SSO `302`; Vercel reported no
+runtime errors in the verification window.
+
 The expanded documented stock-routine catalog is deployed in
 `dpl_3HCtqbYfbgotbn8kLd7dqq7mxBBP`, built from commit `0940973`. Its protected
 direct URL is
