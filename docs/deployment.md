@@ -244,6 +244,13 @@ state `READY`; Calendar event windows and provider `updated` versions are
 queued through the durable calendar trigger path, and an unauthenticated curl
 receives the Vercel SSO `302` protection redirect.
 
+Routine result notification association is deployed in
+`dpl_4TePvSDqiNQ6CGXp4cgefkEuSb3e`, built from commit `a9f732f`. Its protected
+direct URL is `https://town-clear-current-g4ojisa30-123oqwes-projects.vercel.app`,
+state `READY`; explicitly configured `outgoing_email` triggers now enqueue and
+link idempotent notification outbox records, while an unauthenticated curl
+receives the Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
