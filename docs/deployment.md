@@ -48,9 +48,9 @@ shutdown and does not weaken the API's database or authentication requirements.
 ## Current verification snapshot
 
 The source repository has since advanced beyond the hosted preview to commit
-`505ea55`, including the Harness, Knowledge, People, Memory, Task, Routine,
+`9dbcb5a`, including the Harness, Knowledge, People, Memory, Task, Routine,
 Connected Accounts, Channels, Billing, Suggestions, Squares, Square policy
-detail, and the built Vercel API entrypoint. A fresh unauthenticated check still
+detail, the built Vercel API entrypoint, and the hourly worker Cron. A fresh unauthenticated check still
 shows:
 
 - the preview hostname above returns `302` to Vercel SSO;
@@ -66,8 +66,8 @@ hosted state from being represented as newer than the verified source.
 Using the Vercel deployment connector, the current command center and API
 Function were deployed from the verified source files at:
 
-- Deployment: `dpl_E4te3Rwdgpo17deXcRneF2UZ6nAu`
-- Protected direct URL: `https://town-clear-current-8p5urn2ks-123oqwes-projects.vercel.app`
+- Deployment: `dpl_CwxzfZq21phybxjR3RQgZhbf6r5D`
+- Protected direct URL: `https://town-clear-current-9d2spjx4w-123oqwes-projects.vercel.app`
 - State: `READY`
 - Direct URL access check: unauthenticated request returns `302` to Vercel SSO.
 - Generated project aliases currently return `200` publicly and are not accepted
@@ -81,6 +81,10 @@ the SSO-only smoke check.
 
 The latest Vercel build's error-only log contains no TypeScript diagnostics;
 it reports only the Node engine warning and a successful build completion.
+
+The source also declares an hourly Vercel Cron for `/v1/internal/worker`.
+Cron execution is only effective after the deployment supplies `DATABASE_URL`,
+`CREDENTIAL_MASTER_KEY_BASE64URL`, and `CRON_SECRET` (or `WORKER_SECRET`).
 
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
