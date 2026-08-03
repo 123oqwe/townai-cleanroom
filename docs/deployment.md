@@ -1244,6 +1244,13 @@ completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The endpoint remains inactive
 until `VAPI_WEBHOOK_SECRET` is configured; the direct URL remains SSO-gated.
 
+The token-authorized public Content blob route is deployed as
+`https://town-clear-f7y8rq1d0-123oqwes-projects.vercel.app`, deployment
+`dpl_GhCXjYYYG7fJ81zUVb9dgUmoLBGo`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. Blob access still requires a
+configured storage adapter and a valid non-revoked share token.
+
 The owner-scoped Content blob read boundary is deployed as
 `https://town-clear-qpxi0j1um-123oqwes-projects.vercel.app`, deployment
 `dpl_DwjfeDSwhWWvRRjBvDEpfpn4fKND`, state `READY`. The full workspace build
