@@ -1024,3 +1024,11 @@ errors, and the protected alias returned \`302\` SSO. This is the first verified
 full-source build artifact; API requests still require the real database,
 credential master key, and allowlist environment before they can be claimed
 operational.
+
+The allowlisted email sign-in source state `41756fc` is deployed as
+`https://town-clear-current-axubgnj5s-123oqwes-projects.vercel.app`,
+deployment `dpl_2WSnrzC4YRZ2ovefuGfparUJ2d3e`, state `READY`, with the
+Node.js Lambda runtime detected. Vercel reported no runtime errors; the
+protected alias returned the expected `302` SSO redirect. The API route is
+present in this full-source artifact but requires deployment environment
+configuration before an allowlisted login can be exercised remotely.
