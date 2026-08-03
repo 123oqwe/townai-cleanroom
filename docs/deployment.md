@@ -891,6 +891,13 @@ The Gmail-to-Routine ingestion UI is deployed as
 no runtime errors; direct unauthenticated access returns the expected `302`
 SSO redirect.
 
+The MCP server management UI is deployed as
+`https://town-clear-current-p1a8mxvt6-123oqwes-projects.vercel.app`, deployment
+`dpl_3wAUYNCkg7c566PWM1cayocLoD22`, state `READY`, alias
+`town-clear-current-ui-123oqwe-123oqwes-projects.vercel.app`. Vercel reported
+no runtime errors; direct unauthenticated access returns the expected `302`
+SSO redirect.
+
 The callable Routine Agent whitelist UI is deployed as
 `https://town-clear-current-hm566jg73-123oqwes-projects.vercel.app`, deployment
 `dpl_D1wVLzB7WQDD4kvBA4b1St2b85bQ`, state `READY`, alias
