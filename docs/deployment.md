@@ -489,6 +489,15 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+The Home Schedule panel is deployed in
+`dpl_AkCjETmyTfDjd6VxFtaEjUMPertM`, built from commit `fdb36d0`. Its protected
+direct URL is
+`https://town-clear-current-6raxe1g4v-123oqwes-projects.vercel.app`, state
+`READY`; the browser renders the server schedule feed and keeps partial
+calendar failures non-blocking. An unauthenticated request receives the
+Vercel SSO `302`; Vercel reported no runtime errors in the verification
+window.
+
 The unified Home schedule API is deployed in
 `dpl_A9Kej5mmktqR6vfRi5Bq4RsqFkXP`, built from commit `b29bf21`. Its protected
 direct URL is
