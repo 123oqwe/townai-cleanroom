@@ -1082,3 +1082,9 @@ detected and no runtime errors reported. A first connector attempt
 (`dpl_6sFZkmVYDr9UGcWKgwK1aFXGHcDp`) was rejected during build because its
 uploaded source set had a stale `app.ts`; the source set was refreshed and the
 successful deployment above was rebuilt from the same committed tree.
+
+Post-deployment verification on 2026-08-03 confirmed the provider-usage
+deployment remains `READY` and Vercel reported no runtime error clusters in the
+last seven days. The protected direct health URL still returns the expected
+Vercel SSO `302`; this verifies the access boundary, not database-backed API
+readiness.
