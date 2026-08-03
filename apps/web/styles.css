@@ -1715,6 +1715,42 @@ dialog h2 {
   font-size: 0.82rem;
   line-height: 1.45;
 }
+
+.tool-catalog {
+  margin: 1rem 0;
+}
+
+.tool-catalog-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+}
+
+.tool-catalog-heading h3 {
+  margin: 0.15rem 0 0.65rem;
+}
+
+.tool-catalog-heading > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.tool-catalog-card {
+  border-top: 1px solid var(--line);
+  padding: 0.7rem 0;
+}
+
+.tool-catalog-card p {
+  margin: 0.2rem 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.tool-catalog-card small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
 .account-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;

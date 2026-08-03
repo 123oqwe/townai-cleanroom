@@ -1142,6 +1142,36 @@ async function loadAccounts() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Accounts unavailable.")}</p>`;
   }
 }
+function renderTools(result) {
+  const target = $("#tool-catalog-list");
+  const tools = result.tools || [];
+  $("#tool-catalog-count").textContent = `${tools.length} enabled`;
+  if (!tools.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No enabled tools returned.</p>';
+    return;
+  }
+  target.innerHTML = tools
+    .map(
+      (tool) =>
+        `<article class="tool-catalog-card"><div><strong>${escapeHtml(tool.name)}</strong><p>${escapeHtml(tool.description)}</p></div><small>v${escapeHtml(String(tool.version))} · ${escapeHtml(tool.sideEffect)} · ${escapeHtml(tool.dataSensitivity)} · account ${escapeHtml(tool.accountBinding)}</small></article>`,
+    )
+    .join("");
+}
+async function loadTools() {
+  if (!state.token) {
+    $("#tool-catalog-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load tools.</p>';
+    $("#tool-catalog-count").textContent = "—";
+    return;
+  }
+  try {
+    renderTools(await api("/v1/tools"));
+  } catch (error) {
+    $("#tool-catalog-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Tools unavailable.")}</p>`;
+  }
+}
 async function previewPolicy() {
   const target = $("#policy-preview-result");
   if (!state.token) {
@@ -1875,6 +1905,7 @@ $("#account-open").addEventListener("click", () => {
   $("#accounts-error").hidden = true;
   openDialog($("#accounts-dialog"));
   void loadAccounts();
+  void loadTools();
 });
 $("#policy-preview-run").addEventListener("click", () => void previewPolicy());
 $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
