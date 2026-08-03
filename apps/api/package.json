@@ -29,6 +29,6 @@
     "@town/tools": "workspace:*",
     "hono": "4.12.29",
     "postgres": "3.4.9",
-    "zod": "catalog:"
+    "zod": "4.4.3"
   }
 }

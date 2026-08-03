@@ -22,7 +22,7 @@
   "dependencies": {
     "@town/contracts": "workspace:*",
     "@town/runtime": "workspace:*",
-    "zod": "catalog:"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@town/agents": "workspace:*",

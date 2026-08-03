@@ -217,6 +217,11 @@ The subsequent Vercel build showed the host's pnpm version does not satisfy a
 runtime engine constraint, so that redundant pnpm engine restriction was removed
 while the packageManager pin remains for local reproducibility.
 
+All workspace package manifests now declare zod 4.4.3 explicitly and the lock
+file no longer relies on pnpm catalog syntax. This keeps dependency resolution
+identical locally while allowing standard Vercel dependency detection to parse
+the workspace lock file.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all

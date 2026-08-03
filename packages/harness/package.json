@@ -21,6 +21,6 @@
   },
   "dependencies": {
     "@town/contracts": "workspace:*",
-    "zod": "catalog:"
+    "zod": "4.4.3"
   }
 }
