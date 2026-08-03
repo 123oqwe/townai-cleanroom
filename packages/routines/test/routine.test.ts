@@ -142,6 +142,51 @@ describe("routine schedules", () => {
     expect(await repo.getPublicShare(result.token)).toBeNull();
   });
 
+  it("installs a shared Routine atomically without inheriting child routines", async () => {
+    const targetOwnerId = newId<"user">();
+    await sql`insert into users (id,email,timezone) values (${targetOwnerId},'routine-target@example.invalid','UTC')`;
+    const repo = createRoutineRepository(sql);
+    const source = await repo.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Installable briefing",
+      cron: "0 9 * * 1-5",
+      nextRunAt: new Date("2026-08-03T01:00:00Z"),
+    });
+    const { token } = await repo.createShare({
+      ownerId,
+      routineScheduleId: source.id,
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+    });
+    const installed = await repo.installShare({
+      ownerId: targetOwnerId,
+      token,
+      name: "Copied briefing",
+      nextRunAt: new Date("2026-08-04T01:00:00Z"),
+    });
+    expect(installed.routine).toMatchObject({
+      ownerId: targetOwnerId,
+      name: "Copied briefing",
+      cron: source.cron,
+      timezone: source.timezone,
+    });
+    const [copied] = await sql<{ snapshot: Record<string, unknown> }[]>`
+      select version.snapshot
+      from agent_versions version
+      where version.owner_id=${targetOwnerId}
+        and version.agent_id=${installed.routine.agentId}
+    `;
+    expect(copied?.snapshot).toMatchObject({ callableRoutineIds: [] });
+    await expect(
+      repo.installShare({
+        ownerId: targetOwnerId,
+        token: "rtnshare_invalid_token_123456",
+        nextRunAt: new Date("2026-08-04T01:00:00Z"),
+      }),
+    ).rejects.toMatchObject({ code: "SHARE_NOT_FOUND" });
+  });
+
   it("caches a step per owner/run/key and never reruns a completed step", async () => {
     const repo = createRoutineStepRepository(sql);
     const runId = newId<"integration-sync-run">();

@@ -32,6 +32,14 @@ const updateRoutineSchema = createRoutineSchema
 const triggerRoutineSchema = z
   .object({ input: z.string().trim().min(1).max(50_000) })
   .strict();
+const installRoutineSchema = z
+  .object({
+    token: z.string().startsWith("rtnshare_").min(20),
+    name: z.string().trim().min(1).max(120).optional(),
+    nextRunAt: z.iso.datetime(),
+    enabled: z.boolean().default(true),
+  })
+  .strict();
 
 export function registerRoutineRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -71,6 +79,19 @@ export function registerRoutineRoutes(
       nextRunAt: new Date(input.nextRunAt),
     });
     return context.json({ routine }, 201);
+  });
+
+  app.post("/v1/routines/install", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const input = installRoutineSchema.parse(await context.req.json());
+    const installed = await dependencies.repository.installShare({
+      ownerId,
+      token: input.token,
+      ...(input.name === undefined ? {} : { name: input.name }),
+      nextRunAt: new Date(input.nextRunAt),
+      enabled: input.enabled,
+    });
+    return context.json(installed, 201);
   });
 
   app.post("/v1/routines/:routineId/run", async (context) => {

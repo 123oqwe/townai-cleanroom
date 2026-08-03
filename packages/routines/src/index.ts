@@ -109,6 +109,10 @@ export interface PublicRoutineShare {
   };
   expiresAt: Date | null;
 }
+export interface InstalledRoutineShare {
+  routine: RoutineSchedule;
+  sourceShareId: Id<"routine-share">;
+}
 export class RoutineError extends Error {
   constructor(
     readonly code:
@@ -191,6 +195,15 @@ const routineSnapshotSchema = z
     callableRoutineIds: z.array(z.string()),
   })
   .strict();
+const installShareSchema = z
+  .object({
+    ownerId: z.uuidv7(),
+    token: z.string().startsWith("rtnshare_").min(20),
+    name: nameSchema.optional(),
+    nextRunAt: z.date(),
+    enabled: z.boolean().default(true),
+  })
+  .strict();
 function safeRun(row: SyncRunRow): IntegrationSyncRun {
   return {
     id: asId<"integration-sync-run">(row.id),
@@ -266,6 +279,14 @@ function safe(row: Row): RoutineSchedule {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+function isConstraint(error: unknown, name: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "constraint_name" in error &&
+    error.constraint_name === name
+  );
 }
 
 export function createRoutineRepository(sql: Sql) {
@@ -637,6 +658,91 @@ export function createRoutineRepository(sql: Sql) {
     `;
     return row ? safePublicShare(row) : null;
   }
+  async function installShare(
+    input: z.input<typeof installShareSchema>,
+  ): Promise<InstalledRoutineShare> {
+    const value = installShareSchema.parse(input);
+    const ownerId = asId<"user">(value.ownerId);
+    const tokenHash = createHash("sha256").update(value.token).digest();
+    const routineId = newId<"agent">();
+    const versionId = newId<"agent-version">();
+    const scheduleId = newId<"routine-schedule">();
+    let sourceShareId: string | undefined;
+    try {
+      const scheduleRows = await sql.begin(async (tx) => {
+        const [source] = await tx<PublicShareRow[]>`
+          select share.id, share.owner_id, share.routine_schedule_id,
+            share.expires_at, share.revoked_at, share.created_at,
+            routine.name, routine.cron, routine.timezone, routine.enabled,
+            version.id as version_id, version.version, version.snapshot
+          from routine_share_grants share
+          join routine_schedules routine
+            on routine.owner_id=share.owner_id and routine.id=share.routine_schedule_id
+          join agent_versions version
+            on version.owner_id=routine.owner_id and version.agent_id=routine.agent_id
+            and version.id=routine.agent_version_id
+          where share.token_hash=${tokenHash} and share.revoked_at is null
+            and (share.expires_at is null or share.expires_at > now())
+          for update of share
+        `;
+        if (!source)
+          throw new RoutineError(
+            "SHARE_NOT_FOUND",
+            "The routine share was not found.",
+          );
+        sourceShareId = source.id;
+        const snapshot = routineSnapshotSchema.parse(source.snapshot);
+        await tx`
+          insert into agents (id, owner_id, kind, active_version_id)
+          values (${routineId}, ${ownerId}, 'routine', null)
+        `;
+        await tx`
+          insert into agent_versions
+            (id, owner_id, agent_id, version, snapshot, change_reason, created_by)
+          values
+            (${versionId}, ${ownerId}, ${routineId}, 1,
+             ${tx.json({ ...snapshot, callableRoutineIds: [] })},
+             'Installed from shared Routine', 'user')
+        `;
+        await tx`
+          update agents set active_version_id=${versionId}, updated_at=now()
+          where owner_id=${ownerId} and id=${routineId}
+        `;
+        return tx<Row[]>`
+          insert into routine_schedules
+            (id, owner_id, agent_id, agent_version_id, name, cron, timezone,
+             next_run_at, enabled)
+          values
+            (${scheduleId}, ${ownerId}, ${routineId}, ${versionId},
+             ${value.name ?? source.name}, ${source.cron}, ${source.timezone},
+             ${value.nextRunAt}, ${value.enabled})
+          returning *
+        `;
+      });
+      const row = scheduleRows[0];
+      if (!row)
+        throw new RoutineError(
+          "ROUTINE_CONFLICT",
+          "The installed routine could not be created.",
+        );
+      if (sourceShareId === undefined)
+        throw new RoutineError(
+          "SHARE_NOT_FOUND",
+          "The routine share was not found.",
+        );
+      return {
+        routine: safe(row),
+        sourceShareId: asId<"routine-share">(sourceShareId),
+      };
+    } catch (error) {
+      if (isConstraint(error, "routine_schedules_owner_name_unique"))
+        throw new RoutineError(
+          "ROUTINE_CONFLICT",
+          "A routine with this name already exists.",
+        );
+      throw error;
+    }
+  }
   async function revokeShare(
     ownerId: Id<"user">,
     shareId: Id<"routine-share">,
@@ -714,6 +820,7 @@ export function createRoutineRepository(sql: Sql) {
     deliverWebhook,
     createShare,
     getPublicShare,
+    installShare,
     revokeShare,
   };
 }

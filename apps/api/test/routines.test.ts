@@ -161,6 +161,45 @@ describe("routine routes", () => {
     );
   });
 
+  it("installs a shared Routine using server-derived owner identity", async () => {
+    const routine = {
+      id: asId<"routine-schedule">(agentVersionId),
+      ownerId,
+      agentId: asId<"agent">(agentId),
+      agentVersionId: asId<"agent-version">(agentVersionId),
+      name: "Copied briefing",
+      cron: "0 9 * * 1-5",
+      timezone: "UTC",
+      enabled: true,
+      nextRunAt: new Date("2026-08-04T01:00:00Z"),
+      lastRunAt: null,
+      revision: 1,
+      createdAt: new Date("2026-08-03T00:00:00Z"),
+      updatedAt: new Date("2026-08-03T00:00:00Z"),
+    };
+    const repository = {
+      installShare: vi
+        .fn()
+        .mockImplementation(async (input: { ownerId: string }) => {
+          expect(input.ownerId).toBe(ownerId);
+          return { routine, sourceShareId: asId<"routine-share">(agentId) };
+        }),
+    } as unknown as RoutineRepository;
+    const app = appWith(repository);
+    const response = await app.request("http://town.test/v1/routines/install", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        token: "rtnshare_test_token_123456",
+        nextRunAt: "2026-08-04T01:00:00.000Z",
+      }),
+    });
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      routine: { name: "Copied briefing" },
+    });
+  });
+
   it("turns a manual routine trigger into a durable session submission", async () => {
     const routine = {
       id: asId<"routine-schedule">("01900000-0000-7000-8000-000000000004"),

@@ -217,6 +217,10 @@ Routine schedules can also create a one-time `rtnshare_…` token through
 version snapshot, and the owner can revoke it through
 `DELETE /v1/routines/shares/:shareId`. Tokens are hashed at rest and expire by
 default after 24 hours.
+An authenticated `POST /v1/routines/install` can fork a live share into a new
+owner-scoped Routine Agent, immutable version, and schedule atomically. The
+fork clears `callableRoutineIds`, so sharing a Routine never grants access to
+the source workspace's child Routines.
 An authenticated
 `POST /v1/routines/:routineId/run` creates a real child Task/Session Run and
 returns queued state for the worker; it never reports a fabricated completion.
