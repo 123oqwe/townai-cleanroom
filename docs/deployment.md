@@ -1229,3 +1229,10 @@ The provider-readiness capability probe source state is deployed as
 completed in 32 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The probe reports credential
 presence only; actual provider account validity remains deployment-owned.
+
+The provider-gated voice playback UI source state is deployed as
+`https://town-clear-chdsetley-123oqwes-projects.vercel.app`, deployment
+`dpl_2YNbaJeFyj6cm5DX9S8v8PBU191G`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The UI hides playback controls
+when `voiceSynthesis` is false; the direct URL remains SSO-gated.
