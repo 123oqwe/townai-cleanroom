@@ -544,3 +544,12 @@ direct URL is
 stale cursor state on disconnect or load failure. An unauthenticated request
 returns the Vercel SSO `302`; Vercel reported no runtime errors in the
 verification window.
+
+The stock routine catalog is now exposed in the protected web dialog in
+`dpl_6zUntNcYsjkJyMYKPu9jrXwbMvQv`, built from commit `ee14487`. Its direct URL
+is
+`https://town-clear-current-d43kjexg4-123oqwes-projects.vercel.app`, state
+`READY`; users can inspect the documented templates and install one with an
+explicit cron schedule, timezone, and first-run timestamp through the existing
+atomic API endpoint. An unauthenticated request returns the Vercel SSO `302`;
+Vercel reported no runtime errors in the verification window.
