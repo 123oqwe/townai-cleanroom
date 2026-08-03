@@ -534,6 +534,14 @@ visibility without rewriting or reordering server data. An unauthenticated
 request receives the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
 
+MCP Agent binding management is deployed in
+`dpl_XvbcXLV2m41eDJUEnF2JiALF8JXG`, built from commit `a2cdd0e`. Its protected
+direct URL is
+`https://town-clear-current-itxpaoe7x-123oqwe-projects.vercel.app`, state
+`READY`; users can bind or unbind active configured MCP servers to the current
+Personal Agent through revision-checked routes. The direct URL returns the
+Vercel SSO `302`; Vercel reported no runtime errors in the verification window.
+
 Callable Routine selection is deployed in
 `dpl_3ynxMTMeBAdgkpJBaXMRxBP3wmZD`, built from commit `74ad888`. Its protected
 direct URL is
