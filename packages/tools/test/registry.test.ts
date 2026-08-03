@@ -136,4 +136,41 @@ describe("tool registry", () => {
       }),
     ).rejects.toMatchObject({ code: "TOOL_BINDING_CONFLICT" });
   });
+
+  it("ensures discovered definitions and bindings idempotently", async () => {
+    const agent = await createAgentRepository(sql).createPersonal({
+      ownerId,
+      displayName: "MCP Discovery Fixture",
+      instructions: "Use discovered metadata.",
+      defaultApprovalMode: "require_approval",
+    });
+    const registry = createToolRegistryRepository(sql);
+    const input = {
+      ownerId,
+      version: 42,
+      name: "mcp_Research_search",
+      description: "Remote search",
+      inputSchema: { type: "object", properties: { q: { type: "string" } } },
+      outputSchema: null,
+      sideEffect: "read" as const,
+      dataSensitivity: "private" as const,
+      accountBinding: "optional" as const,
+    };
+    const first = await registry.ensure(input);
+    const second = await registry.ensure(input);
+    expect(second.id).toBe(first.id);
+    const firstBinding = await registry.ensureBinding({
+      ownerId,
+      agentVersionId: agent.activeVersion.id,
+      toolDefinitionId: first.id,
+      modeOverride: "read_only",
+    });
+    const secondBinding = await registry.ensureBinding({
+      ownerId,
+      agentVersionId: agent.activeVersion.id,
+      toolDefinitionId: first.id,
+      modeOverride: "read_only",
+    });
+    expect(secondBinding.id).toBe(firstBinding.id);
+  });
 });

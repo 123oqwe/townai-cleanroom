@@ -78,6 +78,10 @@ empty to preserve the database's existing allowlist state.
   contains a real injected-fetch MCP JSON-RPC client for Streamable HTTP and
   legacy SSE discovery/calls; production use still requires an explicit
   credential resolver and runtime policy decision.
+- Discovered MCP tools are normalized into immutable, versioned internal
+  `ToolDefinition` records and idempotently bound to the active AgentVersion;
+  durable ToolCalls therefore have a real policy foreign key instead of only
+  a transient provider name.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { asId } from "@town/contracts";
 import { createChannelRepository } from "@town/channels";
@@ -71,7 +71,21 @@ import { createRoutineScheduler } from "./routine-scheduler.js";
 import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
-import { createMcpClient } from "@town/tools";
+import { createMcpClient, type McpRemoteTool } from "@town/tools";
+
+function mcpToolDefinitionVersion(tool: McpRemoteTool): number {
+  const fingerprint = createHash("sha256")
+    .update(JSON.stringify(tool))
+    .digest()
+    .readUInt32BE(0);
+  return (fingerprint % 2_000_000_000) + 1;
+}
+
+function mcpHarnessToolName(serverName: string, toolName: string): string {
+  const safeServer = serverName.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 60);
+  const safeTool = toolName.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 120);
+  return `mcp_${safeServer}_${safeTool}`;
+}
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -211,13 +225,44 @@ const harnessServerFactory =
                       timeoutMs: 10_000,
                     });
                     await client.initialize();
-                    const tools = [];
+                    const tools: McpRemoteTool[] = [];
                     let cursor: string | undefined;
                     for (let page = 0; page < 10; page += 1) {
                       const result = await client.listTools(cursor);
                       tools.push(...result.tools);
                       if (result.nextCursor === null) break;
                       cursor = result.nextCursor;
+                    }
+                    for (const tool of tools) {
+                      const definition = await toolRegistryRepository.ensure({
+                        ownerId: typedOwnerId,
+                        version: mcpToolDefinitionVersion(tool),
+                        name: mcpHarnessToolName(entry.name, tool.name),
+                        description:
+                          tool.description ?? `MCP tool ${tool.name}`,
+                        inputSchema: z
+                          .record(z.string(), z.json())
+                          .parse(tool.inputSchema),
+                        outputSchema:
+                          tool.outputSchema === undefined
+                            ? null
+                            : z
+                                .record(z.string(), z.json())
+                                .parse(tool.outputSchema),
+                        sideEffect:
+                          tool.annotations?.["readOnlyHint"] === true
+                            ? "read"
+                            : "external_write",
+                        dataSensitivity: "private",
+                        accountBinding: "optional",
+                      });
+                      await toolRegistryRepository.ensureBinding({
+                        ownerId: typedOwnerId,
+                        agentVersionId: agent.activeVersion.id,
+                        toolDefinitionId: definition.id,
+                        modeOverride: entry.binding.modeOverride,
+                        accountScope: entry.binding.accountScope,
+                      });
                     }
                     return createMcpHarnessBindings({
                       client,

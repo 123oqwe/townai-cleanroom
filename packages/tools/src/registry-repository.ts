@@ -121,6 +121,29 @@ export function createToolRegistryRepository(sql: Sql) {
     return rows.map(safeDefinition);
   }
 
+  async function getByNameVersion(input: {
+    ownerId: Id<"user">;
+    name: string;
+    version: number;
+  }): Promise<ToolDefinition | null> {
+    const value = z
+      .object({
+        ownerId: idSchema,
+        name: z.string().trim().min(1).max(200),
+        version: z.number().int().positive(),
+      })
+      .strict()
+      .parse(input);
+    const [row] = await sql<ToolDefinitionRow[]>`
+      select id, owner_id, name, version, description, input_schema,
+        output_schema, side_effect, data_sensitivity, account_binding,
+        enabled, created_at
+      from tool_definitions
+      where owner_id=${value.ownerId} and name=${value.name} and version=${value.version}
+    `;
+    return row === undefined ? null : safeDefinition(row);
+  }
+
   async function create(
     input: {
       ownerId: Id<"user">;
@@ -222,6 +245,66 @@ export function createToolRegistryRepository(sql: Sql) {
     return safeBinding(row);
   }
 
+  async function ensure(
+    input: {
+      ownerId: Id<"user">;
+      version: number;
+    } & z.input<typeof toolDefinitionInputSchema>,
+  ): Promise<ToolDefinition> {
+    try {
+      return await create(input);
+    } catch (error) {
+      if (
+        !(error instanceof ToolRegistryError) ||
+        error.code !== "TOOL_NAME_CONFLICT"
+      )
+        throw error;
+      const existing = await getByNameVersion({
+        ownerId: input.ownerId,
+        name: input.name,
+        version: input.version,
+      });
+      if (existing === null)
+        throw new ToolRegistryError(
+          "TOOL_NOT_FOUND",
+          "The ensured Tool definition disappeared concurrently.",
+        );
+      return existing;
+    }
+  }
+
+  async function ensureBinding(input: {
+    ownerId: Id<"user">;
+    agentVersionId: Id<"agent-version">;
+    toolDefinitionId: Id<"tool-definition">;
+    modeOverride?: AgentToolBinding["modeOverride"];
+    accountScope?: string[];
+  }): Promise<AgentToolBinding> {
+    try {
+      return await bind(input);
+    } catch (error) {
+      if (
+        !(error instanceof ToolRegistryError) ||
+        error.code !== "TOOL_BINDING_CONFLICT"
+      )
+        throw error;
+      const [row] = await sql<BindingRow[]>`
+        select id, owner_id, agent_version_id, tool_definition_id,
+          mode_override, account_scope, created_at
+        from agent_tool_bindings
+        where owner_id=${input.ownerId}
+          and agent_version_id=${input.agentVersionId}
+          and tool_definition_id=${input.toolDefinitionId}
+      `;
+      if (row === undefined)
+        throw new ToolRegistryError(
+          "TOOL_BINDING_NOT_FOUND",
+          "The ensured Tool binding disappeared concurrently.",
+        );
+      return safeBinding(row);
+    }
+  }
+
   async function listForAgentVersion(input: {
     ownerId: Id<"user">;
     agentVersionId: Id<"agent-version">;
@@ -260,7 +343,16 @@ export function createToolRegistryRepository(sql: Sql) {
     }));
   }
 
-  return { get, list, create, bind, listForAgentVersion };
+  return {
+    get,
+    getByNameVersion,
+    list,
+    create,
+    ensure,
+    bind,
+    ensureBinding,
+    listForAgentVersion,
+  };
 }
 
 export type ToolRegistryRepository = ReturnType<
