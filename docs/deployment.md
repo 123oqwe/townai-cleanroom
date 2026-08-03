@@ -1155,3 +1155,9 @@ The durable Routine Step Executor source state is deployed as
 `dpl_5UgqWDrqm5C8djMkwenBgCVoKGER`, state `READY`. The full workspace build
 completed in 34 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the following hour. The direct URL remains SSO-gated.
+
+The Wiki upkeep scanner source state is deployed as
+`https://town-clear-mgcdyt264-123oqwes-projects.vercel.app`, deployment
+`dpl_BfDjm2hbPFoZTgUP3fQjdpvXWUBw`, state `READY`. The full workspace build
+completed in 26 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the following hour. The direct URL remains SSO-gated.
