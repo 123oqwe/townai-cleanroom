@@ -1172,9 +1172,15 @@ async function loadTools() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Tools unavailable.")}</p>`;
   }
 }
-function renderMcpServers(result) {
+function renderMcpServers(result, bindingResult = { bindings: [] }) {
   const target = $("#mcp-catalog-list");
   const servers = result.servers || [];
+  const bindings = new Map(
+    (bindingResult.bindings || []).map((binding) => [
+      binding.mcpServerId,
+      binding,
+    ]),
+  );
   $("#mcp-catalog-count").textContent = `${servers.length} configured`;
   if (!servers.length) {
     target.innerHTML =
@@ -1184,7 +1190,7 @@ function renderMcpServers(result) {
   target.innerHTML = servers
     .map(
       (server) =>
-        `<article class="tool-catalog-card"><div><strong>${escapeHtml(server.name)}</strong><p>${escapeHtml(server.url)}</p></div><small>${escapeHtml(server.transport)} · ${escapeHtml(server.status)} · auth ${server.authRef ? "configured" : "not configured"}</small></article>`,
+        `<article class="tool-catalog-card"><div><strong>${escapeHtml(server.name)}</strong><p>${escapeHtml(server.url)}</p></div><small>${escapeHtml(server.transport)} · ${escapeHtml(server.status)} · auth ${server.authRef ? "configured" : "not configured"} · ${bindings.has(server.id) ? `bound (${escapeHtml(bindings.get(server.id).modeOverride || "default")})` : "not bound to Personal Agent"}</small></article>`,
     )
     .join("");
 }
@@ -1196,7 +1202,17 @@ async function loadMcpServers() {
     return;
   }
   try {
-    renderMcpServers(await api("/v1/mcp-servers"));
+    const servers = await api("/v1/mcp-servers");
+    let bindingResult = { bindings: [] };
+    try {
+      const personal = await api("/v1/agents/personal");
+      bindingResult = await api(
+        `/v1/mcp-servers/bindings?agentVersionId=${encodeURIComponent(personal.agent.activeVersion.id)}`,
+      );
+    } catch {
+      // A missing Personal Agent is a valid unbound state.
+    }
+    renderMcpServers(servers, bindingResult);
   } catch (error) {
     $("#mcp-catalog-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "MCP servers unavailable.")}</p>`;
