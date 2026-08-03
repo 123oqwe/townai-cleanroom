@@ -426,6 +426,14 @@ direct URL is
 surface renders its own explicit error state. An unauthenticated curl receives
 the Vercel SSO `302` protection redirect.
 
+Stale timeline state is cleared on disconnect or timeline load failure in
+deployment `dpl_6QZsfurhNNGtQS9SN8ES98S7R7xo`, built from commit `cfc618e`. Its
+protected direct URL is
+`https://town-clear-current-fwyp0pvtv-123oqwes-projects.vercel.app`, state
+`READY`; the cursor and Load more control cannot survive a disconnected or
+failed server session. An unauthenticated curl receives the Vercel SSO `302`
+protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
