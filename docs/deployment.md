@@ -314,6 +314,14 @@ direct URL is
 provider secrets. An unauthenticated curl receives the Vercel SSO `302`
 protection redirect.
 
+Authoritative access-allowlist synchronization is deployed in
+`dpl_ABzxvVaPFtQaVZ9sZXWKnUbxnhvn`, built from commit `1f886cd`. Its protected
+direct URL is
+`https://town-clear-current-kirf2zlcc-123oqwes-projects.vercel.app`, state
+`READY`; removed addresses are transactionally disabled so old sessions cannot
+authenticate against a stale allowlist. An unauthenticated curl receives the
+Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
