@@ -2322,6 +2322,8 @@ dialog h2 {
   margin: 0;
   line-height: 1.45;
 }
+.square-policy-editor { display: grid; gap: 6px; margin-top: .4rem; }
+.square-policy-editor textarea, .square-policy-editor select { width: 100%; }
 .square-shared-accounts {
   margin-top: 1.2rem;
   padding-top: 1rem;

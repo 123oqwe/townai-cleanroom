@@ -86,3 +86,8 @@ Durable memory cards now support inline edit and retire actions. Updates send
 the server's current revision, preserve global/routine scope, and reload the
 owner-scoped list after success; retire uses the existing revision-checked
 delete route. No memory state is fabricated.
+
+Square policy management is now editable in the inspector: the UI loads the
+server policy revision, exposes the real `read_only`, `approval_required`, and
+`autonomous` modes plus newline-separated allowed domains/tools, and PATCHes
+with the expected revision. Stale policy writes remain server-rejected.

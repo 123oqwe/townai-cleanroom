@@ -24,6 +24,7 @@ const state = {
   selectedSquareId: null,
   people: [],
   selectedPersonId: null,
+  squarePolicyRevision: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -1957,6 +1958,10 @@ async function inspectSquare(squareId, card) {
     ]);
     $("#square-detail-name").textContent = square.square.name;
     $("#square-detail-mode").textContent = policy.policy.defaultMode;
+    state.squarePolicyRevision = policy.policy.revision;
+    $("#square-policy-mode").value = policy.policy.defaultMode;
+    $("#square-policy-domains").value = policy.policy.allowedDomains.join("\n");
+    $("#square-policy-tools").value = policy.policy.allowedToolNames.join("\n");
     renderSquareMembers(members);
     $("#square-policy").textContent =
       `Tools: ${policy.policy.allowedToolNames.length || "none"} allowed · Domains: ${policy.policy.allowedDomains.length || "none"} allowed · policy revision ${policy.policy.revision}`;
@@ -1968,6 +1973,19 @@ async function inspectSquare(squareId, card) {
     $("#square-members").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Square details unavailable.")}</p>`;
   }
+}
+async function saveSquarePolicy() {
+  if (!state.selectedSquareId || !state.squarePolicyRevision) return;
+  const error = $("#square-policy-error");
+  const domains = $("#square-policy-domains").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+  const tools = $("#square-policy-tools").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+  try {
+    const result = await api(`/v1/squares/${state.selectedSquareId}/policy`, { method: "PATCH", body: JSON.stringify({ expectedRevision: state.squarePolicyRevision, defaultMode: $("#square-policy-mode").value, allowedDomains: domains, allowedToolNames: tools, settings: {} }) });
+    state.squarePolicyRevision = result.policy.revision;
+    $("#square-detail-mode").textContent = result.policy.defaultMode;
+    $("#square-policy").textContent = `Tools: ${result.policy.allowedToolNames.length || "none"} allowed · Domains: ${result.policy.allowedDomains.length || "none"} allowed · policy revision ${result.policy.revision}`;
+    error.hidden = true;
+  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save Square policy."; error.hidden = false; }
 }
 async function loadSquares() {
   if (!state.token) {
@@ -2470,6 +2488,7 @@ $("#square-add-toggle").addEventListener("click", () => {
   if (!$("#square-add-form").hidden) $("#square-name").focus();
 });
 $("#square-save").addEventListener("click", () => void saveSquare());
+$("#square-policy-save").addEventListener("click", () => void saveSquarePolicy());
 $("#square-list").addEventListener("click", (event) => {
   const button = event.target.closest(".square-inspect");
   const card = event.target.closest(".square-card");
