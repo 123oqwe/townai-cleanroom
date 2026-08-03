@@ -30,6 +30,12 @@ export function registerSuggestionRoutes(
       nextCursor: page.nextCursor,
     });
   });
+  app.post("/v1/suggestions/refresh", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      suggestions: await repository.refreshCandidates(ownerId),
+    });
+  });
   app.patch("/v1/suggestions/:suggestionId", async (context) => {
     const ownerId = context.get("identity").user.id;
     const body = z

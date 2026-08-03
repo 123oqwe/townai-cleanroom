@@ -264,7 +264,69 @@ export function createSuggestionRepository(sql: Sql) {
       return { suggestion: safe(updated), taskId: asId<"task">(taskId) };
     });
   }
-  return { create, list, listPage, transition, convertToTask };
+  async function refreshCandidates(ownerId: Id<"user">): Promise<Suggestion[]> {
+    const value = idSchema.parse(ownerId);
+    const candidates = await sql<
+      { id: string; title: string; description: string; scheduled_for: Date }[]
+    >`
+      select id, title, description, scheduled_for
+      from tasks
+      where owner_id=${value} and status='open' and scheduled_for is not null
+        and scheduled_for < now()
+      order by scheduled_for asc, id asc
+      limit 50
+    `;
+    const routineCandidates = await sql<
+      { id: string; name: string; next_run_at: Date }[]
+    >`
+      select id, name, next_run_at
+      from routine_schedules
+      where owner_id=${value} and enabled=true
+        and next_run_at <= now() + interval '24 hours'
+      order by next_run_at asc, id asc
+      limit 50
+    `;
+    const suggestions: Suggestion[] = [];
+    for (const task of candidates) {
+      suggestions.push(
+        await create({
+          ownerId: value,
+          kind: "task",
+          title: `Task needs attention: ${task.title}`,
+          body:
+            task.description.trim() ||
+            `This task was scheduled for ${task.scheduled_for.toISOString()}.`,
+          sourceType: "task",
+          sourceRef: task.id,
+          fingerprint: `overdue-task:${task.id}:${task.scheduled_for.toISOString()}`,
+          metadata: { scheduledFor: task.scheduled_for.toISOString() },
+        }),
+      );
+    }
+    for (const routine of routineCandidates) {
+      suggestions.push(
+        await create({
+          ownerId: value,
+          kind: "routine",
+          title: `Routine is due: ${routine.name}`,
+          body: `The next scheduled run is ${routine.next_run_at.toISOString()}.`,
+          sourceType: "routine",
+          sourceRef: routine.id,
+          fingerprint: `due-routine:${routine.id}:${routine.next_run_at.toISOString()}`,
+          metadata: { nextRunAt: routine.next_run_at.toISOString() },
+        }),
+      );
+    }
+    return suggestions;
+  }
+  return {
+    create,
+    list,
+    listPage,
+    transition,
+    convertToTask,
+    refreshCandidates,
+  };
 }
 export type SuggestionRepository = ReturnType<
   typeof createSuggestionRepository

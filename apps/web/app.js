@@ -1313,6 +1313,7 @@ async function loadSuggestions(loadMore = false) {
     return;
   }
   try {
+    if (!loadMore) await apiJson("/v1/suggestions/refresh", {});
     const cursor = loadMore ? state.suggestionsCursor : null;
     const query = new URLSearchParams({ status: "open", limit: "20" });
     if (cursor) query.set("cursor", cursor);

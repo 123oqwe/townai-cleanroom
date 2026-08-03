@@ -21,9 +21,11 @@ describe("suggestion routes", () => {
       items: [{ id: suggestionId, status: "open" }],
       nextCursor: "next-cursor",
     });
+    const refreshCandidates = vi.fn().mockResolvedValue([]);
     const repository = {
       listPage,
       transition,
+      refreshCandidates,
     } as unknown as SuggestionRepository;
     const app = new Hono<{ Variables: AuthVariables }>();
     app.use("*", async (context, next) => {
@@ -61,5 +63,15 @@ describe("suggestion routes", () => {
       1,
       "dismissed",
     );
+    const refresh = await app.request(
+      "http://town.test/v1/suggestions/refresh",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      },
+    );
+    expect(refresh.status).toBe(200);
+    expect(refreshCandidates).toHaveBeenCalledWith(ownerId);
   });
 });
