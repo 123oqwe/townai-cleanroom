@@ -265,6 +265,11 @@ usage-ledger totals, and current Billing state. External payment data is never
 invented: `reconciliation.externalProvider` and `discrepancy` remain explicitly
 `not_configured`/`null` until a real provider adapter exists.
 
+The admin user surface now exposes `GET /v1/admin/users/:userId` with a safe
+identity projection, active resource counts, and connected-account metadata.
+Credential material and private knowledge content remain excluded by contract;
+the endpoint is unavailable to users outside the deployment admin allowlist.
+
 The Harness dialog now consumes the same readiness contract before creating a
 thread or queuing a turn. When the worker is not configured, the composer and
 thread controls are disabled and the UI explains that data/settings remain

@@ -150,6 +150,9 @@ existing allowlist state.
   internal period usage ledger and billing state to the same admin boundary.
   External payment reconciliation remains an explicit `not_configured` state
   until a real billing provider adapter is supplied.
+- `/v1/admin/users/:userId` exposes a safe administrative user projection,
+  resource counts, and connected-account metadata without credentials or
+  private knowledge content.
 - Owner-scoped Suggestions/Need-to-Know records with source provenance,
   fingerprint deduplication, expiry, and optimistic dismiss/convert actions;
   converting a suggestion atomically creates a Task thread and source

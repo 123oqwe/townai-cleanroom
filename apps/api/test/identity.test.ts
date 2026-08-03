@@ -295,6 +295,30 @@ describe("protected identity API", () => {
     });
     expect(JSON.stringify(body)).not.toContain(owner.token);
 
+    const detailResponse = await app.request(
+      `/v1/admin/users/${other.user.id}`,
+      { headers: { Authorization: `Bearer ${owner.token}` } },
+    );
+    const detail = await detailResponse.json();
+    expect(detailResponse.status).toBe(200);
+    expect(detail).toMatchObject({
+      user: { id: other.user.id, email: other.user.email },
+      resources: {
+        hasProfile: false,
+        activeAgents: 0,
+        activeThreads: 0,
+        openTasks: 0,
+      },
+      accounts: [
+        {
+          provider: "google",
+          email: "other@gmail.test",
+          isActive: true,
+          credentialPresent: true,
+        },
+      ],
+    });
+
     const denied = await app.request(
       `/v1/admin/agent-health/${owner.user.id}`,
       { headers: { Authorization: `Bearer ${other.token}` } },
