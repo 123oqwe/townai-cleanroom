@@ -357,4 +357,36 @@ describe("notification channels", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
     expect(resolveCredential).toHaveBeenCalledTimes(3);
   });
+
+  it("isolates an empty provider credential as a retryable delivery failure", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "telegram",
+      address: "123",
+      config: { credentialRef: "missing" },
+    });
+    await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.result",
+      idempotencyKey: "delivery-empty-credential",
+      payload: { body: "A result is ready." },
+    });
+
+    await expect(
+      repository.deliverNext({
+        workerId: "empty-credential-worker",
+        fetch: vi.fn(),
+        resolveCredential: async () => "   ",
+      }),
+    ).resolves.toMatchObject({
+      claimed: true,
+      delivery: {
+        status: "failed",
+        lastError: expect.stringContaining("CHANNEL_CREDENTIAL_EMPTY"),
+        nextAttemptAt: expect.any(Date),
+      },
+    });
+  });
 });

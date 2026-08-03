@@ -462,10 +462,16 @@ export function createChannelRepository(sql: Sql) {
         const config = chatConfig.parse(channel.config);
         if (config.credentialRef === undefined)
           throw new Error("CHANNEL_CREDENTIAL_UNAVAILABLE");
-        const credential = await input.resolveCredential({
-          ownerId: claimed.ownerId,
-          credentialRef: config.credentialRef,
-        });
+        const credential = z
+          .string()
+          .trim()
+          .min(1, "CHANNEL_CREDENTIAL_EMPTY")
+          .parse(
+            await input.resolveCredential({
+              ownerId: claimed.ownerId,
+              credentialRef: config.credentialRef,
+            }),
+          );
         const text =
           typeof claimed.payload["body"] === "string"
             ? claimed.payload["body"]
