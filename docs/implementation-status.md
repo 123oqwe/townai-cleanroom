@@ -169,3 +169,8 @@ Recipients can now install a shared Routine from the Routine dialog using the
 real `rtnshare_…` token and first-run contract through
 `POST /v1/routines/install`; the installed schedule is reloaded from the
 owner-scoped server list.
+
+Connected Account cards now expose the existing provider refresh (Google only)
+and owner-scoped remove actions. Credentials remain server-side; each action
+reloads `/v1/accounts` and reports provider/configuration errors without
+fabricating account state.

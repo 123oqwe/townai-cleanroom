@@ -1432,15 +1432,17 @@ function renderAccounts(result) {
   target.innerHTML = accounts
     .map(
       (account) =>
-        `<article class="account-card"><span class="account-mark">${escapeHtml(account.provider)}</span><div><strong>${escapeHtml(account.email)}</strong><small>${
+        `<article class="account-card" data-account-id="${escapeHtml(account.id)}"><span class="account-mark">${escapeHtml(account.provider)}</span><div><strong>${escapeHtml(account.email)}</strong><small>${
           Object.keys(account.capabilities || {})
             .filter((key) => account.capabilities[key])
             .map(escapeHtml)
             .join(" · ") || "No capabilities reported"
-        }</small></div><span class="account-status ${account.needsReauth ? "needs-reauth" : ""}">${account.needsReauth ? "reauth" : account.isActive ? "active" : "inactive"}</span></article>`,
+        }</small></div><div class="account-card-actions"><span class="account-status ${account.needsReauth ? "needs-reauth" : ""}">${account.needsReauth ? "reauth" : account.isActive ? "active" : "inactive"}</span>${account.provider === "google" ? '<button class="quiet-button account-refresh" type="button">Refresh</button>' : ""}<button class="quiet-button account-remove" type="button">Remove</button></div></article>`,
     )
     .join("");
 }
+async function refreshAccount(card) { try { await api(`/v1/accounts/${card.dataset.accountId}/refresh`, { method: "POST" }); await loadAccounts(); } catch (cause) { const error = $("#accounts-error"); error.textContent = cause instanceof Error ? cause.message : "Could not refresh account."; error.hidden = false; } }
+async function removeAccount(card) { try { await api(`/v1/accounts/${card.dataset.accountId}`, { method: "DELETE" }); await loadAccounts(); } catch (cause) { const error = $("#accounts-error"); error.textContent = cause instanceof Error ? cause.message : "Could not remove account."; error.hidden = false; } }
 async function loadAccounts() {
   if (!state.token) {
     $("#account-list").innerHTML =
@@ -2617,6 +2619,7 @@ $("#account-open").addEventListener("click", () => {
   void loadInputRequests();
   void loadRuntimeInputs();
 });
+$("#account-list").addEventListener("click", (event) => { const card = event.target.closest(".account-card"); if (!card) return; if (event.target.closest(".account-refresh")) void refreshAccount(card); if (event.target.closest(".account-remove")) void removeAccount(card); });
 $("#policy-preview-run").addEventListener("click", () => void previewPolicy());
 $("#approval-inbox-list").addEventListener("click", (event) => {
   const button = event.target.closest("button");

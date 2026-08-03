@@ -1940,6 +1940,7 @@ dialog h2 {
   color: var(--muted);
   font-size: 10px;
 }
+.account-card-actions { display: flex; align-items: center; gap: .45rem; }
 .account-status {
   color: var(--green);
   font-family: var(--mono);
