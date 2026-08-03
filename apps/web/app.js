@@ -1092,6 +1092,7 @@ function renderRoutines(result) {
       void loadRoutineRuns();
       void loadRoutineVersions();
       void loadRoutineTriggers();
+      void loadRoutineEmailAccounts();
       renderRoutines(result);
       $("#routine-input").focus();
     });
@@ -1154,6 +1155,27 @@ async function addRoutineTrigger() {
     error.hidden = true;
     await loadRoutineTriggers();
   } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not add trigger."; error.hidden = false; }
+}
+async function loadRoutineEmailAccounts() {
+  const select = $("#routine-email-account");
+  if (!state.token || !select) return;
+  try {
+    const accounts = (await api("/v1/accounts")).accounts || [];
+    const google = accounts.filter((account) => account.provider === "google" && account.status !== "revoked");
+    select.innerHTML = google.length ? google.map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.displayName || account.providerAccountId || account.id.slice(0, 8))}</option>`).join("") : '<option value="">No connected Google account</option>';
+  } catch (cause) { select.innerHTML = `<option value="">${escapeHtml(cause instanceof Error ? cause.message : "Accounts unavailable.")}</option>`; }
+}
+async function ingestRoutineEmail() {
+  if (!selectedRoutineId) return;
+  const error = $("#routine-email-error");
+  const accountId = $("#routine-email-account").value;
+  if (!accountId) { error.textContent = "Connect and select a Google account first."; error.hidden = false; return; }
+  try {
+    const result = await apiJson(`/v1/routines/${selectedRoutineId}/ingest/email`, { accountId, query: $("#routine-email-query").value.trim() || undefined, maxResults: Number($("#routine-email-max").value) || 10 });
+    error.textContent = `Queued ${result.runs?.length || 0} message(s).`;
+    error.hidden = false;
+    await loadRoutineRuns();
+  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not ingest email."; error.hidden = false; }
 }
 async function loadRoutineVersions() {
   if (!selectedRoutineId || !state.token) return;
@@ -2604,6 +2626,7 @@ $("#routine-trigger-list").addEventListener("click", (event) => {
   if (event.target.closest(".routine-trigger-delete")) void deleteRoutineTrigger(row);
 });
 $("#routine-trigger-add-button").addEventListener("click", () => void addRoutineTrigger());
+$("#routine-email-ingest-button").addEventListener("click", () => void ingestRoutineEmail());
 $("#routine-template-install").addEventListener(
   "click",
   () => void installRoutineTemplate(),

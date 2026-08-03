@@ -180,3 +180,4 @@ requests can be marked completed and pending requests can be cancelled via the
 existing revision-aware `PATCH /v1/a2a/requests/:requestId` route. Server-side
 role and revision checks remain authoritative.
 Knowledge conflicts now appear in Library from GET /v1/knowledge/conflicts. Each pending conflict shows the proposed snapshot and explicit Accept/Reject actions using expectedRevision via POST /v1/knowledge/conflicts/:conflictId/resolve. Server-side revision/citation application remains authoritative.
+Routine details now expose Gmail ingestion through a selected connected Google account, optional Gmail query, and bounded max-message input calling POST /v1/routines/:routineId/ingest/email. Provider access, trigger configuration, idempotency, and queue creation remain server-authoritative.

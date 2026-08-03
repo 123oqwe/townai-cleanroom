@@ -888,6 +888,16 @@
             <button class="quiet-button" id="routine-trigger-add-button" type="button">Add trigger</button>
             <p class="dialog-error" id="routine-trigger-add-error" role="alert" hidden></p>
           </div>
+          <div class="routine-email-ingest">
+            <label for="routine-email-account">Ingest Gmail into this routine</label>
+            <select id="routine-email-account"><option value="">Connect a Google account first</option></select>
+            <label for="routine-email-query">Gmail query <span class="form-hint">optional</span></label>
+            <input id="routine-email-query" maxlength="500" placeholder="in:anywhere newer_than:1d" />
+            <label for="routine-email-max">Max messages</label>
+            <input id="routine-email-max" type="number" min="1" max="100" value="10" />
+            <button class="quiet-button" id="routine-email-ingest-button" type="button">Fetch and queue email</button>
+            <p class="dialog-error" id="routine-email-error" role="alert" hidden></p>
+          </div>
           <p
             class="dialog-error"
             id="routine-history-error"

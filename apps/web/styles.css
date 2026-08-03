@@ -52,6 +52,9 @@
 .routine-trigger-actions { display: flex; gap: .45rem; }
 .routine-trigger-add { display: grid; gap: 6px; margin-top: .8rem; }
 .routine-trigger-add select, .routine-trigger-add textarea { width: 100%; }
+.routine-email-ingest { display: grid; gap: 8px; margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--paper-deep); }
+.routine-email-ingest label { color: var(--muted-deep); font-size: 11px; }
+.routine-email-ingest input, .routine-email-ingest select { width: 100%; }
 .routine-edit-form { display: grid; gap: 6px; margin: .8rem 0; }
 .routine-edit-form input { width: 100%; }
 .routine-edit-actions { display: flex; gap: .5rem; }
