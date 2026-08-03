@@ -1104,6 +1104,8 @@ dialog h2 {
 }
 .content-add-form { display: grid; gap: 6px; margin: .8rem 0; }
 .content-add-form input, .content-add-form select, .content-add-form textarea { width: 100%; }
+.content-edit-form { display: grid; gap: 6px; margin-top: .7rem; }
+.content-edit-form input, .content-edit-form textarea { width: 100%; }
 .content-history-button {
   min-height: 31px;
   padding: 0 9px;

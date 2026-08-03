@@ -454,11 +454,31 @@ function renderLibraryContent(result, append = false) {
     .slice(0, 20)
     .map(
       (item) =>
-        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><div class="content-actions"><button class="quiet-button content-history-button" type="button">History</button><button class="quiet-button content-share-button" type="button">Share</button><button class="quiet-button content-archive-button" type="button">Archive</button></div></article>`,
+        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><div class="content-actions"><button class="quiet-button content-edit-button" type="button">Edit</button><button class="quiet-button content-history-button" type="button">History</button><button class="quiet-button content-share-button" type="button">Share</button><button class="quiet-button content-archive-button" type="button">Archive</button></div></article>`,
     )
     .join("");
   if (append) target.insertAdjacentHTML("beforeend", html);
   else target.innerHTML = html;
+}
+async function editContent(card) {
+  if (!card || card.querySelector(".content-edit-form")) return;
+  try {
+    const result = await api(`/v1/content/${card.dataset.contentId}`);
+    const content = result.content;
+    card._contentDetail = content;
+    const form = document.createElement("div");
+    form.className = "content-edit-form";
+    form.innerHTML = `<input class="content-edit-title" maxlength="500" value="${escapeHtml(content.title)}"/><textarea class="content-edit-body" rows="4" maxlength="200000">${escapeHtml(content.body || "")}</textarea><button class="quiet-button content-edit-save" type="button">Save edit</button>`;
+    card.append(form);
+  } catch (cause) { const error = document.createElement("p"); error.className = "harness-empty"; error.textContent = cause instanceof Error ? cause.message : "Could not load content."; card.append(error); }
+}
+async function saveContentEdit(card) {
+  const content = card?._contentDetail;
+  if (!card || !content) return;
+  const title = card.querySelector(".content-edit-title").value.trim();
+  const body = card.querySelector(".content-edit-body").value;
+  await api(`/v1/content/${content.id}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: content.currentRevision, title, mimeType: content.mimeType, storageKey: content.storageKey, body, metadata: content.metadata }) });
+  await loadLibrary();
 }
 async function archiveContent(card) {
   if (!card?.dataset.contentId) return;
@@ -2332,6 +2352,8 @@ $("#library-content-list").addEventListener("click", (event) => {
     void loadContentHistory(card);
     return;
   }
+  if (event.target.closest(".content-edit-button")) { void editContent(card); return; }
+  if (event.target.closest(".content-edit-save")) { void saveContentEdit(card); return; }
   if (event.target.closest(".content-archive-button")) {
     void archiveContent(card);
     return;

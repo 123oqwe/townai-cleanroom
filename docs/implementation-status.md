@@ -115,3 +115,8 @@ Content Library now supports creating owner-scoped content from the UI using
 the server's real content-kind enum, title, body, and metadata contract. The
 new item is persisted through `POST /v1/content` and the active list reloads
 from server truth.
+
+Content Library cards now support inline editing through the existing
+revision-aware `PATCH /v1/content/:contentId` route. The client first fetches
+the authoritative content item, preserves its MIME/storage/metadata fields,
+and reloads after a successful save; stale revisions remain server-rejected.
