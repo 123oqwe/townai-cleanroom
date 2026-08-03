@@ -1187,3 +1187,10 @@ The signed Slack Events adapter source state is deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The route remains inactive until
 `SLACK_SIGNING_SECRET` is configured; the direct URL remains SSO-gated.
+
+The signed Twilio voice transcription adapter source state is deployed as
+`https://town-clear-lvhdvl1ce-123oqwes-projects.vercel.app`, deployment
+`dpl_84LsS3JUpNY5dia6Hmxm1hiFEBLd`, state `READY`. The full workspace build
+completed in 33 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The route remains inactive until
+`TWILIO_AUTH_TOKEN` is configured; the direct URL remains SSO-gated.
