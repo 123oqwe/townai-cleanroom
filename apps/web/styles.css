@@ -1674,6 +1674,47 @@ dialog h2 {
   margin: 18px 0;
   overflow: auto;
 }
+
+.policy-preview {
+  border: 1px solid var(--line);
+  padding: 1rem;
+  margin: 1rem 0;
+  background: var(--paper);
+}
+
+.policy-preview h3 {
+  margin: 0.15rem 0 0.8rem;
+}
+
+.policy-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.policy-preview-grid label,
+.policy-check {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.policy-preview-grid select {
+  width: 100%;
+}
+
+.policy-check {
+  display: flex;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.policy-preview-result {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
 .account-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;

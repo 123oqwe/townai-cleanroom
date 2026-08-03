@@ -1142,6 +1142,32 @@ async function loadAccounts() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Accounts unavailable.")}</p>`;
   }
 }
+async function previewPolicy() {
+  const target = $("#policy-preview-result");
+  if (!state.token) {
+    target.textContent = "Connect the API to preview a decision.";
+    return;
+  }
+  target.textContent = "Evaluating…";
+  try {
+    const result = await apiJson("/v1/tools/policy/evaluate", {
+      sessionMode: $("#policy-session-mode").value,
+      routineMode: "approval_required",
+      perToolOverride: null,
+      sideEffect: $("#policy-side-effect").value,
+      dataSensitivity: $("#policy-data-sensitivity").value,
+      inputTrust: $("#policy-input-trust").value,
+      targetIsSelf: true,
+      targetIsTrusted: true,
+      accountBound: $("#policy-account-bound").checked,
+    });
+    const policy = result.policy;
+    target.innerHTML = `<strong>${escapeHtml(policy.decision)}</strong><br />${escapeHtml(policy.rationale)}${policy.riskFlags.length ? `<br /><small>${escapeHtml(policy.riskFlags.join(" · "))}</small>` : ""}`;
+  } catch (error) {
+    target.textContent =
+      error instanceof Error ? error.message : "Policy preview unavailable.";
+  }
+}
 async function startGoogleOAuth() {
   const error = $("#accounts-error");
   error.hidden = true;
@@ -1850,6 +1876,7 @@ $("#account-open").addEventListener("click", () => {
   openDialog($("#accounts-dialog"));
   void loadAccounts();
 });
+$("#policy-preview-run").addEventListener("click", () => void previewPolicy());
 $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
 $("#channels-open").addEventListener("click", () => {
   openDialog($("#channels-dialog"));

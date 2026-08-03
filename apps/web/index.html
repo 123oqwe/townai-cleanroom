@@ -829,6 +829,55 @@
           Account identity stays explicit. Tokens and credentials never leave
           the server boundary.
         </p>
+        <section class="policy-preview" aria-labelledby="policy-preview-title">
+          <p class="eyebrow">Before a tool runs</p>
+          <h3 id="policy-preview-title">Preview the policy decision</h3>
+          <div class="policy-preview-grid">
+            <label
+              >Session<select id="policy-session-mode">
+                <option value="ask_before_changes">Ask before changes</option>
+                <option value="allow_safe_actions">Allow safe actions</option>
+                <option value="allow_all">Allow all</option>
+              </select></label
+            >
+            <label
+              >Side effect<select id="policy-side-effect">
+                <option value="read">Read</option>
+                <option value="private_write">Private write</option>
+                <option value="external_write">External write</option>
+                <option value="destructive">Destructive</option>
+              </select></label
+            >
+            <label
+              >Data<select id="policy-data-sensitivity">
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+                <option value="restricted">Restricted</option>
+              </select></label
+            >
+            <label
+              >Input<select id="policy-input-trust">
+                <option value="trusted_instruction">Trusted instruction</option>
+                <option value="trusted_data">Trusted data</option>
+                <option value="untrusted_data">Untrusted data</option>
+              </select></label
+            >
+          </div>
+          <label class="policy-check"
+            ><input id="policy-account-bound" type="checkbox" /> Account is
+            bound</label
+          >
+          <button class="quiet-button" id="policy-preview-run" type="button">
+            Evaluate <span>→</span>
+          </button>
+          <div
+            class="policy-preview-result"
+            id="policy-preview-result"
+            aria-live="polite"
+          >
+            Connect the API to preview a decision.
+          </div>
+        </section>
         <div class="account-list" id="account-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load accounts.</p>
         </div>
