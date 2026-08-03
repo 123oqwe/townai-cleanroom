@@ -883,3 +883,10 @@ The Knowledge Conflicts Library UI is deployed as
 `town-clear-current-ui-123oqwe-123oqwes-projects.vercel.app`. Vercel reported
 no runtime errors; direct unauthenticated `HEAD` access returns the expected
 `302` SSO redirect under the project protection policy.
+
+The Gmail-to-Routine ingestion UI is deployed as
+`https://town-clear-current-15qpci03l-123oqwes-projects.vercel.app`, deployment
+`dpl_2e1SLnfADRa1p2RgL7teMi13T5qm`, state `READY`, alias
+`town-clear-current-ui-123oqwe-123oqwes-projects.vercel.app`. Vercel reported
+no runtime errors; direct unauthenticated access returns the expected `302`
+SSO redirect.
