@@ -34,6 +34,8 @@ const state = {
     googleOAuth: false,
   },
   harnessStreamAbort: null,
+  harnessSpeechTexts: [],
+  harnessAudio: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -268,14 +270,61 @@ function renderHarnessTurns(turns) {
       '<p class="harness-empty">No turns in this thread yet.</p>';
     return;
   }
+  state.harnessSpeechTexts = turns.slice(-12).map((turn) => turn.text);
   transcript.innerHTML = turns
     .slice(-12)
-    .map(
-      (turn) =>
-        `<div class="harness-message ${turn.role === "user" ? "user" : "assistant"}">${escapeHtml(turn.text)}</div>`,
-    )
+    .map((turn, index) => {
+      const assistant = turn.role !== "user";
+      return `<div class="harness-message ${assistant ? "assistant" : "user"}"><span>${escapeHtml(turn.text)}</span>${assistant ? `<button class="speech-button" type="button" data-speak-index="${index}" aria-label="Play assistant response">▶</button>` : ""}</div>`;
+    })
     .join("");
+  transcript.querySelectorAll("[data-speak-index]").forEach((button) => {
+    button.addEventListener(
+      "click",
+      () => void speakHarnessText(Number(button.dataset.speakIndex), button),
+    );
+  });
   transcript.scrollTop = transcript.scrollHeight;
+}
+async function speakHarnessText(index, button) {
+  const text = state.harnessSpeechTexts[index];
+  if (!text || !state.token) return;
+  button.disabled = true;
+  button.textContent = "…";
+  try {
+    const response = await fetch(
+      `${state.base.replace(/\/$/, "")}/v1/voice/synthesize`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${state.token}`,
+          Accept: "audio/mpeg",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      },
+    );
+    if (!response.ok) throw new Error(`Voice API returned ${response.status}`);
+    const url = URL.createObjectURL(await response.blob());
+    state.harnessAudio?.pause();
+    state.harnessAudio = new window.Audio(url);
+    state.harnessAudio.addEventListener(
+      "ended",
+      () => URL.revokeObjectURL(url),
+      {
+        once: true,
+      },
+    );
+    await state.harnessAudio.play();
+  } catch (error) {
+    setHarnessState(
+      error instanceof Error ? error.message : "Voice playback unavailable.",
+      "error",
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = "▶";
+  }
 }
 function clearHarnessApproval() {
   $("#approval-card").hidden = true;

@@ -366,3 +366,9 @@ optional Harness tool `town_voice_speak`. The ElevenLabs implementation sends
 the requested text to the configured voice and returns the provider's actual
 `audio/mpeg` bytes; the Harness tool is approval-gated and missing credentials
 keep both surfaces absent rather than returning placeholder audio.
+
+The Harness transcript now gives each assistant turn a small play control. It
+requests `/v1/voice/synthesize` with the authenticated session, plays the
+returned audio blob locally, and stops/replaces the previous playback. A
+provider-unconfigured API therefore produces an explicit error state instead
+of a fake browser-side voice.

@@ -19,6 +19,8 @@ for (const marker of [
   "/v1/schedule",
   "/v1/suggestions",
   "/v1/routine-runs/",
+  "/v1/voice/synthesize",
+  "data-speak-index",
   "localStorage",
 ]) {
   if (!js.includes(marker))

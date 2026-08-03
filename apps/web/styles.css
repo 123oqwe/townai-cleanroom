@@ -1082,6 +1082,31 @@ dialog h2 {
   border: 1px solid var(--line);
   background: var(--surface);
 }
+.harness-message.assistant {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.harness-message.assistant > span {
+  flex: 1;
+  min-width: 0;
+}
+.speech-button {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted-deep);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 10px;
+}
+.speech-button:hover,
+.speech-button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .approval-card {
   display: grid;
   gap: 14px;
