@@ -26,6 +26,8 @@ import {
 import {
   createRuntimeTransitionService,
   createSessionRepository,
+  createRuntimeQueueRepository,
+  createApprovalDecisionRepository,
 } from "@town/runtime";
 
 import { createApp } from "../src/app.js";
@@ -66,6 +68,7 @@ async function fixture() {
     inputRequestRepository: createInputRequestRepository(sql),
     sessionRepository: createSessionRepository(sql),
     runtimeTransitionService: createRuntimeTransitionService(sql),
+    approvalDecisions: createApprovalDecisionRepository(sql),
   };
   const owner = await identityService.establishIdentity({
     email: "runtime-api-owner@example.invalid",
@@ -75,7 +78,12 @@ async function fixture() {
     email: "runtime-api-other@example.invalid",
     timezone: "UTC",
   });
-  return { app: createApp(dependencies), dependencies, owner, other };
+  return {
+    app: createApp(dependencies),
+    dependencies: { ...dependencies, queue: createRuntimeQueueRepository(sql) },
+    owner,
+    other,
+  };
 }
 
 function authorization(token: string, idempotencyKey?: string) {
@@ -399,5 +407,52 @@ describe("protected persistent Session API", () => {
     );
     expect(otherResume.status).toBe(404);
     expect(queuedResume.status).toBe(409);
+  });
+
+  it("records a Harness approval and requeues a waiting run atomically", async () => {
+    const { app, owner, dependencies } = await fixture();
+    const created = await createThread(app, owner.token);
+    const submittedResponse = await app.request(
+      `/v1/threads/${created.thread.id}/messages`,
+      {
+        method: "POST",
+        headers: authorization(owner.token, "runtime-api-approval"),
+        body: JSON.stringify({ text: "Wait for approval.", mentions: [] }),
+      },
+    );
+    const submitted = (await submittedResponse.json()) as {
+      session: { id: string };
+      run: { id: string };
+    };
+    const lease = await dependencies.queue.claim({
+      workerId: "approval-test-worker",
+      leaseMs: 10_000,
+    });
+    expect(lease).not.toBeNull();
+    if (lease === null)
+      throw new Error("Expected the approval test run to be claimable.");
+    await dependencies.runtimeTransitionService.start({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+    });
+    await dependencies.runtimeTransitionService.wait({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      state: "waiting_approval",
+      reason: "Need permission",
+    });
+    const response = await app.request(
+      `/v1/sessions/${submitted.session.id}/runs/${submitted.run.id}/approval`,
+      {
+        method: "POST",
+        headers: authorization(owner.token),
+        body: JSON.stringify({ approvalId: "approval-1", decision: "approve" }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({
+      decision: { approvalId: "approval-1", decision: "approve" },
+      run: { state: "queued" },
+    });
   });
 });

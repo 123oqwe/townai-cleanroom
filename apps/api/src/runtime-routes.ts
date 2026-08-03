@@ -5,6 +5,7 @@ import { turnMentionsInputSchema } from "@town/agents";
 import { asId } from "@town/contracts";
 import {
   sessionRunStateSchema,
+  type ApprovalDecisionRepository,
   type RuntimeTransitionService,
   type SessionRepository,
 } from "@town/runtime";
@@ -14,6 +15,7 @@ import type { AuthVariables } from "./auth.js";
 export interface RuntimeDependencies {
   sessionRepository: SessionRepository;
   runtimeTransitionService: RuntimeTransitionService;
+  approvalDecisions?: ApprovalDecisionRepository;
 }
 
 const messageSchema = z
@@ -36,6 +38,12 @@ const emptyBodySchema = z.object({}).strict();
 const resumeSchema = z
   .object({
     expectedState: z.enum(["waiting_approval", "waiting_user_input"]),
+  })
+  .strict();
+const approvalDecisionSchema = z
+  .object({
+    approvalId: z.string().trim().min(1).max(500),
+    decision: z.enum(["approve", "reject"]),
   })
   .strict();
 
@@ -71,6 +79,29 @@ export function registerRuntimeRoutes(
       expectedState: body.expectedState,
     });
     return context.json({ run }, 202);
+  });
+
+  app.post("/v1/sessions/:sessionId/runs/:runId/approval", async (context) => {
+    if (dependencies.approvalDecisions === undefined)
+      return context.json({ code: "APPROVAL_DECISIONS_NOT_CONFIGURED" }, 503);
+    const ownerId = context.get("identity").user.id;
+    const sessionId = asId<"runtime-session">(context.req.param("sessionId"));
+    const runId = asId<"session-run">(context.req.param("runId"));
+    const body = approvalDecisionSchema.parse(await context.req.json());
+    const decision = await dependencies.approvalDecisions.record({
+      ownerId,
+      sessionId,
+      runId,
+      approvalId: body.approvalId,
+      decision: body.decision,
+    });
+    const run = await dependencies.runtimeTransitionService.resume({
+      ownerId,
+      sessionId,
+      runId,
+      expectedState: "waiting_approval",
+    });
+    return context.json({ decision, run }, 202);
   });
 
   app.get("/v1/sessions/:sessionId", async (context) => {

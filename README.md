@@ -125,6 +125,10 @@ Waiting runtime runs can be durably re-enqueued through
 `POST /v1/sessions/:sessionId/runs/:runId/resume` with an explicit
 `expectedState` of `waiting_approval` or `waiting_user_input`; stale or
 cross-owner resumes are rejected by the transition service.
+For Harness approvals, `POST /v1/sessions/:sessionId/runs/:runId/approval`
+persists a one-time owner/run-bound decision and requeues the run. The next
+worker execution consumes that decision through `approval/resolve` before
+continuing the persisted Harness thread.
 
 Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
 They use an explicit request/result envelope, recipient consent, expiry metadata,

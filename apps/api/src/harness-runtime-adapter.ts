@@ -6,6 +6,7 @@ import type {
   ThreadSnapshot,
 } from "@town/harness";
 import type {
+  ApprovalDecisionRepository,
   RuntimeAdapter,
   RuntimeAdapterContext,
   RuntimeAdapterEvent,
@@ -15,6 +16,7 @@ export function createHarnessRuntimeAdapter(input: {
   createServer: (ownerId: string) => Promise<AppServer>;
   createStore: (ownerId: string) => PersistentThreadStore;
   turns: TurnRepository;
+  approvalDecisions?: ApprovalDecisionRepository;
 }): RuntimeAdapter {
   return {
     async *execute(
@@ -40,11 +42,25 @@ export function createHarnessRuntimeAdapter(input: {
           agentVersionId: context.session.agentVersion.id,
         });
       }
-      const turn = await input.turns.get({
-        ownerId,
-        threadId,
-        turnId: context.run.triggeringTurnId,
-      });
+      const pendingApproval = (await store.get(threadId))?.pendingApproval;
+      const approvalDecision =
+        pendingApproval === undefined || input.approvalDecisions === undefined
+          ? null
+          : await input.approvalDecisions.getPending({
+              ownerId,
+              sessionId: context.session.id,
+              runId: context.run.id,
+              approvalId: pendingApproval.callId,
+            });
+      yield { type: "phase", phase: "context_building" };
+      if (pendingApproval !== undefined && approvalDecision === null) {
+        yield { type: "phase", phase: "model_running" };
+        yield {
+          type: "waiting_approval",
+          reason: "Approval is required before this durable run can continue.",
+        };
+        return;
+      }
       const server = await input.createServer(ownerId);
       const initialized = await server.dispatch({
         jsonrpc: "2.0",
@@ -53,14 +69,41 @@ export function createHarnessRuntimeAdapter(input: {
         params: {},
       });
       assertResponse(initialized, "Harness initialization failed.");
-      yield { type: "phase", phase: "context_building" };
-      const response = await server.dispatch({
-        jsonrpc: "2.0",
-        id: context.run.id,
-        method: "turn/start",
-        params: { threadId, text: turn.text },
-      });
+      const response =
+        pendingApproval !== undefined && approvalDecision !== null
+          ? await server.dispatch({
+              jsonrpc: "2.0",
+              id: context.run.id,
+              method: "approval/resolve",
+              params: {
+                threadId,
+                approvalId: pendingApproval.callId,
+                decision: approvalDecision.decision,
+              },
+            })
+          : await server.dispatch({
+              jsonrpc: "2.0",
+              id: context.run.id,
+              method: "turn/start",
+              params: {
+                threadId,
+                text: (
+                  await input.turns.get({
+                    ownerId,
+                    threadId,
+                    turnId: context.run.triggeringTurnId,
+                  })
+                ).text,
+              },
+            });
       assertResponse(response, "Harness turn failed.");
+      if (pendingApproval !== undefined && approvalDecision !== null)
+        await input.approvalDecisions?.consume({
+          ownerId,
+          sessionId: context.session.id,
+          runId: context.run.id,
+          approvalId: pendingApproval.callId,
+        });
       yield { type: "phase", phase: "model_running" };
       for (const notification of response.notifications ?? []) {
         if (notification.method === "approval/requested") {

@@ -1,4 +1,5 @@
 export * from "./errors.js";
+export * from "./approval-decision-repository.js";
 export * from "./queue-repository.js";
 export * from "./runtime-adapter.js";
 export * from "./session-repository.js";

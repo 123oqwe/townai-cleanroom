@@ -37,6 +37,7 @@ import {
 } from "@town/knowledge";
 import {
   RuntimeError,
+  type ApprovalDecisionRepository,
   type RuntimeTransitionService,
   type SessionRepository,
 } from "@town/runtime";
@@ -109,6 +110,7 @@ export interface AppDependencies {
   inputRequestRepository?: InputRequestRepository;
   sessionRepository?: SessionRepository;
   runtimeTransitionService?: RuntimeTransitionService;
+  approvalDecisions?: ApprovalDecisionRepository;
   toolRegistryRepository?: ToolRegistryRepository;
   toolExecutionRepository?: ToolExecutionRepository;
   contentRepository?: ContentRepository;
@@ -137,7 +139,13 @@ function runtimeDependencies(
   ) {
     return null;
   }
-  return { sessionRepository, runtimeTransitionService };
+  return {
+    sessionRepository,
+    runtimeTransitionService,
+    ...(dependencies.approvalDecisions === undefined
+      ? {}
+      : { approvalDecisions: dependencies.approvalDecisions }),
+  };
 }
 
 function toolDependencies(
