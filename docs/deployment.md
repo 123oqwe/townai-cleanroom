@@ -1371,3 +1371,9 @@ The Library file-upload UI is included in the current READY source state. It
 uses the authenticated Content blob route and therefore remains visibly
 unavailable for durable upload until a storage backend is configured; no
 client-side fake upload state is introduced.
+
+The Library upload entry point is deployed in
+`dpl_6dPvs4aLzDhrjhRDeRAWrgjfSA8s`,
+`https://town-clear-n99a5gswx-123oqwes-projects.vercel.app`, state `READY`.
+The full build completed successfully and no runtime errors were reported in
+the selected hour.
