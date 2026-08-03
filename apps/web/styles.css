@@ -1736,6 +1736,45 @@ dialog h2 {
 .suggestions-dialog {
   max-width: 600px;
 }
+.schedule-list {
+  display: grid;
+  gap: 2px;
+}
+.schedule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.schedule-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.schedule-row strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schedule-row time,
+.schedule-kind,
+.schedule-note {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.schedule-kind {
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.schedule-note {
+  margin: 10px 0 0;
+}
 .suggestion-list {
   display: grid;
   gap: 10px;

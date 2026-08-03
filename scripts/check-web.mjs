@@ -16,6 +16,7 @@ for (const marker of [
   "/v1/operations/summary",
   "/v1/operations/audit",
   "/v1/notification-timeline",
+  "/v1/schedule",
   "/v1/suggestions",
   "/v1/routine-runs/",
   "localStorage",

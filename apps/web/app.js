@@ -94,6 +94,40 @@ function renderTimeline(items) {
     )
     .join("")}`;
 }
+function renderSchedule(result) {
+  const target = $("#schedule-list");
+  const items = result.items || [];
+  if (!items.length) {
+    target.innerHTML =
+      '<p class="harness-empty">Nothing scheduled in the next seven days.</p>';
+    return;
+  }
+  target.innerHTML = items
+    .map(
+      (item) =>
+        `<div class="schedule-row"><div><span class="schedule-kind">${escapeHtml(item.kind)}</span><strong>${escapeHtml(item.title)}</strong></div><time>${escapeHtml(formatDate(new Date(item.startAt)))} · ${escapeHtml(formatTime(new Date(item.startAt)))}</time></div>`,
+    )
+    .join("");
+  if ((result.calendarErrors || []).length > 0) {
+    target.insertAdjacentHTML(
+      "beforeend",
+      '<p class="schedule-note">Some connected calendars could not be read.</p>',
+    );
+  }
+}
+async function loadSchedule() {
+  if (!state.token) {
+    $("#schedule-list").innerHTML =
+      '<p class="harness-empty">Connect the API to see your schedule.</p>';
+    return;
+  }
+  try {
+    renderSchedule(await api("/v1/schedule?limit=12"));
+  } catch (error) {
+    $("#schedule-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Schedule unavailable.")}</p>`;
+  }
+}
 function renderOperations(items, append = false) {
   const target = $("#operations-list");
   const html = (items || [])
@@ -1385,6 +1419,7 @@ async function refresh() {
     ]);
     renderMetrics(summary.summary);
     renderTimeline(audit.audit.items);
+    await loadSchedule();
     setConnection(true);
   } catch (error) {
     setConnection(false, "Connection error");
