@@ -1271,6 +1271,13 @@ deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour.
 
+The address-bound `email_to_assistant` polling update is deployed as
+`https://town-clear-hmjee3fuv-123oqwes-projects.vercel.app`, deployment
+`dpl_AK2MNyG5JyeFjgGcfn3DUNC4PY2A`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. Gmail searches now include the
+configured assistant address before queueing messages.
+
 The routine-scoped webhook secret isolation fix is deployed as
 `https://town-clear-47o0y79fo-123oqwes-projects.vercel.app`, deployment
 `dpl_J7HkDdYzjBtRrW7Hi3KJ7hX57pNU`, state `READY`. The full workspace build
