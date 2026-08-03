@@ -608,3 +608,12 @@ direct URL is
 citation-aware ordered revision snapshots used by Wiki updates. An
 unauthenticated request to `/v1/health` returns the Vercel SSO `302`; Vercel
 reported no runtime errors in the verification window.
+
+The tool outbound-risk preview is deployed in
+`dpl_BMQi8UqWNwoH3xk7FbvYcq27wk2N`, built from commit `a8d7b80`. Its protected
+direct URL is
+`https://town-clear-current-fiymvyt1b-123oqwes-projects.vercel.app`, state
+`READY`; `POST /v1/tools/policy/evaluate` returns the policy decision, rationale,
+and risk flags without executing a tool. An unauthenticated request to
+`/v1/health` returns the Vercel SSO `302`; Vercel reported no runtime errors in
+the verification window.
