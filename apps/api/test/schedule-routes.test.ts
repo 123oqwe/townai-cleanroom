@@ -53,6 +53,9 @@ describe("schedule routes", () => {
       ]),
     } as unknown as AccountRepository;
     const google = {
+      calendarListCalendars: vi.fn().mockResolvedValue({
+        items: [{ id: "primary", summary: "Primary" }],
+      }),
       calendarListEvents: vi
         .fn()
         .mockRejectedValue(new Error("calendar unavailable")),
@@ -78,7 +81,9 @@ describe("schedule routes", () => {
     expect(body.items.every((item) => item.source.startsWith("local_"))).toBe(
       true,
     );
-    expect(body.calendarErrors).toEqual([{ accountId, code: "Error" }]);
+    expect(body.calendarErrors).toEqual([
+      { accountId, calendarId: "primary", code: "Error" },
+    ]);
     expect(tasks.list).toHaveBeenCalledWith(
       expect.objectContaining({ ownerId, limit: 10 }),
     );

@@ -104,7 +104,11 @@ export function registerScheduleRoutes(
         });
       }
     }
-    const calendarErrors: Array<{ accountId: string; code: string }> = [];
+    const calendarErrors: Array<{
+      accountId: string;
+      calendarId?: string;
+      code: string;
+    }> = [];
     if (
       dependencies.accounts !== undefined &&
       dependencies.google !== undefined
@@ -117,36 +121,70 @@ export function registerScheduleRoutes(
           !account.credentialPresent
         )
           continue;
+        let pageToken: string | undefined;
+        const calendars: Array<{ id: string; name: string }> = [];
         try {
-          const result = await dependencies.google.calendarListEvents({
-            ownerId,
-            accountId: account.id,
-            calendarId: "primary",
-            timeMin: from.toISOString(),
-            timeMax: to.toISOString(),
-            maxResults: query.limit,
-          });
-          for (const event of result.items) {
-            const startAt = eventDate(event["start"]);
-            if (startAt === null) continue;
-            const endAt = eventDate(event["end"]) ?? startAt;
-            items.push({
-              kind: "calendar",
-              id: String(event["id"] ?? `${account.id}:${startAt}`),
-              title: String(event["summary"] ?? "Calendar event"),
-              startAt,
-              endAt,
-              status: String(event["status"] ?? "confirmed"),
-              source: "google_calendar",
+          do {
+            const page = await dependencies.google.calendarListCalendars({
+              ownerId,
               accountId: account.id,
-              accountEmail: account.email,
+              maxResults: 100,
+              ...(pageToken === undefined ? {} : { pageToken }),
             });
-          }
+            calendars.push(
+              ...page.items
+                .filter((calendar) => !calendar.hidden)
+                .map((calendar) => ({
+                  id: calendar.id,
+                  name:
+                    calendar.summaryOverride ?? calendar.summary ?? calendar.id,
+                })),
+            );
+            pageToken = page.nextPageToken;
+          } while (pageToken !== undefined && calendars.length < 500);
         } catch (error) {
           calendarErrors.push({
             accountId: account.id,
             code: error instanceof Error ? error.name : "CALENDAR_UNAVAILABLE",
           });
+          continue;
+        }
+        for (const calendar of calendars) {
+          try {
+            const result = await dependencies.google.calendarListEvents({
+              ownerId,
+              accountId: account.id,
+              calendarId: calendar.id,
+              timeMin: from.toISOString(),
+              timeMax: to.toISOString(),
+              maxResults: query.limit,
+            });
+            for (const event of result.items) {
+              const startAt = eventDate(event["start"]);
+              if (startAt === null) continue;
+              const endAt = eventDate(event["end"]) ?? startAt;
+              items.push({
+                kind: "calendar",
+                id: String(event["id"] ?? `${account.id}:${startAt}`),
+                title: String(event["summary"] ?? "Calendar event"),
+                startAt,
+                endAt,
+                status: String(event["status"] ?? "confirmed"),
+                source: "google_calendar",
+                accountId: account.id,
+                accountEmail: account.email,
+                calendarId: calendar.id,
+                calendarName: calendar.name,
+              });
+            }
+          } catch (error) {
+            calendarErrors.push({
+              accountId: account.id,
+              calendarId: calendar.id,
+              code:
+                error instanceof Error ? error.name : "CALENDAR_UNAVAILABLE",
+            });
+          }
         }
       }
     }

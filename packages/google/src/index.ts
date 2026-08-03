@@ -39,6 +39,25 @@ const calendarEventsSchema = z
     nextPageToken: z.string().optional(),
   })
   .passthrough();
+const calendarListSchema = z
+  .object({
+    items: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            summary: z.string().optional(),
+            summaryOverride: z.string().optional(),
+            primary: z.boolean().optional(),
+            selected: z.boolean().optional(),
+            hidden: z.boolean().optional(),
+          })
+          .passthrough(),
+      )
+      .default([]),
+    nextPageToken: z.string().optional(),
+  })
+  .passthrough();
 const freeBusySchema = z
   .object({
     calendars: z.record(
@@ -130,6 +149,24 @@ export function createGoogleApiClient(input: {
     return parsed.data;
   }
   return {
+    async calendarListCalendars(input_: {
+      ownerId: Id<"user">;
+      accountId: Id<"connected-account">;
+      maxResults?: number;
+      pageToken?: string;
+    }) {
+      const params = new URLSearchParams({
+        maxResults: String(input_.maxResults ?? 100),
+      });
+      if (input_.pageToken !== undefined)
+        params.set("pageToken", input_.pageToken);
+      return json(
+        input_.ownerId,
+        input_.accountId,
+        `https://www.googleapis.com/calendar/v3/users/me/calendarList?${params}`,
+        calendarListSchema,
+      );
+    },
     async gmailSearch(input_: {
       ownerId: Id<"user">;
       accountId: Id<"connected-account">;
