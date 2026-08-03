@@ -28,6 +28,7 @@ export interface OperationSummary {
   failedRuns: number;
   pendingApprovals: number;
   queuedDeliveries: number;
+  failedDeliveries: number;
 }
 export class OperationsError extends Error {
   constructor(
@@ -234,6 +235,7 @@ export function createOperationsRepository(sql: Sql) {
         failed_runs: number;
         pending_approvals: number;
         queued_deliveries: number;
+        failed_deliveries: number;
       }[]
     >`
       select
@@ -241,13 +243,15 @@ export function createOperationsRepository(sql: Sql) {
         (select count(*) from session_runs where owner_id=${ownerId} and state='queued')::int as queued_runs,
         (select count(*) from session_runs where owner_id=${ownerId} and state='failed')::int as failed_runs,
         (select count(*) from approval_requests where owner_id=${ownerId} and state='pending')::int as pending_approvals,
-        (select count(*) from notification_deliveries where owner_id=${ownerId} and status in ('queued','attempting'))::int as queued_deliveries`;
+        (select count(*) from notification_deliveries where owner_id=${ownerId} and status in ('queued','attempting'))::int as queued_deliveries,
+        (select count(*) from notification_deliveries where owner_id=${ownerId} and status='failed')::int as failed_deliveries`;
     return {
       activeSessions: row?.active_sessions ?? 0,
       queuedRuns: row?.queued_runs ?? 0,
       failedRuns: row?.failed_runs ?? 0,
       pendingApprovals: row?.pending_approvals ?? 0,
       queuedDeliveries: row?.queued_deliveries ?? 0,
+      failedDeliveries: row?.failed_deliveries ?? 0,
     };
   }
   return { append, list, summary };

@@ -106,6 +106,7 @@ describe("operations audit and summary", () => {
       failedRuns: 0,
       pendingApprovals: 0,
       queuedDeliveries: 0,
+      failedDeliveries: 0,
     });
   });
 });
