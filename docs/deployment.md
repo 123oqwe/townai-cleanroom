@@ -617,3 +617,12 @@ direct URL is
 and risk flags without executing a tool. An unauthenticated request to
 `/v1/health` returns the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
+
+The Wiki browser surface is deployed in
+`dpl_2uyjaSuYSbU1g2ic3ce8f8i3mgNN`, built from commit `8119b70`. Its protected
+direct URL is
+`https://town-clear-current-arg1nh0rb-123oqwes-projects.vercel.app`, state
+`READY`; the Library dialog now renders owner-scoped Wiki pages and their
+current revisions beside content and memory. An unauthenticated request returns
+the Vercel SSO `302`; Vercel reported no runtime errors in the verification
+window.
