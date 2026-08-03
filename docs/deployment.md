@@ -1074,3 +1074,11 @@ detected and no runtime errors reported. `/v1/health` and
 `/v1/health/capabilities` now remain available from the Vercel function even
 when durable API configuration is absent; business routes retain the generic
 503 configuration response.
+
+The provider-usage source state `4fa21e2` is deployed as
+`https://town-clear-current-pkk0k0e2t-123oqwes-projects.vercel.app`, deployment
+`dpl_938gLYNeT7aTyudSTFtv8CaNqX6z`, state `READY`, with Node.js Lambda runtime
+detected and no runtime errors reported. A first connector attempt
+(`dpl_6sFZkmVYDr9UGcWKgwK1aFXGHcDp`) was rejected during build because its
+uploaded source set had a stale `app.ts`; the source set was refreshed and the
+successful deployment above was rebuilt from the same committed tree.
