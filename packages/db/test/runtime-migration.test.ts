@@ -114,6 +114,15 @@ describe("persistent runtime and tool-policy migrations", () => {
       "0014_channels.sql",
       "0015_billing.sql",
       "0016_operations.sql",
+      "0017_routine_schedule_delete_restrict.sql",
+      "0018_sync_run_updated_at.sql",
+      "0019_routine_webhooks.sql",
+      "0020_routine_runtime_link.sql",
+      "0021_suggestions.sql",
+      "0022_suggestion_task_conversion.sql",
+      "0023_oauth_connect_states.sql",
+      "0024_a2a_requests.sql",
+      "0025_harness_approval_decisions.sql",
     ]);
   });
 });
