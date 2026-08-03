@@ -1045,3 +1045,10 @@ The Harness-composer readiness source state `e1b812e` is deployed as
 detected. Vercel reported no runtime errors. The deployment keeps the existing
 protected project alias; API behavior still depends on the documented database,
 credential, allowlist, and worker configuration.
+
+The worker-readiness source state `98a6fb6` is deployed as
+`https://town-clear-current-h1jq3qcuj-123oqwes-projects.vercel.app`, deployment
+`dpl_4LkyreEgZorfK2PAcLG8mTvpMCWh`, state `READY`, with Node.js Lambda runtime
+detected. Vercel reported no runtime errors. The capability contract now keeps
+provider readiness separate from worker readiness; no configured deployment
+secrets were inferred from this build-only verification.
