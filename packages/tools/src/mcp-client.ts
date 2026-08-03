@@ -330,3 +330,5 @@ export function createMcpClient(
 
   return { initialize, listTools, callTool };
 }
+
+export type McpClient = ReturnType<typeof createMcpClient>;

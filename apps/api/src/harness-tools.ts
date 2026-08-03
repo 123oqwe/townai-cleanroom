@@ -14,7 +14,12 @@ import type {
 } from "@town/knowledge";
 import { resourceTypeSchema } from "@town/knowledge";
 import type { Id } from "@town/contracts";
-import type { AgentToolBinding, ToolDefinition } from "@town/tools";
+import {
+  type AgentToolBinding,
+  type McpClient,
+  type McpRemoteTool,
+  type ToolDefinition,
+} from "@town/tools";
 import type { GoogleApiClient } from "@town/google";
 
 const memoryArguments = z.discriminatedUnion("scope", [
@@ -674,5 +679,58 @@ export function createRegistryHarnessBindings(input: {
       execute: handler,
     });
     return [binding];
+  });
+}
+
+function mcpToolName(serverName: string, toolName: string): string {
+  const safeServer = serverName.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 60);
+  const safeTool = toolName.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 120);
+  return `mcp_${safeServer}_${safeTool}`;
+}
+
+function mcpReadOnlyHint(tool: McpRemoteTool): boolean {
+  return tool.annotations?.["readOnlyHint"] === true;
+}
+
+/**
+ * Converts only a successfully discovered, explicitly bound MCP tool into a
+ * policy-aware Harness port. Discovery failures are kept outside this helper;
+ * callers must decide whether an unavailable provider is a hard error.
+ */
+export function createMcpHarnessBindings(input: {
+  client: Pick<McpClient, "callTool">;
+  serverName: string;
+  tools: readonly McpRemoteTool[];
+  modeOverride: "read_only" | "approval_required" | "autonomous" | null;
+}): HarnessToolBinding[] {
+  return input.tools.map((tool) => {
+    const name = mcpToolName(input.serverName, tool.name);
+    const readOnly = mcpReadOnlyHint(tool);
+    const decision = () => {
+      if (input.modeOverride === "read_only" && !readOnly)
+        return "deny" as const;
+      if (readOnly && input.modeOverride !== "approval_required")
+        return "allow" as const;
+      return "approval_required" as const;
+    };
+    return createPolicyAwareHarnessTool({
+      definition: {
+        name,
+        ...(tool.description === undefined
+          ? {}
+          : { description: tool.description }),
+        parameters: tool.inputSchema,
+      },
+      decide: decision,
+      execute: async (arguments_) => {
+        const result = await input.client.callTool(tool.name, arguments_);
+        const output = JSON.stringify(result);
+        if (output === undefined)
+          throw new Error("MCP_TOOL_RESULT_INVALID: result was not JSON.");
+        if (output.length > 100_000)
+          throw new Error("MCP_TOOL_RESULT_TOO_LARGE: result exceeded 100KB.");
+        return { kind: "result", output };
+      },
+    });
   });
 }

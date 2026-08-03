@@ -58,6 +58,7 @@ import {
   createTownMemoryAddHarnessBinding,
   createInvokeRoutineHarnessBinding,
   createRegistryHarnessBindings,
+  createMcpHarnessBindings,
   createTownSearchHarnessBinding,
   createGoogleGmailSearchHarnessBinding,
   createGoogleGmailGetMessageHarnessBinding,
@@ -70,6 +71,7 @@ import { createRoutineScheduler } from "./routine-scheduler.js";
 import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
+import { createMcpClient } from "@town/tools";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -175,6 +177,10 @@ const harnessServerFactory =
           string,
           Awaited<ReturnType<typeof toolRegistryRepository.listForAgentVersion>>
         >();
+        const mcpByVersion = new Map<
+          string,
+          ReturnType<typeof createMcpHarnessBindings>
+        >();
         await Promise.all(
           activeAgents.map(async (agent) => {
             registryByVersion.set(
@@ -184,6 +190,48 @@ const harnessServerFactory =
                 agentVersionId: agent.activeVersion.id,
               }),
             );
+          }),
+        );
+        await Promise.all(
+          activeAgents.map(async (agent) => {
+            const configured = await mcpRepository.listForAgentVersion({
+              ownerId: typedOwnerId,
+              agentVersionId: agent.activeVersion.id,
+            });
+            const discovered = (
+              await Promise.all(
+                configured.map(async (entry) => {
+                  // authRef is intentionally not treated as a secret. Until a
+                  // credential resolver is injected, authenticated MCP
+                  // servers remain explicitly unavailable rather than being
+                  // called with fabricated credentials.
+                  if (entry.authRef !== null) return [];
+                  try {
+                    const client = createMcpClient(entry, {
+                      timeoutMs: 10_000,
+                    });
+                    await client.initialize();
+                    const tools = [];
+                    let cursor: string | undefined;
+                    for (let page = 0; page < 10; page += 1) {
+                      const result = await client.listTools(cursor);
+                      tools.push(...result.tools);
+                      if (result.nextCursor === null) break;
+                      cursor = result.nextCursor;
+                    }
+                    return createMcpHarnessBindings({
+                      client,
+                      serverName: entry.name,
+                      tools,
+                      modeOverride: entry.binding.modeOverride,
+                    });
+                  } catch {
+                    return [];
+                  }
+                }),
+              )
+            ).flat();
+            mcpByVersion.set(agent.activeVersion.id, discovered);
           }),
         );
         return createAppServer({
@@ -246,8 +294,18 @@ const harnessServerFactory =
               const registryNames = new Set(
                 registryBindings.map(({ definition }) => definition.name),
               );
+              const mcpBindings = (
+                mcpByVersion.get(agentVersionId ?? "") ?? []
+              ).filter(
+                ({ definition }) =>
+                  !registryNames.has(definition.name) &&
+                  !builtIns.some(
+                    (builtIn) => builtIn.definition.name === definition.name,
+                  ),
+              );
               return [
                 ...registryBindings,
+                ...mcpBindings,
                 ...builtIns.filter(
                   ({ definition }) => !registryNames.has(definition.name),
                 ),

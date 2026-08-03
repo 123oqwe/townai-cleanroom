@@ -13,6 +13,7 @@ import {
   createTownSearchHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
   createGoogleGmailSendHarnessBinding,
+  createMcpHarnessBindings,
 } from "../src/harness-tools.js";
 import { AgentError } from "@town/agents";
 import type { AgentRepository, RoutineAgent } from "@town/agents";
@@ -20,6 +21,51 @@ import type { SessionRepository } from "@town/runtime";
 import type { ThreadRepository } from "@town/agents";
 
 describe("Town Harness built-in tools", () => {
+  it("exposes discovered MCP tools only through the policy-aware port", async () => {
+    const callTool = vi.fn().mockResolvedValue({
+      content: [{ type: "text", text: "remote result" }],
+    });
+    const [binding] = createMcpHarnessBindings({
+      client: { callTool },
+      serverName: "Research Server",
+      modeOverride: null,
+      tools: [
+        {
+          name: "search",
+          description: "Search remote data",
+          inputSchema: { type: "object" },
+          annotations: { readOnlyHint: true },
+        },
+      ],
+    });
+    if (binding === undefined) throw new Error("Expected MCP binding.");
+    expect(binding.definition.name).toBe("mcp_Research_Server_search");
+    await expect(
+      binding.port.execute({ query: "town" }),
+    ).resolves.toMatchObject({ kind: "result" });
+    expect(callTool).toHaveBeenCalledWith("search", { query: "town" });
+  });
+
+  it("requires approval for MCP tools without a read-only hint", async () => {
+    const callTool = vi.fn().mockResolvedValue({ ok: true });
+    const [binding] = createMcpHarnessBindings({
+      client: { callTool },
+      serverName: "Writer",
+      modeOverride: null,
+      tools: [{ name: "write", inputSchema: { type: "object" } }],
+    });
+    if (binding === undefined) throw new Error("Expected MCP binding.");
+    await expect(binding.port.execute({ value: "x" })).rejects.toThrow(
+      "HARNESS_TOOL_APPROVAL_REQUIRED",
+    );
+    expect(callTool).not.toHaveBeenCalled();
+    await expect(
+      binding.port.execute(
+        { value: "x" },
+        { approvalGranted: true, policyDecision: "approval_required" },
+      ),
+    ).resolves.toMatchObject({ kind: "result" });
+  });
   it("binds owner-scoped knowledge search with a typed JSON result", async () => {
     const ownerId = newId<"user">();
     const search = {
