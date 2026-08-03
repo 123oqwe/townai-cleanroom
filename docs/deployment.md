@@ -322,9 +322,12 @@ direct URL is
 authenticate against a stale allowlist. An unauthenticated curl receives the
 Vercel SSO `302` protection redirect.
 
-Once the owner-visible Vercel project ID is available, protection is applied
-with the source-controlled command below. It sends only the documented project
-settings patch and reads credentials from the shell environment:
+The Vercel project ID and team are now known. The two owner preview aliases
+return `302` to Vercel SSO, while the default project alias currently returns
+`404`; the source-controlled project-settings patch was attempted with the
+provided token but Vercel returned `404 Project not found`. Therefore the
+project-level `ssoProtection` mutation remains unverified rather than being
+claimed as complete. A token with access to this exact team/project can run:
 
 ```sh
 VERCEL_TOKEN="$YOUR_TOKEN" \
