@@ -193,6 +193,8 @@ Content creation now exposes the complete server content-kind enum, including im
 
 Content blob reads now have a real optional local filesystem adapter. `CONTENT_STORAGE_ROOT` binds storage keys to a resolved root, rejects absolute/traversal/symlink escapes, enforces a 50 MiB per-object limit, and infers common MIME types. Deployments without this setting remain explicit 503 rather than pretending that metadata is backed by durable bytes.
 
+The same ContentStorage port now has a standards-based S3-compatible adapter. It performs real GET/PUT requests with AWS Signature V4, bounded response/request bodies, content-type propagation, 404-to-null reads, and fail-closed configuration validation. `CONTENT_STORAGE_S3_ENDPOINT`, bucket, region, access key, and secret must be supplied together; the runtime rejects partial or conflicting local/S3 configuration.
+
 Authenticated owners can now upload a raw blob with `PUT /v1/content/:contentId/blob`. The route enforces the same 50 MiB bound, derives a stable key when an item has none, writes through the storage port, and records the key with an optimistic revision update. Vercel remains unconfigured for local filesystem persistence, so this capability is explicit rather than falsely durable there.
 Notifications now expose owner-scoped delivery records with status filtering through GET /v1/notification-deliveries, alongside the existing audit timeline. The UI displays event type, channel, attempts, timestamps, and server-reported errors.
 Approval Inspect now reads both GET /v1/tool-calls/:toolCallId and GET /v1/approvals/:approvalId, showing approval status/revision/expiry alongside immutable normalized ToolCall metadata before a decision.

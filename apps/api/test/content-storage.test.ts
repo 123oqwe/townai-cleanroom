@@ -3,7 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createFileContentStorage } from "../src/content-storage.js";
+import {
+  createFileContentStorage,
+  createS3ContentStorage,
+} from "../src/content-storage.js";
 
 const temporaryRoots: string[] = [];
 
@@ -68,5 +71,55 @@ describe("file content storage", () => {
     ).rejects.toMatchObject({
       code: "ENOENT",
     });
+  });
+
+  it("signs S3-compatible reads and writes without exposing credentials", async () => {
+    const requests: Request[] = [];
+    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(new Request(input, init));
+      const request = requests[requests.length - 1];
+      if (request === undefined) throw new Error("request was not captured");
+      if (request.method === "GET")
+        return new Response(new TextEncoder().encode("remote"), {
+          status: 200,
+          headers: { "content-type": "text/plain" },
+        });
+      return new Response(null, { status: 200 });
+    };
+    const storage = createS3ContentStorage({
+      endpoint: "https://objects.example.test",
+      bucket: "town-content",
+      region: "us-east-1",
+      accessKeyId: "AKIA_TEST",
+      secretAccessKey: "secret-test",
+      fetcher,
+      clock: () => new Date("2026-08-04T12:34:56.000Z"),
+    });
+
+    await expect(storage.read("objects/report.txt")).resolves.toMatchObject({
+      contentType: "text/plain",
+    });
+    await storage.write(
+      "objects/report.txt",
+      new TextEncoder().encode("new"),
+      "text/plain",
+    );
+
+    expect(requests).toHaveLength(2);
+    expect(requests[0].url).toBe(
+      "https://objects.example.test/town-content/objects/report.txt",
+    );
+    expect(requests[0].headers.get("authorization")).toMatch(
+      /^AWS4-HMAC-SHA256 /,
+    );
+    expect(requests[0].headers.get("x-amz-content-sha256")).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+    expect(requests[1].method).toBe("PUT");
+    expect(await requests[1].text()).toBe("new");
+    expect(requests[1].headers.get("content-type")).toBe("text/plain");
+    expect(requests[1].headers.get("authorization")).not.toContain(
+      "secret-test",
+    );
   });
 });

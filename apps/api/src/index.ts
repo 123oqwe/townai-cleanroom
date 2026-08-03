@@ -87,7 +87,10 @@ import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
 import { createMcpClient, type McpRemoteTool } from "@town/tools";
 import { createElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
-import { createFileContentStorage } from "./content-storage.js";
+import {
+  createFileContentStorage,
+  createS3ContentStorage,
+} from "./content-storage.js";
 
 function mcpToolDefinitionVersion(tool: McpRemoteTool): number {
   const fingerprint = createHash("sha256")
@@ -134,6 +137,11 @@ const environmentSchema = z.object({
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
   CONTENT_STORAGE_ROOT: z.string().min(1).optional(),
+  CONTENT_STORAGE_S3_ENDPOINT: z.string().url().optional(),
+  CONTENT_STORAGE_S3_BUCKET: z.string().min(1).optional(),
+  CONTENT_STORAGE_S3_REGION: z.string().min(1).optional(),
+  CONTENT_STORAGE_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+  CONTENT_STORAGE_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
 });
 
 const environment = environmentSchema.parse(process.env);
@@ -150,8 +158,43 @@ const voiceProvider =
         modelId: environment.ELEVENLABS_MODEL_ID,
       });
 const database = createDatabase(environment.DATABASE_URL);
-const contentStorage =
-  environment.CONTENT_STORAGE_ROOT === undefined
+const s3StorageConfiguration = [
+  environment.CONTENT_STORAGE_S3_ENDPOINT,
+  environment.CONTENT_STORAGE_S3_BUCKET,
+  environment.CONTENT_STORAGE_S3_REGION,
+  environment.CONTENT_STORAGE_S3_ACCESS_KEY_ID,
+  environment.CONTENT_STORAGE_S3_SECRET_ACCESS_KEY,
+];
+const hasS3StorageConfiguration = s3StorageConfiguration.some(
+  (value) => value !== undefined,
+);
+const hasCompleteS3StorageConfiguration = s3StorageConfiguration.every(
+  (value) => value !== undefined,
+);
+function requiredStorageValue(value: string | undefined): string {
+  if (value === undefined)
+    throw new Error("CONTENT_STORAGE_CONFIGURATION_INCOMPLETE");
+  return value;
+}
+if (
+  hasS3StorageConfiguration &&
+  (!hasCompleteS3StorageConfiguration ||
+    environment.CONTENT_STORAGE_ROOT !== undefined)
+)
+  throw new Error("CONTENT_STORAGE_CONFIGURATION_INCOMPLETE");
+const contentStorage = hasCompleteS3StorageConfiguration
+  ? createS3ContentStorage({
+      endpoint: requiredStorageValue(environment.CONTENT_STORAGE_S3_ENDPOINT),
+      bucket: requiredStorageValue(environment.CONTENT_STORAGE_S3_BUCKET),
+      region: requiredStorageValue(environment.CONTENT_STORAGE_S3_REGION),
+      accessKeyId: requiredStorageValue(
+        environment.CONTENT_STORAGE_S3_ACCESS_KEY_ID,
+      ),
+      secretAccessKey: requiredStorageValue(
+        environment.CONTENT_STORAGE_S3_SECRET_ACCESS_KEY,
+      ),
+    })
+  : environment.CONTENT_STORAGE_ROOT === undefined
     ? undefined
     : createFileContentStorage(environment.CONTENT_STORAGE_ROOT);
 const { sql } = database;
