@@ -1012,16 +1012,19 @@ async function loadChannels() {
       '<p class="harness-empty">Connect the API to load channels.</p>';
     return;
   }
-  try {
-    channelTimelineCursor = "";
-    const [channels] = await Promise.all([
-      api("/v1/channels"),
-      loadChannelTimeline(),
-    ]);
-    renderChannels(channels);
-  } catch (error) {
+  channelTimelineCursor = "";
+  const [channelsResult, timelineResult] = await Promise.allSettled([
+    api("/v1/channels"),
+    loadChannelTimeline(),
+  ]);
+  if (channelsResult.status === "fulfilled") {
+    renderChannels(channelsResult.value);
+  } else {
+    const error = channelsResult.reason;
     $("#channel-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Channels unavailable.")}</p>`;
+  }
+  if (timelineResult.status === "rejected") {
     $("#channel-timeline-list").innerHTML =
       '<p class="harness-empty">Delivery timeline unavailable.</p>';
   }
