@@ -107,6 +107,7 @@ const environmentSchema = z.object({
   RESPONSES_MODEL: z.string().min(1).default("gpt-5"),
   RESPONSES_API_KEY: z.string().min(1).optional(),
   WEB_ORIGIN: z.string().url().default("http://localhost:4173"),
+  CHANNEL_CREDENTIALS_JSON: z.string().default("{}"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
   WORKER_ENABLED: z
     .enum(["true", "false"])
@@ -120,6 +121,9 @@ const environmentSchema = z.object({
 });
 
 const environment = environmentSchema.parse(process.env);
+const channelCredentials = z
+  .record(z.string().trim().min(1), z.string().min(1))
+  .parse(JSON.parse(environment.CHANNEL_CREDENTIALS_JSON));
 const database = createDatabase(environment.DATABASE_URL);
 const { sql } = database;
 await runMigrations(sql);
@@ -610,6 +614,12 @@ if (workerSecret !== undefined) {
         sendEmail: async (value) => {
           await googleApi.gmailSend(value);
         },
+        resolveCredential: async ({ credentialRef }) => {
+          const credential = channelCredentials[credentialRef];
+          if (credential === undefined)
+            throw new Error("CHANNEL_CREDENTIAL_UNAVAILABLE");
+          return credential;
+        },
       }),
     });
   });
@@ -628,6 +638,12 @@ if (process.env["VERCEL"] !== "1") {
       workerId,
       sendEmail: async (value) => {
         await googleApi.gmailSend(value);
+      },
+      resolveCredential: async ({ credentialRef }) => {
+        const credential = channelCredentials[credentialRef];
+        if (credential === undefined)
+          throw new Error("CHANNEL_CREDENTIAL_UNAVAILABLE");
+        return credential;
       },
     });
     workerTimer = setTimeout(() => void runWorker(), 250);

@@ -63,7 +63,8 @@ export class ChannelError extends Error {
       | "CHANNEL_DISABLED"
       | "DELIVERY_CONFLICT"
       | "FORBIDDEN"
-      | "INVALID_CHANNEL_CONFIG",
+      | "INVALID_CHANNEL_CONFIG"
+      | "CHANNEL_CREDENTIAL_UNAVAILABLE",
     message: string,
   ) {
     super(message);
@@ -124,7 +125,11 @@ const webhookConfig = z
       });
   });
 const chatConfig = z
-  .object({ chatId: z.string().trim().min(1).max(300) })
+  .object({
+    chatId: z.string().trim().min(1).max(300).optional(),
+    credentialRef: z.string().trim().min(1).max(200).optional(),
+    phoneNumberId: z.string().trim().min(1).max(100).optional(),
+  })
   .strict();
 const createInput = z
   .object({
@@ -394,6 +399,10 @@ export function createChannelRepository(sql: Sql) {
       subject: string;
       body: string;
     }) => Promise<void>;
+    resolveCredential?: (value: {
+      ownerId: Id<"user">;
+      credentialRef: string;
+    }) => Promise<string>;
   }): Promise<{ delivery: NotificationDelivery | null; claimed: boolean }> {
     const claimed = await claimNext(input.workerId, input.leaseMs);
     if (claimed === null) return { delivery: null, claimed: false };
@@ -430,9 +439,7 @@ export function createChannelRepository(sql: Sql) {
           subject,
           body,
         });
-      } else {
-        if (channel.kind !== "webhook")
-          throw new Error(`CHANNEL_KIND_UNSUPPORTED:${channel.kind}`);
+      } else if (channel.kind === "webhook") {
         const response = await request(channel.address, {
           method: "POST",
           headers: {
@@ -445,6 +452,56 @@ export function createChannelRepository(sql: Sql) {
           }),
         });
         if (!response.ok) throw new Error(`CHANNEL_HTTP_${response.status}`);
+      } else if (
+        channel.kind === "telegram" ||
+        channel.kind === "whatsapp" ||
+        channel.kind === "slack"
+      ) {
+        if (input.resolveCredential === undefined)
+          throw new Error("CHANNEL_CREDENTIAL_UNAVAILABLE");
+        const config = chatConfig.parse(channel.config);
+        if (config.credentialRef === undefined)
+          throw new Error("CHANNEL_CREDENTIAL_UNAVAILABLE");
+        const credential = await input.resolveCredential({
+          ownerId: claimed.ownerId,
+          credentialRef: config.credentialRef,
+        });
+        const text =
+          typeof claimed.payload["body"] === "string"
+            ? claimed.payload["body"]
+            : JSON.stringify(claimed.payload, null, 2);
+        let url: string;
+        let body: Record<string, unknown>;
+        const headers: Record<string, string> = {
+          accept: "application/json",
+          "content-type": "application/json",
+        };
+        if (channel.kind === "telegram") {
+          url = `https://api.telegram.org/bot${encodeURIComponent(credential)}/sendMessage`;
+          body = { chat_id: channel.address, text };
+        } else if (channel.kind === "whatsapp") {
+          if (config.phoneNumberId === undefined)
+            throw new Error("CHANNEL_PHONE_NUMBER_ID_UNAVAILABLE");
+          url = `https://graph.facebook.com/v20.0/${encodeURIComponent(config.phoneNumberId)}/messages`;
+          headers["authorization"] = `Bearer ${credential}`;
+          body = {
+            messaging_product: "whatsapp",
+            to: channel.address,
+            type: "text",
+            text: { body: text },
+          };
+        } else {
+          url = credential;
+          body = { text };
+        }
+        const response = await request(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) throw new Error(`CHANNEL_HTTP_${response.status}`);
+      } else {
+        throw new Error(`CHANNEL_KIND_UNSUPPORTED:${channel.kind}`);
       }
       success = true;
     } catch (caught) {

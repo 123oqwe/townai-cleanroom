@@ -299,4 +299,62 @@ describe("notification channels", () => {
     });
     expect(sendEmail).toHaveBeenCalledOnce();
   });
+
+  it("delivers Telegram, WhatsApp, and Slack payloads through credential references", async () => {
+    const repository = createChannelRepository(sql);
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url, options) => {
+      expect(options?.method).toBe("POST");
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    });
+    const resolveCredential = vi.fn(
+      async ({ credentialRef }: { credentialRef: string }) => {
+        return (
+          {
+            telegram: "bot-token",
+            whatsapp: "wa-token",
+            slack: "https://hooks.slack.test/secret",
+          }[credentialRef] ?? ""
+        );
+      },
+    );
+    const cases = [
+      {
+        kind: "telegram" as const,
+        address: "123",
+        config: { credentialRef: "telegram" },
+      },
+      {
+        kind: "whatsapp" as const,
+        address: "15551234567",
+        config: { credentialRef: "whatsapp", phoneNumberId: "phone-1" },
+      },
+      {
+        kind: "slack" as const,
+        address: "#town",
+        config: { credentialRef: "slack" },
+      },
+    ];
+    for (const [index, value] of cases.entries()) {
+      const channel = await repository.create({ ownerId, ...value });
+      await repository.enqueue({
+        ownerId,
+        channelId: channel.id,
+        eventType: "routine.result",
+        idempotencyKey: `delivery-chat-${index}`,
+        payload: { body: "A result is ready." },
+      });
+      await expect(
+        repository.deliverNext({
+          workerId: `chat-worker-${index}`,
+          fetch,
+          resolveCredential,
+        }),
+      ).resolves.toMatchObject({
+        claimed: true,
+        delivery: { status: "succeeded" },
+      });
+    }
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(resolveCredential).toHaveBeenCalledTimes(3);
+  });
 });
