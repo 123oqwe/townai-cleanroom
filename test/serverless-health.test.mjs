@@ -37,4 +37,31 @@ describe("serverless health probes", () => {
       }
     }
   });
+
+  it("does not report API readiness for malformed runtime configuration", async () => {
+    const values = {
+      DATABASE_URL: "https://not-postgres.example",
+      CREDENTIAL_MASTER_KEY_BASE64URL: "not-a-key",
+      WEB_ORIGIN: "not a url",
+    };
+    const previous = new Map(
+      Object.keys(values).map((name) => [name, process.env[name]]),
+    );
+    Object.assign(process.env, values);
+    try {
+      const { default: app } =
+        await import("../api/index.js?invalid-health-test");
+      const capabilities = await app.request("/v1/health/capabilities");
+      expect(capabilities.status).toBe(200);
+      expect(await capabilities.json()).toMatchObject({
+        api: false,
+        auth: false,
+      });
+    } finally {
+      for (const [name, value] of previous) {
+        if (value === undefined) Reflect.deleteProperty(process.env, name);
+        else process.env[name] = value;
+      }
+    }
+  });
 });

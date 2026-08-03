@@ -325,3 +325,10 @@ the requested window, with current revisions and timestamps. It never writes,
 retires, summarizes, or invents replacement content; any future provider job
 must submit a cited, revision-aware conflict through the existing knowledge
 service.
+
+The serverless API fallback now validates runtime readiness semantically rather
+than only checking variable presence: `DATABASE_URL` must use PostgreSQL,
+`CREDENTIAL_MASTER_KEY_BASE64URL` must decode to exactly 32 bytes, and
+`WEB_ORIGIN` must be an HTTP(S) URL. Malformed deployments therefore report
+`api:false`/`auth:false` and retain the generic `API_NOT_CONFIGURED` boundary
+instead of claiming an executable API.

@@ -1,4 +1,4 @@
-/* global console, process */
+/* global Buffer, URL, console, process */
 
 // Vercel's function entry point. `pnpm build` creates the workspace output
 // before Vercel bundles this file, so the platform does not re-typecheck the
@@ -9,6 +9,35 @@
 // diagnosable: it returns a structured 503 instead of an opaque import crash.
 import { Hono } from "hono";
 
+function isValidWebOrigin(value) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function isValidDatabaseUrl(value) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "postgres:" || url.protocol === "postgresql:";
+  } catch {
+    return false;
+  }
+}
+
+function isValidCredentialKey(value) {
+  if (!value || !/^[A-Za-z0-9_-]+$/.test(value)) return false;
+  try {
+    return Buffer.from(value, "base64url").length === 32;
+  } catch {
+    return false;
+  }
+}
+
 const app = new Hono();
 let runtimePromise;
 let runtimeError;
@@ -16,9 +45,9 @@ let runtimeErrorLogged = false;
 
 function hasRequiredRuntimeConfig() {
   return Boolean(
-    process.env.DATABASE_URL &&
-    process.env.CREDENTIAL_MASTER_KEY_BASE64URL &&
-    process.env.WEB_ORIGIN,
+    isValidDatabaseUrl(process.env.DATABASE_URL) &&
+    isValidCredentialKey(process.env.CREDENTIAL_MASTER_KEY_BASE64URL) &&
+    isValidWebOrigin(process.env.WEB_ORIGIN),
   );
 }
 
