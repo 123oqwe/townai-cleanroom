@@ -11,6 +11,7 @@ const state = {
   base: localStorage.getItem(storageKeys.base) || "http://localhost:3000",
   token: sessionStorage.getItem(storageKeys.token) || "",
   connected: false,
+  profileRevision: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -426,6 +427,80 @@ async function savePerson() {
     button.disabled = false;
   }
 }
+async function loadProfile() {
+  if (!state.token) {
+    $("#profile-revision").textContent = "Connect the API first";
+    return;
+  }
+  try {
+    const result = await api("/v1/profile");
+    state.profileRevision = result.profile.currentRevision;
+    $("#profile-content").value = JSON.stringify(
+      result.profile.content,
+      null,
+      2,
+    );
+    $("#profile-revision").textContent = `Revision ${state.profileRevision}`;
+  } catch (error) {
+    if (error.status === 404) {
+      state.profileRevision = null;
+      $("#profile-content").value = "{}";
+      $("#profile-revision").textContent = "New profile";
+      return;
+    }
+    $("#profile-error").textContent =
+      error instanceof Error ? error.message : "Profile unavailable.";
+    $("#profile-error").hidden = false;
+  }
+}
+async function saveProfile() {
+  const error = $("#profile-error");
+  error.hidden = true;
+  let content;
+  try {
+    content = JSON.parse($("#profile-content").value);
+  } catch {
+    error.textContent = "Profile must be valid JSON.";
+    error.hidden = false;
+    return;
+  }
+  if (
+    content === null ||
+    Array.isArray(content) ||
+    typeof content !== "object"
+  ) {
+    error.textContent = "Profile JSON must be an object.";
+    error.hidden = false;
+    return;
+  }
+  const button = $("#profile-save");
+  button.disabled = true;
+  try {
+    const result =
+      state.profileRevision === null
+        ? await apiJson("/v1/profile", { content })
+        : await api("/v1/profile", {
+            method: "PUT",
+            body: JSON.stringify({
+              content,
+              expectedRevision: state.profileRevision,
+            }),
+          });
+    if (result.kind === "conflict") {
+      throw new Error("Profile changed elsewhere. Reload before saving again.");
+    }
+    const profile = result.profile;
+    state.profileRevision = profile.currentRevision;
+    $("#profile-content").value = JSON.stringify(profile.content, null, 2);
+    $("#profile-revision").textContent = `Revision ${state.profileRevision}`;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save profile.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -545,6 +620,13 @@ $("#people-add-toggle").addEventListener("click", () => {
   if (!$("#people-add-form").hidden) $("#person-name").focus();
 });
 $("#person-save").addEventListener("click", () => void savePerson());
+document.querySelector(".profile-chip").addEventListener("click", (event) => {
+  event.preventDefault();
+  $("#profile-error").hidden = true;
+  openDialog($("#profile-dialog"));
+  void loadProfile();
+});
+$("#profile-save").addEventListener("click", () => void saveProfile());
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),

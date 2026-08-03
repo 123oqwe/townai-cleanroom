@@ -93,6 +93,9 @@ control using your platform's secure secret-management workflow.
 - The People surface reads active relationship records from `/v1/people` and
   can create a user-authored person with category, email, and notes. It does
   not infer or fabricate contacts.
+- The workspace profile chip opens a versioned JSON editor backed by
+  `/v1/profile`. New profiles use the real create path; existing saves carry
+  `expectedRevision` and surface conflicts instead of overwriting newer data.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

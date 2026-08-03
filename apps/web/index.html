@@ -440,6 +440,39 @@
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>
+    <dialog
+      class="profile-dialog"
+      id="profile-dialog"
+      aria-labelledby="profile-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Your profile</p>
+        <h2 id="profile-title">Give Town<br /><em>the right context.</em></h2>
+        <p class="dialog-copy">
+          This is the versioned profile used as durable context. Edit the object
+          directly; every save is checked against its current revision.
+        </p>
+        <label class="sr-only" for="profile-content">Profile JSON</label>
+        <textarea
+          class="profile-editor"
+          id="profile-content"
+          rows="12"
+          spellcheck="false"
+        >
+{}</textarea>
+        <div class="profile-meta">
+          <span id="profile-revision">Not loaded</span>
+          <button class="primary-button" id="profile-save" type="button">
+            Save profile <span>→</span>
+          </button>
+        </div>
+        <p class="dialog-error" id="profile-error" role="alert" hidden></p>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
     <script type="module" src="./app.js"></script>
   </body>
 </html>
