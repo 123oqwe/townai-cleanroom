@@ -194,6 +194,13 @@ MCP binding creation now exposes the real modeOverride and accountScope policy f
 Routine details now expose the generic owner-scoped external trigger queue via POST /v1/routines/:routineId/trigger, with explicit trigger kind, JSON data validation, and generated Idempotency-Key.
 Harness now consumes the authenticated session event SSE endpoint for live run updates, aborting the stream when the user switches threads; existing polling remains as the reconnect fallback.
 
+Connected Account cards now expose credential rotation through the existing
+owner-scoped PATCH /v1/accounts/:accountId/credential route. Access and refresh
+tokens are accepted only in a transient password form, sent over the
+authenticated API, and cleared immediately after a successful encrypted server
+write; they are never persisted in browser storage or rendered back into the
+account card.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all

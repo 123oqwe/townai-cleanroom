@@ -2125,6 +2125,64 @@ function renderAccounts(result) {
         }</small></div><div class="account-card-actions"><span class="account-status ${account.needsReauth ? "needs-reauth" : ""}">${account.needsReauth ? "reauth" : account.isActive ? "active" : "inactive"}</span>${account.provider === "google" ? '<button class="quiet-button account-refresh" type="button">Refresh</button>' : ""}<button class="quiet-button account-remove" type="button">Remove</button></div></article>`,
     )
     .join("");
+  target.querySelectorAll(".account-card").forEach((card) => {
+    const actions = card.querySelector(".account-card-actions");
+    if (!actions) return;
+    const rotate = document.createElement("button");
+    rotate.className = "quiet-button account-rotate";
+    rotate.type = "button";
+    rotate.textContent = "Rotate credential";
+    actions.insertBefore(rotate, actions.querySelector(".account-refresh"));
+  });
+}
+function openCredentialForm(card) {
+  const current = card.querySelector(".account-credential-form");
+  if (current) {
+    current.remove();
+    return;
+  }
+  card.insertAdjacentHTML(
+    "beforeend",
+    '<form class="account-credential-form"><label>Access token<input class="account-access-token" type="password" autocomplete="new-password" required /></label><label>Refresh token <span class="form-hint">optional</span><input class="account-refresh-token" type="password" autocomplete="new-password" /></label><label>Scopes <span class="form-hint">comma-separated</span><input class="account-scopes" placeholder="openid,email" /></label><div class="account-credential-actions"><button class="primary-button account-credential-save" type="submit">Save encrypted credential</button><button class="quiet-button account-credential-cancel" type="button">Cancel</button></div><p class="dialog-error account-credential-error" role="alert" hidden></p></form>',
+  );
+  card.querySelector(".account-access-token")?.focus();
+}
+async function rotateAccountCredential(card, form) {
+  const accessToken = form.querySelector(".account-access-token").value;
+  const refreshToken = form.querySelector(".account-refresh-token").value;
+  const scopes = form
+    .querySelector(".account-scopes")
+    .value.split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+  const error = form.querySelector(".account-credential-error");
+  if (!accessToken.trim()) {
+    error.textContent = "Access token is required.";
+    error.hidden = false;
+    return;
+  }
+  const save = form.querySelector(".account-credential-save");
+  save.disabled = true;
+  try {
+    await api("/v1/accounts/" + card.dataset.accountId + "/credential", {
+      method: "PATCH",
+      body: JSON.stringify({
+        accessToken,
+        ...(refreshToken ? { refreshToken } : {}),
+        scopes,
+      }),
+    });
+    form.reset();
+    await loadAccounts();
+    const status = $("#accounts-error");
+    status.textContent = "Credential rotated and encrypted on the server.";
+    status.hidden = false;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not rotate credential.";
+    error.hidden = false;
+    save.disabled = false;
+  }
 }
 async function refreshAccount(card) {
   try {
@@ -3687,8 +3745,23 @@ $("#account-open").addEventListener("click", () => {
 $("#account-list").addEventListener("click", (event) => {
   const card = event.target.closest(".account-card");
   if (!card) return;
+  if (event.target.closest(".account-rotate")) {
+    openCredentialForm(card);
+    return;
+  }
+  if (event.target.closest(".account-credential-cancel")) {
+    card.querySelector(".account-credential-form")?.remove();
+    return;
+  }
   if (event.target.closest(".account-refresh")) void refreshAccount(card);
   if (event.target.closest(".account-remove")) void removeAccount(card);
+});
+$("#account-list").addEventListener("submit", (event) => {
+  const form = event.target.closest(".account-credential-form");
+  const card = event.target.closest(".account-card");
+  if (!form || !card) return;
+  event.preventDefault();
+  void rotateAccountCredential(card, form);
 });
 $("#policy-preview-run").addEventListener("click", () => void previewPolicy());
 $("#approval-inbox-list").addEventListener("click", (event) => {

@@ -2310,6 +2310,33 @@ dialog h2 {
 .account-status.needs-reauth {
   color: #a03e2b;
 }
+.account-credential-form {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.account-credential-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.account-credential-form input {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 12px var(--mono);
+}
+.account-credential-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
 .channels-dialog {
   max-width: 540px;
 }
