@@ -67,12 +67,16 @@ describe("Google OAuth routes", () => {
     const stateRow = {
       id: "01900000-0000-7000-8000-000000000002",
       owner_id: ownerId,
-      redirect_uri: "http://localhost:3000/auth/google/callback",
+      redirect_uri: "https://legacy.example/auth/google/callback",
     };
     let consumed = false;
     const sql = vi.fn();
     sql.mockImplementation(() => []);
-    sql.begin = vi.fn(async (callback: (tx: typeof sql) => unknown) => {
+    (
+      sql as unknown as {
+        begin: (callback: (tx: typeof sql) => unknown) => Promise<unknown>;
+      }
+    ).begin = vi.fn(async (callback: (tx: typeof sql) => unknown) => {
       const tx = vi.fn().mockImplementation(() => {
         if (!consumed) {
           consumed = true;
@@ -135,6 +139,18 @@ describe("Google OAuth routes", () => {
       }),
     );
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+      body: expect.any(URLSearchParams),
+    });
+    const tokenRequest = fetch.mock.calls[0]?.[1];
+    expect(
+      tokenRequest &&
+        typeof tokenRequest === "object" &&
+        "body" in tokenRequest &&
+        tokenRequest.body instanceof URLSearchParams
+        ? tokenRequest.body.get("redirect_uri")
+        : undefined,
+    ).toBe("https://legacy.example/auth/google/callback");
 
     const replay = await app.request(
       `http://town.test/auth/google/callback?code=one-time-code&state=${location.searchParams.get("state")}`,

@@ -142,7 +142,7 @@ export function registerGoogleOAuthRoutes(
         code,
         client_id: dependencies.clientId,
         client_secret: dependencies.clientSecret,
-        redirect_uri: dependencies.redirectUri,
+        redirect_uri: result.redirectUri,
         grant_type: "authorization_code",
         code_verifier: verifier,
       }),
