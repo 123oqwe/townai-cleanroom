@@ -1143,3 +1143,9 @@ The Harness model-routing source state is deployed as
 `dpl_Fvpr6wMir2efNjGTd5QxbbkbE7E7`, state `READY`. The full workspace build
 completed in 31 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the following hour. The direct URL remains SSO-gated.
+
+The bounded knowledge context source state is deployed as
+`https://town-clear-ghowtibr5-123oqwes-projects.vercel.app`, deployment
+`dpl_94egX4UEwbKQxq5sCCMAKXagykPU`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the following hour. The direct URL remains SSO-gated.
