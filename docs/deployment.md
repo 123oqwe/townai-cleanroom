@@ -124,6 +124,15 @@ Routine trigger definitions for Manual, Schedule, email, calendar, voice,
 Slack mention, and Webhook trigger kinds. Definitions do not imply provider
 execution.
 
+The latest current-source deployment is `dpl_8cbF36Tv1xFGKx3FmFkJHsLRhDd2`,
+built from commit `808834c`. Its protected direct URL is
+`https://town-clear-current-eb0lqssuy-123oqwes-projects.vercel.app` and its
+state is `READY`. It includes `0031_mcp_servers.sql` and the owner-scoped
+`/v1/mcp-servers` metadata API. The API records HTTPS endpoint metadata,
+transport, and an optional non-secret credential reference; it does not claim
+remote MCP execution or automatic trust. An unauthenticated curl to the direct
+URL still receives the Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
