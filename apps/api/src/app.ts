@@ -663,6 +663,7 @@ export function createApp(dependencies?: AppDependencies) {
     app.use("/v1/me", authenticate);
     app.use("/v1/me/*", authenticate);
     app.use("/v1/accounts", authenticate);
+    app.use("/v1/accounts/*", authenticate);
 
     app.get("/v1/me", (context) => {
       const identity = context.get("identity");

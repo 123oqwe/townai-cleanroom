@@ -188,6 +188,29 @@ describe("protected identity API", () => {
     expect(serialized).not.toContain("other@gmail.test");
   });
 
+  it("protects credential mutation routes, not only account listing", async () => {
+    const { app, owner } = await fixture();
+    const accountResponse = await app.request("/v1/accounts", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    const account = (await accountResponse.json()) as {
+      accounts: Array<{ id: string }>;
+    };
+    const response = await app.request(
+      `/v1/accounts/${account.accounts[0]?.id}/credential`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          accessToken: "should-not-reach-route",
+          scopes: [],
+        }),
+      },
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
   it("rejects a revoked session", async () => {
     const { app, identityService, owner } = await fixture();
     await identityService.revokeSession(owner.session.id, owner.user.id);
