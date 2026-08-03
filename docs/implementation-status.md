@@ -101,3 +101,8 @@ Routine trigger state is now visible and controllable in the Routine dialog:
 the client reads owner-scoped trigger kind/config/revision and enables or
 disables triggers through the existing optimistic `PATCH /v1/routine-triggers`
 route. It does not invent trigger configuration or provider events.
+
+Routine triggers can now also be created from the Routine dialog. The UI uses
+the server's trigger-kind contract, validates config as a JSON object, submits
+to the protected owner-scoped create route, and reloads the authoritative
+trigger list.

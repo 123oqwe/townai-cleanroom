@@ -993,6 +993,19 @@ async function toggleRoutineTrigger(row) {
     await loadRoutineTriggers();
   } catch (cause) { $("#routine-history-error").textContent = cause instanceof Error ? cause.message : "Could not update trigger."; $("#routine-history-error").hidden = false; }
 }
+async function addRoutineTrigger() {
+  if (!selectedRoutineId) return;
+  const error = $("#routine-trigger-add-error");
+  let config;
+  try { config = JSON.parse($("#routine-trigger-config").value || "{}"); } catch { error.textContent = "Config must be valid JSON."; error.hidden = false; return; }
+  if (!config || Array.isArray(config) || typeof config !== "object") { error.textContent = "Config must be a JSON object."; error.hidden = false; return; }
+  try {
+    await apiJson(`/v1/routines/${selectedRoutineId}/triggers`, { kind: $("#routine-trigger-kind").value, config, enabled: true });
+    $("#routine-trigger-config").value = "{}";
+    error.hidden = true;
+    await loadRoutineTriggers();
+  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not add trigger."; error.hidden = false; }
+}
 async function loadRoutineVersions() {
   if (!selectedRoutineId || !state.token) return;
   const target = $("#routine-version-list");
@@ -2400,6 +2413,7 @@ $("#routine-trigger-list").addEventListener("click", (event) => {
   const button = event.target.closest(".routine-trigger-toggle");
   if (button) void toggleRoutineTrigger(button.closest(".routine-trigger-row"));
 });
+$("#routine-trigger-add-button").addEventListener("click", () => void addRoutineTrigger());
 $("#routine-template-install").addEventListener(
   "click",
   () => void installRoutineTemplate(),

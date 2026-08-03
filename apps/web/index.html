@@ -828,6 +828,16 @@
           <div class="routine-trigger-list" id="routine-trigger-list" aria-live="polite">
             <p class="harness-empty">Select a routine to inspect triggers.</p>
           </div>
+          <div class="routine-trigger-add">
+            <label for="routine-trigger-kind">Add trigger</label>
+            <select id="routine-trigger-kind">
+              <option value="schedule">Schedule</option><option value="incoming_email">Incoming email</option><option value="calendar_start">Calendar start</option><option value="calendar_end">Calendar end</option><option value="calendar_rsvp">Calendar RSVP</option><option value="calendar_changed">Calendar changed</option><option value="voice_transcribed">Voice transcribed</option><option value="slack_mention">Slack mention</option><option value="webhook">Webhook</option>
+            </select>
+            <label for="routine-trigger-config">Config JSON <span class="form-hint">optional</span></label>
+            <textarea id="routine-trigger-config" rows="2" spellcheck="false">{}</textarea>
+            <button class="quiet-button" id="routine-trigger-add-button" type="button">Add trigger</button>
+            <p class="dialog-error" id="routine-trigger-add-error" role="alert" hidden></p>
+          </div>
           <p
             class="dialog-error"
             id="routine-history-error"
