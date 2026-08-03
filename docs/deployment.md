@@ -258,6 +258,13 @@ state `READY`; selected routines now show server-backed run/result history and
 terminal replay actions, and an unauthenticated curl receives the Vercel SSO
 `302` protection redirect.
 
+The command-center signal-state/browser smoke-test fix is deployed in
+`dpl_2NBkKpVntDiUtSNh2nA4sanKokYh`, built from commit `3f0fd87`. Its protected
+direct URL is `https://town-clear-current-jd2jpbxty-123oqwes-projects.vercel.app`,
+state `READY`; desktop and mobile Chromium smoke tests now load without page
+errors, and an unauthenticated curl receives the Vercel SSO `302` protection
+redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
