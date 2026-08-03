@@ -1378,6 +1378,18 @@ The model-router wiring is deployed as
 The full build completed successfully and no runtime errors were reported in
 the selected hour.
 
+The latest source state, including owner-scoped analytics events, durable
+presence heartbeats, and billing-block enforcement before assistant message
+queueing, is deployed as
+`dpl_E2mqXagLzuZTcnCmGrZ2RFZPMAjw`,
+`https://town-clear-7rw3lmn9s-123oqwes-projects.vercel.app`, state `READY`.
+The Vercel build downloaded 199 source files, completed all workspace builds,
+and reported no runtime errors in the selected hour. An unauthenticated `HEAD`
+request returned HTTP `302` to Vercel SSO with `x-frame-options: DENY`,
+`x-robots-tag: noindex`, and a secure HttpOnly nonce cookie. This confirms
+deployment-level access protection; the exact project settings API value
+remains unverified because the connector does not expose that mutation.
+
 Access-control verification for the current source state: unauthenticated
 `HEAD` requests to both the owner alias
 `https://town-clear-123oqwe-123oqwes-projects.vercel.app/` and the latest
