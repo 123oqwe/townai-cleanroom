@@ -1209,6 +1209,13 @@
           <div class="square-members" id="square-members">
             <p class="harness-empty">Select a Square to inspect its members.</p>
           </div>
+          <div class="square-member-add">
+            <label for="square-member-user-id">Add or reactivate member by user ID</label>
+            <input id="square-member-user-id" placeholder="User UUID" maxlength="36" />
+            <select id="square-member-role"><option value="member">Member</option><option value="admin">Admin</option></select>
+            <button class="quiet-button" id="square-member-add-button" type="button">Add member</button>
+            <p class="dialog-error" id="square-member-error" role="alert" hidden></p>
+          </div>
           <p class="square-policy" id="square-policy"></p>
           <section class="square-shared-accounts" aria-labelledby="square-accounts-title">
             <div class="square-detail-heading">

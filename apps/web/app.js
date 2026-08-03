@@ -1821,6 +1821,32 @@ function renderSquareAccounts(result, accounts) {
   $("#square-account-grant").hidden = !activeAccounts.length;
   renderSquareCapabilities(activeAccounts[0]);
 }
+function renderSquareMembers(members) {
+  const items = members.members || [];
+  $("#square-members").innerHTML = items.length ? items.map((member) => `<div class="square-member" data-user-id="${escapeHtml(member.userId)}"><span class="square-member-id">${escapeHtml(member.userId.slice(0, 8))}</span><select class="square-member-role"><option value="owner" ${member.role === "owner" ? "selected" : ""}>Owner</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>Admin</option><option value="member" ${member.role === "member" ? "selected" : ""}>Member</option></select><select class="square-member-status"><option value="active" ${member.status === "active" ? "selected" : ""}>Active</option><option value="invited" ${member.status === "invited" ? "selected" : ""}>Invited</option><option value="suspended" ${member.status === "suspended" ? "selected" : ""}>Suspended</option></select><button class="quiet-button square-member-save" type="button">Save</button></div>`).join("") : '<p class="harness-empty">No active members returned.</p>';
+}
+async function updateSquareMember(row) {
+  if (!state.selectedSquareId || !row) return;
+  const error = $("#square-member-error");
+  try {
+    await api(`/v1/squares/${state.selectedSquareId}/members/${row.dataset.userId}`, { method: "PATCH", body: JSON.stringify({ role: row.querySelector(".square-member-role").value, status: row.querySelector(".square-member-status").value }) });
+    const members = await api(`/v1/squares/${state.selectedSquareId}/members`);
+    renderSquareMembers(members);
+  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not update member."; error.hidden = false; }
+}
+async function addSquareMember() {
+  if (!state.selectedSquareId) return;
+  const userId = $("#square-member-user-id").value.trim();
+  const error = $("#square-member-error");
+  if (!userId) { error.textContent = "Enter a user UUID."; error.hidden = false; return; }
+  try {
+    await apiJson(`/v1/squares/${state.selectedSquareId}/members`, { userId, role: $("#square-member-role").value, status: "active" });
+    $("#square-member-user-id").value = "";
+    const members = await api(`/v1/squares/${state.selectedSquareId}/members`);
+    renderSquareMembers(members);
+    error.hidden = true;
+  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not add member."; error.hidden = false; }
+}
 function renderSquareCapabilities(account) {
   const target = $("#square-account-capabilities");
   const capabilities = account ? Object.entries(account.capabilities || {}).filter(([, value]) => value === true).map(([key]) => key) : [];
@@ -1890,15 +1916,7 @@ async function inspectSquare(squareId, card) {
     ]);
     $("#square-detail-name").textContent = square.square.name;
     $("#square-detail-mode").textContent = policy.policy.defaultMode;
-    const memberItems = members.members || [];
-    $("#square-members").innerHTML = memberItems.length
-      ? memberItems
-          .map(
-            (member) =>
-              `<div class="square-member"><span class="square-member-id">${escapeHtml(member.userId.slice(0, 8))}</span><span>${escapeHtml(member.role)}</span><small>${escapeHtml(member.status)}</small></div>`,
-          )
-          .join("")
-      : '<p class="harness-empty">No active members returned.</p>';
+    renderSquareMembers(members);
     $("#square-policy").textContent =
       `Tools: ${policy.policy.allowedToolNames.length || "none"} allowed · Domains: ${policy.policy.allowedDomains.length || "none"} allowed · policy revision ${policy.policy.revision}`;
     await loadSquareAccounts(squareId);
@@ -2408,6 +2426,11 @@ $("#square-account-grant-button").addEventListener("click", () => void grantSqua
 $("#square-account-shares").addEventListener("click", (event) => {
   const button = event.target.closest(".square-account-revoke");
   if (button) void revokeSquareAccount(button.dataset.shareId);
+});
+$("#square-member-add-button").addEventListener("click", () => void addSquareMember());
+$("#square-members").addEventListener("click", (event) => {
+  const button = event.target.closest(".square-member-save");
+  if (button) void updateSquareMember(button.closest(".square-member"));
 });
 $("#a2a-open").addEventListener("click", () => {
   $("#a2a-transition-error").hidden = true;

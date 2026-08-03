@@ -2306,6 +2306,9 @@ dialog h2 {
   font-family: var(--mono);
   font-size: 9px;
 }
+.square-member select { min-width: 78px; }
+.square-member-add { display: grid; gap: 6px; margin-top: 1rem; }
+.square-member-add input, .square-member-add select { width: 100%; }
 .square-policy {
   margin: 0;
   line-height: 1.45;
