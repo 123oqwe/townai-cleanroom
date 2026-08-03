@@ -25,6 +25,12 @@ To run the API, copy `.env.example` to `.env`, set `DATABASE_URL`, and provide a
 `CREDENTIAL_MASTER_KEY_BASE64URL`. The API applies pending migrations before it
 starts. Never commit the populated `.env` file.
 
+The repository also contains the production entrypoint used by Vercel:
+`api/index.ts` re-exports the same `apps/api/src/index.ts` application and
+`vercel.json` builds the workspace before serving `apps/web`. Vercel startup
+still requires the real environment variables; this entrypoint does not embed
+fallback credentials or a fake database.
+
 Generate a development encryption key without printing or storing it in source
 control using your platform's secure secret-management workflow.
 
