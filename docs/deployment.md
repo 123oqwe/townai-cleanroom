@@ -1199,3 +1199,11 @@ The Voice Transcribed provider-boundary source state is included in the
 following READY deployment:
 `https://town-clear-lvhdvl1ce-123oqwes-projects.vercel.app` remains the
 current deployment URL for this module, with no runtime errors reported.
+
+The ElevenLabs voice-synthesis source state is deployed as
+`https://town-clear-ek4lwdug6-123oqwes-projects.vercel.app`, deployment
+`dpl_968xz85umkr3iGntSJ9WiX8LMVxh`, state `READY`. The full workspace build
+completed in 31 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The route remains inactive until
+`ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are configured; the direct URL
+remains SSO-gated.
