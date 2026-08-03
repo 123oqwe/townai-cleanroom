@@ -281,6 +281,14 @@ the worker calls Gmail `messages/send`, while missing provider configuration is
 recorded as a retryable delivery failure. An unauthenticated curl receives the
 Vercel SSO `302` protection redirect.
 
+Credential-backed Telegram, WhatsApp Cloud API, and Slack channel delivery is
+deployed in `dpl_mkMwTVXZcrupwXKzy7ZqwkYYVdG6`, built from commit `d72e9df`.
+Its protected direct URL is
+`https://town-clear-current-8ynuzrk1y-123oqwes-projects.vercel.app`, state
+`READY`; provider secrets are resolved from the deployment's
+`CHANNEL_CREDENTIALS_JSON` map and are never stored in channel rows. An
+unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
