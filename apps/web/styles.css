@@ -1350,6 +1350,35 @@ dialog h2 {
   font-family: var(--mono);
   font-size: 10px;
 }
+.knowledge-conflicts {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.knowledge-conflict-card {
+  display: grid;
+  gap: 9px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.knowledge-conflict-card small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+}
+.knowledge-conflict-card pre {
+  max-height: 160px;
+  margin: 8px 0 0;
+  overflow: auto;
+  padding: 8px;
+  background: var(--paper-deep);
+  white-space: pre-wrap;
+  font-size: 10px;
+}
+.knowledge-conflict-actions {
+  display: flex;
+  gap: 8px;
+}
 .people-dialog {
   max-width: 540px;
 }

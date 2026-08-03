@@ -440,6 +440,13 @@ function renderLibrarySearch(result) {
     )
     .join("");
 }
+function renderKnowledgeConflicts(result) {
+  const conflicts = result.conflicts || [];
+  $("#knowledge-conflict-count").textContent = `${conflicts.length}`;
+  $("#knowledge-conflicts").hidden = !conflicts.length;
+  $("#knowledge-conflict-list").innerHTML = conflicts.length ? conflicts.map((conflict) => `<article class="knowledge-conflict-card" data-conflict-id="${escapeHtml(conflict.id)}" data-revision="${escapeHtml(conflict.currentRevision)}"><div><strong>${escapeHtml(conflict.resourceType)} · ${escapeHtml(conflict.resourceId.slice(0, 8))}</strong><small>base ${escapeHtml(conflict.baseRevision)} → current ${escapeHtml(conflict.currentRevision)} · ${escapeHtml(conflict.proposedAuthorType)}</small><pre>${escapeHtml(JSON.stringify(conflict.proposedSnapshot, null, 2))}</pre></div><div class="knowledge-conflict-actions"><button class="quiet-button knowledge-conflict-reject" type="button">Reject</button><button class="primary-button knowledge-conflict-accept" type="button">Accept</button></div></article>`).join("") : '<p class="harness-empty">No pending conflicts.</p>';
+}
+async function resolveKnowledgeConflict(card, resolution) { try { await api(`/v1/knowledge/conflicts/${card.dataset.conflictId}/resolve`, { method: "POST", body: JSON.stringify({ expectedRevision: Number(card.dataset.revision), resolution }) }); await loadLibrary(); } catch (cause) { const error = $("#knowledge-conflict-error"); error.textContent = cause instanceof Error ? cause.message : "Could not resolve conflict."; error.hidden = false; } }
 function renderLibraryContent(result, append = false) {
   const target = $("#library-content-list");
   const items = result.items || [];
@@ -656,11 +663,12 @@ async function loadLibrary() {
     return;
   }
   try {
-    const [content, memories, wiki, collections] = await Promise.all([
+    const [content, memories, wiki, collections, conflicts] = await Promise.all([
       api("/v1/content?status=active&limit=20"),
       api("/v1/memories"),
       api("/v1/wiki"),
       api("/v1/content/collections"),
+      api("/v1/knowledge/conflicts"),
     ]);
     renderLibraryContent(content);
     libraryContentCursor = content.nextCursor;
@@ -668,6 +676,7 @@ async function loadLibrary() {
     renderMemories(memories);
     renderWiki(wiki);
     renderCollections(collections);
+    renderKnowledgeConflicts(conflicts);
   } catch (error) {
     $("#library-content-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Library unavailable.")}</p>`;
@@ -2482,6 +2491,12 @@ $("#collection-list").addEventListener("click", (event) => { const button = even
 $("#wiki-add-toggle").addEventListener("click", () => { $("#wiki-add-form").hidden = !$("#wiki-add-form").hidden; if (!$("#wiki-add-form").hidden) $("#wiki-title").focus(); });
 $("#wiki-save").addEventListener("click", () => void saveWiki());
 $("#wiki-list").addEventListener("click", (event) => { const card = event.target.closest(".wiki-card"); if (!card) return; if (event.target.closest(".wiki-edit")) void editWiki(card); if (event.target.closest(".wiki-edit-save")) void saveWikiEdit(card).catch((cause) => { const error = $("#wiki-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit Wiki page."; error.hidden = false; }); });
+$("#knowledge-conflict-list").addEventListener("click", (event) => {
+  const card = event.target.closest(".knowledge-conflict-card");
+  if (!card) return;
+  if (event.target.closest(".knowledge-conflict-accept")) void resolveKnowledgeConflict(card, "accept");
+  if (event.target.closest(".knowledge-conflict-reject")) void resolveKnowledgeConflict(card, "reject");
+});
 $("#library-content-more").addEventListener(
   "click",
   () => void loadMoreLibraryContent(),
