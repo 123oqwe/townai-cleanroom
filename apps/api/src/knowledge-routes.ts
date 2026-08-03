@@ -411,6 +411,17 @@ export function registerKnowledgeRoutes(
     });
   });
 
+  app.get("/v1/wiki/:documentId/revisions", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      revisions: await dependencies.revisionRepository.list(
+        ownerId,
+        "wiki",
+        asId<"wiki">(context.req.param("documentId")),
+      ),
+    });
+  });
+
   app.post("/v1/wiki", async (context) => {
     const ownerId = context.get("identity").user.id;
     const body = wikiCreateSchema.parse(await context.req.json());

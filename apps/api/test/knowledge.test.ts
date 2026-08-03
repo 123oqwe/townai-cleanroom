@@ -426,4 +426,39 @@ describe("protected knowledge API", () => {
       code: "WIKI_DOCUMENT_NOT_FOUND",
     });
   });
+
+  it("exposes owner-scoped wiki revision history", async () => {
+    const { app, owner, wikiRepository } = await fixture();
+    const headers = authorization(owner.token);
+    const document = await wikiRepository.create({
+      ownerId: owner.user.id,
+      kind: "page",
+      slug: "history",
+      title: "History",
+      body: "v1",
+      authorType: "user",
+      citations: [],
+    });
+    await wikiRepository.update({
+      ownerId: owner.user.id,
+      documentId: document.id,
+      expectedRevision: 1,
+      kind: "page",
+      slug: "history",
+      title: "History",
+      body: "v2",
+      authorType: "user",
+      citations: [],
+    });
+    const response = await app.request(`/v1/wiki/${document.id}/revisions`, {
+      headers,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      revisions: [
+        { revision: 1, snapshot: { body: "v1" } },
+        { revision: 2, snapshot: { body: "v2" } },
+      ],
+    });
+  });
 });
