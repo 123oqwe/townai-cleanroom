@@ -69,6 +69,22 @@ const personUpdateSchema = z
     expectedRevision: z.number().int().positive(),
   })
   .strict();
+const relationshipCreateSchema = z
+  .object({
+    relatedPersonId: z.uuidv7(),
+    relationshipType: z.string().trim().min(1).max(100),
+    notes: z.string().max(20_000).default(""),
+  })
+  .strict();
+const relationshipUpdateSchema = relationshipCreateSchema.extend({
+  expectedRevision: z.number().int().positive(),
+});
+const relationshipDeleteQuerySchema = z
+  .object({ expectedRevision: z.coerce.number().int().positive() })
+  .strict();
+const relationshipListQuerySchema = z
+  .object({ includeRetired: z.enum(["true", "false"]).default("false") })
+  .strict();
 
 const wikiFields = {
   kind: z.enum(["profile", "goal", "project", "page"]),
@@ -284,6 +300,66 @@ export function registerKnowledgeRoutes(
     return context.json({
       person: await dependencies.peopleRepository.get(ownerId, personId),
     });
+  });
+
+  app.get("/v1/people/:personId/relationships", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const personId = asId<"person">(context.req.param("personId"));
+    const query = relationshipListQuerySchema.parse(context.req.query());
+    return context.json({
+      relationships: await dependencies.peopleRepository.listRelationships(
+        ownerId,
+        personId,
+        query.includeRetired === "true",
+      ),
+    });
+  });
+
+  app.post("/v1/people/:personId/relationships", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const personId = asId<"person">(context.req.param("personId"));
+    const body = relationshipCreateSchema.parse(await context.req.json());
+    return context.json(
+      {
+        relationship: await dependencies.peopleRepository.createRelationship({
+          ownerId,
+          personId,
+          relatedPersonId: asId<"person">(body.relatedPersonId),
+          relationshipType: body.relationshipType,
+          notes: body.notes,
+        }),
+      },
+      201,
+    );
+  });
+
+  app.patch("/v1/people/relationships/:relationshipId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const relationshipId = asId<"person-relationship">(
+      context.req.param("relationshipId"),
+    );
+    const body = relationshipUpdateSchema.parse(await context.req.json());
+    return context.json({
+      relationship: await dependencies.peopleRepository.updateRelationship({
+        ownerId,
+        relationshipId,
+        ...body,
+      }),
+    });
+  });
+
+  app.delete("/v1/people/relationships/:relationshipId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const relationshipId = asId<"person-relationship">(
+      context.req.param("relationshipId"),
+    );
+    const query = relationshipDeleteQuerySchema.parse(context.req.query());
+    await dependencies.peopleRepository.retireRelationship(
+      ownerId,
+      relationshipId,
+      query.expectedRevision,
+    );
+    return context.body(null, 204);
   });
 
   app.post("/v1/people", async (context) => {

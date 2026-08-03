@@ -148,6 +148,58 @@ describe("people repository", () => {
     });
   });
 
+  it("stores owner-scoped relationship edges with revision-safe retirement", async () => {
+    const people = createPeopleRepository(sql);
+    const alex = await people.create({
+      ownerId,
+      displayName: "Alex",
+      category: "coworker",
+      notes: "",
+      authorType: "user",
+      citations: [],
+    });
+    const casey = await people.create({
+      ownerId,
+      displayName: "Casey",
+      category: "coworker",
+      notes: "",
+      authorType: "user",
+      citations: [],
+    });
+    const edge = await people.createRelationship({
+      ownerId,
+      personId: alex.id,
+      relatedPersonId: casey.id,
+      relationshipType: "works_with",
+      notes: "Shared operations work",
+    });
+    expect(await people.listRelationships(ownerId, alex.id)).toEqual([edge]);
+    await expect(
+      people.createRelationship({
+        ownerId: otherOwnerId,
+        personId: alex.id,
+        relatedPersonId: casey.id,
+        relationshipType: "works_with",
+      }),
+    ).rejects.toMatchObject({ code: "PERSON_NOT_FOUND" });
+    const updated = await people.updateRelationship({
+      ownerId,
+      relationshipId: edge.id,
+      expectedRevision: 1,
+      relationshipType: "manager",
+      notes: "Updated by owner",
+    });
+    expect(updated).toMatchObject({ revision: 2, relationshipType: "manager" });
+    await expect(
+      people.retireRelationship(ownerId, edge.id, 1),
+    ).rejects.toMatchObject({ code: "RELATIONSHIP_CONFLICT" });
+    await people.retireRelationship(ownerId, edge.id, 2);
+    expect(await people.listRelationships(ownerId, alex.id)).toEqual([]);
+    expect(
+      await people.listRelationships(ownerId, alex.id, true),
+    ).toMatchObject([{ status: "retired", revision: 3 }]);
+  });
+
   it("updates and retires a person while preserving cited history", async () => {
     const people = createPeopleRepository(sql);
     const revisions = createRevisionRepository(sql);

@@ -20,6 +20,8 @@ const personCategorySchema = z.enum([
   "personal",
 ]);
 const personStatusSchema = z.enum(["active", "retired"]);
+const relationshipTypeSchema = z.string().trim().min(1).max(100);
+const relationshipStatusSchema = z.enum(["active", "retired"]);
 const personFields = {
   ownerId: idSchema,
   displayName: z.string().trim().min(1),
@@ -54,6 +56,18 @@ interface PersonRow {
   created_at: Date;
   updated_at: Date;
 }
+interface RelationshipRow {
+  id: string;
+  owner_id: string;
+  person_id: string;
+  related_person_id: string;
+  relationship_type: string;
+  notes: string;
+  status: z.infer<typeof relationshipStatusSchema>;
+  revision: number;
+  created_at: Date;
+  updated_at: Date;
+}
 
 export interface Person {
   id: Id<"person">;
@@ -69,11 +83,28 @@ export interface Person {
   createdAt: Date;
   updatedAt: Date;
 }
+export interface PersonRelationship {
+  id: Id<"person-relationship">;
+  ownerId: Id<"user">;
+  personId: Id<"person">;
+  relatedPersonId: Id<"person">;
+  relationshipType: string;
+  notes: string;
+  status: z.infer<typeof relationshipStatusSchema>;
+  revision: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export class PeopleError extends Error {
   constructor(
     readonly code:
-      "PERSON_ALREADY_EXISTS" | "PERSON_NOT_FOUND" | "PROVENANCE_REQUIRED",
+      | "PERSON_ALREADY_EXISTS"
+      | "PERSON_NOT_FOUND"
+      | "PROVENANCE_REQUIRED"
+      | "RELATIONSHIP_ALREADY_EXISTS"
+      | "RELATIONSHIP_NOT_FOUND"
+      | "RELATIONSHIP_CONFLICT",
     message: string,
   ) {
     super(message);
@@ -93,6 +124,20 @@ function safePerson(row: PersonRow): Person {
     notes: row.notes,
     status: personStatusSchema.parse(row.status),
     currentRevision: row.current_revision,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+function safeRelationship(row: RelationshipRow): PersonRelationship {
+  return {
+    id: asId<"person-relationship">(row.id),
+    ownerId: asId<"user">(row.owner_id),
+    personId: asId<"person">(row.person_id),
+    relatedPersonId: asId<"person">(row.related_person_id),
+    relationshipType: row.relationship_type,
+    notes: row.notes,
+    status: relationshipStatusSchema.parse(row.status),
+    revision: row.revision,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -249,10 +294,154 @@ export function createPeopleRepository(sql: Sql) {
     };
   }
 
+  async function createRelationship(input: {
+    ownerId: Id<"user">;
+    personId: Id<"person">;
+    relatedPersonId: Id<"person">;
+    relationshipType: string;
+    notes?: string;
+  }): Promise<PersonRelationship> {
+    const value = z
+      .object({
+        ownerId: idSchema,
+        personId: idSchema,
+        relatedPersonId: idSchema,
+        relationshipType: relationshipTypeSchema,
+        notes: z.string().default(""),
+      })
+      .strict()
+      .parse(input);
+    if (value.personId === value.relatedPersonId)
+      throw new PeopleError(
+        "RELATIONSHIP_CONFLICT",
+        "A person cannot relate to itself.",
+      );
+    const id = newId<"person-relationship">();
+    try {
+      const rows = await sql<RelationshipRow[]>`
+        insert into person_relationships
+          (id, owner_id, person_id, related_person_id, relationship_type, notes)
+        select ${id}, ${value.ownerId}, ${value.personId}, ${value.relatedPersonId},
+          ${value.relationshipType}, ${value.notes}
+        where exists (
+          select 1 from people where owner_id=${value.ownerId}
+            and id=${value.personId} and status='active'
+        ) and exists (
+          select 1 from people where owner_id=${value.ownerId}
+            and id=${value.relatedPersonId} and status='active'
+        )
+        returning *
+      `;
+      const row = rows[0];
+      if (!row)
+        throw new PeopleError(
+          "PERSON_NOT_FOUND",
+          "Both people must exist and be active.",
+        );
+      return safeRelationship(row);
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "constraint_name" in error &&
+        error.constraint_name === "person_relationships_unique_edge"
+      )
+        throw new PeopleError(
+          "RELATIONSHIP_ALREADY_EXISTS",
+          "This relationship already exists.",
+        );
+      throw error;
+    }
+  }
+
+  async function listRelationships(
+    ownerId: Id<"user">,
+    personId: Id<"person">,
+    includeRetired = false,
+  ): Promise<PersonRelationship[]> {
+    const rows = await sql<RelationshipRow[]>`
+      select * from person_relationships
+      where owner_id=${ownerId} and (person_id=${personId} or related_person_id=${personId})
+        and (${includeRetired} or status='active')
+      order by created_at, id
+    `;
+    return rows.map(safeRelationship);
+  }
+
+  async function updateRelationship(input: {
+    ownerId: Id<"user">;
+    relationshipId: Id<"person-relationship">;
+    expectedRevision: number;
+    relationshipType: string;
+    notes: string;
+  }): Promise<PersonRelationship> {
+    const value = z
+      .object({
+        ownerId: idSchema,
+        relationshipId: idSchema,
+        expectedRevision: z.number().int().positive(),
+        relationshipType: relationshipTypeSchema,
+        notes: z.string(),
+      })
+      .strict()
+      .parse(input);
+    const rows = await sql<RelationshipRow[]>`
+      update person_relationships
+      set relationship_type=${value.relationshipType}, notes=${value.notes},
+        revision=revision+1, updated_at=now()
+      where owner_id=${value.ownerId} and id=${value.relationshipId}
+        and revision=${value.expectedRevision} and status='active'
+      returning *
+    `;
+    if (!rows[0]) {
+      const [existing] = await sql<{ id: string }[]>`
+        select id from person_relationships
+        where owner_id=${value.ownerId} and id=${value.relationshipId}
+      `;
+      throw new PeopleError(
+        existing ? "RELATIONSHIP_CONFLICT" : "RELATIONSHIP_NOT_FOUND",
+        existing
+          ? "The relationship changed since it was read."
+          : "The relationship was not found.",
+      );
+    }
+    return safeRelationship(rows[0]);
+  }
+
+  async function retireRelationship(
+    ownerId: Id<"user">,
+    relationshipId: Id<"person-relationship">,
+    expectedRevision: number,
+  ): Promise<void> {
+    const rows = await sql<RelationshipRow[]>`
+      update person_relationships
+      set status='retired', revision=revision+1, updated_at=now()
+      where owner_id=${ownerId} and id=${relationshipId}
+        and revision=${expectedRevision} and status='active'
+      returning *
+    `;
+    if (!rows[0]) {
+      const [existing] = await sql<{ id: string }[]>`
+        select id from person_relationships
+        where owner_id=${ownerId} and id=${relationshipId}
+      `;
+      throw new PeopleError(
+        existing ? "RELATIONSHIP_CONFLICT" : "RELATIONSHIP_NOT_FOUND",
+        existing
+          ? "The relationship changed since it was read."
+          : "The relationship was not found.",
+      );
+    }
+  }
+
   return {
     create,
     get,
     update,
+    createRelationship,
+    listRelationships,
+    updateRelationship,
+    retireRelationship,
 
     async list(
       ownerId: Id<"user">,

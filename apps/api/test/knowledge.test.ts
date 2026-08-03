@@ -248,6 +248,63 @@ describe("protected knowledge API", () => {
     );
   });
 
+  it("exposes owner-scoped Person relationship edges", async () => {
+    const { app, owner, other } = await fixture();
+    const headers = authorization(owner.token);
+    const first = await app.request("/v1/people", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        displayName: "Relationship Alex",
+        category: "coworker",
+        notes: "",
+      }),
+    });
+    const second = await app.request("/v1/people", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        displayName: "Relationship Casey",
+        category: "coworker",
+        notes: "",
+      }),
+    });
+    const firstId = ((await first.json()) as { person: { id: string } }).person
+      .id;
+    const secondId = ((await second.json()) as { person: { id: string } })
+      .person.id;
+    const created = await app.request(`/v1/people/${firstId}/relationships`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        relatedPersonId: secondId,
+        relationshipType: "works_with",
+        notes: "Shared project",
+      }),
+    });
+    const edge = (await created.json()) as {
+      relationship: { id: string; revision: number };
+    };
+    const otherRead = await app.request(`/v1/people/${firstId}/relationships`, {
+      headers: authorization(other.token),
+    });
+    const list = await app.request(`/v1/people/${firstId}/relationships`, {
+      headers,
+    });
+    const retired = await app.request(
+      `/v1/people/relationships/${edge.relationship.id}?expectedRevision=${edge.relationship.revision}`,
+      { method: "DELETE", headers },
+    );
+
+    expect(created.status).toBe(201);
+    expect(otherRead.status).toBe(200);
+    expect(await otherRead.json()).toEqual({ relationships: [] });
+    expect(await list.json()).toMatchObject({
+      relationships: [{ relationshipType: "works_with", revision: 1 }],
+    });
+    expect(retired.status).toBe(204);
+  });
+
   it("strictly validates search query filters", async () => {
     const { app, owner } = await fixture();
     const headers = authorization(owner.token);
