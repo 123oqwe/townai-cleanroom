@@ -373,6 +373,13 @@ describe("protected Agent, Thread, and Task API", () => {
       `/v1/tasks/${created.task.id}/input-requests`,
       { headers: authorization(owner.token) },
     );
+    const pendingRequests = await app.request("/v1/input-requests", {
+      headers: authorization(owner.token),
+    });
+    expect(pendingRequests.status).toBe(200);
+    expect(await pendingRequests.json()).toMatchObject({
+      inputRequests: [{ id: request.id, status: "pending" }],
+    });
     const answered = await app.request(
       `/v1/tasks/${created.task.id}/input-requests/${request.id}/respond`,
       {

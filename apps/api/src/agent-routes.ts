@@ -377,6 +377,14 @@ export function registerAgentRoutes(
     });
   });
 
+  app.get("/v1/input-requests", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      inputRequests:
+        await dependencies.inputRequestRepository.listPending(ownerId),
+    });
+  });
+
   app.post(
     "/v1/tasks/:taskId/input-requests/:requestId/respond",
     async (context) => {

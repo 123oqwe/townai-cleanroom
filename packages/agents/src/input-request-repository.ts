@@ -107,6 +107,19 @@ export function createInputRequestRepository(sql: Sql) {
     return rows.map(safeRequest);
   }
 
+  async function listPending(ownerId: Id<"user">): Promise<TaskInputRequest[]> {
+    const value = idSchema.parse(ownerId);
+    const rows = await sql<InputRequestRow[]>`
+      select request.* from task_input_requests request
+      join tasks task on task.id = request.task_id and task.owner_id = request.owner_id
+      where request.owner_id = ${value} and request.status = 'pending'
+        and task.status <> 'deleted'
+      order by request.requested_at, request.id
+      limit 100
+    `;
+    return rows.map(safeRequest);
+  }
+
   async function answer(
     input: z.input<typeof answerRequestSchema>,
   ): Promise<TaskInputRequest> {
@@ -181,7 +194,7 @@ export function createInputRequestRepository(sql: Sql) {
     );
   }
 
-  return { answer, cancel, createInternal, list };
+  return { answer, cancel, createInternal, list, listPending };
 }
 
 export type InputRequestRepository = ReturnType<

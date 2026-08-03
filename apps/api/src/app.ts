@@ -660,6 +660,8 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/threads/*", authenticate);
       app.use("/v1/tasks", authenticate);
       app.use("/v1/tasks/*", authenticate);
+      app.use("/v1/input-requests", authenticate);
+      app.use("/v1/input-requests/*", authenticate);
       registerAgentRoutes(app, agents);
     }
 

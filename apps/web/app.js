@@ -1201,6 +1201,57 @@ async function loadApprovals() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Approvals unavailable.")}</p>`;
   }
 }
+function renderInputRequests(result) {
+  const target = $("#input-inbox-list");
+  const requests = result.inputRequests || [];
+  $("#input-inbox-count").textContent = `${requests.length} waiting`;
+  if (!requests.length) {
+    target.innerHTML = '<p class="harness-empty">No unanswered questions.</p>';
+    return;
+  }
+  target.innerHTML = requests
+    .map(
+      (request) =>
+        `<article class="input-inbox-card" data-request-id="${escapeHtml(request.id)}" data-task-id="${escapeHtml(request.taskId)}"><strong>${escapeHtml(request.prompt)}</strong><textarea class="input-inbox-response" rows="2" maxlength="50000" placeholder="Write an answer…"></textarea><button class="primary-button input-inbox-send" type="button">Answer <span>→</span></button></article>`,
+    )
+    .join("");
+}
+async function loadInputRequests() {
+  if (!state.token) {
+    $("#input-inbox-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load questions.</p>';
+    $("#input-inbox-count").textContent = "—";
+    return;
+  }
+  try {
+    renderInputRequests(await api("/v1/input-requests"));
+  } catch (error) {
+    $("#input-inbox-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Questions unavailable.")}</p>`;
+  }
+}
+async function answerInputRequest(card) {
+  const requestId = card.dataset.requestId;
+  const taskId = card.dataset.taskId;
+  const response = card.querySelector(".input-inbox-response").value.trim();
+  if (!requestId || !taskId || !response) return;
+  card.querySelectorAll("button").forEach((button) => (button.disabled = true));
+  try {
+    await apiJson(`/v1/tasks/${taskId}/input-requests/${requestId}/respond`, {
+      response,
+    });
+    await loadInputRequests();
+    await refresh();
+  } catch (error) {
+    card.insertAdjacentHTML(
+      "beforeend",
+      `<p class="dialog-error">${escapeHtml(error instanceof Error ? error.message : "Could not answer question.")}</p>`,
+    );
+    card
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = false));
+  }
+}
 async function decideInboxApproval(card, decision) {
   const approvalId = card.dataset.approvalId;
   const expectedRevision = Number(card.dataset.approvalRevision);
@@ -1960,6 +2011,7 @@ $("#account-open").addEventListener("click", () => {
   void loadAccounts();
   void loadTools();
   void loadApprovals();
+  void loadInputRequests();
 });
 $("#policy-preview-run").addEventListener("click", () => void previewPolicy());
 $("#approval-inbox-list").addEventListener("click", (event) => {
@@ -1970,6 +2022,11 @@ $("#approval-inbox-list").addEventListener("click", (event) => {
     card,
     button.classList.contains("approval-inbox-approve") ? "approve" : "reject",
   );
+});
+$("#input-inbox-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".input-inbox-send");
+  const card = event.target.closest(".input-inbox-card");
+  if (button && card) void answerInputRequest(card);
 });
 $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
 $("#channels-open").addEventListener("click", () => {

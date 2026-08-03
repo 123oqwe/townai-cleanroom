@@ -1779,6 +1779,27 @@ dialog h2 {
   gap: 0.5rem;
   margin-top: 0.55rem;
 }
+
+.input-inbox {
+  margin: 1rem 0;
+}
+
+.input-inbox-card {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid var(--line);
+  padding: 0.7rem 0;
+}
+
+.input-inbox-response {
+  width: 100%;
+  min-height: 58px;
+  resize: vertical;
+}
+
+.input-inbox-send {
+  justify-self: start;
+}
 .account-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
