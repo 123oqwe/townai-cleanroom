@@ -252,7 +252,15 @@ function safeClaimed(row: DeliveryRow): ClaimedNotificationDelivery {
   };
 }
 
-export function createChannelRepository(sql: Sql) {
+export function createChannelRepository(
+  sql: Sql,
+  options: {
+    onDeliveryOutcome?: (value: {
+      delivery: NotificationDelivery;
+      error: string | null;
+    }) => Promise<void>;
+  } = {},
+) {
   async function getChannel(
     tx: Sql | TransactionSql,
     ownerId: Id<"user">,
@@ -573,6 +581,14 @@ export function createChannelRepository(sql: Sql) {
       ...(error === undefined ? {} : { error }),
       ...(retryAt === null ? {} : { retryAt }),
     });
+    try {
+      await options.onDeliveryOutcome?.({
+        delivery,
+        error: error ?? null,
+      });
+    } catch {
+      // Observability must not change the already-committed delivery outcome.
+    }
     return { delivery, claimed: true };
   }
   return {

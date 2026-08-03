@@ -182,6 +182,36 @@ describe("notification channels", () => {
     await expect(repository.listDeliveries(otherId)).resolves.toEqual([]);
   });
 
+  it("emits a structured outcome after the delivery commit", async () => {
+    const onDeliveryOutcome = vi.fn(async () => undefined);
+    const repository = createChannelRepository(sql, { onDeliveryOutcome });
+    const channel = await repository.create({
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/audit",
+      config: { headers: {} },
+    });
+    const queued = await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.completed",
+      idempotencyKey: "delivery-audit",
+      payload: { runId: "audit-run" },
+    });
+    const result = await repository.deliverNext({
+      workerId: "audit-worker",
+      fetch: vi.fn(async () => new Response(null, { status: 202 })),
+    });
+    expect(result.delivery).toMatchObject({
+      id: queued.id,
+      status: "succeeded",
+    });
+    expect(onDeliveryOutcome).toHaveBeenCalledWith({
+      delivery: expect.objectContaining({ id: queued.id, status: "succeeded" }),
+      error: null,
+    });
+  });
+
   it("stops enqueueing after disable and prevents cross-owner access", async () => {
     const repository = createChannelRepository(sql);
     const channel = await repository.create({

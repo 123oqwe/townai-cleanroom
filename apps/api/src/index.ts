@@ -276,9 +276,26 @@ const toolExecutionRepository = createToolExecutionRepository(sql);
 const contentRepository = createContentRepository(sql);
 const squareRepository = createSquareRepository(sql);
 const sharedAccountRepository = createSharedAccountRepository(sql);
-const channelRepository = createChannelRepository(sql);
 const billingRepository = createBillingRepository(sql);
 const operationsRepository = createOperationsRepository(sql);
+const channelRepository = createChannelRepository(sql, {
+  onDeliveryOutcome: async ({ delivery, error }) => {
+    await operationsRepository.append({
+      ownerId: delivery.ownerId,
+      action: `notification.delivery.${delivery.status}`,
+      resourceType: "notification-delivery",
+      resourceId: delivery.id,
+      outcome: delivery.status === "succeeded" ? "succeeded" : "failed",
+      dedupeKey: `${delivery.id}:${delivery.attempts}:${delivery.status}`,
+      metadata: {
+        channelId: delivery.channelId,
+        eventType: delivery.eventType,
+        attempts: delivery.attempts,
+        error,
+      },
+    });
+  },
+});
 const mcpRepository = createMcpRepository(sql);
 
 const harnessServerFactory =
