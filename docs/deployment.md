@@ -210,6 +210,12 @@ direct URL is `https://town-clear-current-6orqnhp0q-123oqwes-projects.vercel.app
 state `READY`; `0036_routine_run_replays.sql` creates new queued runs linked to
 their source, and the unauthenticated URL check returns the Vercel SSO `302`.
 
+Unified manual/email/calendar trigger submission is deployed in
+`dpl_5Z5eRkXwqLsu4S54KFAA7cbssfiq`, built from commit `9df9d16`. Its protected
+direct URL is `https://town-clear-current-cdt2gos38-123oqwes-projects.vercel.app`,
+state `READY`; `0037_routine_trigger_idempotency.sql` protects typed trigger
+keys, and the unauthenticated URL check returns the Vercel SSO `302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
