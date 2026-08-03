@@ -7,10 +7,12 @@ import {
   type ChannelRepository,
 } from "@town/channels";
 import { asId } from "@town/contracts";
+import type { OperationsRepository } from "@town/operations";
 import type { AuthVariables } from "./auth.js";
 
 export interface ChannelDependencies {
   repository: ChannelRepository;
+  audit?: OperationsRepository;
 }
 
 const createSchema = z
@@ -91,5 +93,35 @@ export function registerChannelRoutes(
         ...(limit === undefined ? {} : { limit }),
       }),
     });
+  });
+  app.get("/v1/notification-timeline", async (context) => {
+    if (dependencies.audit === undefined)
+      return context.json({ code: "AUDIT_NOT_CONFIGURED" }, 503);
+    const ownerId = context.get("identity").user.id;
+    const limit = z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .parse(context.req.query("limit") ?? "50");
+    const [deliveries, audit] = await Promise.all([
+      dependencies.repository.listDeliveries(ownerId, { limit }),
+      dependencies.audit.list({ ownerId, limit }),
+    ]);
+    const items = [
+      ...deliveries.map((delivery) => ({
+        kind: "delivery" as const,
+        at: delivery.createdAt,
+        delivery,
+      })),
+      ...audit.items.map((event) => ({
+        kind: "audit" as const,
+        at: event.createdAt,
+        audit: event,
+      })),
+    ]
+      .sort((left, right) => right.at.getTime() - left.at.getTime())
+      .slice(0, limit);
+    return context.json({ items });
   });
 }

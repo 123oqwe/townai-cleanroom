@@ -710,6 +710,9 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/notification-deliveries", authenticate);
       registerChannelRoutes(app, {
         repository: dependencies.channelRepository,
+        ...(dependencies.operationsRepository === undefined
+          ? {}
+          : { audit: dependencies.operationsRepository }),
       });
     }
     if (dependencies.billingRepository !== undefined) {
