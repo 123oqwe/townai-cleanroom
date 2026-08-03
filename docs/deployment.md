@@ -251,6 +251,13 @@ state `READY`; explicitly configured `outgoing_email` triggers now enqueue and
 link idempotent notification outbox records, while an unauthenticated curl
 receives the Vercel SSO `302` protection redirect.
 
+The command-center UI result-trace and replay surface is deployed in
+`dpl_7DUw77UgUsmkREa5ekjxGhfsB55x`, built from commit `774efeb`. Its protected
+direct URL is `https://town-clear-current-klu0uyk9y-123oqwes-projects.vercel.app`,
+state `READY`; selected routines now show server-backed run/result history and
+terminal replay actions, and an unauthenticated curl receives the Vercel SSO
+`302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
