@@ -341,7 +341,9 @@ that a provider account, callback mapping, or external quota is valid.
 Routine webhook ingestion now rejects bodies over 256 KiB with `413`, malformed
 JSON with `400`, and does so before calling the durable repository. Valid
 payloads retain the existing bearer-secret and `X-Town-Idempotency-Key`
-contract; this is a clean-room reliability boundary, not a claim about
+contract, and each webhook is limited to 60 new deliveries per rolling minute
+using its locked durable delivery rows. Rate-limited requests return a typed
+`429`; this is a clean-room reliability boundary, not a claim about
 Slack/Voice provider-specific signatures.
 
 Runtime worker draining is now explicitly bounded: `WORKER_BATCH_SIZE` accepts

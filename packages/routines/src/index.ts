@@ -164,13 +164,15 @@ export class RoutineError extends Error {
       | "SYNC_RUN_NOT_FOUND"
       | "SYNC_RUN_CONFLICT"
       | "SHARE_NOT_FOUND"
-      | "SHARE_CONFLICT",
+      | "SHARE_CONFLICT"
+      | "WEBHOOK_RATE_LIMITED",
     message: string,
   ) {
     super(message);
     this.name = "RoutineError";
   }
 }
+const WEBHOOK_DELIVERIES_PER_MINUTE = 60;
 type Row = {
   id: string;
   owner_id: string;
@@ -1145,6 +1147,17 @@ export function createRoutineRepository(sql: Sql) {
           runId: asId<"integration-sync-run">(existing.run_id),
           duplicate: true,
         };
+      const [rate] = await tx<{ count: number }[]>`
+        select count(*)::int as count
+        from routine_webhook_deliveries
+        where webhook_id=${webhook.id}
+          and created_at >= now() - interval '1 minute'
+      `;
+      if ((rate?.count ?? 0) >= WEBHOOK_DELIVERIES_PER_MINUTE)
+        throw new RoutineError(
+          "WEBHOOK_RATE_LIMITED",
+          "The routine webhook rate limit was exceeded.",
+        );
       const [run] = await tx<{ id: string }[]>`
         insert into integration_sync_runs (id,owner_id,account_id,routine_schedule_id,provider,status,trigger_type,trigger_data,idempotency_key)
         select ${newId<"integration-sync-run">()}, ${webhook.owner_id}, ca.id,

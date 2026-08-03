@@ -441,6 +441,21 @@ export function createApp(dependencies?: AppDependencies) {
       );
     }
     if (
+      error instanceof RoutineError &&
+      error.code === "WEBHOOK_RATE_LIMITED"
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/rate-limit",
+          title: "Webhook rate limit exceeded",
+          status: 429,
+          detail: "The routine webhook rate limit was exceeded.",
+          code: error.code,
+        },
+        429,
+      );
+    }
+    if (
       (error instanceof RoutineError &&
         ["ROUTINE_CONFLICT", "SYNC_RUN_CONFLICT"].includes(error.code)) ||
       (error instanceof SuggestionError &&

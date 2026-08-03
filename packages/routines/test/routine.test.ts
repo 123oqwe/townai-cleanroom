@@ -418,6 +418,26 @@ describe("routine schedules", () => {
     ).resolves.toBeNull();
   });
 
+  it("limits a webhook to sixty new deliveries per minute", async () => {
+    const repository = createRoutineRepository(sql);
+    const schedule = await repository.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Rate limited webhook",
+      cron: "0 14 * * *",
+      nextRunAt: new Date("2026-08-03T06:00:00Z"),
+    });
+    const { secret } = await repository.createWebhook(ownerId, schedule.id);
+    for (let index = 0; index < 60; index += 1)
+      await repository.deliverWebhook(schedule.id, secret, `rate-${index}`, {
+        index,
+      });
+    await expect(
+      repository.deliverWebhook(schedule.id, secret, "rate-60", { index: 60 }),
+    ).rejects.toMatchObject({ code: "WEBHOOK_RATE_LIMITED" });
+  });
+
   it("replays a terminal run into a new queued run without duplicating the source", async () => {
     const repository = createRoutineRepository(sql);
     const schedule = await repository.create({
