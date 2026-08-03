@@ -534,6 +534,15 @@ visibility without rewriting or reordering server data. An unauthenticated
 request receives the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
 
+MCP Agent binding visibility is deployed in
+`dpl_F1R1ykVfRWtEHkryXspvY4M1buwZ`, built from commit `aab7fa6`. Its protected
+direct URL is
+`https://town-clear-current-6k8w9moxy-123oqwes-projects.vercel.app`, state
+`READY`; the MCP catalog now reports whether each server is bound to the
+owner's current Personal Agent and its mode override. The direct URL returns
+the Vercel SSO `302`; Vercel reported no runtime errors in the verification
+window.
+
 The MCP server catalog surface is deployed in
 `dpl_EB3pCcju5HncbkkkiBtSDkYrmUYi`, built from commit `acce79c`. Its protected
 direct URL is
