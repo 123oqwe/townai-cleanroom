@@ -1111,3 +1111,11 @@ build correctly rejected the mismatch. After refreshing the Harness source
 files, `dpl_DemgSgWe39Mkh1C8x2LaUzKfoFNN` reached `READY` with a 33-second full
 workspace build and no runtime errors. The protected direct URL is
 `https://town-clear-current-1yg5kb7n4-123oqwes-projects.vercel.app`.
+
+The admin billing reconciliation source state is deployed as
+`https://town-clear-current-ho4vjq6k8-123oqwes-projects.vercel.app`, deployment
+`dpl_CZdEXFRN8bi23zJmZoL9cK8QDgTA`, state `READY`. The full workspace build
+completed successfully and Vercel reported no runtime errors in the following
+hour. The direct URL remains SSO-gated. External billing reconciliation is
+still deliberately reported as `not_configured` until a provider adapter is
+actually supplied.
