@@ -646,6 +646,17 @@
             </button>
           </div>
           <p class="dialog-error" id="agent-error" role="alert" hidden></p>
+          <section class="agent-history" aria-labelledby="agent-history-title">
+            <div class="tool-catalog-heading">
+              <div>
+                <p class="eyebrow">Immutable history</p>
+                <h4 id="agent-history-title">Previous versions</h4>
+              </div>
+            </div>
+            <div id="agent-history-list" aria-live="polite">
+              <p class="harness-empty">Connect the API to load versions.</p>
+            </div>
+          </section>
         </section>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>

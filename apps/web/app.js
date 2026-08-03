@@ -716,6 +716,16 @@ async function loadAgentSettings() {
           )
           .join("")
       : '<p class="harness-empty">No routine agents available.</p>';
+    const versions =
+      (await api("/v1/agents/personal/versions?limit=20")).items || [];
+    $("#agent-history-list").innerHTML = versions.length
+      ? versions
+          .map(
+            (version) =>
+              `<article class="agent-history-item"><div><strong>Version ${escapeHtml(String(version.version))}</strong><small>${escapeHtml(version.createdBy)} · ${escapeHtml(new Date(version.createdAt).toLocaleString())}</small></div><span>${escapeHtml(version.snapshot.defaultApprovalMode)}</span></article>`,
+          )
+          .join("")
+      : '<p class="harness-empty">No previous versions returned.</p>';
   } catch (error) {
     $("#agent-error").textContent =
       error instanceof Error ? error.message : "Agent unavailable.";
