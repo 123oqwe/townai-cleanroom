@@ -83,4 +83,55 @@ describe("runtime worker", () => {
       state: "completed",
     });
   });
+
+  it("drains a bounded batch and stops when the queue is empty", async () => {
+    const queue = {
+      claim: vi
+        .fn()
+        .mockResolvedValueOnce({
+          ownerId,
+          sessionId,
+          runId,
+          runState: "queued" as const,
+          workerId: "worker-1",
+          leaseToken,
+          attempt: 1,
+          leasedAt: new Date(),
+          leaseExpiresAt: new Date(Date.now() + 30_000),
+        })
+        .mockResolvedValueOnce(null),
+      heartbeat: vi.fn(async (value) => value),
+      retry: vi.fn(async () => undefined),
+    };
+    const transitions = {
+      start: vi.fn(async () => undefined),
+      recordPhase: vi.fn(async () => undefined),
+      recordAssistantOutput: vi.fn(async () => undefined),
+      complete: vi.fn(async () => undefined),
+      fail: vi.fn(async () => undefined),
+      wait: vi.fn(async () => undefined),
+    };
+    const dependencies = {
+      queue,
+      sessions: {
+        get: vi.fn(async () => ({ ownerId }) as never),
+        getRun: vi.fn(async () => ({}) as never),
+      },
+      transitions,
+      adapter: {
+        async *execute() {
+          yield {
+            type: "assistant_output" as const,
+            text: "done",
+            mentions: [],
+          };
+        },
+      },
+    } as unknown as RuntimeWorkerDependencies;
+
+    const worker = createRuntimeWorker(dependencies, { workerId: "worker-1" });
+    await expect(worker.runBatch(2)).resolves.toMatchObject({ processed: 1 });
+    await expect(worker.runBatch(0)).rejects.toThrow(/between 1 and 100/);
+    expect(queue.claim).toHaveBeenCalledTimes(2);
+  });
 });

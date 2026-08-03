@@ -28,6 +28,11 @@ export interface RuntimeWorkerResult {
   runId?: string;
 }
 
+export interface RuntimeWorkerBatchResult {
+  processed: number;
+  results: RuntimeWorkerResult[];
+}
+
 /**
  * Executes one durable queue item. The adapter is the only model/provider
  * boundary; this worker never invents assistant output when the adapter emits
@@ -168,7 +173,20 @@ export function createRuntimeWorker(
     }
   }
 
-  return { runOnce };
+  async function runBatch(maxItems = 10): Promise<RuntimeWorkerBatchResult> {
+    if (!Number.isInteger(maxItems) || maxItems < 1 || maxItems > 100) {
+      throw new RangeError("maxItems must be an integer between 1 and 100");
+    }
+    const results: RuntimeWorkerResult[] = [];
+    for (let index = 0; index < maxItems; index += 1) {
+      const result = await runOnce();
+      if (!result.claimed) break;
+      results.push(result);
+    }
+    return { processed: results.length, results };
+  }
+
+  return { runOnce, runBatch };
 }
 
 export type RuntimeWorker = ReturnType<typeof createRuntimeWorker>;

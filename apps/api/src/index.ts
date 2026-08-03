@@ -117,6 +117,7 @@ const environmentSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  WORKER_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(10),
   WORKER_SECRET: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
@@ -664,7 +665,9 @@ if (workerSecret !== undefined) {
       google: await googleRoutinePoller.poll(),
       calendar: await googleCalendarPoller.poll(),
       runtime:
-        runtimeWorker === undefined ? undefined : await runtimeWorker.runOnce(),
+        runtimeWorker === undefined
+          ? undefined
+          : await runtimeWorker.runBatch(environment.WORKER_BATCH_SIZE),
       channel: await channelRepository.deliverNext({
         workerId,
         sendEmail: async (value) => {
@@ -689,7 +692,8 @@ if (process.env["VERCEL"] !== "1") {
     if (routineScheduler !== undefined) await routineScheduler();
     await googleRoutinePoller.poll();
     await googleCalendarPoller.poll();
-    if (runtimeWorker !== undefined) await runtimeWorker.runOnce();
+    if (runtimeWorker !== undefined)
+      await runtimeWorker.runBatch(environment.WORKER_BATCH_SIZE);
     await channelRepository.deliverNext({
       workerId,
       sendEmail: async (value) => {
