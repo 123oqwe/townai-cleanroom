@@ -323,6 +323,12 @@ describe("routine schedules", () => {
     ).resolves.toEqual([
       expect.objectContaining({ id: result.id, subject: "Weekly briefing" }),
     ]);
+    await expect(repository.getForRun(ownerId, runId)).resolves.toMatchObject({
+      id: result.id,
+      sessionId,
+      runId,
+      status: "completed",
+    });
   });
 
   it("stores webhook payload as typed trigger data with its idempotency key", async () => {

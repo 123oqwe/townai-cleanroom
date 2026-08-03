@@ -177,7 +177,22 @@ export function createRoutineResultRepository(sql: Sql) {
     return rows.map(safe);
   }
 
-  return { complete, fail, listForSession };
+  async function getForRun(
+    ownerId: Id<"user">,
+    runId: Id<"session-run">,
+  ): Promise<RoutineResult | null> {
+    const value = z
+      .object({ ownerId: idSchema, runId: idSchema })
+      .parse({ ownerId, runId });
+    const [row] = await sql<Row[]>`
+      ${sql.unsafe(rowSelect)}
+      where owner_id=${value.ownerId} and run_id=${value.runId}
+      limit 1
+    `;
+    return row === undefined ? null : safe(row);
+  }
+
+  return { complete, fail, listForSession, getForRun };
 }
 
 export type RoutineResultRepository = ReturnType<

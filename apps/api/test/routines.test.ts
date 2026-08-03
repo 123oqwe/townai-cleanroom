@@ -7,7 +7,11 @@ import {
   registerRoutineShareRoutes,
   registerRoutineWebhookRoutes,
 } from "../src/routine-routes.js";
-import type { RoutineRepository, RoutineSchedule } from "@town/routines";
+import type {
+  RoutineRepository,
+  RoutineResultRepository,
+  RoutineSchedule,
+} from "@town/routines";
 import { asId } from "@town/contracts";
 import type { AgentRepository, ThreadRepository } from "@town/agents";
 import type { SessionRepository } from "@town/runtime";
@@ -22,6 +26,7 @@ function appWith(
     agents?: AgentRepository;
     threads?: ThreadRepository;
     sessions?: SessionRepository;
+    results?: RoutineResultRepository;
   } = {},
 ): Hono<{ Variables: AuthVariables }> {
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -148,6 +153,32 @@ describe("routine routes", () => {
     );
     expect(response.status).toBe(202);
     expect(await response.json()).toEqual({ run: replayed });
+  });
+
+  it("returns a routine run with its persisted result", async () => {
+    const runId = asId<"integration-sync-run">(agentVersionId);
+    const runtimeRunId = asId<"session-run">(
+      "01900000-0000-7000-8000-000000000021",
+    );
+    const run = { id: runId, runtimeRunId, status: "succeeded" };
+    const result = {
+      runId: runtimeRunId,
+      status: "completed",
+      subject: "Briefing",
+    };
+    const repository = {
+      getRun: vi.fn().mockResolvedValue(run),
+    } as unknown as RoutineRepository;
+    const results = {
+      getForRun: vi.fn().mockResolvedValue(result),
+    } as unknown as RoutineResultRepository;
+    const app = appWith(repository, { results });
+    const response = await app.request(
+      `http://town.test/v1/routine-runs/${runId}`,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ run, result });
+    expect(results.getForRun).toHaveBeenCalledWith(ownerId, runtimeRunId);
   });
 
   it("queues manual runs through the unified trigger repository", async () => {

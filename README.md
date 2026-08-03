@@ -278,6 +278,11 @@ runs, and each claimed sync run stores the resulting runtime `runId` for
 reconciliation and recovery. Worker completion/failure callbacks reconcile that
 linked sync record to `succeeded`/`failed` without changing the runtime result.
 
+An authenticated `GET /v1/routine-runs/:runId` returns the owner-scoped trigger
+record together with its persisted `RoutineResult` when the run has reached the
+runtime boundary. This is the source-of-truth read used for replay/audit; it
+does not synthesize output for queued or unlinked runs.
+
 Authenticated message submission is available at
 `/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are
 available under `/v1/sessions`. Submission requires an idempotency key and

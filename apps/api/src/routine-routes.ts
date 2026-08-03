@@ -109,6 +109,22 @@ export function registerRoutineRoutes(
     return context.json({ run }, 202);
   });
 
+  app.get("/v1/routine-runs/:runId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const run = await dependencies.repository.getRun(
+      ownerId,
+      asId<"integration-sync-run">(
+        z.uuidv7().parse(context.req.param("runId")),
+      ),
+    );
+    if (run === null) return context.json({ error: "RUN_NOT_FOUND" }, 404);
+    const result =
+      resultRepository !== undefined && run.runtimeRunId !== null
+        ? await resultRepository.getForRun(ownerId, run.runtimeRunId)
+        : null;
+    return context.json({ run, result });
+  });
+
   app.get("/v1/routines/:routineId/runs", async (context) => {
     const ownerId = context.get("identity").user.id;
     const routineId = asRoutineId(context.req.param("routineId"));
