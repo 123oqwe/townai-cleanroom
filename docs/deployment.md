@@ -981,3 +981,7 @@ The approval ToolCall inspector UI is deployed as
 `town-clear-current-ui-123oqwe-123oqwes-projects.vercel.app`. Vercel reported
 no runtime errors; direct unauthenticated access returns the expected `302`
 SSO redirect.
+
+The public share HTML representation is included in the next source deployment;
+the UI remains protected by the project-level Vercel SSO policy and no share
+token or credential is embedded in the static bundle.

@@ -193,3 +193,9 @@ MCP management now exposes owner-scoped server creation (name, URL, transport, o
 MCP binding creation now exposes the real modeOverride and accountScope policy fields; the client submits explicit mode and account IDs instead of silently defaulting to null/empty policy.
 Routine details now expose the generic owner-scoped external trigger queue via POST /v1/routines/:routineId/trigger, with explicit trigger kind, JSON data validation, and generated Idempotency-Key.
 Harness now consumes the authenticated session event SSE endpoint for live run updates, aborting the stream when the user switches threads; existing polling remains as the reconnect fallback.
+
+Public content and Routine share tokens now support a browser-readable HTML
+representation when the request advertises `Accept: text/html`. API clients
+continue to receive the existing JSON envelopes. The renderer escapes all
+user-controlled title, body, instructions, and schedule metadata; token
+expiry, revocation, and active-content checks remain in the repositories.

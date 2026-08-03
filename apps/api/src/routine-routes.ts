@@ -16,6 +16,7 @@ import {
   type RoutineResultRepository,
 } from "@town/routines";
 import type { AuthVariables } from "./auth.js";
+import { acceptsHtml, routineShareHtml } from "./public-share-html.js";
 
 export interface RoutineDependencies {
   repository: RoutineRepository;
@@ -591,7 +592,9 @@ export function registerRoutineShareRoutes(
       context.req.param("token"),
     );
     return share
-      ? context.json({ share })
+      ? acceptsHtml(context.req.raw)
+        ? context.html(routineShareHtml(share))
+        : context.json({ share })
       : context.json({ error: "SHARE_NOT_FOUND" }, 404);
   });
 }

@@ -8,6 +8,7 @@ import {
   type ContentRepository,
 } from "@town/content";
 import type { AuthVariables } from "./auth.js";
+import { acceptsHtml, contentShareHtml } from "./public-share-html.js";
 
 export interface ContentDependencies {
   repository: ContentRepository;
@@ -37,11 +38,12 @@ export function registerContentRoutes(
   dependencies: ContentDependencies,
 ): void {
   app.get("/v1/content-shares/:token", async (context) => {
-    return context.json({
-      content: dependencies.repository.toPublic(
-        await dependencies.repository.resolveShare(context.req.param("token")),
-      ),
-    });
+    const content = dependencies.repository.toPublic(
+      await dependencies.repository.resolveShare(context.req.param("token")),
+    );
+    return acceptsHtml(context.req.raw)
+      ? context.html(contentShareHtml(content))
+      : context.json({ content });
   });
   app.get("/v1/content", async (context) => {
     const ownerId = context.get("identity").user.id;

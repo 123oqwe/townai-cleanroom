@@ -413,6 +413,17 @@ describe("routine routes", () => {
     expect(repository.getPublicShare).toHaveBeenCalledWith(
       "rtnshare_test_token",
     );
+
+    const page = await app.request(
+      "http://town.test/v1/routine-shares/rtnshare_test_token",
+      { headers: { accept: "text/html" } },
+    );
+    expect(page.status).toBe(200);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    const html = await page.text();
+    expect(html).toContain("Shared routine");
+    expect(html).toContain("Briefing");
+    expect(html).not.toContain("01900000-0000-7000-8000-000000000001");
   });
 
   it("installs a shared Routine using server-derived owner identity", async () => {
