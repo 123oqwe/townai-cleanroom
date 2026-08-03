@@ -86,6 +86,10 @@ control using your platform's secure secret-management workflow.
   assistant Threads, supports creating and switching Threads, renders persisted
   Turns, polls durable Runs/Events, and exposes only the approval decision
   recorded by the server.
+- The same UI exposes a real owner-scoped Knowledge search and active Content
+  Library view. Search results identify their resource type and local search
+  algorithm; empty or unavailable stores remain explicit instead of being
+  replaced with sample cards.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

@@ -913,6 +913,72 @@ dialog h2 {
 .full-button {
   width: 100%;
 }
+.library-dialog {
+  max-width: 600px;
+}
+.library-search {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0;
+}
+.library-search input {
+  min-width: 0;
+}
+.library-results,
+.library-content-list {
+  display: grid;
+  gap: 8px;
+  max-height: 190px;
+  overflow: auto;
+}
+.library-result,
+.library-content-item {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.library-result strong,
+.library-content-item strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: 12px;
+}
+.library-result p,
+.library-content-item p {
+  margin: 0;
+  color: var(--muted-deep);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.library-result small,
+.library-content-item small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.library-divider {
+  height: 1px;
+  margin: 20px 0 15px;
+  background: var(--line);
+}
+.library-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.library-section-heading .eyebrow {
+  margin: 0;
+}
+.library-section-heading span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
 @keyframes rise {
   from {
     opacity: 0;

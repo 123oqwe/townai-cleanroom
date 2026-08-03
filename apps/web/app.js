@@ -299,6 +299,67 @@ async function resolveHarnessApproval(decision) {
     $("#approval-reject").disabled = false;
   }
 }
+function renderLibrarySearch(result) {
+  const target = $("#library-results");
+  if (!result.items?.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No matching durable context.</p>';
+    return;
+  }
+  target.innerHTML = result.items
+    .map(
+      (item) =>
+        `<article class="library-result"><strong>${escapeHtml(item.title || item.resourceType)}</strong><p>${escapeHtml(item.text)}</p><small>${escapeHtml(item.resourceType)} · ${Math.round(item.score * 100)}% match</small></article>`,
+    )
+    .join("");
+}
+function renderLibraryContent(result) {
+  const target = $("#library-content-list");
+  const items = result.items || [];
+  $("#library-count").textContent = `${items.length} saved`;
+  if (!items.length) {
+    target.innerHTML = '<p class="harness-empty">No saved content yet.</p>';
+    return;
+  }
+  target.innerHTML = items
+    .slice(0, 20)
+    .map(
+      (item) =>
+        `<article class="library-content-item"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || "Stored ${item.kind} content")}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></article>`,
+    )
+    .join("");
+}
+async function loadLibrary() {
+  if (!state.token) {
+    $("#library-results").innerHTML =
+      '<p class="harness-empty">Connect the API to search your context.</p>';
+    return;
+  }
+  try {
+    const content = await api("/v1/content?status=active&limit=20");
+    renderLibraryContent(content);
+  } catch (error) {
+    $("#library-content-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Library unavailable.")}</p>`;
+  }
+}
+async function searchLibrary() {
+  const query = $("#library-query").value.trim();
+  if (!query || !state.token) return;
+  const button = $("#library-search-button");
+  button.disabled = true;
+  $("#library-results").innerHTML =
+    '<p class="harness-empty">Searching durable context…</p>';
+  try {
+    const params = new URLSearchParams({ q: query, limit: "20" });
+    renderLibrarySearch(await api(`/v1/knowledge/search?${params.toString()}`));
+  } catch (error) {
+    $("#library-results").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Search unavailable.")}</p>`;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -394,6 +455,23 @@ $("#thread-new").addEventListener("click", async () => {
       error instanceof Error ? error.message : "Could not create thread.",
       "error",
     );
+  }
+});
+document
+  .querySelector('.nav-item[href="#library"]')
+  .addEventListener("click", (event) => {
+    event.preventDefault();
+    openDialog($("#library-dialog"));
+    void loadLibrary();
+  });
+$("#library-search-button").addEventListener(
+  "click",
+  () => void searchLibrary(),
+);
+$("#library-query").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void searchLibrary();
   }
 });
 $("#approval-approve").addEventListener(

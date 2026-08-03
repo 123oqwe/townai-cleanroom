@@ -334,6 +334,57 @@
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>
+    <dialog
+      class="library-dialog"
+      id="library-dialog"
+      aria-labelledby="library-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Memory & library</p>
+        <h2 id="library-title">Find what<br /><em>already matters.</em></h2>
+        <p class="dialog-copy">
+          Search your persisted profile, memories, people, and wiki. Results are
+          scoped to this account.
+        </p>
+        <div class="library-search">
+          <label class="sr-only" for="library-query">Search knowledge</label>
+          <input
+            id="library-query"
+            type="search"
+            placeholder="Search your workspace…"
+            autocomplete="off"
+          />
+          <button
+            class="primary-button"
+            id="library-search-button"
+            type="button"
+          >
+            Search <span>↵</span>
+          </button>
+        </div>
+        <div class="library-results" id="library-results" aria-live="polite">
+          <p class="harness-empty">
+            Search to bring your durable context into view.
+          </p>
+        </div>
+        <div class="library-divider"></div>
+        <div class="library-section-heading">
+          <p class="eyebrow">Content library</p>
+          <span id="library-count">—</span>
+        </div>
+        <div
+          class="library-content-list"
+          id="library-content-list"
+          aria-live="polite"
+        >
+          <p class="harness-empty">Connect the API to load saved documents.</p>
+        </div>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
     <script type="module" src="./app.js"></script>
   </body>
 </html>
