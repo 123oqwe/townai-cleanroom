@@ -188,3 +188,4 @@ Approval Inspect now reads both GET /v1/tool-calls/:toolCallId and GET /v1/appro
 Waiting Harness runs now expose Cancel run alongside Continue. Cancellation uses the existing owner-scoped POST /v1/sessions/:sessionId/runs/:runId/cancel transition and reloads server truth.
 Profile Settings now expose immutable profile revision history from GET /v1/profile/history, including author, timestamp, revision and expandable server snapshots.
 Selected Routines now expose their versioned Routine Agent display name, instructions, and default approval mode. Publishing uses owner-scoped revision-aware PUT /v1/agents/routines/:agentId; callable routines are preserved as an explicit empty list until separately configured.
+Routine Agent publishing now also exposes the server-validated callableRoutineIds whitelist, excluding the selected agent itself and preserving only explicitly checked child routines.

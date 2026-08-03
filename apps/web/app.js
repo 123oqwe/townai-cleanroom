@@ -1430,6 +1430,16 @@ async function loadRoutineAgent(agentId) {
     $("#routine-agent-display-name").value = snapshot.displayName;
     $("#routine-agent-instructions").value = snapshot.instructions;
     $("#routine-agent-approval-mode").value = snapshot.defaultApprovalMode;
+    const callable = snapshot.callableRoutineIds || [];
+    const candidates = agents.filter((item) => item.id !== agentId);
+    $("#routine-agent-callables").innerHTML = candidates.length
+      ? candidates
+          .map(
+            (item) =>
+              `<label class="routine-agent-callable"><input type="checkbox" value="${escapeHtml(item.id)}" ${callable.includes(item.id) ? "checked" : ""} /> ${escapeHtml(item.activeVersion.snapshot.displayName)}</label>`,
+          )
+          .join("")
+      : '<p class="harness-empty">No other routine agents available.</p>';
     $("#routine-agent-save").dataset.agentId = agent.id;
     $("#routine-agent-save").dataset.revision = String(agent.revision);
     error.hidden = true;
@@ -1454,7 +1464,9 @@ async function saveRoutineAgent() {
         displayName: $("#routine-agent-display-name").value.trim(),
         instructions: $("#routine-agent-instructions").value,
         defaultApprovalMode: $("#routine-agent-approval-mode").value,
-        callableRoutineIds: [],
+        callableRoutineIds: Array.from(
+          document.querySelectorAll("#routine-agent-callables input:checked"),
+        ).map((input) => input.value),
       }),
     });
     button.dataset.revision = String(result.agent.revision);

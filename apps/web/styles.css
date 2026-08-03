@@ -120,6 +120,17 @@
 .routine-agent-editor select {
   width: 100%;
 }
+.routine-agent-callables {
+  display: grid;
+  gap: 0.35rem;
+}
+.routine-agent-callable {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
 .routine-edit-form input {
   width: 100%;
 }
