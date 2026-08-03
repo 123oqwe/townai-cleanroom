@@ -98,6 +98,10 @@ empty to preserve the database's existing allowlist state.
 - Terminal routine runs can be replayed with `POST /v1/routine-runs/:runId/replay`;
   replay creates a new queued run, preserves trigger data, and is idempotent by
   `(sourceRunId, Idempotency-Key)`.
+- Manual runs and explicit `incoming_email`/`calendar` trigger submissions now
+  use one `queueTrigger` contract and the same scheduler/runtime path. These
+  endpoints record submitted events; they do not claim an external provider
+  event occurred without a configured connector.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

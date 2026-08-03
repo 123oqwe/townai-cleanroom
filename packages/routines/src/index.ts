@@ -594,6 +594,62 @@ export function createRoutineRepository(sql: Sql) {
       return safeRun(created);
     });
   }
+  async function queueTrigger(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+    triggerType: "manual" | "incoming_email" | "calendar",
+    triggerData: Record<string, unknown>,
+    idempotencyKey: string,
+  ): Promise<IntegrationSyncRun> {
+    const kind = z
+      .enum(["manual", "incoming_email", "calendar"])
+      .parse(triggerType);
+    const data = z.record(z.string(), z.json()).parse(triggerData);
+    const key = z.string().trim().min(1).max(500).parse(idempotencyKey);
+    return sql.begin(async (tx) => {
+      const [existing] = await tx<SyncRunRow[]>`
+        select * from integration_sync_runs
+        where owner_id=${ownerId} and trigger_type=${kind} and idempotency_key=${key}
+      `;
+      if (existing) return safeRun(existing);
+      const [schedule] = await tx<{ id: string }[]>`
+        select id from routine_schedules
+        where owner_id=${ownerId} and id=${routineScheduleId} and enabled=true
+        for update
+      `;
+      if (!schedule)
+        throw new RoutineError(
+          "ROUTINE_NOT_FOUND",
+          "The routine was not found or is disabled.",
+        );
+      const [account] = await tx<{ id: string; provider: string }[]>`
+        select id, provider from connected_accounts
+        where owner_id=${ownerId} and is_active=true
+        order by is_primary desc, created_at, id limit 1
+      `;
+      if (!account)
+        throw new RoutineError(
+          "SYNC_RUN_CONFLICT",
+          "No active connected account is available for this trigger.",
+        );
+      const [created] = await tx<SyncRunRow[]>`
+        insert into integration_sync_runs
+          (id, owner_id, account_id, routine_schedule_id, provider, status,
+           trigger_type, trigger_data, idempotency_key)
+        values
+          (${newId<"integration-sync-run">()}, ${ownerId}, ${account.id},
+           ${routineScheduleId}, ${account.provider}, 'queued', ${kind},
+           ${tx.json(data as never)}, ${key})
+        returning *
+      `;
+      if (!created)
+        throw new RoutineError(
+          "SYNC_RUN_CONFLICT",
+          "The trigger could not be queued.",
+        );
+      return safeRun(created);
+    });
+  }
   async function startRun(
     ownerId: Id<"user">,
     id: Id<"integration-sync-run">,
@@ -1082,6 +1138,7 @@ export function createRoutineRepository(sql: Sql) {
     listRuns,
     getRun,
     replayRun,
+    queueTrigger,
     startRun,
     completeRun,
     failRun,

@@ -150,6 +150,83 @@ describe("routine routes", () => {
     expect(await response.json()).toEqual({ run: replayed });
   });
 
+  it("queues manual runs through the unified trigger repository", async () => {
+    const queued = {
+      id: asId<"integration-sync-run">("01900000-0000-7000-8000-000000000019"),
+      status: "queued",
+      triggerType: "manual",
+    };
+    const repository = {
+      queueTrigger: async (
+        requestedOwner: typeof ownerId,
+        routineId: string,
+        kind: string,
+        data: Record<string, unknown>,
+        key: string,
+      ) => {
+        expect(requestedOwner).toBe(ownerId);
+        expect(routineId).toBe(agentId);
+        expect(kind).toBe("manual");
+        expect(data).toEqual({ input: "run now" });
+        expect(key).toBe("manual-request-1");
+        return queued;
+      },
+    } as unknown as RoutineRepository;
+    const app = appWith(repository);
+    const response = await app.request(
+      `http://town.test/v1/routines/${agentId}/run`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "manual-request-1",
+        },
+        body: JSON.stringify({ input: "run now" }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ run: queued });
+  });
+
+  it("queues calendar triggers with a required idempotency key", async () => {
+    const queued = {
+      id: asId<"integration-sync-run">("01900000-0000-7000-8000-000000000020"),
+      status: "queued",
+      triggerType: "calendar",
+    };
+    const repository = {
+      queueTrigger: async (
+        _owner: typeof ownerId,
+        _routine: string,
+        kind: string,
+        data: Record<string, unknown>,
+        key: string,
+      ) => {
+        expect(kind).toBe("calendar");
+        expect(data).toEqual({ eventId: "event-1" });
+        expect(key).toBe("calendar-event-1");
+        return queued;
+      },
+    } as unknown as RoutineRepository;
+    const app = appWith(repository);
+    const response = await app.request(
+      `http://town.test/v1/routines/${agentId}/trigger`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "calendar-event-1",
+        },
+        body: JSON.stringify({
+          kind: "calendar",
+          data: { eventId: "event-1" },
+        }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ run: queued });
+  });
+
   it("returns a public routine share and hides revoked tokens", async () => {
     const repository = {
       getPublicShare: vi.fn().mockResolvedValue({

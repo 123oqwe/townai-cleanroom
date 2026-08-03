@@ -414,4 +414,49 @@ describe("routine schedules", () => {
       repository.replayRun(ownerId, source.claimId, "replay-request-1"),
     ).resolves.toMatchObject({ id: replay.id });
   });
+
+  it("queues manual and external trigger kinds through one idempotent record", async () => {
+    const repository = createRoutineRepository(sql);
+    const schedule = await repository.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Unified trigger routine",
+      cron: "0 12 * * *",
+      nextRunAt: new Date("2026-08-03T04:00:00Z"),
+    });
+    const manual = await repository.queueTrigger(
+      ownerId,
+      schedule.id,
+      "manual",
+      { input: "run now" },
+      "manual-1",
+    );
+    expect(manual).toMatchObject({
+      status: "queued",
+      triggerType: "manual",
+      triggerData: { input: "run now" },
+      idempotencyKey: "manual-1",
+    });
+    await expect(
+      repository.queueTrigger(
+        ownerId,
+        schedule.id,
+        "manual",
+        { input: "changed" },
+        "manual-1",
+      ),
+    ).resolves.toMatchObject({
+      id: manual.id,
+      triggerData: { input: "run now" },
+    });
+    const calendar = await repository.queueTrigger(
+      ownerId,
+      schedule.id,
+      "calendar",
+      { eventId: "event-1" },
+      "calendar-1",
+    );
+    expect(calendar.triggerType).toBe("calendar");
+  });
 });

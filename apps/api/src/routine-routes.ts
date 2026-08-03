@@ -37,6 +37,12 @@ const updateRoutineSchema = createRoutineSchema
 const triggerRoutineSchema = z
   .object({ input: z.string().trim().min(1).max(50_000) })
   .strict();
+const externalTriggerSchema = z
+  .object({
+    kind: z.enum(["incoming_email", "calendar"]),
+    data: z.record(z.string(), z.json()),
+  })
+  .strict();
 const installRoutineSchema = z
   .object({
     token: z.string().startsWith("rtnshare_").min(20),
@@ -206,18 +212,36 @@ export function registerRoutineRoutes(
   });
 
   app.post("/v1/routines/:routineId/run", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = triggerRoutineSchema.parse(await context.req.json());
+    if (typeof dependencies.repository.queueTrigger === "function") {
+      const routineId = asRoutineId(context.req.param("routineId"));
+      const idempotencyKey =
+        context.req.header("Idempotency-Key") ??
+        `manual:${routineId}:${newId<"integration-sync-run">()}`;
+      return context.json(
+        {
+          run: await dependencies.repository.queueTrigger(
+            ownerId,
+            routineId,
+            "manual",
+            { input: body.input },
+            idempotencyKey,
+          ),
+        },
+        202,
+      );
+    }
     if (
       dependencies.agents === undefined ||
       dependencies.threads === undefined ||
       dependencies.sessions === undefined
     )
       return context.json({ error: "RUNTIME_NOT_CONFIGURED" }, 503);
-    const ownerId = context.get("identity").user.id;
     const routine = await dependencies.repository.get(
       ownerId,
       asRoutineId(context.req.param("routineId")),
     );
-    const body = triggerRoutineSchema.parse(await context.req.json());
     const agent = await dependencies.agents.getRoutine(
       ownerId,
       routine.agentId,
@@ -239,6 +263,31 @@ export function registerRoutineRoutes(
         text: body.input,
         mentions: [],
       }),
+      202,
+    );
+  });
+
+  app.post("/v1/routines/:routineId/trigger", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = externalTriggerSchema.parse(await context.req.json());
+    const idempotencyKey = z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .parse(context.req.header("Idempotency-Key"));
+    if (typeof dependencies.repository.queueTrigger !== "function")
+      return context.json({ error: "TRIGGER_QUEUE_NOT_CONFIGURED" }, 503);
+    return context.json(
+      {
+        run: await dependencies.repository.queueTrigger(
+          ownerId,
+          asRoutineId(context.req.param("routineId")),
+          body.kind,
+          body.data,
+          idempotencyKey,
+        ),
+      },
       202,
     );
   });
