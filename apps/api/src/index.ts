@@ -87,6 +87,7 @@ import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
 import { createMcpClient, type McpRemoteTool } from "@town/tools";
 import { createElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
+import { createFileContentStorage } from "./content-storage.js";
 
 function mcpToolDefinitionVersion(tool: McpRemoteTool): number {
   const fingerprint = createHash("sha256")
@@ -132,6 +133,7 @@ const environmentSchema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  CONTENT_STORAGE_ROOT: z.string().min(1).optional(),
 });
 
 const environment = environmentSchema.parse(process.env);
@@ -148,6 +150,10 @@ const voiceProvider =
         modelId: environment.ELEVENLABS_MODEL_ID,
       });
 const database = createDatabase(environment.DATABASE_URL);
+const contentStorage =
+  environment.CONTENT_STORAGE_ROOT === undefined
+    ? undefined
+    : createFileContentStorage(environment.CONTENT_STORAGE_ROOT);
 const { sql } = database;
 await runMigrations(sql);
 
@@ -591,6 +597,7 @@ const app = createApp({
   toolRegistryRepository,
   toolExecutionRepository,
   contentRepository,
+  ...(contentStorage === undefined ? {} : { contentStorage }),
   squareRepository,
   sharedAccountRepository,
   channelRepository,

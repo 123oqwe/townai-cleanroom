@@ -190,6 +190,8 @@ valid `assistantAddress`, and Gmail queries append an address-bound `to:`
 clause before enqueueing the untrusted message payload.
 Approval inbox cards now support an explicit Inspect action that fetches the owner-scoped ToolCall record and shows its normalized name, status, side-effect class, data sensitivity, account binding, and arguments before a decision.
 Content creation now exposes the complete server content-kind enum, including image, video, audio, and recording, with optional MIME type and storage key fields. The server still requires either body or storageKey and remains authoritative for persistence.
+
+Content blob reads now have a real optional local filesystem adapter. `CONTENT_STORAGE_ROOT` binds storage keys to a resolved root, rejects absolute/traversal/symlink escapes, enforces a 50 MiB per-object limit, and infers common MIME types. Deployments without this setting remain explicit 503 rather than pretending that metadata is backed by durable bytes.
 Notifications now expose owner-scoped delivery records with status filtering through GET /v1/notification-deliveries, alongside the existing audit timeline. The UI displays event type, channel, attempts, timestamps, and server-reported errors.
 Approval Inspect now reads both GET /v1/tool-calls/:toolCallId and GET /v1/approvals/:approvalId, showing approval status/revision/expiry alongside immutable normalized ToolCall metadata before a decision.
 Waiting Harness runs now expose Cancel run alongside Continue. Cancellation uses the existing owner-scoped POST /v1/sessions/:sessionId/runs/:runId/cancel transition and reloads server truth.
