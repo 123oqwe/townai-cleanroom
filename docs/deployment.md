@@ -1066,3 +1066,11 @@ deployment `dpl_CUUYoskz8n7PB3BZaoaWH6Fc2Zpv`, state `READY`. The full workspace
 build completed with Node.js Lambda detection and Vercel reported no runtime
 errors. The deployment's owner alias remains SSO-protected; API operation still
 requires the documented real environment configuration.
+
+The serverless health-probe source state `6f6b2dc` is deployed as
+`https://town-clear-current-pomyiz5cf-123oqwes-projects.vercel.app`, deployment
+`dpl_AoiTaoZ1qJGLdHz8KKRkJv9t3WpY`, state `READY`, with Node.js Lambda runtime
+detected and no runtime errors reported. `/v1/health` and
+`/v1/health/capabilities` now remain available from the Vercel function even
+when durable API configuration is absent; business routes retain the generic
+503 configuration response.
