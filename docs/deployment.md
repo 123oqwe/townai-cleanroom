@@ -1428,3 +1428,11 @@ The build downloaded 200 source files and completed all workspace builds;
 Vercel reported no runtime errors in the selected hour. An unauthenticated
 `HEAD` request returned HTTP `302` to Vercel SSO with `x-frame-options: DENY`,
 `x-robots-tag: noindex`, and a secure HttpOnly nonce cookie.
+
+The public analytics rate-limit boundary is included in the latest READY
+source state deployed as
+`dpl_6LBve1i8R5ftqkPTH73ERWEfSAid`,
+`https://town-clear-dwu7utl0k-123oqwes-projects.vercel.app`. The deployment
+reported no runtime errors in the selected hour; an unauthenticated `HEAD`
+request returned the same Vercel SSO `302` with deny/noindex headers and a
+secure HttpOnly nonce cookie.
