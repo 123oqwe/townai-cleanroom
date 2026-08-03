@@ -101,6 +101,25 @@
   gap: 6px;
   margin: 0.8rem 0;
 }
+.routine-agent-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+.routine-agent-editor .eyebrow {
+  margin: 0;
+}
+.routine-agent-editor label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.routine-agent-editor input,
+.routine-agent-editor textarea,
+.routine-agent-editor select {
+  width: 100%;
+}
 .routine-edit-form input {
   width: 100%;
 }

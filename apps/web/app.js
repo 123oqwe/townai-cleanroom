@@ -1417,6 +1417,58 @@ function showRoutineEditor(routine) {
     .toISOString()
     .slice(0, 16);
   $("#routine-edit-enabled").checked = routine.enabled;
+  void loadRoutineAgent(routine.agentId);
+}
+async function loadRoutineAgent(agentId) {
+  if (!state.token || !agentId) return;
+  const error = $("#routine-agent-error");
+  try {
+    const agents = (await api("/v1/agents/routines")).agents || [];
+    const agent = agents.find((item) => item.id === agentId);
+    if (!agent) throw new Error("Routine Agent not found.");
+    const snapshot = agent.activeVersion.snapshot;
+    $("#routine-agent-display-name").value = snapshot.displayName;
+    $("#routine-agent-instructions").value = snapshot.instructions;
+    $("#routine-agent-approval-mode").value = snapshot.defaultApprovalMode;
+    $("#routine-agent-save").dataset.agentId = agent.id;
+    $("#routine-agent-save").dataset.revision = String(agent.revision);
+    error.hidden = true;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Routine Agent unavailable.";
+    error.hidden = false;
+  }
+}
+async function saveRoutineAgent() {
+  const button = $("#routine-agent-save");
+  const agentId = button.dataset.agentId;
+  const expectedRevision = Number(button.dataset.revision);
+  if (!agentId || !Number.isInteger(expectedRevision)) return;
+  const error = $("#routine-agent-error");
+  button.disabled = true;
+  try {
+    const result = await api(`/v1/agents/routines/${agentId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        expectedRevision,
+        displayName: $("#routine-agent-display-name").value.trim(),
+        instructions: $("#routine-agent-instructions").value,
+        defaultApprovalMode: $("#routine-agent-approval-mode").value,
+        callableRoutineIds: [],
+      }),
+    });
+    button.dataset.revision = String(result.agent.revision);
+    error.textContent = `Published version ${result.agent.activeVersion.version}.`;
+    error.hidden = false;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error
+        ? cause.message
+        : "Could not publish Routine Agent.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
 }
 function renderRoutines(result) {
   const target = $("#routine-list");
@@ -3418,6 +3470,10 @@ $("#routines-open").addEventListener("click", () => {
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
 $("#routine-edit-save").addEventListener("click", () => void saveRoutineEdit());
 $("#routine-edit-delete").addEventListener("click", () => void deleteRoutine());
+$("#routine-agent-save").addEventListener(
+  "click",
+  () => void saveRoutineAgent(),
+);
 $("#routine-share-create").addEventListener(
   "click",
   () => void createRoutineShare(),

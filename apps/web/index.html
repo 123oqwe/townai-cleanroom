@@ -939,6 +939,33 @@
             role="alert"
             hidden
           ></p>
+          <div class="routine-agent-editor">
+            <p class="eyebrow">Routine Agent</p>
+            <label for="routine-agent-display-name">Agent name</label
+            ><input id="routine-agent-display-name" maxlength="100" />
+            <label for="routine-agent-instructions">Instructions</label
+            ><textarea
+              id="routine-agent-instructions"
+              rows="4"
+              maxlength="50000"
+            ></textarea>
+            <label for="routine-agent-approval-mode"
+              >Default approval mode</label
+            ><select id="routine-agent-approval-mode">
+              <option value="respect_tool_setting">Respect tool setting</option>
+              <option value="require_approval">Require approval</option>
+              <option value="autonomous">Autonomous</option>
+            </select>
+            <button class="quiet-button" id="routine-agent-save" type="button">
+              Publish Agent version
+            </button>
+            <p
+              class="dialog-error"
+              id="routine-agent-error"
+              role="alert"
+              hidden
+            ></p>
+          </div>
         </div>
         <div class="routine-install-form">
           <label for="routine-share-token">Install a shared routine</label>
