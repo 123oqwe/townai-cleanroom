@@ -9,6 +9,12 @@ export const a2aStatusSchema = z.enum([
   "cancelled",
   "completed",
 ]);
+export const a2aConsentStatusSchema = z.enum([
+  "pending",
+  "granted",
+  "denied",
+  "revoked",
+]);
 export type A2AStatus = z.infer<typeof a2aStatusSchema>;
 export interface A2ARequest {
   id: Id<"a2a-request">;
@@ -18,6 +24,10 @@ export interface A2ARequest {
   request: Record<string, unknown>;
   result: Record<string, unknown> | null;
   status: A2AStatus;
+  consentStatus: z.infer<typeof a2aConsentStatusSchema>;
+  consentScope: string[];
+  consentedBy: Id<"user"> | null;
+  consentedAt: Date | null;
   revision: number;
   expiresAt: Date | null;
   createdAt: Date;
@@ -45,6 +55,10 @@ type Row = {
   expires_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  consent_status: z.infer<typeof a2aConsentStatusSchema>;
+  consent_scope: string[];
+  consented_by: string | null;
+  consented_at: Date | null;
 };
 const createInput = z
   .object({
@@ -68,10 +82,15 @@ function safe(row: Row): A2ARequest {
     expiresAt: row.expires_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    consentStatus: a2aConsentStatusSchema.parse(row.consent_status),
+    consentScope: z.array(z.string()).parse(row.consent_scope),
+    consentedBy:
+      row.consented_by === null ? null : asId<"user">(row.consented_by),
+    consentedAt: row.consented_at,
   };
 }
 const columns =
-  "id, requester_id, recipient_id, capability, request, result, status, revision, expires_at, created_at, updated_at";
+  "id, requester_id, recipient_id, capability, request, result, status, revision, expires_at, created_at, updated_at, consent_status, consent_scope, consented_by, consented_at";
 export function createA2ARepository(sql: Sql) {
   return {
     async create(input: z.input<typeof createInput>): Promise<A2ARequest> {
@@ -119,6 +138,62 @@ export function createA2ARepository(sql: Sql) {
         throw new A2AError(
           "A2A_CONFLICT",
           "The A2A request changed concurrently or is not actionable.",
+        );
+      }
+      return safe(rows[0]);
+    },
+    async consent(input: {
+      userId: Id<"user">;
+      requestId: Id<"a2a-request">;
+      revision: number;
+      decision: "grant" | "deny" | "revoke";
+      scope?: string[];
+    }): Promise<A2ARequest> {
+      const value = z
+        .object({
+          userId: idSchema,
+          requestId: idSchema,
+          revision: z.number().int().positive(),
+          decision: z.enum(["grant", "deny", "revoke"]),
+          scope: z
+            .array(z.string().trim().min(1).max(200))
+            .max(100)
+            .default([]),
+        })
+        .parse(input);
+      const consentStatus =
+        value.decision === "grant"
+          ? "granted"
+          : value.decision === "deny"
+            ? "denied"
+            : "revoked";
+      const nextStatus =
+        value.decision === "grant"
+          ? "accepted"
+          : value.decision === "deny"
+            ? "declined"
+            : null;
+      const rows = await sql<Row[]>`
+        update a2a_requests
+        set consent_status=${consentStatus}, consent_scope=${sql.json(value.scope)},
+            consented_by=${value.userId}, consented_at=now(),
+            status=coalesce(${nextStatus}, status), revision=revision+1, updated_at=now()
+        where id=${value.requestId} and recipient_id=${value.userId}
+          and revision=${value.revision}
+          and (${value.decision === "revoke"} or status='pending')
+          and (expires_at is null or expires_at > now())
+        returning ${sql.unsafe(columns)}
+      `;
+      if (!rows[0]) {
+        const [existing] = await sql<{ id: string }[]>`
+          select id from a2a_requests where id=${value.requestId}
+            and (requester_id=${value.userId} or recipient_id=${value.userId})
+        `;
+        if (!existing)
+          throw new A2AError("A2A_NOT_FOUND", "The A2A request was not found.");
+        throw new A2AError(
+          "A2A_CONFLICT",
+          "The A2A consent changed concurrently or is not actionable.",
         );
       }
       return safe(rows[0]);

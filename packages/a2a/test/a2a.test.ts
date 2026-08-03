@@ -91,4 +91,43 @@ describe("A2A requests", () => {
       }),
     ).rejects.toMatchObject({ code: "A2A_CONFLICT" });
   });
+
+  it("records scoped recipient consent and supports revocation", async () => {
+    const repository = createA2ARepository(sql);
+    const request = await repository.create({
+      requesterId: requester,
+      recipientId: recipient,
+      capability: "calendar.find-time",
+      request: { window: "next-week" },
+    });
+    const granted = await repository.consent({
+      userId: recipient,
+      requestId: request.id,
+      revision: request.revision,
+      decision: "grant",
+      scope: ["calendar.read", "calendar.availability"],
+    });
+    expect(granted.status).toBe("accepted");
+    expect(granted.consentStatus).toBe("granted");
+    expect(granted.consentScope).toEqual([
+      "calendar.read",
+      "calendar.availability",
+    ]);
+    const revoked = await repository.consent({
+      userId: recipient,
+      requestId: request.id,
+      revision: granted.revision,
+      decision: "revoke",
+    });
+    expect(revoked.consentStatus).toBe("revoked");
+    expect(revoked.status).toBe("accepted");
+    await expect(
+      repository.consent({
+        userId: requester,
+        requestId: request.id,
+        revision: revoked.revision,
+        decision: "grant",
+      }),
+    ).rejects.toMatchObject({ code: "A2A_CONFLICT" });
+  });
 });

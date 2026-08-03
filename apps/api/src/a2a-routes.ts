@@ -61,4 +61,25 @@ export function registerA2ARoutes(
     };
     return c.json({ request: await repository.transition(input) });
   });
+  app.post("/v1/a2a/requests/:requestId/consent", async (c) => {
+    const body = z
+      .object({
+        decision: z.enum(["grant", "deny", "revoke"]),
+        expectedRevision: z.number().int().positive(),
+        scope: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
+      })
+      .strict()
+      .parse(await c.req.json());
+    return c.json({
+      request: await repository.consent({
+        userId: c.get("identity").user.id,
+        requestId: asId<"a2a-request">(
+          z.uuidv7().parse(c.req.param("requestId")),
+        ),
+        revision: body.expectedRevision,
+        decision: body.decision,
+        scope: body.scope,
+      }),
+    });
+  });
 }
