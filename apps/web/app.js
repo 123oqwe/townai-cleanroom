@@ -895,9 +895,44 @@ function renderSquares(result) {
   target.innerHTML = squares
     .map(
       (square) =>
-        `<article class="square-card"><div><strong>${escapeHtml(square.name)}</strong><p>${escapeHtml(square.description || "No description")}</p><small>${escapeHtml(square.slug)} · ${escapeHtml(square.membership.role)} · ${escapeHtml(square.membership.status)}</small></div><span class="square-status">${escapeHtml(square.status)}</span></article>`,
+        `<article class="square-card" data-square-id="${escapeHtml(square.id)}"><div><strong>${escapeHtml(square.name)}</strong><p>${escapeHtml(square.description || "No description")}</p><small>${escapeHtml(square.slug)} · ${escapeHtml(square.membership.role)} · ${escapeHtml(square.membership.status)}</small></div><div class="square-card-actions"><span class="square-status">${escapeHtml(square.status)}</span><button class="quiet-button square-inspect" type="button">Inspect</button></div></article>`,
     )
     .join("");
+}
+async function inspectSquare(squareId, card) {
+  if (!squareId || !state.token) return;
+  const detail = $("#square-detail");
+  detail.hidden = false;
+  $("#square-detail-name").textContent = "Loading…";
+  $("#square-detail-mode").textContent = "—";
+  $("#square-members").innerHTML =
+    '<p class="harness-empty">Reading members and policy…</p>';
+  try {
+    const [square, members, policy] = await Promise.all([
+      api(`/v1/squares/${squareId}`),
+      api(`/v1/squares/${squareId}/members`),
+      api(`/v1/squares/${squareId}/policy`),
+    ]);
+    $("#square-detail-name").textContent = square.square.name;
+    $("#square-detail-mode").textContent = policy.policy.defaultMode;
+    const memberItems = members.members || [];
+    $("#square-members").innerHTML = memberItems.length
+      ? memberItems
+          .map(
+            (member) =>
+              `<div class="square-member"><span class="square-member-id">${escapeHtml(member.userId.slice(0, 8))}</span><span>${escapeHtml(member.role)}</span><small>${escapeHtml(member.status)}</small></div>`,
+          )
+          .join("")
+      : '<p class="harness-empty">No active members returned.</p>';
+    $("#square-policy").textContent =
+      `Tools: ${policy.policy.allowedToolNames.length || "none"} allowed · Domains: ${policy.policy.allowedDomains.length || "none"} allowed · policy revision ${policy.policy.revision}`;
+    document.querySelectorAll(".square-card").forEach((item) => {
+      item.classList.toggle("is-selected", item === card);
+    });
+  } catch (error) {
+    $("#square-members").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Square details unavailable.")}</p>`;
+  }
 }
 async function loadSquares() {
   if (!state.token) {
@@ -1129,6 +1164,12 @@ $("#square-add-toggle").addEventListener("click", () => {
   if (!$("#square-add-form").hidden) $("#square-name").focus();
 });
 $("#square-save").addEventListener("click", () => void saveSquare());
+$("#square-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".square-inspect");
+  const card = event.target.closest(".square-card");
+  if (!button || !card) return;
+  void inspectSquare(card.dataset.squareId, card);
+});
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),

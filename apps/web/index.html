@@ -786,6 +786,24 @@
         <div class="square-list" id="square-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load Squares.</p>
         </div>
+        <section
+          class="square-detail"
+          id="square-detail"
+          hidden
+          aria-live="polite"
+        >
+          <div class="square-detail-heading">
+            <div>
+              <p class="eyebrow">Boundary</p>
+              <h3 id="square-detail-name">Square</h3>
+            </div>
+            <span class="square-detail-mode" id="square-detail-mode">—</span>
+          </div>
+          <div class="square-members" id="square-members">
+            <p class="harness-empty">Select a Square to inspect its members.</p>
+          </div>
+          <p class="square-policy" id="square-policy"></p>
+        </section>
         <button
           class="text-button square-add-toggle"
           id="square-add-toggle"

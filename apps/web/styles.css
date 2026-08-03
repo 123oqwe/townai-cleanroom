@@ -1514,6 +1514,21 @@ dialog h2 {
   border-radius: 12px;
   background: var(--surface);
 }
+.square-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.square-card-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+.square-card-actions .quiet-button {
+  min-height: 30px;
+  padding: 0 9px;
+  border-color: var(--line);
+  font-size: 10px;
+}
 .square-card strong {
   display: block;
   font-family: var(--display);
@@ -1563,6 +1578,60 @@ dialog h2 {
 }
 .square-add-form textarea {
   resize: vertical;
+}
+.square-detail {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.square-detail-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.square-detail-heading .eyebrow {
+  margin: 0;
+}
+.square-detail-heading h3 {
+  margin: 2px 0 0;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 500;
+}
+.square-detail-mode {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.square-members {
+  display: grid;
+  gap: 6px;
+}
+.square-member {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.square-member-id,
+.square-member small,
+.square-policy {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.square-policy {
+  margin: 0;
+  line-height: 1.45;
 }
 @keyframes rise {
   from {
