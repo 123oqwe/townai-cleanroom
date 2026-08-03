@@ -149,6 +149,12 @@ built from commit `e313e60`. Its protected direct URL is
 `https://town-clear-current-idv8i0k9k-123oqwes-projects.vercel.app`, state
 `READY`; an unauthenticated curl also receives the Vercel SSO `302` redirect.
 
+The MCP transport client is deployed in `dpl_Hs6Hy2UeMfm74MyVjxudCt4JKfss`,
+built from commit `9abdd90`. Its protected direct URL is
+`https://town-clear-current-6hngpb13p-123oqwes-projects.vercel.app`, state
+`READY`; error-only build logs contain no diagnostics beyond the Node engine
+warning and the unauthenticated URL check returns the Vercel SSO `302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
