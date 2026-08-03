@@ -12,6 +12,7 @@ import {
   createTownMemoryAddHarnessBinding,
   createTownContextHarnessBinding,
   createTownSearchHarnessBinding,
+  createTownVoiceSpeakHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
   createGoogleGmailSendHarnessBinding,
   createMcpHarnessBindings,
@@ -22,6 +23,25 @@ import type { SessionRepository } from "@town/runtime";
 import type { ThreadRepository } from "@town/agents";
 
 describe("Town Harness built-in tools", () => {
+  it("exposes configured voice synthesis only after approval", async () => {
+    const synthesize = vi.fn().mockResolvedValue({
+      audio: new Uint8Array([1, 2]),
+      contentType: "audio/mpeg",
+    });
+    const binding = createTownVoiceSpeakHarnessBinding({ synthesize });
+    expect(binding.definition.name).toBe("town_voice_speak");
+    await expect(binding.port.execute({ text: "hello" })).rejects.toThrow(
+      "HARNESS_TOOL_APPROVAL_REQUIRED",
+    );
+    await expect(
+      binding.port.execute(
+        { text: "hello" },
+        { approvalGranted: true, policyDecision: "approval_required" },
+      ),
+    ).resolves.toMatchObject({ kind: "result" });
+    expect(synthesize).toHaveBeenCalledWith({ text: "hello" });
+  });
+
   it("exposes discovered MCP tools only through the policy-aware port", async () => {
     const callTool = vi.fn().mockResolvedValue({
       content: [{ type: "text", text: "remote result" }],

@@ -361,7 +361,8 @@ transcription and `CallSid`, and queues `voice_transcribed` with
 implement telephony or speech recognition itself; those remain Twilio and
 provider configuration boundaries.
 
-Voice output now has a provider port at `POST /v1/voice/synthesize`. The
-ElevenLabs implementation sends the requested text to the configured voice
-and returns the provider's actual `audio/mpeg` bytes; missing credentials keep
-the route absent rather than returning placeholder audio.
+Voice output now has a provider port at `POST /v1/voice/synthesize` and the
+optional Harness tool `town_voice_speak`. The ElevenLabs implementation sends
+the requested text to the configured voice and returns the provider's actual
+`audio/mpeg` bytes; the Harness tool is approval-gated and missing credentials
+keep both surfaces absent rather than returning placeholder audio.

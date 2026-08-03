@@ -23,6 +23,7 @@ import {
 } from "@town/tools";
 import type { ToolExecutionRepository } from "@town/tools";
 import type { GoogleApiClient } from "@town/google";
+import type { VoiceSynthesisProvider } from "./elevenlabs-voice.js";
 
 const memoryArguments = z.discriminatedUnion("scope", [
   z
@@ -85,6 +86,13 @@ const contextArguments = z
       });
     }
   });
+
+const voiceArguments = z
+  .object({
+    text: z.string().trim().min(1).max(5_000),
+    voiceId: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
 
 const invokeRoutineArguments = z
   .object({
@@ -311,6 +319,46 @@ export function createTownContextHarnessBinding(
       },
     },
   };
+}
+
+/** Synthesize real audio only through an explicitly configured voice provider. */
+export function createTownVoiceSpeakHarnessBinding(
+  provider: VoiceSynthesisProvider,
+): HarnessToolBinding {
+  return createPolicyAwareHarnessTool({
+    definition: {
+      name: "town_voice_speak",
+      description:
+        "Synthesize spoken audio from text using the configured voice provider.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", minLength: 1, maxLength: 5_000 },
+          voiceId: { type: "string", minLength: 1, maxLength: 200 },
+        },
+        required: ["text"],
+        additionalProperties: false,
+      },
+    },
+    decide: () => "approval_required",
+    async execute(arguments_) {
+      const value = voiceArguments.parse(arguments_);
+      const result = await provider.synthesize({
+        text: value.text,
+        ...(value.voiceId === undefined ? {} : { voiceId: value.voiceId }),
+      });
+      if (result.audio.byteLength > 1_500_000)
+        throw new Error("VOICE_AUDIO_OUTPUT_TOO_LARGE");
+      return {
+        kind: "result",
+        output: JSON.stringify({
+          contentType: result.contentType,
+          byteLength: result.audio.byteLength,
+          audioBase64: Buffer.from(result.audio).toString("base64"),
+        }),
+      };
+    },
+  });
 }
 
 /** Writes a durable Memory only after the Harness approval boundary resumes. */
