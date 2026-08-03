@@ -104,7 +104,11 @@ export function registerChannelRoutes(
       .min(1)
       .max(100)
       .parse(context.req.query("limit") ?? "50");
-    const cursor = context.req.query("cursor");
+    const rawCursor = context.req.query("cursor");
+    const cursor =
+      rawCursor === undefined
+        ? undefined
+        : z.string().min(1).max(500).parse(rawCursor);
     return context.json(
       await dependencies.audit.timeline({
         ownerId,
