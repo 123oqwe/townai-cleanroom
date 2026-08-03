@@ -603,11 +603,21 @@ export function createApp(dependencies?: AppDependencies) {
         repository: dependencies.routineRepository,
       });
     app.use("/v1/me", authenticate);
+    app.use("/v1/me/*", authenticate);
     app.use("/v1/accounts", authenticate);
 
     app.get("/v1/me", (context) => {
       const identity = context.get("identity");
       return context.json({ user: identity.user });
+    });
+
+    app.delete("/v1/me/session", async (context) => {
+      const identity = context.get("identity");
+      await dependencies.identityService.revokeSession(
+        identity.session.id,
+        identity.user.id,
+      );
+      return context.body(null, 204);
     });
 
     registerAccountRoutes(app, {

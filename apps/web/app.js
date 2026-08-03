@@ -1337,8 +1337,24 @@ $("#today-date").textContent = formatDate(new Date());
 $("#connect-open").addEventListener("click", () => {
   $("#api-base").value = state.base;
   $("#api-token").value = state.token;
+  $("#api-revoke").hidden = !state.token;
   $("#connect-error").hidden = true;
   openDialog($("#connect-dialog"));
+});
+$("#api-revoke").addEventListener("click", async () => {
+  if (!state.token) return;
+  const error = $("#connect-error");
+  try {
+    await api("/v1/me/session", { method: "DELETE" });
+    state.token = "";
+    sessionStorage.removeItem(storageKeys.token);
+    setConnection(false);
+    closeDialog($("#connect-dialog"));
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not revoke session.";
+    error.hidden = false;
+  }
 });
 $("#connect-form").addEventListener("submit", async (event) => {
   if (event.submitter?.value === "cancel") return;

@@ -144,4 +144,17 @@ describe("protected identity API", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("lets the authenticated user revoke the current session", async () => {
+    const { app, owner } = await fixture();
+    const response = await app.request("/v1/me/session", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    expect(response.status).toBe(204);
+    const after = await app.request("/v1/me", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    expect(after.status).toBe(401);
+  });
 });
