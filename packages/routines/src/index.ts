@@ -4,6 +4,7 @@ import { z } from "zod";
 import { asId, newId, type Id } from "@town/contracts";
 
 export * from "./step-repository.js";
+export * from "./result-repository.js";
 
 const cronSchema = z
   .string()

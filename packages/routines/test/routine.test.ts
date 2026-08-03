@@ -12,6 +12,7 @@ import { newId, type Id } from "@town/contracts";
 import { runMigrations } from "@town/db";
 import {
   createRoutineRepository,
+  createRoutineResultRepository,
   createRoutineStepRepository,
 } from "../src/index.js";
 
@@ -279,5 +280,48 @@ describe("routine schedules", () => {
           (owner_id, run_id, step_key, status, started_at, finished_at)
         values (${ownerId}, ${runId}, 'invalid-null', 'failed', now(), now())`,
     ).rejects.toThrow();
+  });
+
+  it("persists one auditable result per runtime run and lists it by session", async () => {
+    const threadId = newId<"thread">();
+    const sessionId = newId<"runtime-session">();
+    const runId = newId<"session-run">();
+    const turnId = newId<"thread-turn">();
+    await sql`insert into threads (id,owner_id,agent_id,kind,title,approval_mode) values (${threadId},${ownerId},${agentId},'task','Result thread','require_approval')`;
+    await sql`insert into thread_turns (id,owner_id,thread_id,sequence,role,text,source_type) values (${turnId},${ownerId},${threadId},1,'user','run','user')`;
+    await sql`insert into runtime_sessions (id,owner_id,thread_id,agent_id,agent_version_id) values (${sessionId},${ownerId},${threadId},${agentId},${versionId})`;
+    await sql`insert into session_runs (id,owner_id,session_id,thread_id,triggering_turn_id,idempotency_hash,request_fingerprint,state,attempt,started_at) values (${runId},${ownerId},${sessionId},${threadId},${turnId},decode('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','hex'),decode('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','hex'),'running',1,now())`;
+    const repository = createRoutineResultRepository(sql);
+    const result = await repository.complete({
+      ownerId,
+      sessionId,
+      runId,
+      routineScheduleId: null,
+      subject: "Weekly briefing",
+      output: { documentId: "doc-1", notificationId: "notice-1" },
+    });
+    expect(result).toMatchObject({
+      ownerId,
+      sessionId,
+      runId,
+      status: "completed",
+      subject: "Weekly briefing",
+      output: { documentId: "doc-1", notificationId: "notice-1" },
+    });
+    await expect(
+      repository.complete({
+        ownerId,
+        sessionId,
+        runId,
+        routineScheduleId: null,
+        subject: "Changed",
+        output: {},
+      }),
+    ).resolves.toMatchObject({ id: result.id, subject: "Weekly briefing" });
+    await expect(
+      repository.listForSession(ownerId, sessionId),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: result.id, subject: "Weekly briefing" }),
+    ]);
   });
 });

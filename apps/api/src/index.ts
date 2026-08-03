@@ -46,7 +46,10 @@ import {
   createRuntimeWorker,
   createApprovalDecisionRepository,
 } from "@town/runtime";
-import { createRoutineRepository } from "@town/routines";
+import {
+  createRoutineRepository,
+  createRoutineResultRepository,
+} from "@town/routines";
 import {
   createToolExecutionRepository,
   createToolRegistryRepository,
@@ -144,6 +147,7 @@ const sessionRepository = createSessionRepository(sql);
 const runtimeTransitionService = createRuntimeTransitionService(sql);
 const approvalDecisions = createApprovalDecisionRepository(sql);
 const routineRepository = createRoutineRepository(sql);
+const routineResultRepository = createRoutineResultRepository(sql);
 const suggestionRepository = createSuggestionRepository(sql);
 const a2aRepository = createA2ARepository(sql);
 const googleTokenRefresher = createGoogleTokenRefresher({
@@ -407,6 +411,7 @@ const app = createApp({
   operationsRepository,
   mcpRepository,
   routineRepository,
+  routineResultRepository,
   suggestionRepository,
   a2aRepository,
   googleOAuth: {

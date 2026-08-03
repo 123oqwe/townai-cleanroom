@@ -8,11 +8,13 @@ import type { ThreadRepository } from "@town/agents";
 import {
   routineTriggerKindSchema,
   type RoutineRepository,
+  type RoutineResultRepository,
 } from "@town/routines";
 import type { AuthVariables } from "./auth.js";
 
 export interface RoutineDependencies {
   repository: RoutineRepository;
+  results?: RoutineResultRepository;
   agents?: AgentRepository;
   threads?: ThreadRepository;
   sessions?: SessionRepository;
@@ -55,6 +57,27 @@ export function registerRoutineRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: RoutineDependencies,
 ): void {
+  const resultRepository = dependencies.results;
+  if (resultRepository !== undefined) {
+    app.get("/v1/routine-results", async (context) => {
+      const ownerId = context.get("identity").user.id;
+      const query = z
+        .object({
+          sessionId: z.uuidv7(),
+          limit: z.coerce.number().int().min(1).max(100).default(50),
+        })
+        .strict()
+        .parse(context.req.query());
+      return context.json({
+        results: await resultRepository.listForSession(
+          ownerId,
+          asId<"runtime-session">(query.sessionId),
+          query.limit,
+        ),
+      });
+    });
+  }
+
   app.get("/v1/routines", async (context) => {
     const ownerId = context.get("identity").user.id;
     return context.json({

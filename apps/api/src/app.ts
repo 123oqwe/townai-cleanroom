@@ -83,7 +83,10 @@ import {
   registerRoutineShareRoutes,
   registerRoutineWebhookRoutes,
 } from "./routine-routes.js";
-import type { RoutineRepository } from "@town/routines";
+import type {
+  RoutineRepository,
+  RoutineResultRepository,
+} from "@town/routines";
 import { RoutineError } from "@town/routines";
 import { registerAccountRoutes } from "./account-routes.js";
 import {
@@ -126,6 +129,7 @@ export interface AppDependencies {
   billingRepository?: BillingRepository;
   operationsRepository?: OperationsRepository;
   routineRepository?: RoutineRepository;
+  routineResultRepository?: RoutineResultRepository;
   suggestionRepository?: SuggestionRepository;
   a2aRepository?: A2ARepository;
   googleOAuth?: GoogleOAuthDependencies;
@@ -712,8 +716,12 @@ export function createApp(dependencies?: AppDependencies) {
     if (dependencies.routineRepository !== undefined) {
       app.use("/v1/routines", authenticate);
       app.use("/v1/routines/*", authenticate);
+      app.use("/v1/routine-results", authenticate);
       registerRoutineRoutes(app, {
         repository: dependencies.routineRepository,
+        ...(dependencies.routineResultRepository === undefined
+          ? {}
+          : { results: dependencies.routineResultRepository }),
         ...(dependencies.agentRepository === undefined
           ? {}
           : { agents: dependencies.agentRepository }),

@@ -85,6 +85,10 @@ empty to preserve the database's existing allowlist state.
   calls now create, start, and complete/fail the same durable ToolCall record;
   read-only calls use the allow path and write-capable calls require the
   persisted Harness approval before the remote call.
+- Routine runs now have owner-scoped, idempotent `RoutineResult` records tied to
+  the immutable runtime session/run. Results preserve completion/failure,
+  subject, output, and optional document/notification references and can be
+  listed through `/v1/routine-results?sessionId=...`.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.
