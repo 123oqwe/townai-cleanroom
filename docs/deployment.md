@@ -237,6 +237,13 @@ state `READY`; the local worker and protected internal worker tick now poll
 enabled Gmail triggers with the same message-id idempotency key, and an
 unauthenticated curl receives the Vercel SSO `302` protection redirect.
 
+Google Calendar Events ingestion and polling is deployed in
+`dpl_U8KaoqAvRHfshFiNpUWyryLN9bNL`, built from commit `bc46bc5`. Its protected
+direct URL is `https://town-clear-current-1l4c6vf4s-123oqwes-projects.vercel.app`,
+state `READY`; Calendar event windows and provider `updated` versions are
+queued through the durable calendar trigger path, and an unauthenticated curl
+receives the Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
