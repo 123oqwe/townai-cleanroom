@@ -1244,6 +1244,12 @@ completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The endpoint remains inactive
 until `VAPI_WEBHOOK_SECRET` is configured; the direct URL remains SSO-gated.
 
+The Vapi legacy `X-Vapi-Secret` compatibility update is deployed as
+`https://town-clear-ese87nf9c-123oqwes-projects.vercel.app`, deployment
+`dpl_2T3FxTWLELnzJmar7SP3LMVNHrev`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour.
+
 The routine-scoped webhook secret isolation fix is deployed as
 `https://town-clear-47o0y79fo-123oqwes-projects.vercel.app`, deployment
 `dpl_J7HkDdYzjBtRrW7Hi3KJ7hX57pNU`, state `READY`. The full workspace build
