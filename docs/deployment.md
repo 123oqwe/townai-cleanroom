@@ -230,6 +230,13 @@ state `READY`; the build includes the real Gmail search/fetch to
 `POST /v1/routines/:routineId/ingest/email`, and an unauthenticated curl
 receives the Vercel SSO `302` protection redirect.
 
+Bounded Gmail connector polling is deployed in
+`dpl_WesqgsLUbMJJgrP9cLuD7UoF6zyc`, built from commit `e9cb731`. Its protected
+direct URL is `https://town-clear-current-3nl0c4wfs-123oqwes-projects.vercel.app`,
+state `READY`; the local worker and protected internal worker tick now poll
+enabled Gmail triggers with the same message-id idempotency key, and an
+unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
