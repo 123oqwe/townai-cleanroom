@@ -178,6 +178,23 @@ export function registerAgentRoutes(
       await dependencies.agentRepository.listVersions({
         ownerId,
         agentId: agent.id,
+        kind: "personal",
+        ...query,
+      }),
+    );
+  });
+
+  app.get("/v1/agents/routines/:agentId/versions", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const query = pageQuerySchema.parse(context.req.query());
+    const agentId = asId<"agent">(
+      z.uuidv7().parse(context.req.param("agentId")),
+    );
+    return context.json(
+      await dependencies.agentRepository.listVersions({
+        ownerId,
+        agentId,
+        kind: "routine",
         ...query,
       }),
     );

@@ -242,6 +242,13 @@ describe("routine Agent repository", () => {
         snapshot: { displayName: "Morning routine v2" },
       },
     });
+    const history = await agents.listVersions({
+      ownerId,
+      agentId: routine.id,
+      kind: "routine",
+      limit: 10,
+    });
+    expect(history.items.map(({ version }) => version)).toEqual([2, 1]);
     await expect(
       agents.publishRoutine({
         ownerId,

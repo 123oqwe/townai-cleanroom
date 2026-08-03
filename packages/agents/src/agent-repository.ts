@@ -40,6 +40,7 @@ const listVersionsSchema = z
   .object({
     ownerId: idSchema,
     agentId: idSchema,
+    kind: z.enum(["personal", "routine"]).default("personal"),
     cursor: z.string().min(1).optional(),
     limit: z.number().int().min(1).max(100).default(50),
   })
@@ -146,9 +147,13 @@ function isConstraint(error: unknown, name: string): boolean {
   );
 }
 
-function cursorFingerprint(ownerId: string, agentId: string): string {
+function cursorFingerprint(
+  ownerId: string,
+  agentId: string,
+  kind: "personal" | "routine" = "personal",
+): string {
   return createHash("sha256")
-    .update(JSON.stringify({ ownerId, agentId }))
+    .update(JSON.stringify({ ownerId, agentId, kind }))
     .digest("base64url");
 }
 
@@ -488,13 +493,13 @@ export function createAgentRepository(sql: Sql) {
     const [owned] = await sql<{ id: string }[]>`
       select id from agents
       where id = ${agentId} and owner_id = ${ownerId}
-        and kind = 'personal' and status = 'active'
+        and kind = ${value.kind} and status = 'active'
     `;
     if (owned === undefined) {
       throw new AgentError("AGENT_NOT_FOUND", "The Agent was not found.");
     }
 
-    const fingerprint = cursorFingerprint(ownerId, agentId);
+    const fingerprint = cursorFingerprint(ownerId, agentId, value.kind);
     const decoded =
       value.cursor === undefined ? null : decodeCursor(value.cursor);
     const cursorKey =

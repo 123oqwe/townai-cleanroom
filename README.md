@@ -209,6 +209,9 @@ runtime role, Turn sequence, and source provenance are server-derived.
 Routine Agents can be created, listed, and optimistically version-published
 under `/v1/agents/routines`; their immutable active versions are then
 referenced by `/v1/routines` schedules. An authenticated
+`GET /v1/agents/routines/:agentId/versions` exposes the owner-scoped immutable
+history used to audit which Routine configuration a schedule can execute.
+An authenticated
 `POST /v1/routines/:routineId/run` creates a real child Task/Session Run and
 returns queued state for the worker; it never reports a fabricated completion.
 The local/serverless worker tick also claims due schedules and submits them

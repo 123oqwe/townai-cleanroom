@@ -182,6 +182,47 @@ describe("protected Agent, Thread, and Task API", () => {
     expect(otherRead.status).toBe(404);
   });
 
+  it("exposes owner-scoped Routine Agent version history", async () => {
+    const { app, owner, other } = await fixture();
+    const created = await app.request("/v1/agents/routines", {
+      method: "POST",
+      headers: authorization(owner.token),
+      body: JSON.stringify({
+        displayName: "API Morning Routine",
+        instructions: "Summarize the morning signals.",
+        defaultApprovalMode: "require_approval",
+      }),
+    });
+    const routine = (await created.json()) as { agent: { id: string } };
+    const published = await app.request(
+      `/v1/agents/routines/${routine.agent.id}`,
+      {
+        method: "PUT",
+        headers: authorization(owner.token),
+        body: JSON.stringify({
+          expectedRevision: 1,
+          displayName: "API Morning Routine v2",
+          instructions: "Ask before external actions.",
+          defaultApprovalMode: "require_approval",
+        }),
+      },
+    );
+    const versions = await app.request(
+      `/v1/agents/routines/${routine.agent.id}/versions?limit=1`,
+      { headers: authorization(owner.token) },
+    );
+    const otherVersions = await app.request(
+      `/v1/agents/routines/${routine.agent.id}/versions`,
+      { headers: authorization(other.token) },
+    );
+
+    expect(created.status).toBe(201);
+    expect(published.status).toBe(200);
+    expect(versions.status).toBe(200);
+    expect(await versions.json()).toMatchObject({ items: [{ version: 2 }] });
+    expect(otherVersions.status).toBe(404);
+  });
+
   it("supports Thread metadata, read state, immutable Turn reads, and deletion", async () => {
     const { app, dependencies, owner, other } = await fixture();
     await createPersonal(app, owner.token);
