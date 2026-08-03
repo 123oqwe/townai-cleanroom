@@ -1325,3 +1325,10 @@ The bounded local filesystem Content storage adapter is deployed as
 completed successfully and no runtime errors were reported in the selected
 hour. Vercel does not set `CONTENT_STORAGE_ROOT`, so blob routes continue to
 return an explicit 503 until durable storage is configured.
+
+The owner-authorized Content blob upload route is deployed as
+`https://town-clear-ipa33wnrv-123oqwes-projects.vercel.app`, deployment
+`dpl_5QT3YBxNRZo4MQjdtwsbZiWF3nNN`, state `READY`. The full workspace build
+completed successfully and no runtime errors were reported in the selected
+hour. `CONTENT_STORAGE_ROOT` is intentionally unset on Vercel, so upload
+requests return an explicit 503 until a durable storage backend is configured.
