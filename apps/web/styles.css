@@ -1615,6 +1615,43 @@ dialog h2 {
   font-family: var(--mono);
   font-size: 9px;
 }
+.channel-timeline {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1.25rem;
+}
+.channel-timeline-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.channel-timeline-heading h3 {
+  margin: 0.2rem 0 0;
+}
+.channel-timeline-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+.channel-timeline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+}
+.channel-timeline-item strong,
+.channel-timeline-item small {
+  display: block;
+}
+.channel-timeline-item small,
+.channel-timeline-item time {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
 .channel-status {
   color: var(--green);
   font-family: var(--mono);

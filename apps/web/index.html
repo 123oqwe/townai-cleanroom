@@ -785,6 +785,27 @@
         <div class="channel-list" id="channel-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load channels.</p>
         </div>
+        <section
+          class="channel-timeline"
+          aria-labelledby="channel-timeline-title"
+        >
+          <div class="channel-timeline-heading">
+            <div>
+              <p class="eyebrow">Server truth</p>
+              <h3 id="channel-timeline-title">Delivery timeline</h3>
+            </div>
+            <span class="routine-history-note">audit + delivery</span>
+          </div>
+          <div
+            class="channel-timeline-list"
+            id="channel-timeline-list"
+            aria-live="polite"
+          >
+            <p class="harness-empty">
+              Connect the API to load delivery history.
+            </p>
+          </div>
+        </section>
         <button
           class="text-button channel-add-toggle"
           id="channel-add-toggle"

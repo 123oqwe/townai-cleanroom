@@ -969,6 +969,28 @@ function renderChannels(result) {
     )
     .join("");
 }
+function renderChannelTimeline(result) {
+  const target = $("#channel-timeline-list");
+  const items = result.items || [];
+  if (!items.length) {
+    target.innerHTML = '<p class="harness-empty">No delivery events yet.</p>';
+    return;
+  }
+  target.innerHTML = items
+    .map((item) => {
+      const data = item.data || {};
+      const label =
+        item.kind === "delivery"
+          ? `${data.eventType || "delivery"} · ${data.status || "unknown"}`
+          : `${data.action || "audit event"} · ${data.outcome || "unknown"}`;
+      const detail =
+        data.lastError || data.attempts
+          ? `attempts ${data.attempts || 0}${data.lastError ? ` · ${data.lastError}` : ""}`
+          : item.kind;
+      return `<article class="channel-timeline-item"><div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div><time>${escapeHtml(formatTime(new Date(item.createdAt)))}</time></article>`;
+    })
+    .join("");
+}
 async function loadChannels() {
   if (!state.token) {
     $("#channel-list").innerHTML =
@@ -976,10 +998,17 @@ async function loadChannels() {
     return;
   }
   try {
-    renderChannels(await api("/v1/channels"));
+    const [channels, timeline] = await Promise.all([
+      api("/v1/channels"),
+      api("/v1/notification-timeline?limit=12"),
+    ]);
+    renderChannels(channels);
+    renderChannelTimeline(timeline);
   } catch (error) {
     $("#channel-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Channels unavailable.")}</p>`;
+    $("#channel-timeline-list").innerHTML =
+      '<p class="harness-empty">Delivery timeline unavailable.</p>';
   }
 }
 async function saveChannel() {
