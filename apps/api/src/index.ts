@@ -74,6 +74,7 @@ import {
   type HarnessExecutionContext,
 } from "./harness-runtime-adapter.js";
 import { createRoutineScheduler } from "./routine-scheduler.js";
+import { finalizeRoutineRun } from "./routine-finalizer.js";
 import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
@@ -453,14 +454,15 @@ const runtimeWorker =
         {
           workerId: process.env["WORKER_ID"] ?? `town-worker-${process.pid}`,
           onFinished: ({ ownerId, runId, state, errorCode }) =>
-            routineRepository
-              .reconcileRuntimeRun({
-                ownerId,
-                runtimeRunId: runId,
-                status: state,
-                ...(errorCode === undefined ? {} : { errorCode }),
-              })
-              .then(() => undefined),
+            finalizeRoutineRun({
+              sql,
+              routines: routineRepository,
+              results: routineResultRepository,
+              ownerId,
+              runtimeRunId: runId,
+              state,
+              ...(errorCode === undefined ? {} : { errorCode }),
+            }),
         },
       )
     : undefined;
