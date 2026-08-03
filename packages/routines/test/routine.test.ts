@@ -464,5 +464,21 @@ describe("routine schedules", () => {
       "calendar-1",
     );
     expect(calendar.triggerType).toBe("calendar");
+    const voice = await repository.queueTrigger(
+      ownerId,
+      schedule.id,
+      "voice_transcribed",
+      { transcript: "Call summary" },
+      "voice-1",
+    );
+    const slack = await repository.queueTrigger(
+      ownerId,
+      schedule.id,
+      "slack_mention",
+      { channelId: "C123", text: "Please review this." },
+      "slack-1",
+    );
+    expect(voice.triggerType).toBe("voice_transcribed");
+    expect(slack.triggerType).toBe("slack_mention");
   });
 });

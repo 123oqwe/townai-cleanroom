@@ -5,7 +5,7 @@ alter table integration_sync_runs
 
 alter table integration_sync_runs
   add constraint integration_sync_runs_trigger_type_allowed
-    check (trigger_type in ('schedule', 'manual', 'webhook', 'incoming_email', 'calendar')),
+    check (trigger_type in ('schedule', 'manual', 'webhook', 'incoming_email', 'calendar', 'voice_transcribed', 'slack_mention')),
   add constraint integration_sync_runs_trigger_data_object
     check (jsonb_typeof(trigger_data) = 'object'),
   add constraint integration_sync_runs_idempotency_key_shape

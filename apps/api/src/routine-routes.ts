@@ -41,7 +41,13 @@ const triggerRoutineSchema = z
   .strict();
 const externalTriggerSchema = z
   .object({
-    kind: z.enum(["incoming_email", "calendar"]),
+    kind: z.enum([
+      "incoming_email",
+      "calendar",
+      "voice_transcribed",
+      "slack_mention",
+      "webhook",
+    ]),
     data: z.record(z.string(), z.json()),
   })
   .strict();

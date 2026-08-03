@@ -64,7 +64,13 @@ export interface IntegrationSyncRun {
   provider: string;
   status: SyncRunStatus;
   triggerType:
-    "schedule" | "manual" | "webhook" | "incoming_email" | "calendar";
+    | "schedule"
+    | "manual"
+    | "webhook"
+    | "incoming_email"
+    | "calendar"
+    | "voice_transcribed"
+    | "slack_mention";
   triggerData: Record<string, unknown>;
   idempotencyKey: string | null;
   replayOfRunId: Id<"integration-sync-run"> | null;
@@ -597,13 +603,26 @@ export function createRoutineRepository(sql: Sql) {
   async function queueTrigger(
     ownerId: Id<"user">,
     routineScheduleId: Id<"routine-schedule">,
-    triggerType: "manual" | "incoming_email" | "calendar",
+    triggerType:
+      | "manual"
+      | "incoming_email"
+      | "calendar"
+      | "voice_transcribed"
+      | "slack_mention"
+      | "webhook",
     triggerData: Record<string, unknown>,
     idempotencyKey: string,
     connectedAccountId?: Id<"connected-account">,
   ): Promise<IntegrationSyncRun> {
     const kind = z
-      .enum(["manual", "incoming_email", "calendar"])
+      .enum([
+        "manual",
+        "incoming_email",
+        "calendar",
+        "voice_transcribed",
+        "slack_mention",
+        "webhook",
+      ])
       .parse(triggerType);
     const data = z.record(z.string(), z.json()).parse(triggerData);
     const key = z.string().trim().min(1).max(500).parse(idempotencyKey);
