@@ -2,7 +2,14 @@ import { createHash } from "node:crypto";
 import type { Sql } from "postgres";
 import { z } from "zod";
 
-import { asId, idSchema, newId, type Id } from "@town/contracts";
+import {
+  asId,
+  decodeCursor,
+  encodeCursor,
+  idSchema,
+  newId,
+  type Id,
+} from "@town/contracts";
 import { approvalModeSchema } from "@town/agents";
 
 export const suggestionKindSchema = z.enum(["assistant", "task", "routine"]);
@@ -29,6 +36,10 @@ export interface Suggestion {
   createdAt: Date;
   updatedAt: Date;
   convertedTaskId: Id<"task"> | null;
+}
+export interface SuggestionPage {
+  items: Suggestion[];
+  nextCursor: string | null;
 }
 
 export class SuggestionError extends Error {
@@ -57,6 +68,20 @@ type Row = {
   updated_at: Date;
   converted_task_id: string | null;
 };
+const listInput = z
+  .object({
+    ownerId: idSchema,
+    status: suggestionStatusSchema.default("open"),
+    limit: z.number().int().min(1).max(100).default(50),
+    cursor: z.string().min(1).optional(),
+  })
+  .strict();
+const cursorKeySchema = z
+  .object({
+    status: suggestionStatusSchema,
+    createdAt: z.iso.datetime(),
+  })
+  .strict();
 const createSchema = z
   .object({
     ownerId: idSchema,
@@ -110,16 +135,59 @@ export function createSuggestionRepository(sql: Sql) {
       );
     return safe(rows[0]);
   }
+  async function listPage(
+    input: z.input<typeof listInput>,
+  ): Promise<SuggestionPage> {
+    const value = listInput.parse(input);
+    const decoded =
+      value.cursor === undefined ? null : decodeCursor(value.cursor);
+    const cursorKey =
+      decoded === null ? null : cursorKeySchema.parse(JSON.parse(decoded.key));
+    if (cursorKey !== null && cursorKey.status !== value.status)
+      throw new z.ZodError([
+        {
+          code: "custom",
+          path: ["cursor"],
+          message: "Cursor status does not match the requested status.",
+        },
+      ]);
+    const rows = await sql<Row[]>`
+      select * from suggestions
+      where owner_id=${value.ownerId}
+        and status=${value.status}
+        and (expires_at is null or expires_at > now())
+        and (
+          ${cursorKey === null} or
+          created_at < ${cursorKey?.createdAt ?? null}::timestamptz or
+          (created_at = ${cursorKey?.createdAt ?? null}::timestamptz and id < ${decoded?.id ?? "00000000-0000-7000-8000-000000000000"}::uuid)
+        )
+      order by created_at desc,id desc
+      limit ${value.limit + 1}
+    `;
+    const hasMore = rows.length > value.limit;
+    const pageRows = hasMore ? rows.slice(0, value.limit) : rows;
+    const last = hasMore ? pageRows.at(-1) : undefined;
+    return {
+      items: pageRows.map(safe),
+      nextCursor:
+        last === undefined
+          ? null
+          : encodeCursor({
+              version: 1,
+              key: JSON.stringify({
+                status: value.status,
+                createdAt: last.created_at.toISOString(),
+              }),
+              id: asId(last.id),
+            }),
+    };
+  }
   async function list(
     ownerId: Id<"user">,
     status: SuggestionStatus = "open",
     limit = 50,
   ): Promise<Suggestion[]> {
-    const bounded = z.number().int().min(1).max(100).parse(limit);
-    const rows = await sql<
-      Row[]
-    >`select * from suggestions where owner_id=${ownerId} and status=${suggestionStatusSchema.parse(status)} and (expires_at is null or expires_at > now()) order by created_at desc,id desc limit ${bounded}`;
-    return rows.map(safe);
+    return (await listPage({ ownerId, status, limit })).items;
   }
   async function transition(
     ownerId: Id<"user">,
@@ -196,7 +264,7 @@ export function createSuggestionRepository(sql: Sql) {
       return { suggestion: safe(updated), taskId: asId<"task">(taskId) };
     });
   }
-  return { create, list, transition, convertToTask };
+  return { create, list, listPage, transition, convertToTask };
 }
 export type SuggestionRepository = ReturnType<
   typeof createSuggestionRepository

@@ -20,11 +20,14 @@ export function registerSuggestionRoutes(
       .object({
         status: suggestionStatusSchema.default("open"),
         limit: z.coerce.number().int().min(1).max(100).default(50),
+        cursor: z.string().min(1).max(500).optional(),
       })
       .strict()
       .parse(context.req.query());
+    const page = await repository.listPage({ ownerId, ...query });
     return context.json({
-      suggestions: await repository.list(ownerId, query.status, query.limit),
+      suggestions: page.items,
+      nextCursor: page.nextCursor,
     });
   });
   app.patch("/v1/suggestions/:suggestionId", async (context) => {

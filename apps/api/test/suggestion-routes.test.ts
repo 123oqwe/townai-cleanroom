@@ -17,8 +17,12 @@ describe("suggestion routes", () => {
       status: "dismissed",
       revision: 2,
     });
+    const listPage = vi.fn().mockResolvedValue({
+      items: [{ id: suggestionId, status: "open" }],
+      nextCursor: "next-cursor",
+    });
     const repository = {
-      list: vi.fn().mockResolvedValue([{ id: suggestionId, status: "open" }]),
+      listPage,
       transition,
     } as unknown as SuggestionRepository;
     const app = new Hono<{ Variables: AuthVariables }>();
@@ -29,10 +33,19 @@ describe("suggestion routes", () => {
       await next();
     });
     registerSuggestionRoutes(app, repository);
-    const list = await app.request("http://town.test/v1/suggestions");
+    const list = await app.request(
+      "http://town.test/v1/suggestions?limit=1&cursor=previous-cursor",
+    );
     expect(list.status).toBe(200);
     const listBody = (await list.json()) as { suggestions: unknown[] };
     expect(listBody.suggestions).toHaveLength(1);
+    expect(listBody).toMatchObject({ nextCursor: "next-cursor" });
+    expect(listPage).toHaveBeenCalledWith({
+      ownerId,
+      status: "open",
+      limit: 1,
+      cursor: "previous-cursor",
+    });
     const patch = await app.request(
       `http://town.test/v1/suggestions/${suggestionId}`,
       {
