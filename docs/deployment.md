@@ -48,7 +48,7 @@ shutdown and does not weaken the API's database or authentication requirements.
 ## Current verification snapshot
 
 The source repository has since advanced beyond the hosted preview to commit
-`3c8bd02`, including the Harness, Knowledge, People, Memory, Task, Routine,
+`29ca256`, including the Harness, Knowledge, People, Memory, Task, Routine,
 Connected Accounts, Channels, Billing, Suggestions, Squares, Square policy
 detail, the built Vercel API entrypoint, the hourly worker Cron, A2A expiry
 enforcement, the A2A command center, Content share controls, Operations audit
@@ -68,8 +68,8 @@ hosted state from being represented as newer than the verified source.
 Using the Vercel deployment connector, the current command center and API
 Function were deployed from the verified source files at:
 
-- Deployment: `dpl_FszsuUguiWHgcoYcf2n7jbAKyDXQ`
-- Protected direct URL: `https://town-clear-current-vl7upt5oe-123oqwes-projects.vercel.app`
+- Deployment: `dpl_5aLcRt8TmNbdBBh98r41Vn8NugEk`
+- Protected direct URL: `https://town-clear-current-ijxh9icz1-123oqwes-projects.vercel.app`
 - State: `READY`
 - Direct URL access check: unauthenticated request returns `302` to Vercel SSO.
 - Generated project aliases currently return `200` publicly and are not accepted
@@ -101,6 +101,11 @@ requests to the preview hostname still receive a Vercel SSO `302`.
 It also includes the Routine share grant migration and API. The share token is
 hashed at rest, expires by default after 24 hours, and the public share route
 returns `404` after owner revocation or expiry.
+
+The authenticated `/v1/routines/install` endpoint atomically forks a valid
+share into a new owner-scoped Agent, immutable Version, and Schedule. It clears
+the source `callableRoutineIds` allowlist so child-Routine permissions do not
+cross the workspace boundary.
 
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
