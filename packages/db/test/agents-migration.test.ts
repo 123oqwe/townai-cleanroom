@@ -133,6 +133,7 @@ describe("agent, thread, and task migration", () => {
       "0038_extended_routine_trigger_types.sql",
       "0039_a2a_consent.sql",
       "0040_runtime_input_response.sql",
+      "0041_notification_delivery_replays.sql",
     ]);
   });
 });
