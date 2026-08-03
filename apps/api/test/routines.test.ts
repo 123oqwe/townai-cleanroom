@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
+import type { Sql } from "postgres";
 
 import type { AuthVariables } from "../src/auth.js";
 import {
@@ -24,6 +25,7 @@ const agentVersionId = "01900000-0000-7000-8000-000000000003";
 function appWith(
   repository: RoutineRepository,
   extras: {
+    sql?: Sql;
     agents?: AgentRepository;
     threads?: ThreadRepository;
     sessions?: SessionRepository;
@@ -96,6 +98,62 @@ describe("routine routes", () => {
       routine: RoutineSchedule;
     };
     expect(responseBody.routine.name).toBe("Morning sync");
+  });
+
+  it("installs a stock routine atomically across agent, version, and schedule", async () => {
+    const statements: string[] = [];
+    const transaction = Object.assign(
+      async (strings: TemplateStringsArray) => {
+        statements.push(strings.join(" ").replace(/\s+/g, " ").trim());
+        return [];
+      },
+      { json: (value: unknown) => JSON.stringify(value) },
+    ) as unknown as Sql;
+    const sql = {
+      begin: async (callback: (tx: Sql) => Promise<unknown>) =>
+        callback(transaction),
+    } as unknown as Sql;
+    const agent = {
+      id: asId<"agent">("01900000-0000-7000-8000-000000000010"),
+      activeVersion: { id: asId<"agent-version">(agentVersionId) },
+    };
+    const routine = { id: asId<"routine-schedule">(agentId) };
+    const repository = {
+      get: vi.fn().mockResolvedValue(routine),
+    } as unknown as RoutineRepository;
+    const agents = {
+      getRoutine: vi.fn().mockResolvedValue(agent),
+    } as unknown as AgentRepository;
+    const app = appWith(repository, { sql, agents });
+
+    const response = await app.request(
+      "http://town.test/v1/routine-templates/morning-briefing/install",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          cron: "0 8 * * 1-5",
+          timezone: "Asia/Shanghai",
+          nextRunAt: "2026-08-04T00:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      template: { id: "morning-briefing" },
+      agent,
+      routine,
+    });
+    expect(statements).toHaveLength(5);
+    expect(statements.slice(1)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("insert into agents"),
+        expect.stringContaining("insert into agent_versions"),
+        expect.stringContaining("update agents"),
+        expect.stringContaining("insert into routine_schedules"),
+      ]),
+    );
   });
 
   it("accepts authenticated webhook payloads and preserves idempotency", async () => {
