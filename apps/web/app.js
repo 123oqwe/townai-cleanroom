@@ -975,6 +975,98 @@ async function saveSquare() {
     button.disabled = false;
   }
 }
+function renderA2A(result) {
+  const target = $("#a2a-list");
+  const requests = result.requests || [];
+  if (!requests.length) {
+    target.innerHTML = '<p class="harness-empty">No agent requests yet.</p>';
+    return;
+  }
+  target.innerHTML = requests
+    .map((request) => {
+      const expiry = request.expiresAt
+        ? `expires ${new Date(request.expiresAt).toLocaleString()}`
+        : "no expiry";
+      const actionable = request.status === "pending";
+      return `<article class="a2a-card" data-a2a-id="${escapeHtml(request.id)}" data-a2a-revision="${escapeHtml(request.revision)}"><div class="a2a-copy"><span class="a2a-meta">${escapeHtml(request.status)} · revision ${escapeHtml(request.revision)}</span><strong>${escapeHtml(request.capability)}</strong><p>${escapeHtml(JSON.stringify(request.request))}</p><small>${escapeHtml(request.requesterId.slice(0, 8))} → ${escapeHtml(request.recipientId.slice(0, 8))} · ${escapeHtml(expiry)}</small></div>${actionable ? '<div class="a2a-actions"><button class="quiet-button a2a-decline" type="button">Decline</button><button class="primary-button a2a-accept" type="button">Accept <span>→</span></button></div>' : ""}</article>`;
+    })
+    .join("");
+}
+async function loadA2A() {
+  if (!state.token) {
+    $("#a2a-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load requests.</p>';
+    return;
+  }
+  try {
+    renderA2A(await api("/v1/a2a/requests"));
+  } catch (error) {
+    $("#a2a-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Agent requests unavailable.")}</p>`;
+  }
+}
+async function saveA2A() {
+  const recipientId = $("#a2a-recipient").value.trim();
+  const capability = $("#a2a-capability").value.trim();
+  const error = $("#a2a-error");
+  if (!recipientId || !capability || !state.token) return;
+  error.hidden = true;
+  let request;
+  try {
+    request = JSON.parse($("#a2a-request").value);
+  } catch {
+    error.textContent = "Request must be valid JSON.";
+    error.hidden = false;
+    return;
+  }
+  if (
+    request === null ||
+    Array.isArray(request) ||
+    typeof request !== "object"
+  ) {
+    error.textContent = "Request JSON must be an object.";
+    error.hidden = false;
+    return;
+  }
+  const button = $("#a2a-save");
+  button.disabled = true;
+  try {
+    await apiJson("/v1/a2a/requests", { recipientId, capability, request });
+    $("#a2a-recipient").value = "";
+    $("#a2a-capability").value = "";
+    $("#a2a-request").value = "{}";
+    $("#a2a-add-form").hidden = true;
+    await loadA2A();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not send request.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+async function transitionA2A(card, status) {
+  const id = card.dataset.a2aId;
+  const revision = Number(card.dataset.a2aRevision);
+  if (!id || !Number.isInteger(revision)) return;
+  const error = $("#a2a-transition-error");
+  error.hidden = true;
+  card.querySelectorAll("button").forEach((button) => (button.disabled = true));
+  try {
+    await api(`/v1/a2a/requests/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, expectedRevision: revision }),
+    });
+    await loadA2A();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not update request.";
+    error.hidden = false;
+    card
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = false));
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -1169,6 +1261,25 @@ $("#square-list").addEventListener("click", (event) => {
   const card = event.target.closest(".square-card");
   if (!button || !card) return;
   void inspectSquare(card.dataset.squareId, card);
+});
+$("#a2a-open").addEventListener("click", () => {
+  $("#a2a-transition-error").hidden = true;
+  openDialog($("#a2a-dialog"));
+  void loadA2A();
+});
+$("#a2a-add-toggle").addEventListener("click", () => {
+  $("#a2a-add-form").hidden = !$("#a2a-add-form").hidden;
+  if (!$("#a2a-add-form").hidden) $("#a2a-recipient").focus();
+});
+$("#a2a-save").addEventListener("click", () => void saveA2A());
+$("#a2a-list").addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  const card = event.target.closest(".a2a-card");
+  if (!button || !card) return;
+  void transitionA2A(
+    card,
+    button.classList.contains("a2a-accept") ? "accepted" : "declined",
+  );
 });
 $("#approval-approve").addEventListener(
   "click",

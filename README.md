@@ -183,6 +183,11 @@ and revision-checked transitions; expired pending requests are hidden from the
 pending view and cannot be accepted. Private Memory and credentials are never
 shared by this clean-room protocol.
 
+The command center exposes the same A2A envelope: send a request to an explicit
+recipient, inspect pending/accepted state, and accept or decline with the
+server's revision check. The UI never manufactures a recipient identity or a
+result payload.
+
 Authenticated Agent, Thread, Turn-read, Task, and InputRequest resources are
 available under `/v1/agents`, `/v1/threads`, and `/v1/tasks`. Owner identity,
 runtime role, Turn sequence, and source provenance are server-derived.

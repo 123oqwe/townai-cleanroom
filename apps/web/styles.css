@@ -1633,6 +1633,89 @@ dialog h2 {
   margin: 0;
   line-height: 1.45;
 }
+.a2a-dialog {
+  max-width: 620px;
+}
+.a2a-list {
+  display: grid;
+  gap: 10px;
+  max-height: 330px;
+  margin: 18px 0 12px;
+  overflow: auto;
+}
+.a2a-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.a2a-copy {
+  display: grid;
+  gap: 5px;
+}
+.a2a-meta,
+.a2a-copy small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.a2a-copy strong {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+.a2a-copy p {
+  margin: 0;
+  color: var(--muted-deep);
+  font-family: var(--mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.a2a-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.a2a-actions .primary-button,
+.a2a-actions .quiet-button {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 11px;
+}
+.a2a-add-toggle {
+  margin: 3px 0 16px;
+}
+.a2a-add-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.a2a-add-form label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.a2a-add-form input,
+.a2a-add-form textarea {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+.a2a-add-form textarea {
+  font-family: var(--mono);
+  resize: vertical;
+}
 @keyframes rise {
   from {
     opacity: 0;
