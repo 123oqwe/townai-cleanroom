@@ -6,11 +6,17 @@ import { asId, idSchema, newId, type Id } from "@town/contracts";
 
 export const contentKindSchema = z.enum([
   "document",
+  "email_draft",
+  "spreadsheet",
+  "deck",
   "file",
   "image",
+  "video",
   "audio",
   "recording",
   "briefing",
+  "link",
+  "session",
 ]);
 export const contentStatusSchema = z.enum(["active", "archived", "deleted"]);
 const metadataSchema = z.record(z.string(), z.json());

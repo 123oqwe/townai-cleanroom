@@ -32,6 +32,37 @@ afterAll(async () => {
 });
 
 describe("content library", () => {
+  it("accepts every verified Town Library content kind", async () => {
+    const content = createContentRepository(sql);
+    const kinds = [
+      "document",
+      "email_draft",
+      "spreadsheet",
+      "deck",
+      "file",
+      "image",
+      "video",
+      "audio",
+      "recording",
+      "briefing",
+      "link",
+      "session",
+    ] as const;
+    const created = [];
+    for (const kind of kinds) {
+      created.push(
+        await content.create({
+          ownerId,
+          kind,
+          title: `${kind} fixture`,
+          body: `fixture for ${kind}`,
+          metadata: {},
+        }),
+      );
+    }
+    expect(created.map(({ kind }) => kind)).toEqual(kinds);
+  });
+
   it("persists owner-isolated documents and immutable revisions", async () => {
     const content = createContentRepository(sql);
     const item = await content.create({

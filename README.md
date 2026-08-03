@@ -104,6 +104,10 @@ empty to preserve the database's existing allowlist state.
 - Content Library cards can create a server-issued 24-hour share token and
   revoke it again. The UI only shows the API share URL; public responses stay
   limited to safe content fields.
+- The Content Library accepts the verified kinds `document`, `email_draft`,
+  `spreadsheet`, `deck`, `file`, `image`, `video`, `audio`, `recording`,
+  `briefing`, `link`, and `session`; each remains a typed item with immutable
+  revisions.
 - The People surface reads active relationship records from `/v1/people` and
   can create a user-authored person with category, email, and notes. It does
   not infer or fabricate contacts.

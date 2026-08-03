@@ -1426,7 +1426,7 @@ export const contentItems = pgTable(
     ),
     check(
       "content_items_kind_allowed",
-      sql`${table.kind} in ('document','file','image','audio','recording','briefing')`,
+      sql`${table.kind} in ('document','email_draft','spreadsheet','deck','file','image','video','audio','recording','briefing','link','session')`,
     ),
     check(
       "content_items_status_allowed",
