@@ -1250,6 +1250,13 @@ The Vapi legacy `X-Vapi-Secret` compatibility update is deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour.
 
+The durable per-Routine webhook rate-limit implementation is deployed as
+`https://town-clear-m3s1080gk-123oqwes-projects.vercel.app`, deployment
+`dpl_Cg5vF3QtxxLpzFyic5hErdpdJ6AL`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. Each webhook allows 60 new
+deliveries per rolling minute and returns a typed 429 after the limit.
+
 The routine-scoped webhook secret isolation fix is deployed as
 `https://town-clear-47o0y79fo-123oqwes-projects.vercel.app`, deployment
 `dpl_J7HkDdYzjBtRrW7Hi3KJ7hX57pNU`, state `READY`. The full workspace build
