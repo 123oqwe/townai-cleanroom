@@ -1332,3 +1332,11 @@ The owner-authorized Content blob upload route is deployed as
 completed successfully and no runtime errors were reported in the selected
 hour. `CONTENT_STORAGE_ROOT` is intentionally unset on Vercel, so upload
 requests return an explicit 503 until a durable storage backend is configured.
+
+The S3-compatible Content storage adapter is included in deployment
+`dpl_DeexmYAyV3jBRYLAmGX4fqFjd56b`,
+`https://town-clear-oe2biuxg7-123oqwes-projects.vercel.app`, state `READY`.
+The full workspace build completed successfully and no runtime errors were
+reported in the selected hour. The five `CONTENT_STORAGE_S3_*` variables are
+not set on this preview, so the API remains explicit rather than claiming a
+cloud object store is active.
