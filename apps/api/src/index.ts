@@ -557,6 +557,12 @@ const app = createApp({
   },
   googleTokenRefresher,
   webOrigin: environment.WEB_ORIGIN,
+  workerEnabled:
+    harnessServerFactory !== undefined &&
+    (environment.WORKER_ENABLED ||
+      (process.env["VERCEL"] === "1" &&
+        (environment.WORKER_SECRET !== undefined ||
+          environment.CRON_SECRET !== undefined))),
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });
 

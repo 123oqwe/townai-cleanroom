@@ -30,6 +30,7 @@ describe("GET /v1/health", () => {
       api: false,
       auth: false,
       harness: false,
+      worker: false,
       googleOAuth: false,
     });
   });

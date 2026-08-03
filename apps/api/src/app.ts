@@ -140,6 +140,7 @@ export interface AppDependencies {
   googleTokenRefresher?: GoogleTokenRefresher;
   googleApi?: GoogleApiClient;
   webOrigin?: string;
+  workerEnabled?: boolean;
   harnessServer?: AppServer;
   harnessServerFactory?: (
     ownerId: string,
@@ -620,6 +621,7 @@ export function createApp(dependencies?: AppDependencies) {
       harness:
         dependencies?.harnessServer !== undefined ||
         dependencies?.harnessServerFactory !== undefined,
+      worker: dependencies?.workerEnabled === true,
       googleOAuth: dependencies?.googleOAuth !== undefined,
     }),
   );

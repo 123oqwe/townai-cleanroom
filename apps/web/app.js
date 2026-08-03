@@ -26,7 +26,13 @@ const state = {
   selectedPersonId: null,
   squarePolicyRevision: null,
   libraryContent: [],
-  capabilities: { api: false, auth: false, harness: false, googleOAuth: false },
+  capabilities: {
+    api: false,
+    auth: false,
+    harness: false,
+    worker: false,
+    googleOAuth: false,
+  },
   harnessStreamAbort: null,
 };
 const $ = (selector) => document.querySelector(selector);
@@ -249,9 +255,11 @@ function setHarnessAvailability(available) {
   input.placeholder = available
     ? "Ask Town to carry something durable…"
     : "Harness worker is not configured for this API.";
-  $("#harness-hint").textContent = available
-    ? "Runs are queued durably before a worker touches them."
-    : "Connect data now; configure a Harness worker before sending turns.";
+  $("#harness-hint").textContent = !available
+    ? "Connect data now; configure a Harness provider before sending turns."
+    : state.capabilities.worker
+      ? "Runs are queued durably and a worker is configured to process them."
+      : "Runs are queued durably; a worker must be configured to process them.";
 }
 function renderHarnessTurns(turns) {
   const transcript = $("#harness-transcript");
@@ -3347,7 +3355,9 @@ async function refresh() {
     setConnection(
       true,
       capabilities.harness
-        ? "Connected · Harness ready"
+        ? capabilities.worker
+          ? "Connected · Harness ready"
+          : "Connected · Harness queued"
         : "Connected · data only",
     );
   } catch (error) {

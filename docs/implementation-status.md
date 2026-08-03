@@ -235,10 +235,11 @@ without asking users to manually paste a token; existing token-based connection
 remains available.
 
 The public `GET /v1/health/capabilities` contract now distinguishes API/auth
-availability from Harness and Google OAuth readiness without exposing keys or
-environment values. The command center reads this capability response and shows
-“Harness ready” versus “data only”, so a connected database is not presented as
-an executable AI runtime when the Responses provider is unconfigured.
+availability from Harness provider, worker, and Google OAuth readiness without
+exposing keys or environment values. The command center reads this capability
+response and shows “Harness ready”, “Harness queued”, or “data only”, so a
+connected database is not presented as an executable AI runtime when the
+Responses provider or worker is unconfigured.
 
 The Harness dialog now consumes the same readiness contract before creating a
 thread or queuing a turn. When the worker is not configured, the composer and
