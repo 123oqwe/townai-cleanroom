@@ -1076,6 +1076,7 @@ function renderRoutines(result) {
       selectedRoutineId = button.dataset.routineId;
       selectedRoutine = (result.routines || []).find((routine) => routine.id === selectedRoutineId) || null;
       if (selectedRoutine) showRoutineEditor(selectedRoutine);
+      $("#routine-share").hidden = false;
       $("#routine-trigger").hidden = false;
       $("#routine-history").hidden = false;
       void loadRoutineWebhook();
@@ -1087,6 +1088,13 @@ function renderRoutines(result) {
     });
   });
 }
+let routineShareId = null;
+async function createRoutineShare() {
+  if (!selectedRoutineId) return;
+  const error = $("#routine-share-error");
+  try { const result = await apiJson(`/v1/routines/${selectedRoutineId}/shares`, { expiresAt: new Date(Date.now() + 86400000).toISOString() }); routineShareId = result.share.id; $("#routine-share-url").value = `${state.base.replace(/\/$/, "")}/v1/routine-shares/${result.token}`; $("#routine-share-secret").hidden = false; error.hidden = true; } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not create share link."; error.hidden = false; }
+}
+async function revokeRoutineShare() { if (!routineShareId) return; const error = $("#routine-share-error"); try { await api(`/v1/routines/shares/${routineShareId}`, { method: "DELETE" }); routineShareId = null; $("#routine-share-secret").hidden = true; error.hidden = true; } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not revoke share link."; error.hidden = false; } }
 async function saveRoutineEdit() {
   if (!selectedRoutine) return;
   const error = $("#routine-edit-error");
@@ -2555,6 +2563,9 @@ $("#routines-open").addEventListener("click", () => {
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
 $("#routine-edit-save").addEventListener("click", () => void saveRoutineEdit());
 $("#routine-edit-delete").addEventListener("click", () => void deleteRoutine());
+$("#routine-share-create").addEventListener("click", () => void createRoutineShare());
+$("#routine-share-revoke").addEventListener("click", () => void revokeRoutineShare());
+$("#routine-share-copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#routine-share-url").value); $("#routine-share-copy").textContent = "Copied"; } catch { $("#routine-share-url").select(); } });
 $("#routine-trigger-list").addEventListener("click", (event) => {
   const button = event.target.closest(".routine-trigger-toggle");
   const row = button?.closest(".routine-trigger-row") || event.target.closest(".routine-trigger-row");

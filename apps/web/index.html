@@ -928,6 +928,12 @@
             hidden
           ></p>
         </div>
+        <div class="routine-share" id="routine-share" hidden>
+          <div class="routine-webhook-heading"><div><p class="eyebrow">Share routine</p><strong>Give someone a documented copy</strong></div></div>
+          <button class="text-button" id="routine-share-create" type="button">Create share link <span>→</span></button>
+          <div id="routine-share-secret" hidden><input id="routine-share-url" readonly aria-label="Routine share URL"/><button class="quiet-button" id="routine-share-copy" type="button">Copy</button><button class="quiet-button" id="routine-share-revoke" type="button">Revoke</button></div>
+          <p class="dialog-error" id="routine-share-error" role="alert" hidden></p>
+        </div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>

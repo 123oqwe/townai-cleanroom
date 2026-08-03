@@ -155,6 +155,11 @@ and revision-checked deletion through the existing `PATCH/DELETE
 /v1/routines/:routineId` routes. The UI preserves the routine's real agent and
 agent-version bindings and reloads the schedule list after mutation.
 
+Routine sharing is now available from the selected Routine: the UI creates a
+24-hour token through `POST /v1/routines/:routineId/shares`, displays the
+one-time share URL, copies it, and revokes it through the protected DELETE
+route. Tokens and private routine internals are not exposed beyond the URL.
+
 Task cards now expose the existing owner-scoped mark-read and revision-checked
 delete actions. `POST /v1/tasks/:taskId/mark-read` and
 `DELETE /v1/tasks/:taskId` are followed by a server-truth reload; no client-only

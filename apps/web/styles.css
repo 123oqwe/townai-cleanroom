@@ -55,6 +55,9 @@
 .routine-edit-form { display: grid; gap: 6px; margin: .8rem 0; }
 .routine-edit-form input { width: 100%; }
 .routine-edit-actions { display: flex; gap: .5rem; }
+.routine-share { display: grid; gap: 6px; margin: .8rem 0; padding-top: .8rem; border-top: 1px solid var(--line); }
+.routine-share-secret { display: flex; gap: .45rem; }
+.routine-share-secret input { flex: 1; min-width: 0; }
 .routine-run-card {
   display: flex;
   align-items: center;
