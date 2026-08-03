@@ -82,6 +82,10 @@ control using your platform's secure secret-management workflow.
   thread and durable queued Session Run using the child’s immutable version.
 - A responsive, API-backed `apps/web` command center with explicit connection,
   empty, error, focus, and harness states; it uses no fabricated backend data.
+  The Harness surface bootstraps an owner-scoped personal Agent, lists real
+  assistant Threads, supports creating and switching Threads, renders persisted
+  Turns, polls durable Runs/Events, and exposes only the approval decision
+  recorded by the server.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

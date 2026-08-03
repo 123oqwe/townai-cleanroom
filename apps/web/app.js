@@ -158,13 +158,48 @@ async function ensureHarnessThread() {
   sessionStorage.setItem(storageKeys.thread, thread.id);
   return thread.id;
 }
+async function loadHarnessThreads(
+  preferredId = sessionStorage.getItem(storageKeys.thread),
+) {
+  const page = await api("/v1/threads?kind=assistant&status=active&limit=50");
+  const threads = page.items || [];
+  if (threads.length === 0) {
+    const created = await apiJson("/v1/threads", {
+      title: "Town workspace",
+      approvalMode: "respect_tool_setting",
+    });
+    threads.push(created.thread);
+  }
+  const selected =
+    threads.find((thread) => thread.id === preferredId) || threads[0];
+  sessionStorage.setItem(storageKeys.thread, selected.id);
+  const select = $("#thread-select");
+  select.innerHTML = threads
+    .map(
+      (thread) =>
+        `<option value="${escapeHtml(thread.id)}">${escapeHtml(thread.title)}</option>`,
+    )
+    .join("");
+  select.value = selected.id;
+  return selected.id;
+}
+async function selectHarnessThread(threadId) {
+  sessionStorage.setItem(storageKeys.thread, threadId);
+  sessionStorage.removeItem(storageKeys.session);
+  clearHarnessApproval();
+  renderHarnessTurns(
+    (await api(`/v1/threads/${threadId}/turns?limit=50`)).items,
+  );
+  setHarnessState("Ready for a durable turn.");
+}
 async function loadHarness() {
   if (!state.token) {
     setHarnessState("Connect the API to begin.");
     return;
   }
   try {
-    const threadId = await ensureHarnessThread();
+    await ensureHarnessThread();
+    const threadId = await loadHarnessThreads();
     renderHarnessTurns(
       (await api(`/v1/threads/${threadId}/turns?limit=50`)).items,
     );
@@ -216,7 +251,7 @@ async function sendHarnessMessage() {
   button.disabled = true;
   setHarnessState("Queueing durable turn…");
   try {
-    const threadId = await ensureHarnessThread();
+    const threadId = await loadHarnessThreads();
     const submission = await apiJson(
       `/v1/threads/${threadId}/messages`,
       { text, mentions: [] },
@@ -341,6 +376,26 @@ $("#people-button").addEventListener("click", () => {
   void loadHarness();
 });
 $("#harness-send").addEventListener("click", () => void sendHarnessMessage());
+$("#thread-select").addEventListener("change", (event) => {
+  void selectHarnessThread(event.target.value);
+});
+$("#thread-new").addEventListener("click", async () => {
+  try {
+    const thread = (
+      await apiJson("/v1/threads", {
+        title: "New Town thread",
+        approvalMode: "respect_tool_setting",
+      })
+    ).thread;
+    await loadHarnessThreads(thread.id);
+    await selectHarnessThread(thread.id);
+  } catch (error) {
+    setHarnessState(
+      error instanceof Error ? error.message : "Could not create thread.",
+      "error",
+    );
+  }
+});
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),
