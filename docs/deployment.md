@@ -1257,6 +1257,13 @@ completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. Each webhook allows 60 new
 deliveries per rolling minute and returns a typed 429 after the limit.
 
+The distinct Google `email_to_assistant` trigger path is deployed as
+`https://town-clear-f692se6hz-123oqwes-projects.vercel.app`, deployment
+`dpl_Fvxhg1BQeMmfLVF4jugoL4nDEox7`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The provider and assistant address
+remain deployment configuration boundaries.
+
 The routine-scoped webhook secret isolation fix is deployed as
 `https://town-clear-47o0y79fo-123oqwes-projects.vercel.app`, deployment
 `dpl_J7HkDdYzjBtRrW7Hi3KJ7hX57pNU`, state `READY`. The full workspace build
