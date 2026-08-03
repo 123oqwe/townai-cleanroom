@@ -1114,6 +1114,9 @@ dialog h2 {
 .collection-items { display: grid; gap: 3px; padding-left: .6rem; }
 .collection-add-form { display: grid; gap: 6px; margin: .8rem 0; }
 .collection-add-form input, .collection-add-form textarea { width: 100%; }
+.wiki-add-form, .wiki-edit-form { display: grid; gap: 6px; margin: .8rem 0; }
+.wiki-add-form input, .wiki-add-form select, .wiki-add-form textarea, .wiki-edit-form input, .wiki-edit-form textarea { width: 100%; }
+.wiki-card { display: grid; gap: 6px; }
 .content-history-button {
   min-height: 31px;
   padding: 0 9px;

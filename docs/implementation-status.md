@@ -139,3 +139,8 @@ People cards now support inline edit through the existing owner-scoped
 `PUT /v1/people/:personId` route. The UI fetches the authoritative person
 before editing, preserves organization/role, submits `expectedRevision`, and
 reloads the list after success.
+
+Wiki pages now support creation and inline editing in Library. Creation uses
+the real `profile`/`goal`/`project`/`page` kind contract and the protected
+`POST /v1/wiki`; edits fetch the authoritative document and use
+revision-aware `PUT /v1/wiki/:documentId`, preserving server-side citations.

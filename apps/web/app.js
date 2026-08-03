@@ -605,9 +605,23 @@ function renderWiki(result) {
     .slice(0, 20)
     .map(
       (document) =>
-        `<article class="wiki-card"><div><span class="wiki-kind">${escapeHtml(document.kind)}</span><strong>${escapeHtml(document.title)}</strong><p>${escapeHtml(document.body)}</p><small>${escapeHtml(document.slug)} · revision ${escapeHtml(document.currentRevision)}</small></div></article>`,
+        `<article class="wiki-card" data-wiki-id="${escapeHtml(document.id)}"><div><span class="wiki-kind">${escapeHtml(document.kind)}</span><strong>${escapeHtml(document.title)}</strong><p>${escapeHtml(document.body)}</p><small>${escapeHtml(document.slug)} · revision ${escapeHtml(document.currentRevision)}</small></div><button class="quiet-button wiki-edit" type="button">Edit</button></article>`,
     )
     .join("");
+}
+async function saveWiki() {
+  const error = $("#wiki-error");
+  const kind = $("#wiki-kind").value; const slug = $("#wiki-slug").value.trim(); const title = $("#wiki-title").value.trim(); const body = $("#wiki-body").value;
+  if (!slug || !title) { error.textContent = "Slug and title are required."; error.hidden = false; return; }
+  try { await apiJson("/v1/wiki", { kind, slug, title, body }); $("#wiki-slug").value = ""; $("#wiki-title").value = ""; $("#wiki-body").value = ""; $("#wiki-add-form").hidden = true; error.hidden = true; await loadLibrary(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save Wiki page."; error.hidden = false; }
+}
+async function editWiki(card) {
+  if (!card || card.querySelector(".wiki-edit-form")) return;
+  try { const result = await api(`/v1/wiki/${card.dataset.wikiId}`); const wikiDoc = result.document; card._wiki = wikiDoc; const form = document.createElement("div"); form.className = "wiki-edit-form"; form.innerHTML = `<input class="wiki-edit-slug" maxlength="200" value="${escapeHtml(wikiDoc.slug)}"/><input class="wiki-edit-title" maxlength="500" value="${escapeHtml(wikiDoc.title)}"/><textarea class="wiki-edit-body" rows="5" maxlength="200000">${escapeHtml(wikiDoc.body)}</textarea><button class="quiet-button wiki-edit-save" type="button">Save edit</button>`; card.append(form); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Could not load Wiki page."; card.append(error); }
+}
+async function saveWikiEdit(card) {
+  const document = card?._wiki; if (!document) return;
+  await api(`/v1/wiki/${document.id}`, { method: "PUT", body: JSON.stringify({ kind: document.kind, slug: card.querySelector(".wiki-edit-slug").value.trim(), title: card.querySelector(".wiki-edit-title").value.trim(), body: card.querySelector(".wiki-edit-body").value, expectedRevision: document.currentRevision }) }); await loadLibrary();
 }
 function renderCollections(result) {
   const collections = result.collections || [];
@@ -2410,6 +2424,9 @@ $("#content-save").addEventListener("click", () => void saveContent());
 $("#collection-add-toggle").addEventListener("click", () => { $("#collection-add-form").hidden = !$("#collection-add-form").hidden; if (!$("#collection-add-form").hidden) $("#collection-name").focus(); });
 $("#collection-save").addEventListener("click", () => void saveCollection());
 $("#collection-list").addEventListener("click", (event) => { const button = event.target.closest(".collection-open"); if (button) void openCollection(button); const add = event.target.closest(".collection-content-add"); if (add) void addContentToCollection(add); });
+$("#wiki-add-toggle").addEventListener("click", () => { $("#wiki-add-form").hidden = !$("#wiki-add-form").hidden; if (!$("#wiki-add-form").hidden) $("#wiki-title").focus(); });
+$("#wiki-save").addEventListener("click", () => void saveWiki());
+$("#wiki-list").addEventListener("click", (event) => { const card = event.target.closest(".wiki-card"); if (!card) return; if (event.target.closest(".wiki-edit")) void editWiki(card); if (event.target.closest(".wiki-edit-save")) void saveWikiEdit(card).catch((cause) => { const error = $("#wiki-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit Wiki page."; error.hidden = false; }); });
 $("#library-content-more").addEventListener(
   "click",
   () => void loadMoreLibraryContent(),

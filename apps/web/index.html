@@ -503,6 +503,14 @@
         <div class="wiki-list" id="wiki-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load Wiki pages.</p>
         </div>
+        <button class="text-button wiki-add-toggle" id="wiki-add-toggle" type="button">New Wiki page <span>＋</span></button>
+        <div class="wiki-add-form" id="wiki-add-form" hidden>
+          <label for="wiki-kind">Kind</label><select id="wiki-kind"><option value="page">Page</option><option value="profile">Profile</option><option value="goal">Goal</option><option value="project">Project</option></select>
+          <label for="wiki-slug">Slug</label><input id="wiki-slug" maxlength="200" />
+          <label for="wiki-title">Title</label><input id="wiki-title" maxlength="500" />
+          <label for="wiki-body">Body</label><textarea id="wiki-body" rows="5" maxlength="200000"></textarea>
+          <button class="primary-button full-button" id="wiki-save" type="button">Save Wiki page <span>→</span></button><p class="dialog-error" id="wiki-error" role="alert" hidden></p>
+        </div>
         <div class="library-divider"></div>
         <div class="library-section-heading">
           <p class="eyebrow">Durable memory</p>
