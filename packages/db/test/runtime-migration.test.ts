@@ -137,6 +137,7 @@ describe("persistent runtime and tool-policy migrations", () => {
       "0037_routine_trigger_idempotency.sql",
       "0038_extended_routine_trigger_types.sql",
       "0039_a2a_consent.sql",
+      "0040_runtime_input_response.sql",
     ]);
   });
 });

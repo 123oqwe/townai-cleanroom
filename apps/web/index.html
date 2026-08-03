@@ -439,34 +439,88 @@
           </p>
         </div>
         <section class="knowledge-conflicts" id="knowledge-conflicts" hidden>
-          <div class="library-section-heading"><p class="eyebrow">Knowledge conflicts</p><span id="knowledge-conflict-count">—</span></div>
-          <div id="knowledge-conflict-list"><p class="harness-empty">No pending conflicts.</p></div>
-          <p class="dialog-error" id="knowledge-conflict-error" role="alert" hidden></p>
+          <div class="library-section-heading">
+            <p class="eyebrow">Knowledge conflicts</p>
+            <span id="knowledge-conflict-count">—</span>
+          </div>
+          <div id="knowledge-conflict-list">
+            <p class="harness-empty">No pending conflicts.</p>
+          </div>
+          <p
+            class="dialog-error"
+            id="knowledge-conflict-error"
+            role="alert"
+            hidden
+          ></p>
         </section>
         <div class="library-divider"></div>
         <div class="library-section-heading">
           <p class="eyebrow">Content library</p>
           <span id="library-count">—</span>
         </div>
-        <button class="text-button content-add-toggle" id="content-add-toggle" type="button">Add content <span>＋</span></button>
+        <button
+          class="text-button content-add-toggle"
+          id="content-add-toggle"
+          type="button"
+        >
+          Add content <span>＋</span>
+        </button>
         <div class="content-add-form" id="content-add-form" hidden>
           <label for="content-kind">Kind</label>
-          <select id="content-kind"><option value="document">Document</option><option value="briefing">Briefing</option><option value="link">Link</option><option value="session">Session</option><option value="email_draft">Email draft</option><option value="spreadsheet">Spreadsheet</option><option value="deck">Deck</option><option value="file">File</option></select>
+          <select id="content-kind">
+            <option value="document">Document</option>
+            <option value="briefing">Briefing</option>
+            <option value="link">Link</option>
+            <option value="session">Session</option>
+            <option value="email_draft">Email draft</option>
+            <option value="spreadsheet">Spreadsheet</option>
+            <option value="deck">Deck</option>
+            <option value="file">File</option>
+          </select>
           <label for="content-title">Title</label>
           <input id="content-title" maxlength="500" />
-          <label for="content-body">Body <span class="form-hint">optional</span></label>
+          <label for="content-body"
+            >Body <span class="form-hint">optional</span></label
+          >
           <textarea id="content-body" rows="4" maxlength="200000"></textarea>
-          <button class="primary-button full-button" id="content-save" type="button">Save content <span>→</span></button>
+          <button
+            class="primary-button full-button"
+            id="content-save"
+            type="button"
+          >
+            Save content <span>→</span>
+          </button>
           <p class="dialog-error" id="content-error" role="alert" hidden></p>
         </div>
         <div class="library-divider"></div>
-        <div class="library-section-heading"><p class="eyebrow">Collections</p><span id="collection-count">—</span></div>
-        <div class="collection-list" id="collection-list" aria-live="polite"><p class="harness-empty">Connect the API to load collections.</p></div>
-        <button class="text-button collection-add-toggle" id="collection-add-toggle" type="button">New collection <span>＋</span></button>
+        <div class="library-section-heading">
+          <p class="eyebrow">Collections</p>
+          <span id="collection-count">—</span>
+        </div>
+        <div class="collection-list" id="collection-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load collections.</p>
+        </div>
+        <button
+          class="text-button collection-add-toggle"
+          id="collection-add-toggle"
+          type="button"
+        >
+          New collection <span>＋</span>
+        </button>
         <div class="collection-add-form" id="collection-add-form" hidden>
-          <label for="collection-name">Name</label><input id="collection-name" maxlength="200" />
-          <label for="collection-description">Description <span class="form-hint">optional</span></label><textarea id="collection-description" rows="2" maxlength="2000"></textarea>
-          <button class="quiet-button" id="collection-save" type="button">Save collection</button><p class="dialog-error" id="collection-error" role="alert" hidden></p>
+          <label for="collection-name">Name</label
+          ><input id="collection-name" maxlength="200" />
+          <label for="collection-description"
+            >Description <span class="form-hint">optional</span></label
+          ><textarea
+            id="collection-description"
+            rows="2"
+            maxlength="2000"
+          ></textarea>
+          <button class="quiet-button" id="collection-save" type="button">
+            Save collection
+          </button>
+          <p class="dialog-error" id="collection-error" role="alert" hidden></p>
         </div>
         <div
           class="library-content-list"
@@ -508,13 +562,35 @@
         <div class="wiki-list" id="wiki-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load Wiki pages.</p>
         </div>
-        <button class="text-button wiki-add-toggle" id="wiki-add-toggle" type="button">New Wiki page <span>＋</span></button>
+        <button
+          class="text-button wiki-add-toggle"
+          id="wiki-add-toggle"
+          type="button"
+        >
+          New Wiki page <span>＋</span>
+        </button>
         <div class="wiki-add-form" id="wiki-add-form" hidden>
-          <label for="wiki-kind">Kind</label><select id="wiki-kind"><option value="page">Page</option><option value="profile">Profile</option><option value="goal">Goal</option><option value="project">Project</option></select>
-          <label for="wiki-slug">Slug</label><input id="wiki-slug" maxlength="200" />
-          <label for="wiki-title">Title</label><input id="wiki-title" maxlength="500" />
-          <label for="wiki-body">Body</label><textarea id="wiki-body" rows="5" maxlength="200000"></textarea>
-          <button class="primary-button full-button" id="wiki-save" type="button">Save Wiki page <span>→</span></button><p class="dialog-error" id="wiki-error" role="alert" hidden></p>
+          <label for="wiki-kind">Kind</label
+          ><select id="wiki-kind">
+            <option value="page">Page</option>
+            <option value="profile">Profile</option>
+            <option value="goal">Goal</option>
+            <option value="project">Project</option>
+          </select>
+          <label for="wiki-slug">Slug</label
+          ><input id="wiki-slug" maxlength="200" />
+          <label for="wiki-title">Title</label
+          ><input id="wiki-title" maxlength="500" />
+          <label for="wiki-body">Body</label
+          ><textarea id="wiki-body" rows="5" maxlength="200000"></textarea>
+          <button
+            class="primary-button full-button"
+            id="wiki-save"
+            type="button"
+          >
+            Save Wiki page <span>→</span>
+          </button>
+          <p class="dialog-error" id="wiki-error" role="alert" hidden></p>
         </div>
         <div class="library-divider"></div>
         <div class="library-section-heading">
@@ -584,16 +660,37 @@
         </div>
         <section class="people-relationships" id="people-relationships" hidden>
           <p class="eyebrow">Relationship graph</p>
-          <div id="relationship-list"><p class="harness-empty">Select a person to inspect relationships.</p></div>
+          <div id="relationship-list">
+            <p class="harness-empty">
+              Select a person to inspect relationships.
+            </p>
+          </div>
           <div class="relationship-add-form">
             <label for="relationship-related-person">Connect to</label>
             <select id="relationship-related-person"></select>
             <label for="relationship-type">Relationship</label>
-            <input id="relationship-type" maxlength="100" placeholder="friend, manager, client" />
-            <label for="relationship-notes">Notes <span class="form-hint">optional</span></label>
-            <textarea id="relationship-notes" rows="2" maxlength="20000"></textarea>
-            <button class="quiet-button" id="relationship-save" type="button">Add relationship</button>
-            <p class="dialog-error" id="relationship-error" role="alert" hidden></p>
+            <input
+              id="relationship-type"
+              maxlength="100"
+              placeholder="friend, manager, client"
+            />
+            <label for="relationship-notes"
+              >Notes <span class="form-hint">optional</span></label
+            >
+            <textarea
+              id="relationship-notes"
+              rows="2"
+              maxlength="20000"
+            ></textarea>
+            <button class="quiet-button" id="relationship-save" type="button">
+              Add relationship
+            </button>
+            <p
+              class="dialog-error"
+              id="relationship-error"
+              role="alert"
+              hidden
+            ></p>
           </div>
         </section>
         <button
@@ -771,21 +868,60 @@
           <p class="harness-empty">Connect the API to load routines.</p>
         </div>
         <div class="routine-edit-form" id="routine-edit-form" hidden>
-          <label for="routine-edit-name">Name</label><input id="routine-edit-name" maxlength="120" />
-          <label for="routine-edit-cron">Cron</label><input id="routine-edit-cron" maxlength="200" />
-          <label for="routine-edit-timezone">Timezone</label><input id="routine-edit-timezone" maxlength="100" />
-          <label for="routine-edit-next-run">Next run</label><input id="routine-edit-next-run" type="datetime-local" />
-          <label><input id="routine-edit-enabled" type="checkbox" /> Enabled</label>
-          <div class="routine-edit-actions"><button class="quiet-button" id="routine-edit-save" type="button">Save routine</button><button class="quiet-button" id="routine-edit-delete" type="button">Delete routine</button></div>
-          <p class="dialog-error" id="routine-edit-error" role="alert" hidden></p>
+          <label for="routine-edit-name">Name</label
+          ><input id="routine-edit-name" maxlength="120" />
+          <label for="routine-edit-cron">Cron</label
+          ><input id="routine-edit-cron" maxlength="200" />
+          <label for="routine-edit-timezone">Timezone</label
+          ><input id="routine-edit-timezone" maxlength="100" />
+          <label for="routine-edit-next-run">Next run</label
+          ><input id="routine-edit-next-run" type="datetime-local" />
+          <label
+            ><input id="routine-edit-enabled" type="checkbox" /> Enabled</label
+          >
+          <div class="routine-edit-actions">
+            <button class="quiet-button" id="routine-edit-save" type="button">
+              Save routine</button
+            ><button
+              class="quiet-button"
+              id="routine-edit-delete"
+              type="button"
+            >
+              Delete routine
+            </button>
+          </div>
+          <p
+            class="dialog-error"
+            id="routine-edit-error"
+            role="alert"
+            hidden
+          ></p>
         </div>
         <div class="routine-install-form">
           <label for="routine-share-token">Install a shared routine</label>
-          <input id="routine-share-token" placeholder="rtnshare_…" maxlength="500" />
-          <label for="routine-install-name">Name <span class="form-hint">optional</span></label><input id="routine-install-name" maxlength="120" />
-          <label for="routine-install-next-run">First run</label><input id="routine-install-next-run" type="datetime-local" />
-          <button class="quiet-button" id="routine-install-button" type="button">Install shared routine</button>
-          <p class="dialog-error" id="routine-install-error" role="alert" hidden></p>
+          <input
+            id="routine-share-token"
+            placeholder="rtnshare_…"
+            maxlength="500"
+          />
+          <label for="routine-install-name"
+            >Name <span class="form-hint">optional</span></label
+          ><input id="routine-install-name" maxlength="120" />
+          <label for="routine-install-next-run">First run</label
+          ><input id="routine-install-next-run" type="datetime-local" />
+          <button
+            class="quiet-button"
+            id="routine-install-button"
+            type="button"
+          >
+            Install shared routine
+          </button>
+          <p
+            class="dialog-error"
+            id="routine-install-error"
+            role="alert"
+            hidden
+          ></p>
         </div>
         <section
           class="routine-templates"
@@ -875,28 +1011,81 @@
           >
             <p class="harness-empty">Select a routine to inspect its runs.</p>
           </div>
-          <div class="routine-trigger-list" id="routine-trigger-list" aria-live="polite">
+          <div
+            class="routine-trigger-list"
+            id="routine-trigger-list"
+            aria-live="polite"
+          >
             <p class="harness-empty">Select a routine to inspect triggers.</p>
           </div>
           <div class="routine-trigger-add">
             <label for="routine-trigger-kind">Add trigger</label>
             <select id="routine-trigger-kind">
-              <option value="schedule">Schedule</option><option value="incoming_email">Incoming email</option><option value="calendar_start">Calendar start</option><option value="calendar_end">Calendar end</option><option value="calendar_rsvp">Calendar RSVP</option><option value="calendar_changed">Calendar changed</option><option value="voice_transcribed">Voice transcribed</option><option value="slack_mention">Slack mention</option><option value="webhook">Webhook</option>
+              <option value="schedule">Schedule</option>
+              <option value="incoming_email">Incoming email</option>
+              <option value="calendar_start">Calendar start</option>
+              <option value="calendar_end">Calendar end</option>
+              <option value="calendar_rsvp">Calendar RSVP</option>
+              <option value="calendar_changed">Calendar changed</option>
+              <option value="voice_transcribed">Voice transcribed</option>
+              <option value="slack_mention">Slack mention</option>
+              <option value="webhook">Webhook</option>
             </select>
-            <label for="routine-trigger-config">Config JSON <span class="form-hint">optional</span></label>
-            <textarea id="routine-trigger-config" rows="2" spellcheck="false">{}</textarea>
-            <button class="quiet-button" id="routine-trigger-add-button" type="button">Add trigger</button>
-            <p class="dialog-error" id="routine-trigger-add-error" role="alert" hidden></p>
+            <label for="routine-trigger-config"
+              >Config JSON <span class="form-hint">optional</span></label
+            >
+            <textarea id="routine-trigger-config" rows="2" spellcheck="false">
+{}</textarea>
+            <button
+              class="quiet-button"
+              id="routine-trigger-add-button"
+              type="button"
+            >
+              Add trigger
+            </button>
+            <p
+              class="dialog-error"
+              id="routine-trigger-add-error"
+              role="alert"
+              hidden
+            ></p>
           </div>
           <div class="routine-email-ingest">
-            <label for="routine-email-account">Ingest Gmail into this routine</label>
-            <select id="routine-email-account"><option value="">Connect a Google account first</option></select>
-            <label for="routine-email-query">Gmail query <span class="form-hint">optional</span></label>
-            <input id="routine-email-query" maxlength="500" placeholder="in:anywhere newer_than:1d" />
+            <label for="routine-email-account"
+              >Ingest Gmail into this routine</label
+            >
+            <select id="routine-email-account">
+              <option value="">Connect a Google account first</option>
+            </select>
+            <label for="routine-email-query"
+              >Gmail query <span class="form-hint">optional</span></label
+            >
+            <input
+              id="routine-email-query"
+              maxlength="500"
+              placeholder="in:anywhere newer_than:1d"
+            />
             <label for="routine-email-max">Max messages</label>
-            <input id="routine-email-max" type="number" min="1" max="100" value="10" />
-            <button class="quiet-button" id="routine-email-ingest-button" type="button">Fetch and queue email</button>
-            <p class="dialog-error" id="routine-email-error" role="alert" hidden></p>
+            <input
+              id="routine-email-max"
+              type="number"
+              min="1"
+              max="100"
+              value="10"
+            />
+            <button
+              class="quiet-button"
+              id="routine-email-ingest-button"
+              type="button"
+            >
+              Fetch and queue email
+            </button>
+            <p
+              class="dialog-error"
+              id="routine-email-error"
+              role="alert"
+              hidden
+            ></p>
           </div>
           <p
             class="dialog-error"
@@ -952,10 +1141,40 @@
           ></p>
         </div>
         <div class="routine-share" id="routine-share" hidden>
-          <div class="routine-webhook-heading"><div><p class="eyebrow">Share routine</p><strong>Give someone a documented copy</strong></div></div>
-          <button class="text-button" id="routine-share-create" type="button">Create share link <span>→</span></button>
-          <div id="routine-share-secret" hidden><input id="routine-share-url" readonly aria-label="Routine share URL"/><button class="quiet-button" id="routine-share-copy" type="button">Copy</button><button class="quiet-button" id="routine-share-revoke" type="button">Revoke</button></div>
-          <p class="dialog-error" id="routine-share-error" role="alert" hidden></p>
+          <div class="routine-webhook-heading">
+            <div>
+              <p class="eyebrow">Share routine</p>
+              <strong>Give someone a documented copy</strong>
+            </div>
+          </div>
+          <button class="text-button" id="routine-share-create" type="button">
+            Create share link <span>→</span>
+          </button>
+          <div id="routine-share-secret" hidden>
+            <input
+              id="routine-share-url"
+              readonly
+              aria-label="Routine share URL"
+            /><button
+              class="quiet-button"
+              id="routine-share-copy"
+              type="button"
+            >
+              Copy</button
+            ><button
+              class="quiet-button"
+              id="routine-share-revoke"
+              type="button"
+            >
+              Revoke
+            </button>
+          </div>
+          <p
+            class="dialog-error"
+            id="routine-share-error"
+            role="alert"
+            hidden
+          ></p>
         </div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
@@ -1304,24 +1523,63 @@
             <p class="harness-empty">Select a Square to inspect its members.</p>
           </div>
           <div class="square-member-add">
-            <label for="square-member-user-id">Add or reactivate member by user ID</label>
-            <input id="square-member-user-id" placeholder="User UUID" maxlength="36" />
-            <select id="square-member-role"><option value="member">Member</option><option value="admin">Admin</option></select>
-            <button class="quiet-button" id="square-member-add-button" type="button">Add member</button>
-            <p class="dialog-error" id="square-member-error" role="alert" hidden></p>
+            <label for="square-member-user-id"
+              >Add or reactivate member by user ID</label
+            >
+            <input
+              id="square-member-user-id"
+              placeholder="User UUID"
+              maxlength="36"
+            />
+            <select id="square-member-role">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button
+              class="quiet-button"
+              id="square-member-add-button"
+              type="button"
+            >
+              Add member
+            </button>
+            <p
+              class="dialog-error"
+              id="square-member-error"
+              role="alert"
+              hidden
+            ></p>
           </div>
           <p class="square-policy" id="square-policy"></p>
           <div class="square-policy-editor">
             <label for="square-policy-mode">Default mode</label>
-            <select id="square-policy-mode"><option value="read_only">Read only</option><option value="approval_required">Approval required</option><option value="autonomous">Autonomous</option></select>
-            <label for="square-policy-domains">Allowed domains <span class="form-hint">one per line</span></label>
+            <select id="square-policy-mode">
+              <option value="read_only">Read only</option>
+              <option value="approval_required">Approval required</option>
+              <option value="autonomous">Autonomous</option>
+            </select>
+            <label for="square-policy-domains"
+              >Allowed domains
+              <span class="form-hint">one per line</span></label
+            >
             <textarea id="square-policy-domains" rows="2"></textarea>
-            <label for="square-policy-tools">Allowed tools <span class="form-hint">one per line</span></label>
+            <label for="square-policy-tools"
+              >Allowed tools <span class="form-hint">one per line</span></label
+            >
             <textarea id="square-policy-tools" rows="2"></textarea>
-            <button class="quiet-button" id="square-policy-save" type="button">Save policy</button>
-            <p class="dialog-error" id="square-policy-error" role="alert" hidden></p>
+            <button class="quiet-button" id="square-policy-save" type="button">
+              Save policy
+            </button>
+            <p
+              class="dialog-error"
+              id="square-policy-error"
+              role="alert"
+              hidden
+            ></p>
           </div>
-          <section class="square-shared-accounts" aria-labelledby="square-accounts-title">
+          <section
+            class="square-shared-accounts"
+            aria-labelledby="square-accounts-title"
+          >
             <div class="square-detail-heading">
               <div>
                 <p class="eyebrow">Connected accounts</p>
@@ -1329,14 +1587,32 @@
               </div>
             </div>
             <div class="square-account-shares" id="square-account-shares">
-              <p class="harness-empty">Select a Square to inspect shared accounts.</p>
+              <p class="harness-empty">
+                Select a Square to inspect shared accounts.
+              </p>
             </div>
             <div class="square-account-grant" id="square-account-grant" hidden>
-              <label for="square-account-select">Share one of your active accounts</label>
+              <label for="square-account-select"
+                >Share one of your active accounts</label
+              >
               <select id="square-account-select"></select>
-              <div class="square-account-capabilities" id="square-account-capabilities"></div>
-              <button class="primary-button" id="square-account-grant-button" type="button">Grant selected access</button>
-              <p class="dialog-error" id="square-account-error" role="alert" hidden></p>
+              <div
+                class="square-account-capabilities"
+                id="square-account-capabilities"
+              ></div>
+              <button
+                class="primary-button"
+                id="square-account-grant-button"
+                type="button"
+              >
+                Grant selected access
+              </button>
+              <p
+                class="dialog-error"
+                id="square-account-error"
+                role="alert"
+                hidden
+              ></p>
             </div>
           </section>
         </section>

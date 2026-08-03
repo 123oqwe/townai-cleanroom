@@ -46,23 +46,93 @@
   display: grid;
   gap: 7px;
 }
-.routine-trigger-list { display: grid; gap: 8px; margin-top: 1rem; }
-.routine-trigger-row { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .65rem 0; border-bottom: 1px solid var(--line); }
-.routine-trigger-row small { display: block; max-width: 260px; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
-.routine-trigger-actions { display: flex; gap: .45rem; }
-.routine-trigger-add { display: grid; gap: 6px; margin-top: .8rem; }
-.routine-trigger-add select, .routine-trigger-add textarea { width: 100%; }
-.routine-email-ingest { display: grid; gap: 8px; margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--paper-deep); }
-.routine-email-ingest label { color: var(--muted-deep); font-size: 11px; }
-.routine-email-ingest input, .routine-email-ingest select { width: 100%; }
-.routine-edit-form { display: grid; gap: 6px; margin: .8rem 0; }
-.routine-edit-form input { width: 100%; }
-.routine-edit-actions { display: flex; gap: .5rem; }
-.routine-share { display: grid; gap: 6px; margin: .8rem 0; padding-top: .8rem; border-top: 1px solid var(--line); }
-.routine-share-secret { display: flex; gap: .45rem; }
-.routine-share-secret input { flex: 1; min-width: 0; }
-.routine-install-form { display: grid; gap: 6px; margin: .8rem 0; padding-top: .8rem; border-top: 1px solid var(--line); }
-.routine-install-form input { width: 100%; }
+.routine-trigger-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 1rem;
+}
+.routine-trigger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.routine-trigger-row small {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.routine-trigger-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+.routine-trigger-add {
+  display: grid;
+  gap: 6px;
+  margin-top: 0.8rem;
+}
+.routine-trigger-add select,
+.routine-trigger-add textarea {
+  width: 100%;
+}
+.routine-email-ingest {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.routine-email-ingest label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.routine-email-ingest input,
+.routine-email-ingest select {
+  width: 100%;
+}
+.routine-edit-form {
+  display: grid;
+  gap: 6px;
+  margin: 0.8rem 0;
+}
+.routine-edit-form input {
+  width: 100%;
+}
+.routine-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.routine-share {
+  display: grid;
+  gap: 6px;
+  margin: 0.8rem 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+.routine-share-secret {
+  display: flex;
+  gap: 0.45rem;
+}
+.routine-share-secret input {
+  flex: 1;
+  min-width: 0;
+}
+.routine-install-form {
+  display: grid;
+  gap: 6px;
+  margin: 0.8rem 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+.routine-install-form input {
+  width: 100%;
+}
 .routine-run-card {
   display: flex;
   align-items: center;
@@ -1114,20 +1184,75 @@ dialog h2 {
   display: flex;
   gap: 6px;
 }
-.content-add-form { display: grid; gap: 6px; margin: .8rem 0; }
-.content-add-form input, .content-add-form select, .content-add-form textarea { width: 100%; }
-.content-edit-form { display: grid; gap: 6px; margin-top: .7rem; }
-.content-edit-form input, .content-edit-form textarea { width: 100%; }
-.collection-list { display: grid; gap: 6px; }
-.collection-card { display: grid; gap: 6px; padding: .65rem 0; border-bottom: 1px solid var(--line); }
-.collection-card > div:first-child { display: flex; justify-content: space-between; gap: .6rem; }
-.collection-card small { display: block; color: var(--muted); }
-.collection-items { display: grid; gap: 3px; padding-left: .6rem; }
-.collection-add-form { display: grid; gap: 6px; margin: .8rem 0; }
-.collection-add-form input, .collection-add-form textarea { width: 100%; }
-.wiki-add-form, .wiki-edit-form { display: grid; gap: 6px; margin: .8rem 0; }
-.wiki-add-form input, .wiki-add-form select, .wiki-add-form textarea, .wiki-edit-form input, .wiki-edit-form textarea { width: 100%; }
-.wiki-card { display: grid; gap: 6px; }
+.content-add-form {
+  display: grid;
+  gap: 6px;
+  margin: 0.8rem 0;
+}
+.content-add-form input,
+.content-add-form select,
+.content-add-form textarea {
+  width: 100%;
+}
+.content-edit-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 0.7rem;
+}
+.content-edit-form input,
+.content-edit-form textarea {
+  width: 100%;
+}
+.collection-list {
+  display: grid;
+  gap: 6px;
+}
+.collection-card {
+  display: grid;
+  gap: 6px;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.collection-card > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.collection-card small {
+  display: block;
+  color: var(--muted);
+}
+.collection-items {
+  display: grid;
+  gap: 3px;
+  padding-left: 0.6rem;
+}
+.collection-add-form {
+  display: grid;
+  gap: 6px;
+  margin: 0.8rem 0;
+}
+.collection-add-form input,
+.collection-add-form textarea {
+  width: 100%;
+}
+.wiki-add-form,
+.wiki-edit-form {
+  display: grid;
+  gap: 6px;
+  margin: 0.8rem 0;
+}
+.wiki-add-form input,
+.wiki-add-form select,
+.wiki-add-form textarea,
+.wiki-edit-form input,
+.wiki-edit-form textarea {
+  width: 100%;
+}
+.wiki-card {
+  display: grid;
+  gap: 6px;
+}
 .content-history-button {
   min-height: 31px;
   padding: 0 9px;
@@ -1288,9 +1413,20 @@ dialog h2 {
   border-radius: 10px;
   background: var(--surface);
 }
-.memory-actions { display: flex; gap: .5rem; margin-top: .5rem; }
-.memory-edit-form { display: grid; gap: .45rem; margin-top: .7rem; }
-.memory-edit-form textarea, .memory-edit-form input { width: 100%; }
+.memory-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.memory-edit-form {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+.memory-edit-form textarea,
+.memory-edit-form input {
+  width: 100%;
+}
 .memory-card p {
   margin: 0;
   color: var(--muted-deep);
@@ -1428,15 +1564,53 @@ dialog h2 {
   font-family: var(--mono);
   font-size: 9px;
 }
-.person-card { position: relative; }
-.people-relationships { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
-.relationship-add-form { display: grid; gap: 6px; margin-top: 1rem; }
-.relationship-add-form input, .relationship-add-form select, .relationship-add-form textarea { width: 100%; }
-.relationship-row { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .65rem 0; border-bottom: 1px solid var(--line); }
-.relationship-row small { display: block; color: var(--muted); margin-top: .2rem; }
-.person-card-actions { display: flex; gap: .45rem; grid-column: 2 / -1; }
-.person-edit-form { display: grid; gap: 6px; grid-column: 1 / -1; margin-top: .5rem; }
-.person-edit-form input, .person-edit-form select, .person-edit-form textarea { width: 100%; }
+.person-card {
+  position: relative;
+}
+.people-relationships {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.relationship-add-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 1rem;
+}
+.relationship-add-form input,
+.relationship-add-form select,
+.relationship-add-form textarea {
+  width: 100%;
+}
+.relationship-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.relationship-row small {
+  display: block;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+.person-card-actions {
+  display: flex;
+  gap: 0.45rem;
+  grid-column: 2 / -1;
+}
+.person-edit-form {
+  display: grid;
+  gap: 6px;
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+}
+.person-edit-form input,
+.person-edit-form select,
+.person-edit-form textarea {
+  width: 100%;
+}
 .people-add-toggle {
   margin: 3px 0 16px;
 }
@@ -1519,9 +1693,22 @@ dialog h2 {
   border-radius: 10px;
   background: var(--surface);
 }
-.task-edit-form { display: grid; gap: 6px; margin-top: .6rem; }
-.task-edit-form input, .task-edit-form textarea, .task-edit-form select { width: 100%; }
-.task-card-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .45rem; }
+.task-edit-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 0.6rem;
+}
+.task-edit-form input,
+.task-edit-form textarea,
+.task-edit-form select {
+  width: 100%;
+}
+.task-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
 .task-card strong {
   font-size: 12px;
 }
@@ -1928,7 +2115,9 @@ dialog h2 {
   white-space: pre-wrap;
   font-size: 10px;
 }
-.approval-inbox-detail-error { color: #a03e2b; }
+.approval-inbox-detail-error {
+  color: #a03e2b;
+}
 
 .input-inbox {
   margin: 1rem 0;
@@ -1982,7 +2171,11 @@ dialog h2 {
   color: var(--muted);
   font-size: 10px;
 }
-.account-card-actions { display: flex; align-items: center; gap: .45rem; }
+.account-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
 .account-status {
   color: var(--green);
   font-family: var(--mono);
@@ -2011,7 +2204,11 @@ dialog h2 {
   border-radius: 10px;
   background: var(--surface);
 }
-.channel-card-actions { display: flex; align-items: center; gap: .6rem; }
+.channel-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
 .channel-card strong {
   display: block;
   font-size: 12px;
@@ -2393,34 +2590,69 @@ dialog h2 {
   font-family: var(--mono);
   font-size: 9px;
 }
-.square-member select { min-width: 78px; }
-.square-member-add { display: grid; gap: 6px; margin-top: 1rem; }
-.square-member-add input, .square-member-add select { width: 100%; }
+.square-member select {
+  min-width: 78px;
+}
+.square-member-add {
+  display: grid;
+  gap: 6px;
+  margin-top: 1rem;
+}
+.square-member-add input,
+.square-member-add select {
+  width: 100%;
+}
 .square-policy {
   margin: 0;
   line-height: 1.45;
 }
-.square-policy-editor { display: grid; gap: 6px; margin-top: .4rem; }
-.square-policy-editor textarea, .square-policy-editor select { width: 100%; }
+.square-policy-editor {
+  display: grid;
+  gap: 6px;
+  margin-top: 0.4rem;
+}
+.square-policy-editor textarea,
+.square-policy-editor select {
+  width: 100%;
+}
 .square-shared-accounts {
   margin-top: 1.2rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
 }
-.square-shared-accounts h4 { margin: 0; }
+.square-shared-accounts h4 {
+  margin: 0;
+}
 .square-account-share {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: .8rem;
-  padding: .7rem 0;
+  gap: 0.8rem;
+  padding: 0.7rem 0;
   border-bottom: 1px solid var(--line);
 }
-.square-account-share small { display: block; color: var(--muted); margin-top: .2rem; }
-.square-account-grant { margin-top: 1rem; display: grid; gap: .55rem; }
-.square-account-grant select { width: 100%; }
-.square-account-capabilities { display: flex; flex-wrap: wrap; gap: .5rem .8rem; }
-.square-account-capabilities label { color: var(--muted); font-size: .82rem; }
+.square-account-share small {
+  display: block;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+.square-account-grant {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+.square-account-grant select {
+  width: 100%;
+}
+.square-account-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+}
+.square-account-capabilities label {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
 .a2a-dialog {
   max-width: 620px;
 }

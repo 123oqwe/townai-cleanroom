@@ -197,12 +197,15 @@ describe("content library", () => {
     });
     expect(first.items).toHaveLength(2);
     expect(first.nextCursor).toEqual(expect.any(String));
-    expect(decodeCursor(first.nextCursor!).key).toContain('"status":"active"');
+    const nextCursor = first.nextCursor;
+    expect(nextCursor).toEqual(expect.any(String));
+    if (typeof nextCursor !== "string") throw new Error("Expected next cursor");
+    expect(decodeCursor(nextCursor).key).toContain('"status":"active"');
     const second = await content.listPage({
       ownerId,
       status: "active",
       limit: 2,
-      cursor: first.nextCursor!,
+      cursor: nextCursor,
     });
     expect(second.items).toHaveLength(1);
     expect(
@@ -214,7 +217,7 @@ describe("content library", () => {
         ownerId,
         status: "archived",
         limit: 2,
-        cursor: first.nextCursor!,
+        cursor: nextCursor,
       });
     } catch (error) {
       mismatch = error;

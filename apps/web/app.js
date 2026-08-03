@@ -444,13 +444,38 @@ function renderKnowledgeConflicts(result) {
   const conflicts = result.conflicts || [];
   $("#knowledge-conflict-count").textContent = `${conflicts.length}`;
   $("#knowledge-conflicts").hidden = !conflicts.length;
-  $("#knowledge-conflict-list").innerHTML = conflicts.length ? conflicts.map((conflict) => `<article class="knowledge-conflict-card" data-conflict-id="${escapeHtml(conflict.id)}" data-revision="${escapeHtml(conflict.currentRevision)}"><div><strong>${escapeHtml(conflict.resourceType)} · ${escapeHtml(conflict.resourceId.slice(0, 8))}</strong><small>base ${escapeHtml(conflict.baseRevision)} → current ${escapeHtml(conflict.currentRevision)} · ${escapeHtml(conflict.proposedAuthorType)}</small><pre>${escapeHtml(JSON.stringify(conflict.proposedSnapshot, null, 2))}</pre></div><div class="knowledge-conflict-actions"><button class="quiet-button knowledge-conflict-reject" type="button">Reject</button><button class="primary-button knowledge-conflict-accept" type="button">Accept</button></div></article>`).join("") : '<p class="harness-empty">No pending conflicts.</p>';
+  $("#knowledge-conflict-list").innerHTML = conflicts.length
+    ? conflicts
+        .map(
+          (conflict) =>
+            `<article class="knowledge-conflict-card" data-conflict-id="${escapeHtml(conflict.id)}" data-revision="${escapeHtml(conflict.currentRevision)}"><div><strong>${escapeHtml(conflict.resourceType)} · ${escapeHtml(conflict.resourceId.slice(0, 8))}</strong><small>base ${escapeHtml(conflict.baseRevision)} → current ${escapeHtml(conflict.currentRevision)} · ${escapeHtml(conflict.proposedAuthorType)}</small><pre>${escapeHtml(JSON.stringify(conflict.proposedSnapshot, null, 2))}</pre></div><div class="knowledge-conflict-actions"><button class="quiet-button knowledge-conflict-reject" type="button">Reject</button><button class="primary-button knowledge-conflict-accept" type="button">Accept</button></div></article>`,
+        )
+        .join("")
+    : '<p class="harness-empty">No pending conflicts.</p>';
 }
-async function resolveKnowledgeConflict(card, resolution) { try { await api(`/v1/knowledge/conflicts/${card.dataset.conflictId}/resolve`, { method: "POST", body: JSON.stringify({ expectedRevision: Number(card.dataset.revision), resolution }) }); await loadLibrary(); } catch (cause) { const error = $("#knowledge-conflict-error"); error.textContent = cause instanceof Error ? cause.message : "Could not resolve conflict."; error.hidden = false; } }
+async function resolveKnowledgeConflict(card, resolution) {
+  try {
+    await api(`/v1/knowledge/conflicts/${card.dataset.conflictId}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({
+        expectedRevision: Number(card.dataset.revision),
+        resolution,
+      }),
+    });
+    await loadLibrary();
+  } catch (cause) {
+    const error = $("#knowledge-conflict-error");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not resolve conflict.";
+    error.hidden = false;
+  }
+}
 function renderLibraryContent(result, append = false) {
   const target = $("#library-content-list");
   const items = result.items || [];
-  state.libraryContent = append ? [...(state.libraryContent || []), ...items] : items;
+  state.libraryContent = append
+    ? [...(state.libraryContent || []), ...items]
+    : items;
   const existing = append
     ? target.querySelectorAll(".library-content-item").length
     : 0;
@@ -479,21 +504,49 @@ async function editContent(card) {
     form.className = "content-edit-form";
     form.innerHTML = `<input class="content-edit-title" maxlength="500" value="${escapeHtml(content.title)}"/><textarea class="content-edit-body" rows="4" maxlength="200000">${escapeHtml(content.body || "")}</textarea><button class="quiet-button content-edit-save" type="button">Save edit</button>`;
     card.append(form);
-  } catch (cause) { const error = document.createElement("p"); error.className = "harness-empty"; error.textContent = cause instanceof Error ? cause.message : "Could not load content."; card.append(error); }
+  } catch (cause) {
+    const error = document.createElement("p");
+    error.className = "harness-empty";
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not load content.";
+    card.append(error);
+  }
 }
 async function saveContentEdit(card) {
   const content = card?._contentDetail;
   if (!card || !content) return;
   const title = card.querySelector(".content-edit-title").value.trim();
   const body = card.querySelector(".content-edit-body").value;
-  await api(`/v1/content/${content.id}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: content.currentRevision, title, mimeType: content.mimeType, storageKey: content.storageKey, body, metadata: content.metadata }) });
+  await api(`/v1/content/${content.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      expectedRevision: content.currentRevision,
+      title,
+      mimeType: content.mimeType,
+      storageKey: content.storageKey,
+      body,
+      metadata: content.metadata,
+    }),
+  });
   await loadLibrary();
 }
 async function archiveContent(card) {
   if (!card?.dataset.contentId) return;
   const button = card.querySelector(".content-archive-button");
   button.disabled = true;
-  try { await api(`/v1/content/${card.dataset.contentId}/archive`, { method: "POST" }); await loadLibrary(); } catch (cause) { const error = document.createElement("p"); error.className = "harness-empty content-archive-error"; error.textContent = cause instanceof Error ? cause.message : "Could not archive content."; card.append(error); button.disabled = false; }
+  try {
+    await api(`/v1/content/${card.dataset.contentId}/archive`, {
+      method: "POST",
+    });
+    await loadLibrary();
+  } catch (cause) {
+    const error = document.createElement("p");
+    error.className = "harness-empty content-archive-error";
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not archive content.";
+    card.append(error);
+    button.disabled = false;
+  }
 }
 async function loadContentHistory(card) {
   const contentId = card.dataset.contentId;
@@ -525,11 +578,28 @@ async function loadContentHistory(card) {
 async function saveContent() {
   const title = $("#content-title").value.trim();
   const error = $("#content-error");
-  if (!title || !state.token) { error.textContent = "Title is required."; error.hidden = false; return; }
+  if (!title || !state.token) {
+    error.textContent = "Title is required.";
+    error.hidden = false;
+    return;
+  }
   try {
-    await apiJson("/v1/content", { kind: $("#content-kind").value, title, body: $("#content-body").value, metadata: {} });
-    $("#content-title").value = ""; $("#content-body").value = ""; $("#content-add-form").hidden = true; error.hidden = true; await loadLibrary();
-  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save content."; error.hidden = false; }
+    await apiJson("/v1/content", {
+      kind: $("#content-kind").value,
+      title,
+      body: $("#content-body").value,
+      metadata: {},
+    });
+    $("#content-title").value = "";
+    $("#content-body").value = "";
+    $("#content-add-form").hidden = true;
+    error.hidden = true;
+    await loadLibrary();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save content.";
+    error.hidden = false;
+  }
 }
 let libraryContentCursor = null;
 async function loadMoreLibraryContent() {
@@ -588,16 +658,41 @@ function renderMemories(result) {
     )
     .join("");
 }
+async function loadMemories() {
+  if (!state.token) {
+    $("#memory-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load memory.</p>';
+    $("#memory-count").textContent = "—";
+    return;
+  }
+  try {
+    renderMemories(await api("/v1/memories"));
+  } catch (cause) {
+    $("#memory-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Memory unavailable.")}</p>`;
+  }
+}
 async function saveMemoryEdit(card) {
-  const body = { content: card.querySelector(".memory-edit-content").value.trim(), scope: card.dataset.scope, status: "active", expectedRevision: Number(card.dataset.revision) };
+  const body = {
+    content: card.querySelector(".memory-edit-content").value.trim(),
+    scope: card.dataset.scope,
+    status: "active",
+    expectedRevision: Number(card.dataset.revision),
+  };
   if (card.dataset.routineId) body.routineId = card.dataset.routineId;
   const confidence = card.querySelector(".memory-edit-confidence").value.trim();
   if (confidence) body.confidence = Number(confidence);
-  await api(`/v1/memories/${card.dataset.memoryId}`, { method: "PUT", body: JSON.stringify(body) });
+  await api(`/v1/memories/${card.dataset.memoryId}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
   await loadMemories();
 }
 async function retireMemory(card) {
-  await api(`/v1/memories/${card.dataset.memoryId}?expectedRevision=${card.dataset.revision}`, { method: "DELETE" });
+  await api(
+    `/v1/memories/${card.dataset.memoryId}?expectedRevision=${card.dataset.revision}`,
+    { method: "DELETE" },
+  );
   await loadMemories();
 }
 function renderWiki(result) {
@@ -618,43 +713,161 @@ function renderWiki(result) {
 }
 async function saveWiki() {
   const error = $("#wiki-error");
-  const kind = $("#wiki-kind").value; const slug = $("#wiki-slug").value.trim(); const title = $("#wiki-title").value.trim(); const body = $("#wiki-body").value;
-  if (!slug || !title) { error.textContent = "Slug and title are required."; error.hidden = false; return; }
-  try { await apiJson("/v1/wiki", { kind, slug, title, body }); $("#wiki-slug").value = ""; $("#wiki-title").value = ""; $("#wiki-body").value = ""; $("#wiki-add-form").hidden = true; error.hidden = true; await loadLibrary(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save Wiki page."; error.hidden = false; }
+  const kind = $("#wiki-kind").value;
+  const slug = $("#wiki-slug").value.trim();
+  const title = $("#wiki-title").value.trim();
+  const body = $("#wiki-body").value;
+  if (!slug || !title) {
+    error.textContent = "Slug and title are required.";
+    error.hidden = false;
+    return;
+  }
+  try {
+    await apiJson("/v1/wiki", { kind, slug, title, body });
+    $("#wiki-slug").value = "";
+    $("#wiki-title").value = "";
+    $("#wiki-body").value = "";
+    $("#wiki-add-form").hidden = true;
+    error.hidden = true;
+    await loadLibrary();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save Wiki page.";
+    error.hidden = false;
+  }
 }
 async function editWiki(card) {
   if (!card || card.querySelector(".wiki-edit-form")) return;
-  try { const result = await api(`/v1/wiki/${card.dataset.wikiId}`); const wikiDoc = result.document; card._wiki = wikiDoc; const form = document.createElement("div"); form.className = "wiki-edit-form"; form.innerHTML = `<input class="wiki-edit-slug" maxlength="200" value="${escapeHtml(wikiDoc.slug)}"/><input class="wiki-edit-title" maxlength="500" value="${escapeHtml(wikiDoc.title)}"/><textarea class="wiki-edit-body" rows="5" maxlength="200000">${escapeHtml(wikiDoc.body)}</textarea><button class="quiet-button wiki-edit-save" type="button">Save edit</button>`; card.append(form); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Could not load Wiki page."; card.append(error); }
+  try {
+    const result = await api(`/v1/wiki/${card.dataset.wikiId}`);
+    const wikiDoc = result.document;
+    card._wiki = wikiDoc;
+    const form = document.createElement("div");
+    form.className = "wiki-edit-form";
+    form.innerHTML = `<input class="wiki-edit-slug" maxlength="200" value="${escapeHtml(wikiDoc.slug)}"/><input class="wiki-edit-title" maxlength="500" value="${escapeHtml(wikiDoc.title)}"/><textarea class="wiki-edit-body" rows="5" maxlength="200000">${escapeHtml(wikiDoc.body)}</textarea><button class="quiet-button wiki-edit-save" type="button">Save edit</button>`;
+    card.append(form);
+  } catch (cause) {
+    const error = document.createElement("small");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not load Wiki page.";
+    card.append(error);
+  }
 }
 async function saveWikiEdit(card) {
-  const document = card?._wiki; if (!document) return;
-  await api(`/v1/wiki/${document.id}`, { method: "PUT", body: JSON.stringify({ kind: document.kind, slug: card.querySelector(".wiki-edit-slug").value.trim(), title: card.querySelector(".wiki-edit-title").value.trim(), body: card.querySelector(".wiki-edit-body").value, expectedRevision: document.currentRevision }) }); await loadLibrary();
+  const document = card?._wiki;
+  if (!document) return;
+  await api(`/v1/wiki/${document.id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      kind: document.kind,
+      slug: card.querySelector(".wiki-edit-slug").value.trim(),
+      title: card.querySelector(".wiki-edit-title").value.trim(),
+      body: card.querySelector(".wiki-edit-body").value,
+      expectedRevision: document.currentRevision,
+    }),
+  });
+  await loadLibrary();
 }
 function renderCollections(result) {
   const collections = result.collections || [];
   $("#collection-count").textContent = `${collections.length}`;
-  $("#collection-list").innerHTML = collections.length ? collections.map((collection) => `<article class="collection-card"><div><strong>${escapeHtml(collection.name)}</strong><small>${escapeHtml(collection.description || "No description")}</small></div><button class="quiet-button collection-open" data-collection-id="${escapeHtml(collection.id)}" type="button">Open</button></article>`).join("") : '<p class="harness-empty">No collections yet.</p>';
+  $("#collection-list").innerHTML = collections.length
+    ? collections
+        .map(
+          (collection) =>
+            `<article class="collection-card"><div><strong>${escapeHtml(collection.name)}</strong><small>${escapeHtml(collection.description || "No description")}</small></div><button class="quiet-button collection-open" data-collection-id="${escapeHtml(collection.id)}" type="button">Open</button></article>`,
+        )
+        .join("")
+    : '<p class="harness-empty">No collections yet.</p>';
 }
 async function loadCollections() {
-  try { renderCollections(await api("/v1/content/collections")); } catch (cause) { $("#collection-list").innerHTML = `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Collections unavailable.")}</p>`; }
+  try {
+    renderCollections(await api("/v1/content/collections"));
+  } catch (cause) {
+    $("#collection-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Collections unavailable.")}</p>`;
+  }
 }
 async function saveCollection() {
   const name = $("#collection-name").value.trim();
   const error = $("#collection-error");
-  if (!name) { error.textContent = "Name is required."; error.hidden = false; return; }
-  try { await apiJson("/v1/content/collections", { name, description: $("#collection-description").value }); $("#collection-name").value = ""; $("#collection-description").value = ""; $("#collection-add-form").hidden = true; error.hidden = true; await loadCollections(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save collection."; error.hidden = false; }
+  if (!name) {
+    error.textContent = "Name is required.";
+    error.hidden = false;
+    return;
+  }
+  try {
+    await apiJson("/v1/content/collections", {
+      name,
+      description: $("#collection-description").value,
+    });
+    $("#collection-name").value = "";
+    $("#collection-description").value = "";
+    $("#collection-add-form").hidden = true;
+    error.hidden = true;
+    await loadCollections();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save collection.";
+    error.hidden = false;
+  }
 }
 async function openCollection(button) {
   const card = button.closest(".collection-card");
   const existing = card.querySelector(".collection-items");
-  if (existing) { existing.remove(); return; }
-  try { const result = await api(`/v1/content/collections/${button.dataset.collectionId}`); const items = document.createElement("div"); items.className = "collection-items"; items.innerHTML = (result.items || []).length ? result.items.map((item) => `<small>${escapeHtml(item.title)} · ${escapeHtml(item.kind)}</small>`).join("") : "<small>No content in this collection.</small>"; const available = (state.libraryContent || []).filter((item) => !(result.items || []).some((current) => current.id === item.id)); items.insertAdjacentHTML("beforeend", available.length ? `<select class="collection-content-select">${available.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`).join("")}</select><button class="quiet-button collection-content-add" data-collection-id="${escapeHtml(button.dataset.collectionId)}" type="button">Add selected content</button>` : ""); card.append(items); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Collection unavailable."; card.append(error); }
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  try {
+    const result = await api(
+      `/v1/content/collections/${button.dataset.collectionId}`,
+    );
+    const items = document.createElement("div");
+    items.className = "collection-items";
+    items.innerHTML = (result.items || []).length
+      ? result.items
+          .map(
+            (item) =>
+              `<small>${escapeHtml(item.title)} · ${escapeHtml(item.kind)}</small>`,
+          )
+          .join("")
+      : "<small>No content in this collection.</small>";
+    const available = (state.libraryContent || []).filter(
+      (item) => !(result.items || []).some((current) => current.id === item.id),
+    );
+    items.insertAdjacentHTML(
+      "beforeend",
+      available.length
+        ? `<select class="collection-content-select">${available.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`).join("")}</select><button class="quiet-button collection-content-add" data-collection-id="${escapeHtml(button.dataset.collectionId)}" type="button">Add selected content</button>`
+        : "",
+    );
+    card.append(items);
+  } catch (cause) {
+    const error = document.createElement("small");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Collection unavailable.";
+    card.append(error);
+  }
 }
 async function addContentToCollection(button) {
   const card = button.closest(".collection-card");
   const select = card?.querySelector(".collection-content-select");
   if (!select) return;
-  try { await apiJson(`/v1/content/collections/${button.dataset.collectionId}/items`, { contentId: select.value }); button.closest(".collection-items")?.remove(); const open = card.querySelector(".collection-open"); if (open) await openCollection(open); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Could not add content."; card.append(error); }
+  try {
+    await apiJson(
+      `/v1/content/collections/${button.dataset.collectionId}/items`,
+      { contentId: select.value },
+    );
+    button.closest(".collection-items")?.remove();
+    const open = card.querySelector(".collection-open");
+    if (open) await openCollection(open);
+  } catch (cause) {
+    const error = document.createElement("small");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not add content.";
+    card.append(error);
+  }
 }
 async function loadLibrary() {
   if (!state.token) {
@@ -663,13 +876,15 @@ async function loadLibrary() {
     return;
   }
   try {
-    const [content, memories, wiki, collections, conflicts] = await Promise.all([
-      api("/v1/content?status=active&limit=20"),
-      api("/v1/memories"),
-      api("/v1/wiki"),
-      api("/v1/content/collections"),
-      api("/v1/knowledge/conflicts"),
-    ]);
+    const [content, memories, wiki, collections, conflicts] = await Promise.all(
+      [
+        api("/v1/content?status=active&limit=20"),
+        api("/v1/memories"),
+        api("/v1/wiki"),
+        api("/v1/content/collections"),
+        api("/v1/knowledge/conflicts"),
+      ],
+    );
     renderLibraryContent(content);
     libraryContentCursor = content.nextCursor;
     $("#library-content-more").hidden = !libraryContentCursor;
@@ -732,12 +947,38 @@ function renderPeople(result) {
 }
 async function editPerson(card) {
   if (!card || card.querySelector(".person-edit-form")) return;
-  try { const result = await api(`/v1/people/${card.dataset.personId}`); const person = result.person; card._person = person; const form = document.createElement("div"); form.className = "person-edit-form"; form.innerHTML = `<input class="person-edit-name" maxlength="200" value="${escapeHtml(person.displayName)}"/><input class="person-edit-email" type="email" maxlength="320" value="${escapeHtml(person.primaryEmail || "")}"/><select class="person-edit-category"><option value="uncategorized">Uncategorized</option><option value="coworker">Coworker</option><option value="family">Family</option><option value="personal">Personal</option></select><textarea class="person-edit-notes" rows="2" maxlength="10000">${escapeHtml(person.notes || "")}</textarea><button class="quiet-button person-edit-save" type="button">Save</button>`; form.querySelector(".person-edit-category").value = person.category; card.append(form); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Could not load person."; card.append(error); }
+  try {
+    const result = await api(`/v1/people/${card.dataset.personId}`);
+    const person = result.person;
+    card._person = person;
+    const form = document.createElement("div");
+    form.className = "person-edit-form";
+    form.innerHTML = `<input class="person-edit-name" maxlength="200" value="${escapeHtml(person.displayName)}"/><input class="person-edit-email" type="email" maxlength="320" value="${escapeHtml(person.primaryEmail || "")}"/><select class="person-edit-category"><option value="uncategorized">Uncategorized</option><option value="coworker">Coworker</option><option value="family">Family</option><option value="personal">Personal</option></select><textarea class="person-edit-notes" rows="2" maxlength="10000">${escapeHtml(person.notes || "")}</textarea><button class="quiet-button person-edit-save" type="button">Save</button>`;
+    form.querySelector(".person-edit-category").value = person.category;
+    card.append(form);
+  } catch (cause) {
+    const error = document.createElement("small");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not load person.";
+    card.append(error);
+  }
 }
 async function savePersonEdit(card) {
   const person = card?._person;
   if (!person) return;
-  await api(`/v1/people/${person.id}`, { method: "PUT", body: JSON.stringify({ displayName: card.querySelector(".person-edit-name").value.trim(), primaryEmail: card.querySelector(".person-edit-email").value.trim() || undefined, category: card.querySelector(".person-edit-category").value, organization: person.organization || undefined, role: person.role || undefined, notes: card.querySelector(".person-edit-notes").value, expectedRevision: person.currentRevision }) });
+  await api(`/v1/people/${person.id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      displayName: card.querySelector(".person-edit-name").value.trim(),
+      primaryEmail:
+        card.querySelector(".person-edit-email").value.trim() || undefined,
+      category: card.querySelector(".person-edit-category").value,
+      organization: person.organization || undefined,
+      role: person.role || undefined,
+      notes: card.querySelector(".person-edit-notes").value,
+      expectedRevision: person.currentRevision,
+    }),
+  });
   await loadPeople();
 }
 async function loadRelationships(personId) {
@@ -745,26 +986,81 @@ async function loadRelationships(personId) {
   const section = $("#people-relationships");
   section.hidden = false;
   const person = state.people.find((item) => item.id === personId);
-  $("#relationship-list").innerHTML = '<p class="harness-empty">Reading relationships…</p>';
-  const related = state.people.filter((item) => item.status === "active" && item.id !== personId);
-  $("#relationship-related-person").innerHTML = related.length ? related.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.displayName)}</option>`).join("") : '<option value="">Add another person first</option>';
+  $("#relationship-list").innerHTML =
+    '<p class="harness-empty">Reading relationships…</p>';
+  const related = state.people.filter(
+    (item) => item.status === "active" && item.id !== personId,
+  );
+  $("#relationship-related-person").innerHTML = related.length
+    ? related
+        .map(
+          (item) =>
+            `<option value="${escapeHtml(item.id)}">${escapeHtml(item.displayName)}</option>`,
+        )
+        .join("")
+    : '<option value="">Add another person first</option>';
   try {
     const result = await api(`/v1/people/${personId}/relationships`);
     const relationships = result.relationships || [];
-    $("#relationship-list").innerHTML = relationships.length ? relationships.map((relationship) => { const target = state.people.find((item) => item.id === relationship.relatedPersonId); return `<div class="relationship-row"><div><strong>${escapeHtml(target?.displayName || relationship.relatedPersonId.slice(0, 8))}</strong><small>${escapeHtml(relationship.relationshipType)}${relationship.notes ? ` · ${escapeHtml(relationship.notes)}` : ""}</small></div><button class="quiet-button relationship-retire" data-relationship-id="${escapeHtml(relationship.id)}" data-revision="${relationship.revision}" type="button">Archive</button></div>`; }).join("") : '<p class="harness-empty">No relationships recorded yet.</p>';
-    if (person) $("#relationship-type").placeholder = `How is ${person.displayName} connected?`;
-  } catch (cause) { $("#relationship-list").innerHTML = `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Relationships unavailable.")}</p>`; }
+    $("#relationship-list").innerHTML = relationships.length
+      ? relationships
+          .map((relationship) => {
+            const target = state.people.find(
+              (item) => item.id === relationship.relatedPersonId,
+            );
+            return `<div class="relationship-row"><div><strong>${escapeHtml(target?.displayName || relationship.relatedPersonId.slice(0, 8))}</strong><small>${escapeHtml(relationship.relationshipType)}${relationship.notes ? ` · ${escapeHtml(relationship.notes)}` : ""}</small></div><button class="quiet-button relationship-retire" data-relationship-id="${escapeHtml(relationship.id)}" data-revision="${relationship.revision}" type="button">Archive</button></div>`;
+          })
+          .join("")
+      : '<p class="harness-empty">No relationships recorded yet.</p>';
+    if (person)
+      $("#relationship-type").placeholder =
+        `How is ${person.displayName} connected?`;
+  } catch (cause) {
+    $("#relationship-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Relationships unavailable.")}</p>`;
+  }
 }
 async function saveRelationship() {
   const error = $("#relationship-error");
   const relatedPersonId = $("#relationship-related-person").value;
   const relationshipType = $("#relationship-type").value.trim();
-  if (!state.selectedPersonId || !relatedPersonId || !relationshipType) { error.textContent = "Choose a person and relationship type."; error.hidden = false; return; }
-  try { await apiJson(`/v1/people/${state.selectedPersonId}/relationships`, { relatedPersonId, relationshipType, notes: $("#relationship-notes").value }); $("#relationship-type").value = ""; $("#relationship-notes").value = ""; error.hidden = true; await loadRelationships(state.selectedPersonId); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not add relationship."; error.hidden = false; }
+  if (!state.selectedPersonId || !relatedPersonId || !relationshipType) {
+    error.textContent = "Choose a person and relationship type.";
+    error.hidden = false;
+    return;
+  }
+  try {
+    await apiJson(`/v1/people/${state.selectedPersonId}/relationships`, {
+      relatedPersonId,
+      relationshipType,
+      notes: $("#relationship-notes").value,
+    });
+    $("#relationship-type").value = "";
+    $("#relationship-notes").value = "";
+    error.hidden = true;
+    await loadRelationships(state.selectedPersonId);
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not add relationship.";
+    error.hidden = false;
+  }
 }
 async function retireRelationship(button) {
   if (!button || !state.selectedPersonId) return;
-  try { await api(`/v1/people/relationships/${button.dataset.relationshipId}?expectedRevision=${button.dataset.revision}`, { method: "DELETE" }); await loadRelationships(state.selectedPersonId); } catch (cause) { const error = $("#relationship-error"); error.textContent = cause instanceof Error ? cause.message : "Could not archive relationship."; error.hidden = false; }
+  try {
+    await api(
+      `/v1/people/relationships/${button.dataset.relationshipId}?expectedRevision=${button.dataset.revision}`,
+      { method: "DELETE" },
+    );
+    await loadRelationships(state.selectedPersonId);
+  } catch (cause) {
+    const error = $("#relationship-error");
+    error.textContent =
+      cause instanceof Error
+        ? cause.message
+        : "Could not archive relationship.";
+    error.hidden = false;
+  }
 }
 async function loadPeople() {
   if (!state.token) {
@@ -1005,14 +1301,47 @@ function renderTasks(result) {
 }
 async function editTask(card) {
   if (!card || card.querySelector(".task-edit-form")) return;
-  try { const task = await api(`/v1/tasks/${card.dataset.taskId}`); card._task = task; const form = document.createElement("div"); form.className = "task-edit-form"; form.innerHTML = `<input class="task-edit-title" maxlength="500" value="${escapeHtml(task.title)}"/><textarea class="task-edit-description" rows="3" maxlength="20000">${escapeHtml(task.description || "")}</textarea><select class="task-edit-status"><option value="open">Open</option><option value="completed">Completed</option></select><button class="quiet-button task-edit-save" type="button">Save</button>`; form.querySelector(".task-edit-status").value = task.status; card.append(form); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Could not load task."; card.append(error); }
+  try {
+    const task = await api(`/v1/tasks/${card.dataset.taskId}`);
+    card._task = task;
+    const form = document.createElement("div");
+    form.className = "task-edit-form";
+    form.innerHTML = `<input class="task-edit-title" maxlength="500" value="${escapeHtml(task.title)}"/><textarea class="task-edit-description" rows="3" maxlength="20000">${escapeHtml(task.description || "")}</textarea><select class="task-edit-status"><option value="open">Open</option><option value="completed">Completed</option></select><button class="quiet-button task-edit-save" type="button">Save</button>`;
+    form.querySelector(".task-edit-status").value = task.status;
+    card.append(form);
+  } catch (cause) {
+    const error = document.createElement("small");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not load task.";
+    card.append(error);
+  }
 }
 async function saveTaskEdit(card) {
-  const task = card?._task; if (!task) return;
-  await api(`/v1/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: task.currentRevision, title: card.querySelector(".task-edit-title").value.trim(), description: card.querySelector(".task-edit-description").value, status: card.querySelector(".task-edit-status").value, scheduledFor: task.scheduledFor || null }) }); await loadTasks();
+  const task = card?._task;
+  if (!task) return;
+  await api(`/v1/tasks/${task.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      expectedRevision: task.currentRevision,
+      title: card.querySelector(".task-edit-title").value.trim(),
+      description: card.querySelector(".task-edit-description").value,
+      status: card.querySelector(".task-edit-status").value,
+      scheduledFor: task.scheduledFor || null,
+    }),
+  });
+  await loadTasks();
 }
-async function markTaskRead(card) { await apiJson(`/v1/tasks/${card.dataset.taskId}/mark-read`, {}); await loadTasks(); }
-async function deleteTask(card) { await api(`/v1/tasks/${card.dataset.taskId}?expectedRevision=${card.dataset.revision}`, { method: "DELETE" }); await loadTasks(); }
+async function markTaskRead(card) {
+  await apiJson(`/v1/tasks/${card.dataset.taskId}/mark-read`, {});
+  await loadTasks();
+}
+async function deleteTask(card) {
+  await api(
+    `/v1/tasks/${card.dataset.taskId}?expectedRevision=${card.dataset.revision}`,
+    { method: "DELETE" },
+  );
+  await loadTasks();
+}
 async function loadTasks() {
   if (!state.token) {
     $("#task-list").innerHTML =
@@ -1062,7 +1391,9 @@ function showRoutineEditor(routine) {
   $("#routine-edit-name").value = routine.name;
   $("#routine-edit-cron").value = routine.cron;
   $("#routine-edit-timezone").value = routine.timezone;
-  $("#routine-edit-next-run").value = new Date(routine.nextRunAt).toISOString().slice(0, 16);
+  $("#routine-edit-next-run").value = new Date(routine.nextRunAt)
+    .toISOString()
+    .slice(0, 16);
   $("#routine-edit-enabled").checked = routine.enabled;
 }
 function renderRoutines(result) {
@@ -1083,7 +1414,10 @@ function renderRoutines(result) {
   target.querySelectorAll(".routine-select").forEach((button) => {
     button.addEventListener("click", () => {
       selectedRoutineId = button.dataset.routineId;
-      selectedRoutine = (result.routines || []).find((routine) => routine.id === selectedRoutineId) || null;
+      selectedRoutine =
+        (result.routines || []).find(
+          (routine) => routine.id === selectedRoutineId,
+        ) || null;
       if (selectedRoutine) showRoutineEditor(selectedRoutine);
       $("#routine-share").hidden = false;
       $("#routine-trigger").hidden = false;
@@ -1102,80 +1436,234 @@ let routineShareId = null;
 async function createRoutineShare() {
   if (!selectedRoutineId) return;
   const error = $("#routine-share-error");
-  try { const result = await apiJson(`/v1/routines/${selectedRoutineId}/shares`, { expiresAt: new Date(Date.now() + 86400000).toISOString() }); routineShareId = result.share.id; $("#routine-share-url").value = `${state.base.replace(/\/$/, "")}/v1/routine-shares/${result.token}`; $("#routine-share-secret").hidden = false; error.hidden = true; } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not create share link."; error.hidden = false; }
+  try {
+    const result = await apiJson(`/v1/routines/${selectedRoutineId}/shares`, {
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    });
+    routineShareId = result.share.id;
+    $("#routine-share-url").value =
+      `${state.base.replace(/\/$/, "")}/v1/routine-shares/${result.token}`;
+    $("#routine-share-secret").hidden = false;
+    error.hidden = true;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not create share link.";
+    error.hidden = false;
+  }
 }
-async function revokeRoutineShare() { if (!routineShareId) return; const error = $("#routine-share-error"); try { await api(`/v1/routines/shares/${routineShareId}`, { method: "DELETE" }); routineShareId = null; $("#routine-share-secret").hidden = true; error.hidden = true; } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not revoke share link."; error.hidden = false; } }
+async function revokeRoutineShare() {
+  if (!routineShareId) return;
+  const error = $("#routine-share-error");
+  try {
+    await api(`/v1/routines/shares/${routineShareId}`, { method: "DELETE" });
+    routineShareId = null;
+    $("#routine-share-secret").hidden = true;
+    error.hidden = true;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not revoke share link.";
+    error.hidden = false;
+  }
+}
 async function installSharedRoutine() {
   const error = $("#routine-install-error");
   const token = $("#routine-share-token").value.trim();
   const nextRun = $("#routine-install-next-run").value;
-  if (!token || !nextRun) { error.textContent = "Share token and first run are required."; error.hidden = false; return; }
-  try { await apiJson("/v1/routines/install", { token, name: $("#routine-install-name").value.trim() || undefined, nextRunAt: new Date(nextRun).toISOString(), enabled: true }); $("#routine-share-token").value = ""; $("#routine-install-name").value = ""; error.hidden = true; await loadRoutines(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not install shared routine."; error.hidden = false; }
+  if (!token || !nextRun) {
+    error.textContent = "Share token and first run are required.";
+    error.hidden = false;
+    return;
+  }
+  try {
+    await apiJson("/v1/routines/install", {
+      token,
+      name: $("#routine-install-name").value.trim() || undefined,
+      nextRunAt: new Date(nextRun).toISOString(),
+      enabled: true,
+    });
+    $("#routine-share-token").value = "";
+    $("#routine-install-name").value = "";
+    error.hidden = true;
+    await loadRoutines();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error
+        ? cause.message
+        : "Could not install shared routine.";
+    error.hidden = false;
+  }
 }
 async function saveRoutineEdit() {
   if (!selectedRoutine) return;
   const error = $("#routine-edit-error");
-  try { await api(`/v1/routines/${selectedRoutine.id}`, { method: "PATCH", body: JSON.stringify({ agentId: selectedRoutine.agentId, agentVersionId: selectedRoutine.agentVersionId, name: $("#routine-edit-name").value.trim(), cron: $("#routine-edit-cron").value.trim(), timezone: $("#routine-edit-timezone").value.trim(), nextRunAt: new Date($("#routine-edit-next-run").value).toISOString(), enabled: $("#routine-edit-enabled").checked, expectedRevision: selectedRoutine.revision }) }); error.hidden = true; await loadRoutines(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save routine."; error.hidden = false; }
+  try {
+    await api(`/v1/routines/${selectedRoutine.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        agentId: selectedRoutine.agentId,
+        agentVersionId: selectedRoutine.agentVersionId,
+        name: $("#routine-edit-name").value.trim(),
+        cron: $("#routine-edit-cron").value.trim(),
+        timezone: $("#routine-edit-timezone").value.trim(),
+        nextRunAt: new Date($("#routine-edit-next-run").value).toISOString(),
+        enabled: $("#routine-edit-enabled").checked,
+        expectedRevision: selectedRoutine.revision,
+      }),
+    });
+    error.hidden = true;
+    await loadRoutines();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save routine.";
+    error.hidden = false;
+  }
 }
 async function deleteRoutine() {
   if (!selectedRoutine) return;
   const error = $("#routine-edit-error");
-  try { await api(`/v1/routines/${selectedRoutine.id}?expectedRevision=${selectedRoutine.revision}`, { method: "DELETE" }); selectedRoutine = null; selectedRoutineId = null; $("#routine-edit-form").hidden = true; error.hidden = true; await loadRoutines(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not delete routine."; error.hidden = false; }
+  try {
+    await api(
+      `/v1/routines/${selectedRoutine.id}?expectedRevision=${selectedRoutine.revision}`,
+      { method: "DELETE" },
+    );
+    selectedRoutine = null;
+    selectedRoutineId = null;
+    $("#routine-edit-form").hidden = true;
+    error.hidden = true;
+    await loadRoutines();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not delete routine.";
+    error.hidden = false;
+  }
 }
 async function loadRoutineTriggers() {
   if (!selectedRoutineId || !state.token) return;
   const target = $("#routine-trigger-list");
   target.innerHTML = '<p class="harness-empty">Reading routine triggers…</p>';
   try {
-    const triggers = (await api(`/v1/routines/${selectedRoutineId}/triggers`)).triggers || [];
-    target.innerHTML = triggers.length ? `<p class="eyebrow">Triggers</p>${triggers.map((trigger) => `<div class="routine-trigger-row" data-trigger-id="${escapeHtml(trigger.id)}" data-revision="${escapeHtml(trigger.revision)}"><div><strong>${escapeHtml(trigger.kind)}</strong><small>${escapeHtml(JSON.stringify(trigger.config || {}))}</small></div><div class="routine-trigger-actions"><button class="quiet-button routine-trigger-toggle" type="button">${trigger.enabled ? "Disable" : "Enable"}</button><button class="quiet-button routine-trigger-delete" type="button">Remove</button></div></div>`).join("")}` : '<p class="harness-empty">No triggers configured.</p>';
-  } catch (cause) { target.innerHTML = `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Triggers unavailable.")}</p>`; }
+    const triggers =
+      (await api(`/v1/routines/${selectedRoutineId}/triggers`)).triggers || [];
+    target.innerHTML = triggers.length
+      ? `<p class="eyebrow">Triggers</p>${triggers.map((trigger) => `<div class="routine-trigger-row" data-trigger-id="${escapeHtml(trigger.id)}" data-revision="${escapeHtml(trigger.revision)}"><div><strong>${escapeHtml(trigger.kind)}</strong><small>${escapeHtml(JSON.stringify(trigger.config || {}))}</small></div><div class="routine-trigger-actions"><button class="quiet-button routine-trigger-toggle" type="button">${trigger.enabled ? "Disable" : "Enable"}</button><button class="quiet-button routine-trigger-delete" type="button">Remove</button></div></div>`).join("")}`
+      : '<p class="harness-empty">No triggers configured.</p>';
+  } catch (cause) {
+    target.innerHTML = `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Triggers unavailable.")}</p>`;
+  }
 }
 async function toggleRoutineTrigger(row) {
   if (!row) return;
-  const current = row.querySelector(".routine-trigger-toggle").textContent.trim() === "Disable";
+  const current =
+    row.querySelector(".routine-trigger-toggle").textContent.trim() ===
+    "Disable";
   try {
-    await api(`/v1/routine-triggers/${row.dataset.triggerId}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: Number(row.dataset.revision), config: {}, enabled: !current }) });
+    await api(`/v1/routine-triggers/${row.dataset.triggerId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        expectedRevision: Number(row.dataset.revision),
+        config: {},
+        enabled: !current,
+      }),
+    });
     await loadRoutineTriggers();
-  } catch (cause) { $("#routine-history-error").textContent = cause instanceof Error ? cause.message : "Could not update trigger."; $("#routine-history-error").hidden = false; }
+  } catch (cause) {
+    $("#routine-history-error").textContent =
+      cause instanceof Error ? cause.message : "Could not update trigger.";
+    $("#routine-history-error").hidden = false;
+  }
 }
 async function deleteRoutineTrigger(row) {
   if (!row) return;
-  try { await api(`/v1/routine-triggers/${row.dataset.triggerId}?expectedRevision=${row.dataset.revision}`, { method: "DELETE" }); await loadRoutineTriggers(); } catch (cause) { $("#routine-history-error").textContent = cause instanceof Error ? cause.message : "Could not remove trigger."; $("#routine-history-error").hidden = false; }
+  try {
+    await api(
+      `/v1/routine-triggers/${row.dataset.triggerId}?expectedRevision=${row.dataset.revision}`,
+      { method: "DELETE" },
+    );
+    await loadRoutineTriggers();
+  } catch (cause) {
+    $("#routine-history-error").textContent =
+      cause instanceof Error ? cause.message : "Could not remove trigger.";
+    $("#routine-history-error").hidden = false;
+  }
 }
 async function addRoutineTrigger() {
   if (!selectedRoutineId) return;
   const error = $("#routine-trigger-add-error");
   let config;
-  try { config = JSON.parse($("#routine-trigger-config").value || "{}"); } catch { error.textContent = "Config must be valid JSON."; error.hidden = false; return; }
-  if (!config || Array.isArray(config) || typeof config !== "object") { error.textContent = "Config must be a JSON object."; error.hidden = false; return; }
   try {
-    await apiJson(`/v1/routines/${selectedRoutineId}/triggers`, { kind: $("#routine-trigger-kind").value, config, enabled: true });
+    config = JSON.parse($("#routine-trigger-config").value || "{}");
+  } catch {
+    error.textContent = "Config must be valid JSON.";
+    error.hidden = false;
+    return;
+  }
+  if (!config || Array.isArray(config) || typeof config !== "object") {
+    error.textContent = "Config must be a JSON object.";
+    error.hidden = false;
+    return;
+  }
+  try {
+    await apiJson(`/v1/routines/${selectedRoutineId}/triggers`, {
+      kind: $("#routine-trigger-kind").value,
+      config,
+      enabled: true,
+    });
     $("#routine-trigger-config").value = "{}";
     error.hidden = true;
     await loadRoutineTriggers();
-  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not add trigger."; error.hidden = false; }
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not add trigger.";
+    error.hidden = false;
+  }
 }
 async function loadRoutineEmailAccounts() {
   const select = $("#routine-email-account");
   if (!state.token || !select) return;
   try {
     const accounts = (await api("/v1/accounts")).accounts || [];
-    const google = accounts.filter((account) => account.provider === "google" && account.status !== "revoked");
-    select.innerHTML = google.length ? google.map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.displayName || account.providerAccountId || account.id.slice(0, 8))}</option>`).join("") : '<option value="">No connected Google account</option>';
-  } catch (cause) { select.innerHTML = `<option value="">${escapeHtml(cause instanceof Error ? cause.message : "Accounts unavailable.")}</option>`; }
+    const google = accounts.filter(
+      (account) =>
+        account.provider === "google" && account.status !== "revoked",
+    );
+    select.innerHTML = google.length
+      ? google
+          .map(
+            (account) =>
+              `<option value="${escapeHtml(account.id)}">${escapeHtml(account.displayName || account.providerAccountId || account.id.slice(0, 8))}</option>`,
+          )
+          .join("")
+      : '<option value="">No connected Google account</option>';
+  } catch (cause) {
+    select.innerHTML = `<option value="">${escapeHtml(cause instanceof Error ? cause.message : "Accounts unavailable.")}</option>`;
+  }
 }
 async function ingestRoutineEmail() {
   if (!selectedRoutineId) return;
   const error = $("#routine-email-error");
   const accountId = $("#routine-email-account").value;
-  if (!accountId) { error.textContent = "Connect and select a Google account first."; error.hidden = false; return; }
+  if (!accountId) {
+    error.textContent = "Connect and select a Google account first.";
+    error.hidden = false;
+    return;
+  }
   try {
-    const result = await apiJson(`/v1/routines/${selectedRoutineId}/ingest/email`, { accountId, query: $("#routine-email-query").value.trim() || undefined, maxResults: Number($("#routine-email-max").value) || 10 });
+    const result = await apiJson(
+      `/v1/routines/${selectedRoutineId}/ingest/email`,
+      {
+        accountId,
+        query: $("#routine-email-query").value.trim() || undefined,
+        maxResults: Number($("#routine-email-max").value) || 10,
+      },
+    );
     error.textContent = `Queued ${result.runs?.length || 0} message(s).`;
     error.hidden = false;
     await loadRoutineRuns();
-  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not ingest email."; error.hidden = false; }
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not ingest email.";
+    error.hidden = false;
+  }
 }
 async function loadRoutineVersions() {
   if (!selectedRoutineId || !state.token) return;
@@ -1472,8 +1960,30 @@ function renderAccounts(result) {
     )
     .join("");
 }
-async function refreshAccount(card) { try { await api(`/v1/accounts/${card.dataset.accountId}/refresh`, { method: "POST" }); await loadAccounts(); } catch (cause) { const error = $("#accounts-error"); error.textContent = cause instanceof Error ? cause.message : "Could not refresh account."; error.hidden = false; } }
-async function removeAccount(card) { try { await api(`/v1/accounts/${card.dataset.accountId}`, { method: "DELETE" }); await loadAccounts(); } catch (cause) { const error = $("#accounts-error"); error.textContent = cause instanceof Error ? cause.message : "Could not remove account."; error.hidden = false; } }
+async function refreshAccount(card) {
+  try {
+    await api(`/v1/accounts/${card.dataset.accountId}/refresh`, {
+      method: "POST",
+    });
+    await loadAccounts();
+  } catch (cause) {
+    const error = $("#accounts-error");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not refresh account.";
+    error.hidden = false;
+  }
+}
+async function removeAccount(card) {
+  try {
+    await api(`/v1/accounts/${card.dataset.accountId}`, { method: "DELETE" });
+    await loadAccounts();
+  } catch (cause) {
+    const error = $("#accounts-error");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not remove account.";
+    error.hidden = false;
+  }
+}
 async function loadAccounts() {
   if (!state.token) {
     $("#account-list").innerHTML =
@@ -1610,12 +2120,23 @@ function renderApprovals(result) {
 }
 async function inspectInboxApproval(card) {
   const existing = card.querySelector(".approval-inbox-detail");
-  if (existing) { existing.remove(); return; }
+  if (existing) {
+    existing.remove();
+    return;
+  }
   try {
     const result = await api(`/v1/tool-calls/${card.dataset.toolCallId}`);
     const call = result.toolCall;
-    card.insertAdjacentHTML("beforeend", `<pre class="approval-inbox-detail">${escapeHtml(JSON.stringify({ name: call.name, status: call.status, sideEffect: call.sideEffect, dataSensitivity: call.dataSensitivity, accountBinding: call.accountBinding, arguments: call.arguments }, null, 2))}</pre>`);
-  } catch (cause) { card.insertAdjacentHTML("beforeend", `<small class="approval-inbox-detail-error">${escapeHtml(cause instanceof Error ? cause.message : "Tool call unavailable.")}</small>`); }
+    card.insertAdjacentHTML(
+      "beforeend",
+      `<pre class="approval-inbox-detail">${escapeHtml(JSON.stringify({ name: call.name, status: call.status, sideEffect: call.sideEffect, dataSensitivity: call.dataSensitivity, accountBinding: call.accountBinding, arguments: call.arguments }, null, 2))}</pre>`,
+    );
+  } catch (cause) {
+    card.insertAdjacentHTML(
+      "beforeend",
+      `<small class="approval-inbox-detail-error">${escapeHtml(cause instanceof Error ? cause.message : "Tool call unavailable.")}</small>`,
+    );
+  }
 }
 async function loadApprovals() {
   if (!state.token) {
@@ -1829,7 +2350,15 @@ function renderChannels(result) {
 }
 async function disableChannel(card) {
   if (!card?.dataset.channelId) return;
-  try { await api(`/v1/channels/${card.dataset.channelId}`, { method: "DELETE" }); await loadChannels(); } catch (cause) { const error = $("#channel-error"); error.textContent = cause instanceof Error ? cause.message : "Could not disable channel."; error.hidden = false; }
+  try {
+    await api(`/v1/channels/${card.dataset.channelId}`, { method: "DELETE" });
+    await loadChannels();
+  } catch (cause) {
+    const error = $("#channel-error");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not disable channel.";
+    error.hidden = false;
+  }
 }
 function renderChannelTimeline(result) {
   const target = $("#channel-timeline-list");
@@ -2070,54 +2599,110 @@ function renderSquareAccounts(result, accounts) {
   const shares = result.accounts || [];
   const target = $("#square-account-shares");
   target.innerHTML = shares.length
-    ? shares.map((share) => `<div class="square-account-share"><div><strong>${escapeHtml(share.provider)} · ${escapeHtml(share.email)}</strong><small>${escapeHtml(share.capabilities.join(", ") || "No capabilities")}</small></div><button class="quiet-button square-account-revoke" data-share-id="${escapeHtml(share.id)}" type="button">Revoke</button></div>`).join("")
+    ? shares
+        .map(
+          (share) =>
+            `<div class="square-account-share"><div><strong>${escapeHtml(share.provider)} · ${escapeHtml(share.email)}</strong><small>${escapeHtml(share.capabilities.join(", ") || "No capabilities")}</small></div><button class="quiet-button square-account-revoke" data-share-id="${escapeHtml(share.id)}" type="button">Revoke</button></div>`,
+        )
+        .join("")
     : '<p class="harness-empty">No connected accounts are shared with this Square.</p>';
   const select = $("#square-account-select");
-  const activeAccounts = (accounts.accounts || []).filter((account) => account.isActive);
+  const activeAccounts = (accounts.accounts || []).filter(
+    (account) => account.isActive,
+  );
   select.innerHTML = activeAccounts.length
-    ? activeAccounts.map((account) => `<option value="${escapeHtml(account.id)}" data-owner-id="${escapeHtml(account.ownerId)}">${escapeHtml(account.provider)} · ${escapeHtml(account.email)}</option>`).join("")
+    ? activeAccounts
+        .map(
+          (account) =>
+            `<option value="${escapeHtml(account.id)}" data-owner-id="${escapeHtml(account.ownerId)}">${escapeHtml(account.provider)} · ${escapeHtml(account.email)}</option>`,
+        )
+        .join("")
     : '<option value="">No active accounts available</option>';
   $("#square-account-grant").hidden = !activeAccounts.length;
   renderSquareCapabilities(activeAccounts[0]);
 }
 function renderSquareMembers(members) {
   const items = members.members || [];
-  $("#square-members").innerHTML = items.length ? items.map((member) => `<div class="square-member" data-user-id="${escapeHtml(member.userId)}"><span class="square-member-id">${escapeHtml(member.userId.slice(0, 8))}</span><select class="square-member-role"><option value="owner" ${member.role === "owner" ? "selected" : ""}>Owner</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>Admin</option><option value="member" ${member.role === "member" ? "selected" : ""}>Member</option></select><select class="square-member-status"><option value="active" ${member.status === "active" ? "selected" : ""}>Active</option><option value="invited" ${member.status === "invited" ? "selected" : ""}>Invited</option><option value="suspended" ${member.status === "suspended" ? "selected" : ""}>Suspended</option></select><button class="quiet-button square-member-save" type="button">Save</button></div>`).join("") : '<p class="harness-empty">No active members returned.</p>';
+  $("#square-members").innerHTML = items.length
+    ? items
+        .map(
+          (member) =>
+            `<div class="square-member" data-user-id="${escapeHtml(member.userId)}"><span class="square-member-id">${escapeHtml(member.userId.slice(0, 8))}</span><select class="square-member-role"><option value="owner" ${member.role === "owner" ? "selected" : ""}>Owner</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>Admin</option><option value="member" ${member.role === "member" ? "selected" : ""}>Member</option></select><select class="square-member-status"><option value="active" ${member.status === "active" ? "selected" : ""}>Active</option><option value="invited" ${member.status === "invited" ? "selected" : ""}>Invited</option><option value="suspended" ${member.status === "suspended" ? "selected" : ""}>Suspended</option></select><button class="quiet-button square-member-save" type="button">Save</button></div>`,
+        )
+        .join("")
+    : '<p class="harness-empty">No active members returned.</p>';
 }
 async function updateSquareMember(row) {
   if (!state.selectedSquareId || !row) return;
   const error = $("#square-member-error");
   try {
-    await api(`/v1/squares/${state.selectedSquareId}/members/${row.dataset.userId}`, { method: "PATCH", body: JSON.stringify({ role: row.querySelector(".square-member-role").value, status: row.querySelector(".square-member-status").value }) });
+    await api(
+      `/v1/squares/${state.selectedSquareId}/members/${row.dataset.userId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          role: row.querySelector(".square-member-role").value,
+          status: row.querySelector(".square-member-status").value,
+        }),
+      },
+    );
     const members = await api(`/v1/squares/${state.selectedSquareId}/members`);
     renderSquareMembers(members);
-  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not update member."; error.hidden = false; }
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not update member.";
+    error.hidden = false;
+  }
 }
 async function addSquareMember() {
   if (!state.selectedSquareId) return;
   const userId = $("#square-member-user-id").value.trim();
   const error = $("#square-member-error");
-  if (!userId) { error.textContent = "Enter a user UUID."; error.hidden = false; return; }
+  if (!userId) {
+    error.textContent = "Enter a user UUID.";
+    error.hidden = false;
+    return;
+  }
   try {
-    await apiJson(`/v1/squares/${state.selectedSquareId}/members`, { userId, role: $("#square-member-role").value, status: "active" });
+    await apiJson(`/v1/squares/${state.selectedSquareId}/members`, {
+      userId,
+      role: $("#square-member-role").value,
+      status: "active",
+    });
     $("#square-member-user-id").value = "";
     const members = await api(`/v1/squares/${state.selectedSquareId}/members`);
     renderSquareMembers(members);
     error.hidden = true;
-  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not add member."; error.hidden = false; }
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not add member.";
+    error.hidden = false;
+  }
 }
 function renderSquareCapabilities(account) {
   const target = $("#square-account-capabilities");
-  const capabilities = account ? Object.entries(account.capabilities || {}).filter(([, value]) => value === true).map(([key]) => key) : [];
+  const capabilities = account
+    ? Object.entries(account.capabilities || {})
+        .filter(([, value]) => value === true)
+        .map(([key]) => key)
+    : [];
   target.innerHTML = capabilities.length
-    ? capabilities.map((capability) => `<label><input type="checkbox" value="${escapeHtml(capability)}" checked /> ${escapeHtml(capability)}</label>`).join("")
+    ? capabilities
+        .map(
+          (capability) =>
+            `<label><input type="checkbox" value="${escapeHtml(capability)}" checked /> ${escapeHtml(capability)}</label>`,
+        )
+        .join("")
     : '<small class="form-hint">This account has no enabled capabilities to share.</small>';
 }
 async function loadSquareAccounts(squareId) {
   const target = $("#square-account-shares");
   target.innerHTML = '<p class="harness-empty">Reading shared accounts…</p>';
   try {
-    const [shares, accounts] = await Promise.all([api(`/v1/squares/${squareId}/accounts`), api("/v1/accounts")]);
+    const [shares, accounts] = await Promise.all([
+      api(`/v1/squares/${squareId}/accounts`),
+      api("/v1/accounts"),
+    ]);
     renderSquareAccounts(shares, accounts);
   } catch (error) {
     target.innerHTML = `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Shared accounts unavailable.")}</p>`;
@@ -2129,7 +2714,9 @@ async function grantSquareAccount() {
   const select = $("#square-account-select");
   const option = select.selectedOptions[0];
   const accountId = select.value;
-  const capabilities = [...document.querySelectorAll("#square-account-capabilities input:checked")].map((input) => input.value);
+  const capabilities = [
+    ...document.querySelectorAll("#square-account-capabilities input:checked"),
+  ].map((input) => input.value);
   const error = $("#square-account-error");
   if (!squareId || !accountId || !option || !capabilities.length) {
     error.textContent = "Choose an account and at least one capability.";
@@ -2140,12 +2727,19 @@ async function grantSquareAccount() {
   const button = $("#square-account-grant-button");
   button.disabled = true;
   try {
-    await apiJson(`/v1/squares/${squareId}/accounts`, { accountId, accountOwnerId: option.dataset.ownerId, capabilities });
+    await apiJson(`/v1/squares/${squareId}/accounts`, {
+      accountId,
+      accountOwnerId: option.dataset.ownerId,
+      capabilities,
+    });
     await loadSquareAccounts(squareId);
   } catch (cause) {
-    error.textContent = cause instanceof Error ? cause.message : "Could not share account.";
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not share account.";
     error.hidden = false;
-  } finally { button.disabled = false; }
+  } finally {
+    button.disabled = false;
+  }
 }
 async function revokeSquareAccount(shareId) {
   if (!state.selectedSquareId || !shareId) return;
@@ -2154,7 +2748,8 @@ async function revokeSquareAccount(shareId) {
     await loadSquareAccounts(state.selectedSquareId);
   } catch (cause) {
     const error = $("#square-account-error");
-    error.textContent = cause instanceof Error ? cause.message : "Could not revoke account.";
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not revoke account.";
     error.hidden = false;
   }
 }
@@ -2194,15 +2789,35 @@ async function inspectSquare(squareId, card) {
 async function saveSquarePolicy() {
   if (!state.selectedSquareId || !state.squarePolicyRevision) return;
   const error = $("#square-policy-error");
-  const domains = $("#square-policy-domains").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
-  const tools = $("#square-policy-tools").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+  const domains = $("#square-policy-domains")
+    .value.split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const tools = $("#square-policy-tools")
+    .value.split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
   try {
-    const result = await api(`/v1/squares/${state.selectedSquareId}/policy`, { method: "PATCH", body: JSON.stringify({ expectedRevision: state.squarePolicyRevision, defaultMode: $("#square-policy-mode").value, allowedDomains: domains, allowedToolNames: tools, settings: {} }) });
+    const result = await api(`/v1/squares/${state.selectedSquareId}/policy`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        expectedRevision: state.squarePolicyRevision,
+        defaultMode: $("#square-policy-mode").value,
+        allowedDomains: domains,
+        allowedToolNames: tools,
+        settings: {},
+      }),
+    });
     state.squarePolicyRevision = result.policy.revision;
     $("#square-detail-mode").textContent = result.policy.defaultMode;
-    $("#square-policy").textContent = `Tools: ${result.policy.allowedToolNames.length || "none"} allowed · Domains: ${result.policy.allowedDomains.length || "none"} allowed · policy revision ${result.policy.revision}`;
+    $("#square-policy").textContent =
+      `Tools: ${result.policy.allowedToolNames.length || "none"} allowed · Domains: ${result.policy.allowedDomains.length || "none"} allowed · policy revision ${result.policy.revision}`;
     error.hidden = true;
-  } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save Square policy."; error.hidden = false; }
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save Square policy.";
+    error.hidden = false;
+  }
 }
 async function loadSquares() {
   if (!state.token) {
@@ -2260,7 +2875,12 @@ function renderA2A(result) {
       const actionable = request.status === "pending";
       const revocable = request.consentStatus === "granted";
       const consent = `${request.consentStatus || "pending"}${request.consentScope?.length ? ` · ${request.consentScope.join(", ")}` : ""}`;
-      const lifecycle = request.status === "accepted" ? '<button class="primary-button a2a-complete" type="button">Mark completed</button>' : request.status === "pending" ? '<button class="quiet-button a2a-cancel" type="button">Cancel request</button>' : "";
+      const lifecycle =
+        request.status === "accepted"
+          ? '<button class="primary-button a2a-complete" type="button">Mark completed</button>'
+          : request.status === "pending"
+            ? '<button class="quiet-button a2a-cancel" type="button">Cancel request</button>'
+            : "";
       return `<article class="a2a-card" data-a2a-id="${escapeHtml(request.id)}" data-a2a-revision="${escapeHtml(request.revision)}"><div class="a2a-copy"><span class="a2a-meta">${escapeHtml(request.status)} · ${escapeHtml(consent)} · revision ${escapeHtml(request.revision)}</span><strong>${escapeHtml(request.capability)}</strong><p>${escapeHtml(JSON.stringify(request.request))}</p><small>${escapeHtml(request.requesterId.slice(0, 8))} → ${escapeHtml(request.recipientId.slice(0, 8))} · ${escapeHtml(expiry)}</small></div>${actionable ? `<div class="a2a-actions"><button class="quiet-button a2a-decline" type="button">Decline</button><button class="primary-button a2a-accept" type="button">Grant this capability <span>→</span></button>${lifecycle}</div>` : revocable ? `<div class="a2a-actions"><button class="quiet-button a2a-revoke" type="button">Revoke consent</button>${lifecycle}</div>` : lifecycle ? `<div class="a2a-actions">${lifecycle}</div>` : ""}</article>`;
     })
     .join("");
@@ -2350,7 +2970,20 @@ async function transitionA2A(card, decision) {
 async function transitionA2ALifecycle(card, status) {
   if (!card) return;
   const error = $("#a2a-transition-error");
-  try { await api(`/v1/a2a/requests/${card.dataset.a2aId}`, { method: "PATCH", body: JSON.stringify({ status, expectedRevision: Number(card.dataset.a2aRevision) }) }); await loadA2A(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not transition request."; error.hidden = false; }
+  try {
+    await api(`/v1/a2a/requests/${card.dataset.a2aId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status,
+        expectedRevision: Number(card.dataset.a2aRevision),
+      }),
+    });
+    await loadA2A();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not transition request.";
+    error.hidden = false;
+  }
 }
 async function refresh() {
   if (!state.token) {
@@ -2505,8 +3138,14 @@ $("#library-content-list").addEventListener("click", (event) => {
     void loadContentHistory(card);
     return;
   }
-  if (event.target.closest(".content-edit-button")) { void editContent(card); return; }
-  if (event.target.closest(".content-edit-save")) { void saveContentEdit(card); return; }
+  if (event.target.closest(".content-edit-button")) {
+    void editContent(card);
+    return;
+  }
+  if (event.target.closest(".content-edit-save")) {
+    void saveContentEdit(card);
+    return;
+  }
   if (event.target.closest(".content-archive-button")) {
     void archiveContent(card);
     return;
@@ -2514,19 +3153,46 @@ $("#library-content-list").addEventListener("click", (event) => {
   if (!button) return;
   void createContentShare(card.dataset.contentId, card);
 });
-$("#content-add-toggle").addEventListener("click", () => { $("#content-add-form").hidden = !$("#content-add-form").hidden; if (!$("#content-add-form").hidden) $("#content-title").focus(); });
+$("#content-add-toggle").addEventListener("click", () => {
+  $("#content-add-form").hidden = !$("#content-add-form").hidden;
+  if (!$("#content-add-form").hidden) $("#content-title").focus();
+});
 $("#content-save").addEventListener("click", () => void saveContent());
-$("#collection-add-toggle").addEventListener("click", () => { $("#collection-add-form").hidden = !$("#collection-add-form").hidden; if (!$("#collection-add-form").hidden) $("#collection-name").focus(); });
+$("#collection-add-toggle").addEventListener("click", () => {
+  $("#collection-add-form").hidden = !$("#collection-add-form").hidden;
+  if (!$("#collection-add-form").hidden) $("#collection-name").focus();
+});
 $("#collection-save").addEventListener("click", () => void saveCollection());
-$("#collection-list").addEventListener("click", (event) => { const button = event.target.closest(".collection-open"); if (button) void openCollection(button); const add = event.target.closest(".collection-content-add"); if (add) void addContentToCollection(add); });
-$("#wiki-add-toggle").addEventListener("click", () => { $("#wiki-add-form").hidden = !$("#wiki-add-form").hidden; if (!$("#wiki-add-form").hidden) $("#wiki-title").focus(); });
+$("#collection-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".collection-open");
+  if (button) void openCollection(button);
+  const add = event.target.closest(".collection-content-add");
+  if (add) void addContentToCollection(add);
+});
+$("#wiki-add-toggle").addEventListener("click", () => {
+  $("#wiki-add-form").hidden = !$("#wiki-add-form").hidden;
+  if (!$("#wiki-add-form").hidden) $("#wiki-title").focus();
+});
 $("#wiki-save").addEventListener("click", () => void saveWiki());
-$("#wiki-list").addEventListener("click", (event) => { const card = event.target.closest(".wiki-card"); if (!card) return; if (event.target.closest(".wiki-edit")) void editWiki(card); if (event.target.closest(".wiki-edit-save")) void saveWikiEdit(card).catch((cause) => { const error = $("#wiki-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit Wiki page."; error.hidden = false; }); });
+$("#wiki-list").addEventListener("click", (event) => {
+  const card = event.target.closest(".wiki-card");
+  if (!card) return;
+  if (event.target.closest(".wiki-edit")) void editWiki(card);
+  if (event.target.closest(".wiki-edit-save"))
+    void saveWikiEdit(card).catch((cause) => {
+      const error = $("#wiki-error");
+      error.textContent =
+        cause instanceof Error ? cause.message : "Could not edit Wiki page.";
+      error.hidden = false;
+    });
+});
 $("#knowledge-conflict-list").addEventListener("click", (event) => {
   const card = event.target.closest(".knowledge-conflict-card");
   if (!card) return;
-  if (event.target.closest(".knowledge-conflict-accept")) void resolveKnowledgeConflict(card, "accept");
-  if (event.target.closest(".knowledge-conflict-reject")) void resolveKnowledgeConflict(card, "reject");
+  if (event.target.closest(".knowledge-conflict-accept"))
+    void resolveKnowledgeConflict(card, "accept");
+  if (event.target.closest(".knowledge-conflict-reject"))
+    void resolveKnowledgeConflict(card, "reject");
 });
 $("#library-content-more").addEventListener(
   "click",
@@ -2568,9 +3234,22 @@ $("#memory-save").addEventListener("click", () => void saveMemory());
 $("#memory-list").addEventListener("click", (event) => {
   const card = event.target.closest(".memory-card");
   if (!card) return;
-  if (event.target.closest(".memory-edit")) card.querySelector(".memory-edit-form").hidden = false;
-  if (event.target.closest(".memory-edit-save")) void saveMemoryEdit(card).catch((cause) => { const error = $("#memory-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit memory."; error.hidden = false; });
-  if (event.target.closest(".memory-retire")) void retireMemory(card).catch((cause) => { const error = $("#memory-error"); error.textContent = cause instanceof Error ? cause.message : "Could not retire memory."; error.hidden = false; });
+  if (event.target.closest(".memory-edit"))
+    card.querySelector(".memory-edit-form").hidden = false;
+  if (event.target.closest(".memory-edit-save"))
+    void saveMemoryEdit(card).catch((cause) => {
+      const error = $("#memory-error");
+      error.textContent =
+        cause instanceof Error ? cause.message : "Could not edit memory.";
+      error.hidden = false;
+    });
+  if (event.target.closest(".memory-retire"))
+    void retireMemory(card).catch((cause) => {
+      const error = $("#memory-error");
+      error.textContent =
+        cause instanceof Error ? cause.message : "Could not retire memory.";
+      error.hidden = false;
+    });
 });
 $("#people-add-toggle").addEventListener("click", () => {
   $("#people-add-form").hidden = !$("#people-add-form").hidden;
@@ -2582,11 +3261,25 @@ $("#people-list").addEventListener("click", (event) => {
   const save = event.target.closest(".person-edit-save");
   const button = event.target.closest(".person-relationships");
   const card = event.target.closest(".person-card");
-  if (edit && card) { void editPerson(card); return; }
-  if (save && card) { void savePersonEdit(card).catch((cause) => { const error = $("#people-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit person."; error.hidden = false; }); return; }
+  if (edit && card) {
+    void editPerson(card);
+    return;
+  }
+  if (save && card) {
+    void savePersonEdit(card).catch((cause) => {
+      const error = $("#people-error");
+      error.textContent =
+        cause instanceof Error ? cause.message : "Could not edit person.";
+      error.hidden = false;
+    });
+    return;
+  }
   if (button && card) void loadRelationships(card.dataset.personId);
 });
-$("#relationship-save").addEventListener("click", () => void saveRelationship());
+$("#relationship-save").addEventListener(
+  "click",
+  () => void saveRelationship(),
+);
 $("#relationship-list").addEventListener("click", (event) => {
   const button = event.target.closest(".relationship-retire");
   if (button) void retireRelationship(button);
@@ -2613,7 +3306,32 @@ $("#task-add-toggle").addEventListener("click", () => {
   if (!$("#task-add-form").hidden) $("#task-title").focus();
 });
 $("#task-save").addEventListener("click", () => void saveTask());
-$("#task-list").addEventListener("click", (event) => { const card = event.target.closest(".task-card"); if (!card) return; if (event.target.closest(".task-edit")) void editTask(card); if (event.target.closest(".task-edit-save")) void saveTaskEdit(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit task."; error.hidden = false; }); if (event.target.closest(".task-mark-read")) void markTaskRead(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not mark task read."; error.hidden = false; }); if (event.target.closest(".task-delete")) void deleteTask(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not delete task."; error.hidden = false; }); });
+$("#task-list").addEventListener("click", (event) => {
+  const card = event.target.closest(".task-card");
+  if (!card) return;
+  if (event.target.closest(".task-edit")) void editTask(card);
+  if (event.target.closest(".task-edit-save"))
+    void saveTaskEdit(card).catch((cause) => {
+      const error = $("#task-error");
+      error.textContent =
+        cause instanceof Error ? cause.message : "Could not edit task.";
+      error.hidden = false;
+    });
+  if (event.target.closest(".task-mark-read"))
+    void markTaskRead(card).catch((cause) => {
+      const error = $("#task-error");
+      error.textContent =
+        cause instanceof Error ? cause.message : "Could not mark task read.";
+      error.hidden = false;
+    });
+  if (event.target.closest(".task-delete"))
+    void deleteTask(card).catch((cause) => {
+      const error = $("#task-error");
+      error.textContent =
+        cause instanceof Error ? cause.message : "Could not delete task.";
+      error.hidden = false;
+    });
+});
 $("#routines-open").addEventListener("click", () => {
   selectedRoutineId = null;
   $("#routine-trigger").hidden = true;
@@ -2624,18 +3342,43 @@ $("#routines-open").addEventListener("click", () => {
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
 $("#routine-edit-save").addEventListener("click", () => void saveRoutineEdit());
 $("#routine-edit-delete").addEventListener("click", () => void deleteRoutine());
-$("#routine-share-create").addEventListener("click", () => void createRoutineShare());
-$("#routine-share-revoke").addEventListener("click", () => void revokeRoutineShare());
-$("#routine-share-copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#routine-share-url").value); $("#routine-share-copy").textContent = "Copied"; } catch { $("#routine-share-url").select(); } });
-$("#routine-install-button").addEventListener("click", () => void installSharedRoutine());
+$("#routine-share-create").addEventListener(
+  "click",
+  () => void createRoutineShare(),
+);
+$("#routine-share-revoke").addEventListener(
+  "click",
+  () => void revokeRoutineShare(),
+);
+$("#routine-share-copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($("#routine-share-url").value);
+    $("#routine-share-copy").textContent = "Copied";
+  } catch {
+    $("#routine-share-url").select();
+  }
+});
+$("#routine-install-button").addEventListener(
+  "click",
+  () => void installSharedRoutine(),
+);
 $("#routine-trigger-list").addEventListener("click", (event) => {
   const button = event.target.closest(".routine-trigger-toggle");
-  const row = button?.closest(".routine-trigger-row") || event.target.closest(".routine-trigger-row");
+  const row =
+    button?.closest(".routine-trigger-row") ||
+    event.target.closest(".routine-trigger-row");
   if (button) void toggleRoutineTrigger(row);
-  if (event.target.closest(".routine-trigger-delete")) void deleteRoutineTrigger(row);
+  if (event.target.closest(".routine-trigger-delete"))
+    void deleteRoutineTrigger(row);
 });
-$("#routine-trigger-add-button").addEventListener("click", () => void addRoutineTrigger());
-$("#routine-email-ingest-button").addEventListener("click", () => void ingestRoutineEmail());
+$("#routine-trigger-add-button").addEventListener(
+  "click",
+  () => void addRoutineTrigger(),
+);
+$("#routine-email-ingest-button").addEventListener(
+  "click",
+  () => void ingestRoutineEmail(),
+);
 $("#routine-template-install").addEventListener(
   "click",
   () => void installRoutineTemplate(),
@@ -2672,13 +3415,21 @@ $("#account-open").addEventListener("click", () => {
   void loadInputRequests();
   void loadRuntimeInputs();
 });
-$("#account-list").addEventListener("click", (event) => { const card = event.target.closest(".account-card"); if (!card) return; if (event.target.closest(".account-refresh")) void refreshAccount(card); if (event.target.closest(".account-remove")) void removeAccount(card); });
+$("#account-list").addEventListener("click", (event) => {
+  const card = event.target.closest(".account-card");
+  if (!card) return;
+  if (event.target.closest(".account-refresh")) void refreshAccount(card);
+  if (event.target.closest(".account-remove")) void removeAccount(card);
+});
 $("#policy-preview-run").addEventListener("click", () => void previewPolicy());
 $("#approval-inbox-list").addEventListener("click", (event) => {
   const button = event.target.closest("button");
   const card = event.target.closest(".approval-inbox-card");
   if (!button || !card) return;
-  if (button.classList.contains("approval-inbox-inspect")) { void inspectInboxApproval(card); return; }
+  if (button.classList.contains("approval-inbox-inspect")) {
+    void inspectInboxApproval(card);
+    return;
+  }
   void decideInboxApproval(
     card,
     button.classList.contains("approval-inbox-approve") ? "approve" : "reject",
@@ -2757,7 +3508,10 @@ $("#square-add-toggle").addEventListener("click", () => {
   if (!$("#square-add-form").hidden) $("#square-name").focus();
 });
 $("#square-save").addEventListener("click", () => void saveSquare());
-$("#square-policy-save").addEventListener("click", () => void saveSquarePolicy());
+$("#square-policy-save").addEventListener(
+  "click",
+  () => void saveSquarePolicy(),
+);
 $("#square-list").addEventListener("click", (event) => {
   const button = event.target.closest(".square-inspect");
   const card = event.target.closest(".square-card");
@@ -2766,14 +3520,24 @@ $("#square-list").addEventListener("click", (event) => {
 });
 $("#square-account-select").addEventListener("change", () => {
   const accountId = $("#square-account-select").value;
-  void api("/v1/accounts").then((result) => renderSquareCapabilities((result.accounts || []).find((account) => account.id === accountId)));
+  void api("/v1/accounts").then((result) =>
+    renderSquareCapabilities(
+      (result.accounts || []).find((account) => account.id === accountId),
+    ),
+  );
 });
-$("#square-account-grant-button").addEventListener("click", () => void grantSquareAccount());
+$("#square-account-grant-button").addEventListener(
+  "click",
+  () => void grantSquareAccount(),
+);
 $("#square-account-shares").addEventListener("click", (event) => {
   const button = event.target.closest(".square-account-revoke");
   if (button) void revokeSquareAccount(button.dataset.shareId);
 });
-$("#square-member-add-button").addEventListener("click", () => void addSquareMember());
+$("#square-member-add-button").addEventListener(
+  "click",
+  () => void addSquareMember(),
+);
 $("#square-members").addEventListener("click", (event) => {
   const button = event.target.closest(".square-member-save");
   if (button) void updateSquareMember(button.closest(".square-member"));
@@ -2792,8 +3556,14 @@ $("#a2a-list").addEventListener("click", (event) => {
   const button = event.target.closest("button");
   const card = event.target.closest(".a2a-card");
   if (!button || !card) return;
-  if (button.classList.contains("a2a-complete")) { void transitionA2ALifecycle(card, "completed"); return; }
-  if (button.classList.contains("a2a-cancel")) { void transitionA2ALifecycle(card, "cancelled"); return; }
+  if (button.classList.contains("a2a-complete")) {
+    void transitionA2ALifecycle(card, "completed");
+    return;
+  }
+  if (button.classList.contains("a2a-cancel")) {
+    void transitionA2ALifecycle(card, "cancelled");
+    return;
+  }
   void transitionA2A(
     card,
     button.classList.contains("a2a-accept")

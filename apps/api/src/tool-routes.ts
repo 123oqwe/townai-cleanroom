@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import { asId } from "@town/contracts";
 import {
-  accountBindingSchema,
   approvalStateSchema,
   dataSensitivitySchema,
   evaluatePolicy,

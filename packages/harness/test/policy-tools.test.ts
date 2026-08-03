@@ -48,7 +48,11 @@ describe("policy-aware Harness tools", () => {
     ).resolves.toMatchObject({ kind: "completed", text: "sent" });
     expect(execute).toHaveBeenCalledWith(
       { body: "hello" },
-      { approvalGranted: true, policyDecision: "approval_required" },
+      {
+        approvalGranted: true,
+        callId: "call-1",
+        policyDecision: "approval_required",
+      },
     );
   });
 

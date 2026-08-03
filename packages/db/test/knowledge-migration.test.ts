@@ -108,6 +108,21 @@ describe("knowledge migration", () => {
       "0023_oauth_connect_states.sql",
       "0024_a2a_requests.sql",
       "0025_harness_approval_decisions.sql",
+      "0026_routine_shares.sql",
+      "0027_content_library_kinds.sql",
+      "0028_person_relationships.sql",
+      "0029_notification_channel_kinds.sql",
+      "0030_routine_triggers.sql",
+      "0031_mcp_servers.sql",
+      "0032_mcp_bindings.sql",
+      "0033_routine_results.sql",
+      "0034_routine_trigger_data.sql",
+      "0035_routine_run_claims.sql",
+      "0036_routine_run_replays.sql",
+      "0037_routine_trigger_idempotency.sql",
+      "0038_extended_routine_trigger_types.sql",
+      "0039_a2a_consent.sql",
+      "0040_runtime_input_response.sql",
     ]);
   });
 });
