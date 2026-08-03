@@ -57,4 +57,34 @@ describe("Vapi voice events adapter", () => {
       "vapi:call_123:transcript",
     );
   });
+
+  it("accepts Vapi's legacy X-Vapi-Secret credential header", async () => {
+    const sql = (async () => [{ owner_id: ownerId }]) as unknown as Sql;
+    const queueTrigger = vi.fn(async () => ({ id: "run-legacy" }));
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerVapiVoiceEventsRoute(app, {
+      sql,
+      repository: { queueTrigger } as unknown as RoutineRepository,
+      webhookSecret: secret,
+    });
+    const response = await app.request(
+      `http://town.test/v1/integrations/vapi/voice/${routineId}`,
+      {
+        method: "POST",
+        headers: {
+          "X-Vapi-Secret": secret,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            type: "end-of-call-report",
+            transcript: "legacy header",
+            call: { id: "call_legacy" },
+          },
+        }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(queueTrigger).toHaveBeenCalledOnce();
+  });
 });

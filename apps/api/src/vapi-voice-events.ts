@@ -37,9 +37,9 @@ export function registerVapiVoiceEventsRoute(
     const rawBody = await context.req.raw.text();
     if (Buffer.byteLength(rawBody, "utf8") > 512 * 1024)
       return context.json({ code: "PAYLOAD_TOO_LARGE" }, 413);
-    const supplied = context.req
-      .header("Authorization")
-      ?.match(/^Bearer ([^\s,]+)$/)?.[1];
+    const supplied =
+      context.req.header("Authorization")?.match(/^Bearer ([^\s,]+)$/)?.[1] ??
+      context.req.header("X-Vapi-Secret");
     if (supplied !== dependencies.webhookSecret)
       return context.json({ code: "VAPI_UNAUTHORIZED" }, 401);
     let body: z.infer<typeof vapiPayloadSchema>;

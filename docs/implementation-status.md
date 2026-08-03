@@ -383,4 +383,7 @@ Vapi phone events now have a provider adapter at
 `message.type` envelope for `transcript` and `end-of-call-report`, extracts a
 user transcript and call id, authenticates with a deployment bearer secret,
 and queues a durable `voice_transcribed` trigger. It intentionally does not
-claim Vapi call orchestration or undocumented signature semantics.
+claim Vapi call orchestration or undocumented signature semantics. The
+adapter accepts both the current configurable bearer `Authorization` form and
+Vapi's documented legacy `X-Vapi-Secret` form, and the Routine webhook secret
+is bound to the requested routine id.
