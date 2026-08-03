@@ -580,3 +580,13 @@ is
 explicit cron schedule, timezone, and first-run timestamp through the existing
 atomic API endpoint. An unauthenticated request returns the Vercel SSO `302`;
 Vercel reported no runtime errors in the verification window.
+
+The Need to Know candidate refresh is deployed in
+`dpl_7PpCutC9sPqMDfryUJ7gnvNugggr`, built from commit `596c252`. Its protected
+direct URL is
+`https://town-clear-current-p0bkl6db7-123oqwes-projects.vercel.app`, state
+`READY`; `POST /v1/suggestions/refresh` derives deduplicated candidates from
+overdue tasks and enabled routines due within 24 hours, and the browser refreshes
+these candidates before loading the paginated list. An unauthenticated request
+to `/v1/health` returns the Vercel SSO `302`; Vercel reported no runtime errors
+in the verification window.
