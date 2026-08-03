@@ -58,6 +58,7 @@ export function createHarnessRuntimeAdapter(input: {
         yield {
           type: "waiting_approval",
           reason: "Approval is required before this durable run can continue.",
+          approvalId: pendingApproval.callId,
         };
         return;
       }
@@ -110,6 +111,11 @@ export function createHarnessRuntimeAdapter(input: {
           yield {
             type: "waiting_approval",
             reason: `Approval required for ${String(notification.params["toolName"] ?? "tool action")}.`,
+            approvalId: String(
+              notification.params["approvalId"] ??
+                notification.params["callId"] ??
+                "",
+            ),
           };
           return;
         }

@@ -103,6 +103,7 @@ describe("harness runtime adapter", () => {
     expect(events.at(-1)).toEqual({
       type: "waiting_approval",
       reason: "Approval is required before this durable run can continue.",
+      approvalId: "approval-1",
     });
     expect(server.dispatch).not.toHaveBeenCalled();
   });

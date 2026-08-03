@@ -59,6 +59,7 @@ const waitSchema = leasedRunSchema
   .extend({
     state: z.enum(["waiting_approval", "waiting_user_input"]),
     reason: z.string().trim().min(1).max(2_000),
+    approvalId: z.string().trim().min(1).max(500).optional(),
   })
   .strict();
 const resumeSchema = z
@@ -369,7 +370,13 @@ export function createRuntimeTransitionService(sql: Sql) {
         sessionId: run.session_id,
         runId,
         kind: "run_waiting",
-        payload: { state: value.state, reason: value.reason },
+        payload: {
+          state: value.state,
+          reason: value.reason,
+          ...(value.approvalId === undefined
+            ? {}
+            : { approvalId: value.approvalId }),
+        },
         sessionState: await deriveRuntimeSessionStateInTransaction(
           transaction,
           run.owner_id,

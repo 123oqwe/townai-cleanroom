@@ -779,6 +779,106 @@ dialog h2 {
   color: var(--muted-deep);
   font-size: 12px;
 }
+.harness-state #harness-state-text.is-error {
+  color: #a03e2b;
+}
+.harness-transcript {
+  display: grid;
+  gap: 10px;
+  max-height: 230px;
+  margin: 16px 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+.harness-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.harness-message {
+  max-width: 92%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+  color: var(--muted-deep);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.harness-message.user {
+  justify-self: end;
+  background: var(--ink);
+  color: var(--paper);
+}
+.harness-message.assistant {
+  justify-self: start;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.approval-card {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #d9b15d;
+  border-radius: 12px;
+  background: #fff8e7;
+}
+.approval-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #765520;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.approval-actions,
+.harness-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.approval-actions {
+  justify-content: flex-end;
+}
+.harness-dialog textarea {
+  display: block;
+  width: 100%;
+  min-height: 82px;
+  resize: vertical;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.harness-dialog textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.harness-actions {
+  margin: 10px 0 20px;
+}
+.harness-actions .form-hint {
+  margin: 0;
+  max-width: 235px;
+}
+.harness-actions .primary-button {
+  flex: 0 0 auto;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .full-button {
   width: 100%;
 }

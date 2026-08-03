@@ -103,6 +103,10 @@ export function createRuntimeWorker(
                 ? "waiting_user_input"
                 : "waiting_approval",
             reason: event.reason,
+            ...(event.type === "waiting_approval" &&
+            event.approvalId !== undefined
+              ? { approvalId: event.approvalId }
+              : {}),
           });
           return {
             claimed: true,

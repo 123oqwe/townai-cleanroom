@@ -4,6 +4,8 @@ const storageKeys = {
   base: "town.api.base",
   token: "town.api.token",
   intention: "town.focus.intention",
+  thread: "town.harness.thread",
+  session: "town.harness.session",
 };
 const state = {
   base: localStorage.getItem(storageKeys.base) || "http://localhost:3000",
@@ -37,15 +39,25 @@ function setConnection(
   $("#signal-state").textContent = connected ? "Live" : "Not connected";
   $("#signal-state").classList.toggle("is-live", connected);
 }
-async function api(path) {
+async function api(path, options = {}) {
   const response = await fetch(`${state.base.replace(/\/$/, "")}${path}`, {
+    ...options,
     headers: {
       Authorization: `Bearer ${state.token}`,
       Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
     },
   });
-  if (!response.ok) throw new Error(`API returned ${response.status}`);
-  return response.json();
+  if (!response.ok) {
+    const error = new Error(`API returned ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.status === 204 ? null : response.json();
+}
+async function apiJson(path, body, headers = {}) {
+  return api(path, { method: "POST", body: JSON.stringify(body), headers });
 }
 function renderMetrics(summary) {
   const entries = [
@@ -91,6 +103,166 @@ function escapeHtml(value) {
         "'": "&#039;",
       })[character],
   );
+}
+function setHarnessState(text, tone = "") {
+  $("#harness-state-text").textContent = text;
+  $("#harness-state-text").classList.toggle("is-error", tone === "error");
+}
+function renderHarnessTurns(turns) {
+  const transcript = $("#harness-transcript");
+  if (!turns?.length) {
+    transcript.innerHTML =
+      '<p class="harness-empty">No turns in this thread yet.</p>';
+    return;
+  }
+  transcript.innerHTML = turns
+    .slice(-12)
+    .map(
+      (turn) =>
+        `<div class="harness-message ${turn.role === "user" ? "user" : "assistant"}">${escapeHtml(turn.text)}</div>`,
+    )
+    .join("");
+  transcript.scrollTop = transcript.scrollHeight;
+}
+function clearHarnessApproval() {
+  $("#approval-card").hidden = true;
+  $("#approval-card").dataset.approvalId = "";
+  $("#approval-card").dataset.sessionId = "";
+  $("#approval-card").dataset.runId = "";
+}
+async function ensureHarnessThread() {
+  const savedThread = sessionStorage.getItem(storageKeys.thread);
+  if (savedThread) return savedThread;
+  let agent;
+  try {
+    agent = (await api("/v1/agents/personal")).agent;
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    agent = (
+      await apiJson("/v1/agents/personal", {
+        displayName: "Town personal",
+        instructions:
+          "Carry out the user's request carefully and explain durable state.",
+        defaultApprovalMode: "respect_tool_setting",
+        callableRoutineIds: [],
+      })
+    ).agent;
+  }
+  if (!agent) throw new Error("Personal agent is not available.");
+  const thread = (
+    await apiJson("/v1/threads", {
+      title: "Town workspace",
+      approvalMode: "respect_tool_setting",
+    })
+  ).thread;
+  sessionStorage.setItem(storageKeys.thread, thread.id);
+  return thread.id;
+}
+async function loadHarness() {
+  if (!state.token) {
+    setHarnessState("Connect the API to begin.");
+    return;
+  }
+  try {
+    const threadId = await ensureHarnessThread();
+    renderHarnessTurns(
+      (await api(`/v1/threads/${threadId}/turns?limit=50`)).items,
+    );
+    setHarnessState("Ready for a durable turn.");
+    const sessionId = sessionStorage.getItem(storageKeys.session);
+    if (sessionId) await refreshHarnessRun(sessionId);
+  } catch (error) {
+    setHarnessState(
+      error instanceof Error ? error.message : "Harness unavailable.",
+      "error",
+    );
+  }
+}
+async function refreshHarnessRun(sessionId) {
+  const [runs, events] = await Promise.all([
+    api(`/v1/sessions/${sessionId}/runs?limit=10`),
+    api(`/v1/sessions/${sessionId}/events?limit=50`),
+  ]);
+  const run = runs.items?.[0];
+  if (!run) return;
+  const event = [...(events.items || [])]
+    .reverse()
+    .find((item) => item.runId === run.id && item.kind === "run_waiting");
+  if (run.state === "waiting_approval" && event?.payload?.approvalId) {
+    const card = $("#approval-card");
+    card.hidden = false;
+    card.dataset.approvalId = event.payload.approvalId;
+    card.dataset.sessionId = sessionId;
+    card.dataset.runId = run.id;
+    $("#approval-reason").textContent =
+      event.payload.reason || "Approval is required before Town continues.";
+    setHarnessState("Waiting for your approval.");
+  } else {
+    clearHarnessApproval();
+    setHarnessState(`Run ${run.state.replaceAll("_", " ")}.`);
+  }
+  if (["queued", "running"].includes(run.state)) {
+    window.setTimeout(
+      () => refreshHarnessRun(sessionId).catch(() => undefined),
+      1200,
+    );
+  }
+}
+async function sendHarnessMessage() {
+  const input = $("#harness-input");
+  const text = input.value.trim();
+  if (!text || !state.token) return;
+  const button = $("#harness-send");
+  button.disabled = true;
+  setHarnessState("Queueing durable turn…");
+  try {
+    const threadId = await ensureHarnessThread();
+    const submission = await apiJson(
+      `/v1/threads/${threadId}/messages`,
+      { text, mentions: [] },
+      {
+        "Idempotency-Key": crypto.randomUUID(),
+      },
+    );
+    sessionStorage.setItem(storageKeys.session, submission.session.id);
+    input.value = "";
+    renderHarnessTurns(
+      (await api(`/v1/threads/${threadId}/turns?limit=50`)).items,
+    );
+    setHarnessState(`Run ${submission.run.state}.`);
+    await refreshHarnessRun(submission.session.id);
+    await refresh();
+  } catch (error) {
+    setHarnessState(
+      error instanceof Error ? error.message : "Could not queue turn.",
+      "error",
+    );
+  } finally {
+    button.disabled = false;
+  }
+}
+async function resolveHarnessApproval(decision) {
+  const card = $("#approval-card");
+  const { approvalId, sessionId, runId } = card.dataset;
+  if (!approvalId || !sessionId || !runId) return;
+  $("#approval-approve").disabled = true;
+  $("#approval-reject").disabled = true;
+  try {
+    await apiJson(`/v1/sessions/${sessionId}/runs/${runId}/approval`, {
+      approvalId,
+      decision,
+    });
+    clearHarnessApproval();
+    setHarnessState("Approval recorded. Resuming…");
+    await refreshHarnessRun(sessionId);
+  } catch (error) {
+    setHarnessState(
+      error instanceof Error ? error.message : "Approval failed.",
+      "error",
+    );
+    $("#approval-approve").disabled = false;
+    $("#approval-reject").disabled = false;
+  }
 }
 async function refresh() {
   if (!state.token) {
@@ -160,12 +332,29 @@ $("#intention-form").addEventListener("submit", (event) => {
     `<div class="focus-empty"><span class="focus-glyph">✦</span><p>${escapeHtml(value)}</p><button class="text-button" id="clear-intention" type="button">Change it <span>→</span></button></div>`;
   $("#clear-intention").addEventListener("click", () => location.reload());
 });
-$("#command-open").addEventListener("click", () =>
-  openDialog($("#harness-dialog")),
+$("#command-open").addEventListener("click", () => {
+  openDialog($("#harness-dialog"));
+  void loadHarness();
+});
+$("#people-button").addEventListener("click", () => {
+  openDialog($("#harness-dialog"));
+  void loadHarness();
+});
+$("#harness-send").addEventListener("click", () => void sendHarnessMessage());
+$("#approval-approve").addEventListener(
+  "click",
+  () => void resolveHarnessApproval("approve"),
 );
-$("#people-button").addEventListener("click", () =>
-  openDialog($("#harness-dialog")),
+$("#approval-reject").addEventListener(
+  "click",
+  () => void resolveHarnessApproval("reject"),
 );
+$("#harness-input").addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    event.preventDefault();
+    void sendHarnessMessage();
+  }
+});
 const savedIntention = localStorage.getItem(storageKeys.intention);
 if (savedIntention) {
   $("#focus-empty").innerHTML =

@@ -23,6 +23,7 @@ export type RuntimeAdapterEvent =
   | {
       type: "waiting_approval";
       reason: string;
+      approvalId?: string;
     };
 
 export interface RuntimeAdapterContext {

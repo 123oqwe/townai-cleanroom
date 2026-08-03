@@ -275,16 +275,51 @@
         </button>
         <p class="eyebrow">Codex-style harness</p>
         <h2 id="harness-title">A clear next step.</h2>
-        <p class="dialog-copy">
-          The durable harness is available through the authenticated API. This
-          surface will become the focused turn composer when a worker is
-          configured.
+        <p class="dialog-copy" id="harness-copy">
+          Send one durable turn. Town keeps the thread, run, events, and any
+          human approval in the same explicit state machine.
         </p>
         <div class="harness-state">
           <span class="status-dot"></span
-          ><span id="harness-state-text">No provider worker configured</span>
+          ><span id="harness-state-text">Connect the API to begin.</span>
         </div>
-        <button class="primary-button full-button" value="cancel">Close</button>
+        <div
+          class="harness-transcript"
+          id="harness-transcript"
+          aria-live="polite"
+        >
+          <p class="harness-empty">No turns in this thread yet.</p>
+        </div>
+        <div class="approval-card" id="approval-card" hidden>
+          <div>
+            <p class="eyebrow">Human decision</p>
+            <strong id="approval-reason">Approval required.</strong>
+          </div>
+          <div class="approval-actions">
+            <button class="quiet-button" id="approval-reject" type="button">
+              Reject
+            </button>
+            <button class="primary-button" id="approval-approve" type="button">
+              Approve <span>→</span>
+            </button>
+          </div>
+        </div>
+        <label class="sr-only" for="harness-input">Message for Town</label>
+        <textarea
+          id="harness-input"
+          rows="3"
+          maxlength="100000"
+          placeholder="Ask Town to carry something durable…"
+        ></textarea>
+        <div class="harness-actions">
+          <span class="form-hint" id="harness-hint"
+            >Runs are queued durably before a worker touches them.</span
+          >
+          <button class="primary-button" id="harness-send" type="button">
+            Send <span>⌘ ↵</span>
+          </button>
+        </div>
+        <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>
     <script type="module" src="./app.js"></script>
