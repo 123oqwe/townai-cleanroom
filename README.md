@@ -337,6 +337,11 @@ present.
 
 The current product objective is recorded in [GOAL.md](./GOAL.md).
 
+The Vercel API entrypoint lazy-loads the configured server and returns a
+structured `503 API_NOT_CONFIGURED` response when required database or crypto
+settings are absent. Package build entries are checked after every workspace
+build so a successful compile cannot hide a missing runtime export.
+
 The command center's Routines surface now reads each selected routine's durable
 run history and linked `RoutineResult` detail from the API. Terminal runs expose
 an explicit Replay action that calls the idempotent replay endpoint; the UI
