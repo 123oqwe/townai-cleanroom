@@ -23,6 +23,9 @@ export type ChannelKind = z.infer<typeof channelKindSchema>;
 export type ChannelStatus = z.infer<typeof channelStatusSchema>;
 export type DeliveryStatus = z.infer<typeof deliveryStatusSchema>;
 
+/** Prevents a permanently invalid provider credential from retrying forever. */
+export const MAX_DELIVERY_ATTEMPTS = 10;
+
 export interface NotificationChannel {
   id: Id<"notification-channel">;
   ownerId: Id<"user">;
@@ -354,7 +357,7 @@ export function createChannelRepository(sql: Sql) {
     const [row] = await sql.begin(async (tx) => {
       const [candidate] = await tx<
         DeliveryRow[]
-      >`select d.* from notification_deliveries d join notification_channels c on c.owner_id=d.owner_id and c.id=d.channel_id and c.status='active' where (d.status='queued' or (d.status='failed' and d.next_attempt_at is not null and d.next_attempt_at <= now()) or (d.status='attempting' and d.lease_expires_at is not null and d.lease_expires_at <= now())) order by d.created_at,d.id for update of d,c skip locked limit 1`;
+      >`select d.* from notification_deliveries d join notification_channels c on c.owner_id=d.owner_id and c.id=d.channel_id and c.status='active' where d.attempts < ${MAX_DELIVERY_ATTEMPTS} and (d.status='queued' or (d.status='failed' and d.next_attempt_at is not null and d.next_attempt_at <= now()) or (d.status='attempting' and d.lease_expires_at is not null and d.lease_expires_at <= now())) order by d.created_at,d.id for update of d,c skip locked limit 1`;
       if (!candidate) return [];
       return tx<
         DeliveryRow[]
@@ -514,12 +517,13 @@ export function createChannelRepository(sql: Sql) {
       error =
         caught instanceof Error ? caught.message : "CHANNEL_DELIVERY_FAILED";
     }
-    const retryAt = success
-      ? null
-      : new Date(
-          Date.now() +
-            Math.min(300_000, 1_000 * 2 ** Math.min(claimed.attempts, 8)),
-        );
+    const retryAt =
+      success || claimed.attempts >= MAX_DELIVERY_ATTEMPTS
+        ? null
+        : new Date(
+            Date.now() +
+              Math.min(300_000, 1_000 * 2 ** Math.min(claimed.attempts, 8)),
+          );
     const delivery = await complete({
       ownerId: claimed.ownerId,
       deliveryId: claimed.id,

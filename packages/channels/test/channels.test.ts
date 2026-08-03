@@ -389,4 +389,44 @@ describe("notification channels", () => {
       },
     });
   });
+
+  it("stops retrying after the bounded delivery attempt budget", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/exhausted",
+      config: { headers: {} },
+    });
+    const queued = await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.failed",
+      idempotencyKey: "delivery-exhausted",
+      payload: { runId: "run-exhausted" },
+    });
+    await sql`
+      update notification_deliveries
+      set attempts=9
+      where owner_id=${ownerId} and id=${queued.id}
+    `;
+
+    await expect(
+      repository.deliverNext({
+        workerId: "exhausted-worker",
+        fetch: vi.fn(async () => new Response("no", { status: 503 })),
+      }),
+    ).resolves.toMatchObject({
+      claimed: true,
+      delivery: {
+        attempts: 10,
+        status: "failed",
+        nextAttemptAt: null,
+        lastError: "CHANNEL_HTTP_503",
+      },
+    });
+    await expect(repository.claimNext("after-exhaustion-worker")).resolves.toBe(
+      null,
+    );
+  });
 });
