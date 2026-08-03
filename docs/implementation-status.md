@@ -213,6 +213,10 @@ environment) instead of requiring Node 24. Local API and workspace builds remain
 the verification gate; no deployment is called READY until the full source
 build completes.
 
+The subsequent Vercel build showed the host's pnpm version does not satisfy a
+runtime engine constraint, so that redundant pnpm engine restriction was removed
+while the packageManager pin remains for local reproducibility.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all
