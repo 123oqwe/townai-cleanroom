@@ -984,18 +984,29 @@ async function loadChannels() {
 }
 async function saveChannel() {
   const address = $("#channel-address").value.trim();
+  const kind = $("#channel-kind").value;
   const error = $("#channel-error");
   if (!address || !state.token) return;
   error.hidden = true;
   const button = $("#channel-save");
   button.disabled = true;
   try {
+    const config = {};
+    const credentialRef = $("#channel-credential-ref").value.trim();
+    const accountId = $("#channel-account-id").value.trim();
+    const phoneNumberId = $("#channel-phone-id").value.trim();
+    if (credentialRef) config.credentialRef = credentialRef;
+    if (accountId) config.accountId = accountId;
+    if (phoneNumberId) config.phoneNumberId = phoneNumberId;
     await apiJson("/v1/channels", {
-      kind: $("#channel-kind").value,
+      kind,
       address,
-      config: {},
+      config,
     });
     $("#channel-address").value = "";
+    $("#channel-credential-ref").value = "";
+    $("#channel-account-id").value = "";
+    $("#channel-phone-id").value = "";
     $("#channel-add-form").hidden = true;
     await loadChannels();
   } catch (cause) {
@@ -1005,6 +1016,19 @@ async function saveChannel() {
   } finally {
     button.disabled = false;
   }
+}
+function updateChannelConfigFields() {
+  const kind = $("#channel-kind").value;
+  const credential =
+    kind === "telegram" || kind === "whatsapp" || kind === "slack";
+  const account = kind === "email";
+  const phone = kind === "whatsapp";
+  $("#channel-credential-label").hidden = !credential;
+  $("#channel-credential-ref").hidden = !credential;
+  $("#channel-account-label").hidden = !account;
+  $("#channel-account-id").hidden = !account;
+  $("#channel-phone-label").hidden = !phone;
+  $("#channel-phone-id").hidden = !phone;
 }
 function renderBilling(result) {
   const state = $("#billing-state");
@@ -1513,6 +1537,8 @@ $("#channel-add-toggle").addEventListener("click", () => {
   if (!$("#channel-add-form").hidden) $("#channel-address").focus();
 });
 $("#channel-save").addEventListener("click", () => void saveChannel());
+$("#channel-kind").addEventListener("change", updateChannelConfigFields);
+updateChannelConfigFields();
 $("#billing-open").addEventListener("click", () => {
   openDialog($("#billing-dialog"));
   void loadBilling();
