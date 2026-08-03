@@ -409,3 +409,8 @@ boundary. It requires a configured storage adapter, verifies ownership through
 the Content repository, returns the provider's actual bytes with a private
 no-store response, and fails explicitly when storage or the object is absent;
 the API never fabricates file data.
+
+Content share tokens can now retrieve stored media through
+`GET /v1/content-shares/:token/blob`. The token resolver remains the only
+authorization boundary, storage keys stay server-side, and the same explicit
+503/404/409 states apply when storage or a blob is unavailable.

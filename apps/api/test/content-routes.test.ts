@@ -73,4 +73,36 @@ describe("content share route", () => {
       new Uint8Array([1, 2, 3]),
     );
   });
+
+  it("reads a shared stored blob without exposing its storage key", async () => {
+    const repository = {
+      resolveShare: vi.fn().mockResolvedValue({
+        id: "01900000-0000-7000-8000-000000000012",
+        kind: "image",
+        title: "Shared image",
+        storageKey: "private/object-key",
+        mimeType: "image/png",
+      }),
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerContentRoutes(app, {
+      repository,
+      storage: {
+        read: vi.fn().mockResolvedValue({
+          body: new Uint8Array([137, 80, 78, 71]),
+          contentType: "image/png",
+        }),
+      },
+    });
+    const response = await app.request(
+      "http://town.test/v1/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/blob",
+    );
+    expect(response.status).toBe(200);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([137, 80, 78, 71]),
+    );
+    expect(await response.text().catch(() => "")).not.toContain(
+      "private/object-key",
+    );
+  });
 });
