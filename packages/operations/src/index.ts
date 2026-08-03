@@ -32,6 +32,18 @@ export interface TimelinePage {
   items: TimelineItem[];
   nextCursor: string | null;
 }
+export interface AnalyticsEvent {
+  id: Id<"operation-analytics-event">;
+  ownerId: Id<"user">;
+  eventName: string;
+  metadata: Record<string, unknown>;
+  dedupeKey: string | null;
+  createdAt: Date;
+}
+export interface AnalyticsPage {
+  items: AnalyticsEvent[];
+  nextCursor: string | null;
+}
 export interface OperationSummary {
   activeSessions: number;
   queuedRuns: number;
@@ -64,6 +76,15 @@ type AuditRow = {
   metadata: Record<string, unknown>;
   created_at: Date;
 };
+type AnalyticsRow = {
+  id: string;
+  owner_id: string;
+  event_name: string;
+  metadata: Record<string, unknown>;
+  dedupe_key: string | null;
+  fingerprint: string;
+  created_at: Date;
+};
 const appendSchema = z
   .object({
     ownerId: idSchema,
@@ -82,6 +103,22 @@ const listSchema = z
     ownerId: idSchema,
     action: z.string().trim().min(1).max(200).optional(),
     outcome: auditOutcomeSchema.optional(),
+    cursor: z.string().min(1).max(500).optional(),
+    limit: z.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+const analyticsAppendSchema = z
+  .object({
+    ownerId: idSchema,
+    eventName: z.string().trim().min(1).max(200),
+    metadata: z.record(z.string(), z.json()).default({}),
+    dedupeKey: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .strict();
+const analyticsListSchema = z
+  .object({
+    ownerId: idSchema,
+    eventName: z.string().trim().min(1).max(200).optional(),
     cursor: z.string().min(1).max(500).optional(),
     limit: z.number().int().min(1).max(100).default(50),
   })
@@ -168,6 +205,16 @@ function safeAudit(row: AuditRow): AuditEvent {
     outcome: row.outcome,
     requestId: row.request_id,
     metadata: row.metadata,
+    createdAt: row.created_at,
+  };
+}
+function safeAnalytics(row: AnalyticsRow): AnalyticsEvent {
+  return {
+    id: asId<"operation-analytics-event">(row.id),
+    ownerId: asId<"user">(row.owner_id),
+    eventName: row.event_name,
+    metadata: row.metadata,
+    dedupeKey: row.dedupe_key,
     createdAt: row.created_at,
   };
 }
@@ -264,6 +311,67 @@ export function createOperationsRepository(sql: Sql) {
       failedDeliveries: row?.failed_deliveries ?? 0,
     };
   }
+  async function appendAnalytics(
+    input: z.input<typeof analyticsAppendSchema>,
+  ): Promise<AnalyticsEvent> {
+    const value = analyticsAppendSchema.parse(input);
+    const metadata = safeMetadata(value.metadata);
+    const requestFingerprint = fingerprint({
+      actorId: null,
+      action: value.eventName,
+      resourceType: "analytics_event",
+      resourceId: null,
+      outcome: "succeeded",
+      requestId: null,
+      metadata,
+    });
+    const [row] = await sql<AnalyticsRow[]>`
+      insert into analytics_events
+        (id,owner_id,event_name,metadata,dedupe_key,fingerprint)
+      values
+        (${newId<"operation-analytics-event">()},${value.ownerId},${value.eventName},${sql.json(metadata as never)},${value.dedupeKey ?? null},${requestFingerprint})
+      on conflict (owner_id,dedupe_key) do nothing
+      returning *`;
+    if (row) return safeAnalytics(row);
+    const [existing] = await sql<AnalyticsRow[]>`
+      select * from analytics_events
+      where owner_id=${value.ownerId} and dedupe_key=${value.dedupeKey ?? null}`;
+    if (existing && existing.fingerprint === requestFingerprint)
+      return safeAnalytics(existing);
+    throw new OperationsError(
+      "AUDIT_CONFLICT",
+      "The analytics event conflicts with another write.",
+    );
+  }
+  async function listAnalytics(
+    input: z.input<typeof analyticsListSchema>,
+  ): Promise<AnalyticsPage> {
+    const value = analyticsListSchema.parse(input);
+    const cursor =
+      value.cursor === undefined ? null : decodeCursor(value.cursor);
+    const eventFilter =
+      value.eventName === undefined
+        ? sql``
+        : sql`and event_name=${value.eventName}`;
+    const cursorFilter =
+      cursor === null
+        ? sql``
+        : sql`and (created_at,id) < (${cursor.createdAt},${cursor.id})`;
+    const rows = await sql<AnalyticsRow[]>`
+      select * from analytics_events
+      where owner_id=${value.ownerId} ${eventFilter} ${cursorFilter}
+      order by created_at desc, id desc
+      limit ${value.limit + 1}`;
+    const items = rows.slice(0, value.limit).map(safeAnalytics);
+    const last = items.at(-1);
+    return {
+      items,
+      nextCursor:
+        rows.length > value.limit && last
+          ? encodeCursor({ createdAt: last.createdAt, id: last.id })
+          : null,
+    };
+  }
   async function timeline(input: {
     ownerId: Id<"user">;
     cursor?: string;
@@ -324,7 +432,7 @@ export function createOperationsRepository(sql: Sql) {
           : null,
     };
   }
-  return { append, list, summary, timeline };
+  return { append, list, summary, timeline, appendAnalytics, listAnalytics };
 }
 export type OperationsRepository = ReturnType<
   typeof createOperationsRepository

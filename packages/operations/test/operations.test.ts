@@ -164,4 +164,53 @@ describe("operations audit and summary", () => {
       second.items.slice(0, 1).map((item) => item.id),
     );
   });
+
+  it("stores sanitized owner-scoped analytics events idempotently", async () => {
+    const repository = createOperationsRepository(sql);
+    const first = await repository.appendAnalytics({
+      ownerId,
+      eventName: "web_vital_recorded",
+      dedupeKey: "vital-1",
+      metadata: { metric: "FCP", value: 1080, pathname: "/assistant" },
+    });
+    await expect(
+      repository.appendAnalytics({
+        ownerId,
+        eventName: "different",
+        dedupeKey: "vital-1",
+      }),
+    ).rejects.toMatchObject({ code: "AUDIT_CONFLICT" });
+    await expect(
+      repository.appendAnalytics({
+        ownerId,
+        eventName: first.eventName,
+        dedupeKey: "vital-1",
+        metadata: first.metadata,
+      }),
+    ).resolves.toMatchObject({ id: first.id });
+    await expect(
+      repository.appendAnalytics({
+        ownerId,
+        eventName: "unsafe",
+        metadata: { authorization: "redacted" },
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_METADATA" });
+    await repository.appendAnalytics({
+      ownerId: otherId,
+      eventName: "private.event",
+      metadata: { value: 1 },
+    });
+    const page = await repository.listAnalytics({
+      ownerId,
+      eventName: "web_vital_recorded",
+      limit: 1,
+    });
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]?.ownerId).toBe(ownerId);
+    expect(page.items[0]?.metadata).toEqual({
+      metric: "FCP",
+      value: 1080,
+      pathname: "/assistant",
+    });
+  });
 });

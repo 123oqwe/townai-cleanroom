@@ -430,3 +430,11 @@ Content share tokens can now retrieve stored media through
 `GET /v1/content-shares/:token/blob`. The token resolver remains the only
 authorization boundary, storage keys stay server-side, and the same explicit
 503/404/409 states apply when storage or a blob is unavailable.
+
+Owner-scoped analytics events are now persisted through `POST
+/v1/analytics/events` and listed through `GET /v1/analytics/events`. The
+repository applies the same bounded metadata and sensitive-key rejection used
+by operations audit events, supports idempotent dedupe keys and stable cursor
+pagination, and never forwards event payloads to an unconfigured third party.
+This records the observed product-analytics contract without claiming Town's
+private event taxonomy or downstream Axiom pipeline.

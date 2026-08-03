@@ -18,6 +18,20 @@ const querySchema = z
     limit: z.coerce.number().int().min(1).max(100).default(50),
   })
   .strict();
+const analyticsEventSchema = z
+  .object({
+    eventName: z.string().trim().min(1).max(200),
+    metadata: z.record(z.string(), z.json()).default({}),
+    dedupeKey: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .strict();
+const analyticsQuerySchema = z
+  .object({
+    eventName: z.string().trim().min(1).max(200).optional(),
+    cursor: z.string().min(1).max(500).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .strict();
 
 export function registerOperationsRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -36,6 +50,28 @@ export function registerOperationsRoutes(
     const ownerId = context.get("identity").user.id;
     return context.json({
       summary: await dependencies.repository.summary(ownerId),
+    });
+  });
+  app.post("/v1/analytics/events", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = analyticsEventSchema.parse(await context.req.json());
+    return context.json(
+      {
+        event: await dependencies.repository.appendAnalytics({
+          ownerId,
+          ...body,
+        }),
+      },
+      201,
+    );
+  });
+  app.get("/v1/analytics/events", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      events: await dependencies.repository.listAnalytics({
+        ownerId,
+        ...analyticsQuerySchema.parse(context.req.query()),
+      }),
     });
   });
 }

@@ -125,6 +125,7 @@ describe("knowledge migration", () => {
       "0040_runtime_input_response.sql",
       "0041_notification_delivery_replays.sql",
       "0042_email_to_assistant_runs.sql",
+      "0043_analytics_events.sql",
     ]);
   });
 });
