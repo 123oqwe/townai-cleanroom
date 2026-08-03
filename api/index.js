@@ -1,4 +1,4 @@
-/* global console */
+/* global console, process */
 
 // Vercel's function entry point. `pnpm build` creates the workspace output
 // before Vercel bundles this file, so the platform does not re-typecheck the
@@ -13,6 +13,37 @@ const app = new Hono();
 let runtimePromise;
 let runtimeError;
 let runtimeErrorLogged = false;
+
+function hasRequiredRuntimeConfig() {
+  return Boolean(
+    process.env.DATABASE_URL &&
+    process.env.CREDENTIAL_MASTER_KEY_BASE64URL &&
+    process.env.WEB_ORIGIN,
+  );
+}
+
+app.get("/v1/health", (context) =>
+  context.json({
+    status: "ok",
+    service: "town-api",
+    version: process.env.TOWN_API_VERSION || "0.0.0",
+    time: new Date().toISOString(),
+  }),
+);
+
+app.get("/v1/health/capabilities", (context) =>
+  context.json({
+    api: hasRequiredRuntimeConfig(),
+    auth: hasRequiredRuntimeConfig(),
+    harness: Boolean(process.env.RESPONSES_API_KEY),
+    worker: Boolean(process.env.WORKER_SECRET || process.env.CRON_SECRET),
+    googleOAuth: Boolean(
+      process.env.GOOGLE_OAUTH_CLIENT_ID &&
+      process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
+      process.env.GOOGLE_OAUTH_REDIRECT_URI,
+    ),
+  }),
+);
 
 async function runtime() {
   if (runtimePromise === undefined) {
