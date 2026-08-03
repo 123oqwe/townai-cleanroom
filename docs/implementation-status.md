@@ -190,3 +190,4 @@ Profile Settings now expose immutable profile revision history from GET /v1/prof
 Selected Routines now expose their versioned Routine Agent display name, instructions, and default approval mode. Publishing uses owner-scoped revision-aware PUT /v1/agents/routines/:agentId; callable routines are preserved as an explicit empty list until separately configured.
 Routine Agent publishing now also exposes the server-validated callableRoutineIds whitelist, excluding the selected agent itself and preserving only explicitly checked child routines.
 MCP management now exposes owner-scoped server creation (name, URL, transport, optional auth reference) and revision-checked disable actions through POST/DELETE /v1/mcp-servers, alongside existing Agent binding controls.
+MCP binding creation now exposes the real modeOverride and accountScope policy fields; the client submits explicit mode and account IDs instead of silently defaulting to null/empty policy.

@@ -1340,6 +1340,24 @@
           <div id="mcp-catalog-list" aria-live="polite">
             <p class="harness-empty">Connect the API to load MCP servers.</p>
           </div>
+          <div class="mcp-binding-policy">
+            <label for="mcp-binding-mode">New binding mode</label
+            ><select id="mcp-binding-mode">
+              <option value="read_only">Read only</option>
+              <option value="approval_required">Approval required</option>
+              <option value="autonomous">Autonomous</option>
+            </select>
+            <label for="mcp-binding-accounts"
+              >Account scope
+              <span class="form-hint"
+                >comma-separated IDs, optional</span
+              ></label
+            ><input
+              id="mcp-binding-accounts"
+              maxlength="2000"
+              placeholder="account UUIDs"
+            />
+          </div>
           <div class="mcp-server-form">
             <label for="mcp-server-name">Add MCP server</label
             ><input

@@ -2162,6 +2162,22 @@ dialog h2 {
 .mcp-server-disable {
   margin-top: 0.55rem;
 }
+.mcp-binding-policy {
+  display: grid;
+  gap: 8px;
+  margin-top: 1rem;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: var(--paper-deep);
+}
+.mcp-binding-policy label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.mcp-binding-policy input,
+.mcp-binding-policy select {
+  width: 100%;
+}
 
 .mcp-binding-action {
   margin-top: 0.55rem;

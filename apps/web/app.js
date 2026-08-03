@@ -2210,8 +2210,11 @@ async function toggleMcpBinding(button) {
     } else {
       await apiJson(`/v1/mcp-servers/${serverId}/bindings`, {
         agentVersionId: state.agentVersionId,
-        modeOverride: null,
-        accountScope: [],
+        modeOverride: $("#mcp-binding-mode").value,
+        accountScope: $("#mcp-binding-accounts")
+          .value.split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
       });
     }
     await loadMcpServers();
