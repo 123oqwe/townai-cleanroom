@@ -1391,6 +1391,9 @@ dialog h2 {
 .relationship-add-form input, .relationship-add-form select, .relationship-add-form textarea { width: 100%; }
 .relationship-row { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .65rem 0; border-bottom: 1px solid var(--line); }
 .relationship-row small { display: block; color: var(--muted); margin-top: .2rem; }
+.person-card-actions { display: flex; gap: .45rem; grid-column: 2 / -1; }
+.person-edit-form { display: grid; gap: 6px; grid-column: 1 / -1; margin-top: .5rem; }
+.person-edit-form input, .person-edit-form select, .person-edit-form textarea { width: 100%; }
 .people-add-toggle {
   margin: 3px 0 16px;
 }

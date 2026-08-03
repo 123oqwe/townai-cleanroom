@@ -134,3 +134,8 @@ Content Library cards now support inline editing through the existing
 revision-aware `PATCH /v1/content/:contentId` route. The client first fetches
 the authoritative content item, preserves its MIME/storage/metadata fields,
 and reloads after a successful save; stale revisions remain server-rejected.
+
+People cards now support inline edit through the existing owner-scoped
+`PUT /v1/people/:personId` route. The UI fetches the authoritative person
+before editing, preserves organization/role, submits `expectedRevision`, and
+reloads the list after success.

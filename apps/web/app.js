@@ -703,9 +703,19 @@ function renderPeople(result) {
         person.organization ||
         person.role ||
         "No details yet";
-      return `<article class="person-card" data-person-id="${escapeHtml(person.id)}"><span class="person-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(person.displayName)}</strong><small>${escapeHtml(detail)}</small></div><span class="person-category">${escapeHtml(person.category)}</span><button class="quiet-button person-relationships" type="button">Relationships</button></article>`;
+      return `<article class="person-card" data-person-id="${escapeHtml(person.id)}"><span class="person-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(person.displayName)}</strong><small>${escapeHtml(detail)}</small></div><span class="person-category">${escapeHtml(person.category)}</span><div class="person-card-actions"><button class="quiet-button person-edit" type="button">Edit</button><button class="quiet-button person-relationships" type="button">Relationships</button></div></article>`;
     })
     .join("");
+}
+async function editPerson(card) {
+  if (!card || card.querySelector(".person-edit-form")) return;
+  try { const result = await api(`/v1/people/${card.dataset.personId}`); const person = result.person; card._person = person; const form = document.createElement("div"); form.className = "person-edit-form"; form.innerHTML = `<input class="person-edit-name" maxlength="200" value="${escapeHtml(person.displayName)}"/><input class="person-edit-email" type="email" maxlength="320" value="${escapeHtml(person.primaryEmail || "")}"/><select class="person-edit-category"><option value="uncategorized">Uncategorized</option><option value="coworker">Coworker</option><option value="family">Family</option><option value="personal">Personal</option></select><textarea class="person-edit-notes" rows="2" maxlength="10000">${escapeHtml(person.notes || "")}</textarea><button class="quiet-button person-edit-save" type="button">Save</button>`; form.querySelector(".person-edit-category").value = person.category; card.append(form); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Could not load person."; card.append(error); }
+}
+async function savePersonEdit(card) {
+  const person = card?._person;
+  if (!person) return;
+  await api(`/v1/people/${person.id}`, { method: "PUT", body: JSON.stringify({ displayName: card.querySelector(".person-edit-name").value.trim(), primaryEmail: card.querySelector(".person-edit-email").value.trim() || undefined, category: card.querySelector(".person-edit-category").value, organization: person.organization || undefined, role: person.role || undefined, notes: card.querySelector(".person-edit-notes").value, expectedRevision: person.currentRevision }) });
+  await loadPeople();
 }
 async function loadRelationships(personId) {
   state.selectedPersonId = personId;
@@ -2450,8 +2460,12 @@ $("#people-add-toggle").addEventListener("click", () => {
 });
 $("#person-save").addEventListener("click", () => void savePerson());
 $("#people-list").addEventListener("click", (event) => {
+  const edit = event.target.closest(".person-edit");
+  const save = event.target.closest(".person-edit-save");
   const button = event.target.closest(".person-relationships");
   const card = event.target.closest(".person-card");
+  if (edit && card) { void editPerson(card); return; }
+  if (save && card) { void savePersonEdit(card).catch((cause) => { const error = $("#people-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit person."; error.hidden = false; }); return; }
   if (button && card) void loadRelationships(card.dataset.personId);
 });
 $("#relationship-save").addEventListener("click", () => void saveRelationship());
