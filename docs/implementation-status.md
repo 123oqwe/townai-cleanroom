@@ -377,3 +377,10 @@ requests `/v1/voice/synthesize` with the authenticated session, plays the
 returned audio blob locally, and stops/replaces the previous playback. A
 provider-unconfigured API therefore produces an explicit error state instead
 of a fake browser-side voice.
+
+Vapi phone events now have a provider adapter at
+`POST /v1/integrations/vapi/voice/:routineId`. It accepts the documented
+`message.type` envelope for `transcript` and `end-of-call-report`, extracts a
+user transcript and call id, authenticates with a deployment bearer secret,
+and queues a durable `voice_transcribed` trigger. It intentionally does not
+claim Vapi call orchestration or undocumented signature semantics.

@@ -105,6 +105,7 @@ import { registerA2ARoutes } from "./a2a-routes.js";
 import { registerSlackEventsRoute } from "./slack-events.js";
 import { registerTwilioVoiceEventsRoute } from "./twilio-voice-events.js";
 import { registerVoiceRoutes } from "./voice-routes.js";
+import { registerVapiVoiceEventsRoute } from "./vapi-voice-events.js";
 import type { VoiceSynthesisProvider } from "./elevenlabs-voice.js";
 import type { A2ARepository } from "@town/a2a";
 import { A2AError } from "@town/a2a";
@@ -152,6 +153,7 @@ export interface AppDependencies {
   slackSigningSecret?: string;
   twilioAuthToken?: string;
   voiceProvider?: VoiceSynthesisProvider;
+  vapiWebhookSecret?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (
     ownerId: string,
@@ -708,6 +710,16 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/voice/*", authenticate);
       registerVoiceRoutes(app, dependencies.voiceProvider);
     }
+    if (
+      dependencies.sql !== undefined &&
+      dependencies.routineRepository !== undefined &&
+      dependencies.vapiWebhookSecret !== undefined
+    )
+      registerVapiVoiceEventsRoute(app, {
+        sql: dependencies.sql,
+        repository: dependencies.routineRepository,
+        webhookSecret: dependencies.vapiWebhookSecret,
+      });
     if (dependencies.routineRepository !== undefined)
       registerRoutineShareRoutes(app, {
         repository: dependencies.routineRepository,

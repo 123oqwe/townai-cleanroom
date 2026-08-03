@@ -68,6 +68,7 @@ app.get("/v1/health/capabilities", (context) =>
     worker: Boolean(process.env.WORKER_SECRET || process.env.CRON_SECRET),
     slackEvents: Boolean(process.env.SLACK_SIGNING_SECRET),
     twilioVoice: Boolean(process.env.TWILIO_AUTH_TOKEN),
+    vapiVoice: Boolean(process.env.VAPI_WEBHOOK_SECRET),
     voiceSynthesis: Boolean(
       process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID,
     ),

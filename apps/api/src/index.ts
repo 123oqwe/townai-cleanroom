@@ -127,6 +127,7 @@ const environmentSchema = z.object({
   ELEVENLABS_API_KEY: z.string().min(1).optional(),
   ELEVENLABS_VOICE_ID: z.string().min(1).optional(),
   ELEVENLABS_MODEL_ID: z.string().min(1).default("eleven_multilingual_v2"),
+  VAPI_WEBHOOK_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
@@ -616,6 +617,9 @@ const app = createApp({
     ? {}
     : { twilioAuthToken: environment.TWILIO_AUTH_TOKEN }),
   ...(voiceProvider === undefined ? {} : { voiceProvider }),
+  ...(environment.VAPI_WEBHOOK_SECRET === undefined
+    ? {}
+    : { vapiWebhookSecret: environment.VAPI_WEBHOOK_SECRET }),
   workerEnabled:
     harnessServerFactory !== undefined &&
     (environment.WORKER_ENABLED ||

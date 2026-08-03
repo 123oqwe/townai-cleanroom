@@ -11,6 +11,7 @@ describe("serverless health probes", () => {
       "CRON_SECRET",
       "SLACK_SIGNING_SECRET",
       "TWILIO_AUTH_TOKEN",
+      "VAPI_WEBHOOK_SECRET",
       "ELEVENLABS_API_KEY",
       "ELEVENLABS_VOICE_ID",
       "GOOGLE_OAUTH_CLIENT_ID",
@@ -34,6 +35,7 @@ describe("serverless health probes", () => {
         worker: false,
         slackEvents: false,
         twilioVoice: false,
+        vapiVoice: false,
         voiceSynthesis: false,
         googleOAuth: false,
       });
