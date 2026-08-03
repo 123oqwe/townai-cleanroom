@@ -551,6 +551,23 @@ direct URL is
 questions. The direct URL returns the Vercel SSO `302`; Vercel reported no
 runtime errors in the verification window.
 
+Runtime user-input recovery is deployed in API
+`dpl_5Eo6z7pEmg2Tz8JhRWaqxe5jiC7S`, built from commit `19d3a7e`. Its protected
+direct URL is
+`https://town-clear-current-40tj3ssnh-123oqwes-projects.vercel.app`, state
+`READY`; the migration-backed `input_response` is consumed by the Harness
+adapter when a waiting run is answered. The direct `/v1/health` request returns
+the Vercel SSO `302`; Vercel reported no runtime errors in the verification
+window.
+
+The corresponding Web inbox is deployed in
+`dpl_BxWjFPzhHFgX9DJMtdwEBJhW3gJo`, built from commit `19d3a7e`. Its protected
+direct URL is
+`https://town-clear-current-mi6hbs2r6-123oqwes-projects.vercel.app`, state
+`READY`; it lists waiting Harness runs and submits explicit user answers. The
+direct URL returns the Vercel SSO `302`; Vercel reported no runtime errors in
+the verification window.
+
 The enabled tool catalog surface is deployed in
 `dpl_FrTm5RVJo4tfENzoq9Vn2Kihchs4`, built from commit `34cdf21`. Its protected
 direct URL is
