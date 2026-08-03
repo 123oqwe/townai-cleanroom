@@ -982,6 +982,10 @@ The approval ToolCall inspector UI is deployed as
 no runtime errors; direct unauthenticated access returns the expected `302`
 SSO redirect.
 
-The public share HTML representation is included in the next source deployment;
-the UI remains protected by the project-level Vercel SSO policy and no share
-token or credential is embedded in the static bundle.
+The public share HTML representation source state `15c4bf5` is deployed as
+`https://town-clear-current-q9w0hj2nh-123oqwes-projects.vercel.app`, deployment
+`dpl_4yomW4M4V31eaeKbPym3sEK9QDTk`, state `READY`, aliases
+`town-clear-current-123oqwes-projects.vercel.app` and
+`town-clear-current-123oqwe-123oqwes-projects.vercel.app`. Vercel reported no
+runtime errors; the project-level SSO policy remains enabled for direct UI
+access and no share token or credential is embedded in the static bundle.
