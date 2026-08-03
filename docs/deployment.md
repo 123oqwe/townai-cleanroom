@@ -1347,3 +1347,10 @@ The approval-gated `town_workspace` Harness binding is included in
 The build completed successfully and no runtime errors were reported in the
 selected hour. `WORKSPACE_ROOT` is not configured on Vercel, so the binding is
 absent there rather than exposing an ephemeral filesystem as durable state.
+
+The expanded `town_workspace` binding (literal grep and approval-gated copy)
+is included in deployment `dpl_7Xe27cHrxtgWtg499Cc3UhqWi1Vk`,
+`https://town-clear-aj32tb61m-123oqwes-projects.vercel.app`, state `READY`.
+The build completed successfully and no runtime errors were reported in the
+selected hour. `WORKSPACE_ROOT` remains unset on Vercel, so the binding is not
+advertised as active in that environment.
