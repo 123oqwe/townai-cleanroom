@@ -1046,6 +1046,16 @@ async function saveTask() {
 }
 let selectedRoutineId = null;
 let selectedRoutineTemplate = null;
+let selectedRoutine = null;
+function showRoutineEditor(routine) {
+  selectedRoutine = routine;
+  $("#routine-edit-form").hidden = false;
+  $("#routine-edit-name").value = routine.name;
+  $("#routine-edit-cron").value = routine.cron;
+  $("#routine-edit-timezone").value = routine.timezone;
+  $("#routine-edit-next-run").value = new Date(routine.nextRunAt).toISOString().slice(0, 16);
+  $("#routine-edit-enabled").checked = routine.enabled;
+}
 function renderRoutines(result) {
   const target = $("#routine-list");
   const routines = result.routines || [];
@@ -1064,6 +1074,8 @@ function renderRoutines(result) {
   target.querySelectorAll(".routine-select").forEach((button) => {
     button.addEventListener("click", () => {
       selectedRoutineId = button.dataset.routineId;
+      selectedRoutine = (result.routines || []).find((routine) => routine.id === selectedRoutineId) || null;
+      if (selectedRoutine) showRoutineEditor(selectedRoutine);
       $("#routine-trigger").hidden = false;
       $("#routine-history").hidden = false;
       void loadRoutineWebhook();
@@ -1074,6 +1086,16 @@ function renderRoutines(result) {
       $("#routine-input").focus();
     });
   });
+}
+async function saveRoutineEdit() {
+  if (!selectedRoutine) return;
+  const error = $("#routine-edit-error");
+  try { await api(`/v1/routines/${selectedRoutine.id}`, { method: "PATCH", body: JSON.stringify({ agentId: selectedRoutine.agentId, agentVersionId: selectedRoutine.agentVersionId, name: $("#routine-edit-name").value.trim(), cron: $("#routine-edit-cron").value.trim(), timezone: $("#routine-edit-timezone").value.trim(), nextRunAt: new Date($("#routine-edit-next-run").value).toISOString(), enabled: $("#routine-edit-enabled").checked, expectedRevision: selectedRoutine.revision }) }); error.hidden = true; await loadRoutines(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save routine."; error.hidden = false; }
+}
+async function deleteRoutine() {
+  if (!selectedRoutine) return;
+  const error = $("#routine-edit-error");
+  try { await api(`/v1/routines/${selectedRoutine.id}?expectedRevision=${selectedRoutine.revision}`, { method: "DELETE" }); selectedRoutine = null; selectedRoutineId = null; $("#routine-edit-form").hidden = true; error.hidden = true; await loadRoutines(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not delete routine."; error.hidden = false; }
 }
 async function loadRoutineTriggers() {
   if (!selectedRoutineId || !state.token) return;
@@ -2531,6 +2553,8 @@ $("#routines-open").addEventListener("click", () => {
   void loadRoutines();
 });
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
+$("#routine-edit-save").addEventListener("click", () => void saveRoutineEdit());
+$("#routine-edit-delete").addEventListener("click", () => void deleteRoutine());
 $("#routine-trigger-list").addEventListener("click", (event) => {
   const button = event.target.closest(".routine-trigger-toggle");
   const row = button?.closest(".routine-trigger-row") || event.target.closest(".routine-trigger-row");

@@ -765,6 +765,15 @@
         <div class="routine-list" id="routine-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load routines.</p>
         </div>
+        <div class="routine-edit-form" id="routine-edit-form" hidden>
+          <label for="routine-edit-name">Name</label><input id="routine-edit-name" maxlength="120" />
+          <label for="routine-edit-cron">Cron</label><input id="routine-edit-cron" maxlength="200" />
+          <label for="routine-edit-timezone">Timezone</label><input id="routine-edit-timezone" maxlength="100" />
+          <label for="routine-edit-next-run">Next run</label><input id="routine-edit-next-run" type="datetime-local" />
+          <label><input id="routine-edit-enabled" type="checkbox" /> Enabled</label>
+          <div class="routine-edit-actions"><button class="quiet-button" id="routine-edit-save" type="button">Save routine</button><button class="quiet-button" id="routine-edit-delete" type="button">Delete routine</button></div>
+          <p class="dialog-error" id="routine-edit-error" role="alert" hidden></p>
+        </div>
         <section
           class="routine-templates"
           aria-labelledby="routine-templates-title"

@@ -52,6 +52,9 @@
 .routine-trigger-actions { display: flex; gap: .45rem; }
 .routine-trigger-add { display: grid; gap: 6px; margin-top: .8rem; }
 .routine-trigger-add select, .routine-trigger-add textarea { width: 100%; }
+.routine-edit-form { display: grid; gap: 6px; margin: .8rem 0; }
+.routine-edit-form input { width: 100%; }
+.routine-edit-actions { display: flex; gap: .5rem; }
 .routine-run-card {
   display: flex;
   align-items: center;

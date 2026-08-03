@@ -150,6 +150,11 @@ owner-scoped revision-aware `PATCH /v1/tasks/:taskId` route. The UI fetches the
 authoritative task, preserves its scheduled time, and reloads the open-task
 view after a successful update.
 
+Routine schedules now support inline name/cron/timezone/next-run/enabled edits
+and revision-checked deletion through the existing `PATCH/DELETE
+/v1/routines/:routineId` routes. The UI preserves the routine's real agent and
+agent-version bindings and reloads the schedule list after mutation.
+
 Task cards now expose the existing owner-scoped mark-read and revision-checked
 delete actions. `POST /v1/tasks/:taskId/mark-read` and
 `DELETE /v1/tasks/:taskId` are followed by a server-truth reload; no client-only
