@@ -1244,6 +1244,13 @@ completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The endpoint remains inactive
 until `VAPI_WEBHOOK_SECRET` is configured; the direct URL remains SSO-gated.
 
+The owner-scoped Content blob read boundary is deployed as
+`https://town-clear-qpxi0j1um-123oqwes-projects.vercel.app`, deployment
+`dpl_DwjfeDSwhWWvRRjBvDEpfpn4fKND`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. Actual bytes remain dependent on a
+configured storage adapter; unconfigured storage returns an explicit 503.
+
 The Vapi legacy `X-Vapi-Secret` compatibility update is deployed as
 `https://town-clear-ese87nf9c-123oqwes-projects.vercel.app`, deployment
 `dpl_2T3FxTWLELnzJmar7SP3LMVNHrev`, state `READY`. The full workspace build
