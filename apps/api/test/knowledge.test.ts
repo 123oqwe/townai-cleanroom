@@ -20,6 +20,7 @@ import {
 import {
   createKnowledgeConflictService,
   createKnowledgeSearchRepository,
+  createWikiUpkeepScanner,
   createMemoryRepository,
   createPeopleRepository,
   createProfileRepository,
@@ -61,6 +62,7 @@ async function fixture() {
   const wikiRepository = createWikiRepository(sql);
   const revisionRepository = createRevisionRepository(sql);
   const knowledgeSearchRepository = createKnowledgeSearchRepository(sql);
+  const knowledgeUpkeepScanner = createWikiUpkeepScanner(sql);
   const knowledgeConflictService = createKnowledgeConflictService(sql);
   const owner = await identityService.establishIdentity({
     email: "knowledge-owner@example.invalid",
@@ -79,6 +81,7 @@ async function fixture() {
     wikiRepository,
     revisionRepository,
     knowledgeSearchRepository,
+    knowledgeUpkeepScanner,
     knowledgeConflictService,
   });
 
@@ -266,6 +269,28 @@ describe("protected knowledge API", () => {
       truncated: false,
     });
     expect(context.text).toContain("[wiki:");
+
+    await sql`
+      update wiki_documents
+      set updated_at=now() - interval '45 days'
+      where owner_id=${owner.user.id} and slug='searchable'
+    `;
+    const upkeepResponse = await app.request(
+      "/v1/knowledge/upkeep?staleAfterDays=30&limit=10",
+      { headers },
+    );
+    const upkeep = await upkeepResponse.json();
+    expect(upkeepResponse.status).toBe(200);
+    expect(upkeep).toMatchObject({
+      staleAfterDays: 30,
+      candidates: [
+        {
+          resourceType: "wiki",
+          title: "Searchable Roadmap",
+          reason: "not_updated_recently",
+        },
+      ],
+    });
   });
 
   it("exposes owner-scoped Person relationship edges", async () => {

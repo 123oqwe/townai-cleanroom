@@ -12,6 +12,7 @@ import {
   type ProfileRepository,
   type RevisionRepository,
   type WikiRepository,
+  type WikiUpkeepScanner,
 } from "@town/knowledge";
 
 import type { AuthVariables } from "./auth.js";
@@ -24,6 +25,7 @@ export interface KnowledgeDependencies {
   revisionRepository: RevisionRepository;
   knowledgeSearchRepository: KnowledgeSearchRepository;
   knowledgeConflictService: KnowledgeConflictService;
+  knowledgeUpkeepScanner?: WikiUpkeepScanner;
 }
 
 const jsonObjectSchema = z.record(z.string(), z.json());
@@ -148,6 +150,12 @@ const contextQuerySchema = z
     types: z.string().trim().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(20),
     maxChars: z.coerce.number().int().min(500).max(50_000).default(12_000),
+  })
+  .strict();
+const upkeepQuerySchema = z
+  .object({
+    staleAfterDays: z.coerce.number().int().min(1).max(3650).default(30),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
   })
   .strict();
 
@@ -514,6 +522,21 @@ export function registerKnowledgeRoutes(
     return context.json({
       conflicts: await dependencies.knowledgeConflictService.list(ownerId),
     });
+  });
+
+  app.get("/v1/knowledge/upkeep", async (context) => {
+    const scanner = dependencies.knowledgeUpkeepScanner;
+    if (scanner === undefined)
+      return context.json({ code: "UPKEEP_NOT_CONFIGURED" }, 503);
+    const ownerId = context.get("identity").user.id;
+    const query = upkeepQuerySchema.parse(context.req.query());
+    return context.json(
+      await scanner.scan({
+        ownerId,
+        staleAfterDays: query.staleAfterDays,
+        limit: query.limit,
+      }),
+    );
   });
 
   app.post("/v1/knowledge/conflicts/:conflictId/resolve", async (context) => {

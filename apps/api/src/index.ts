@@ -34,6 +34,7 @@ import {
   createKnowledgeConflictService,
   createKnowledgeContextBuilder,
   createKnowledgeSearchRepository,
+  createWikiUpkeepScanner,
   createMemoryRepository,
   createPeopleRepository,
   createProfileRepository,
@@ -153,6 +154,7 @@ const knowledgeSearchRepository = createKnowledgeSearchRepository(sql);
 const knowledgeContextBuilder = createKnowledgeContextBuilder(
   knowledgeSearchRepository,
 );
+const knowledgeUpkeepScanner = createWikiUpkeepScanner(sql);
 const knowledgeConflictService = createKnowledgeConflictService(sql);
 const agentRepository = createAgentRepository(sql);
 const threadRepository = createThreadRepository(sql);
@@ -546,6 +548,7 @@ const app = createApp({
   wikiRepository,
   revisionRepository,
   knowledgeSearchRepository,
+  knowledgeUpkeepScanner,
   knowledgeConflictService,
   agentRepository,
   threadRepository,

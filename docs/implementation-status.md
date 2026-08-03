@@ -316,3 +316,11 @@ bounded failures, and rejects concurrent running work explicitly. This makes
 the durable Step cache executable by routine adapters rather than only
 inspectable through the repository; it still requires a caller-provided
 Routine adapter and does not claim Town's private step graph or retry policy.
+
+Wiki upkeep now has a protected read-only scanner at
+`GET /v1/knowledge/upkeep`. It reports owner-scoped active memories that are
+expired or not observed recently and active Wiki documents not updated within
+the requested window, with current revisions and timestamps. It never writes,
+retires, summarizes, or invents replacement content; any future provider job
+must submit a cited, revision-aware conflict through the existing knowledge
+service.

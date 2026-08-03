@@ -35,6 +35,7 @@ import {
   type ProfileRepository,
   type RevisionRepository,
   type WikiRepository,
+  type WikiUpkeepScanner,
 } from "@town/knowledge";
 import {
   RuntimeError,
@@ -116,6 +117,7 @@ export interface AppDependencies {
   revisionRepository?: RevisionRepository;
   knowledgeSearchRepository?: KnowledgeSearchRepository;
   knowledgeConflictService?: KnowledgeConflictService;
+  knowledgeUpkeepScanner?: WikiUpkeepScanner;
   agentRepository?: AgentRepository;
   threadRepository?: ThreadRepository;
   turnRepository?: TurnRepository;
@@ -223,6 +225,7 @@ function knowledgeDependencies(
     revisionRepository,
     knowledgeSearchRepository,
     knowledgeConflictService,
+    knowledgeUpkeepScanner,
   } = dependencies;
   if (
     profileRepository === undefined ||
@@ -243,6 +246,7 @@ function knowledgeDependencies(
     revisionRepository,
     knowledgeSearchRepository,
     knowledgeConflictService,
+    ...(knowledgeUpkeepScanner === undefined ? {} : { knowledgeUpkeepScanner }),
   };
 }
 
