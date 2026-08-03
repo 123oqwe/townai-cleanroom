@@ -454,3 +454,10 @@ returns a structured `402 BILLING_BLOCKED` response before creating a queued
 run. Unconfigured billing remains backward-compatible and does not pretend to
 enforce credits; queued work is not silently deleted when a later block is
 provisioned.
+
+The observed unauthenticated web-vital path now has a separate
+`POST /v1/analytics/public/events` ingestion boundary. It accepts only an
+opaque client session key, bounded event metadata, and an optional idempotency
+key; it stores no IP, cookie, credential, or user-agent identity and returns a
+minimal receipt. Owner analytics remain authenticated and isolated. Town's
+private downstream analytics transport and event taxonomy are not claimed.

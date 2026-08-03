@@ -44,6 +44,10 @@ export interface AnalyticsPage {
   items: AnalyticsEvent[];
   nextCursor: string | null;
 }
+export interface PublicAnalyticsReceipt {
+  accepted: true;
+  replayed: boolean;
+}
 export const presenceSurfaceSchema = z.enum([
   "web",
   "ios",
@@ -108,6 +112,15 @@ type AnalyticsRow = {
   fingerprint: string;
   created_at: Date;
 };
+type PublicAnalyticsRow = {
+  id: string;
+  session_key: string;
+  event_name: string;
+  metadata: Record<string, unknown>;
+  dedupe_key: string | null;
+  fingerprint: string;
+  created_at: Date;
+};
 type PresenceRow = {
   id: string;
   owner_id: string;
@@ -156,6 +169,14 @@ const analyticsListSchema = z
     eventName: z.string().trim().min(1).max(200).optional(),
     cursor: z.string().min(1).max(500).optional(),
     limit: z.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+const publicAnalyticsSchema = z
+  .object({
+    sessionKey: z.string().trim().min(16).max(128),
+    eventName: z.string().trim().min(1).max(200),
+    metadata: z.record(z.string(), z.json()).default({}),
+    dedupeKey: z.string().trim().min(1).max(500).nullable().optional(),
   })
   .strict();
 const presenceHeartbeatSchema = z
@@ -263,6 +284,12 @@ function safeAnalytics(row: AnalyticsRow): AnalyticsEvent {
     dedupeKey: row.dedupe_key,
     createdAt: row.created_at,
   };
+}
+function publicAnalyticsFingerprint(value: {
+  eventName: string;
+  metadata: Record<string, unknown>;
+}): string {
+  return JSON.stringify(canonical(value));
 }
 function safePresence(row: PresenceRow): PresenceSession {
   return {
@@ -403,6 +430,33 @@ export function createOperationsRepository(sql: Sql) {
       "The analytics event conflicts with another write.",
     );
   }
+  async function appendPublicAnalytics(
+    input: z.input<typeof publicAnalyticsSchema>,
+  ): Promise<PublicAnalyticsReceipt> {
+    const value = publicAnalyticsSchema.parse(input);
+    const metadata = safeMetadata(value.metadata);
+    const requestFingerprint = publicAnalyticsFingerprint({
+      eventName: value.eventName,
+      metadata,
+    });
+    const [row] = await sql<PublicAnalyticsRow[]>`
+      insert into public_analytics_events
+        (id,session_key,event_name,metadata,dedupe_key,fingerprint)
+      values
+        (${newId<"public-analytics-event">()},${value.sessionKey},${value.eventName},${sql.json(metadata as never)},${value.dedupeKey ?? null},${requestFingerprint})
+      on conflict (session_key,dedupe_key) do nothing
+      returning id`;
+    if (row) return { accepted: true, replayed: false };
+    const [existing] = await sql<PublicAnalyticsRow[]>`
+      select fingerprint from public_analytics_events
+      where session_key=${value.sessionKey} and dedupe_key=${value.dedupeKey ?? null}`;
+    if (existing?.fingerprint === requestFingerprint)
+      return { accepted: true, replayed: true };
+    throw new OperationsError(
+      "AUDIT_CONFLICT",
+      "The public analytics event conflicts with another write.",
+    );
+  }
   async function listAnalytics(
     input: z.input<typeof analyticsListSchema>,
   ): Promise<AnalyticsPage> {
@@ -531,6 +585,7 @@ export function createOperationsRepository(sql: Sql) {
     timeline,
     appendAnalytics,
     listAnalytics,
+    appendPublicAnalytics,
     heartbeatPresence,
     listPresence,
   };

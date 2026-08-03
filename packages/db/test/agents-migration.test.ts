@@ -137,6 +137,7 @@ describe("agent, thread, and task migration", () => {
       "0042_email_to_assistant_runs.sql",
       "0043_analytics_events.sql",
       "0044_presence_sessions.sql",
+      "0045_public_analytics_events.sql",
     ]);
   });
 });

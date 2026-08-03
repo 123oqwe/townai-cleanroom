@@ -82,7 +82,10 @@ import { registerSquareRoutes } from "./square-routes.js";
 import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 import { registerChannelRoutes } from "./channel-routes.js";
 import { registerBillingRoutes } from "./billing-routes.js";
-import { registerOperationsRoutes } from "./operations-routes.js";
+import {
+  registerOperationsRoutes,
+  registerPublicAnalyticsRoutes,
+} from "./operations-routes.js";
 import { registerAdminRoutes } from "./admin-routes.js";
 import {
   registerRoutineRoutes,
@@ -889,6 +892,9 @@ export function createApp(dependencies?: AppDependencies) {
       });
     }
     if (dependencies.operationsRepository !== undefined) {
+      registerPublicAnalyticsRoutes(app, {
+        repository: dependencies.operationsRepository,
+      });
       app.use("/v1/operations", authenticate);
       app.use("/v1/operations/*", authenticate);
       registerOperationsRoutes(app, {

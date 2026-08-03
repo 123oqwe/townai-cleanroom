@@ -43,6 +43,27 @@ const presenceSchema = z
     intervalSeconds: z.coerce.number().int().min(5).max(120).default(30),
   })
   .strict();
+const publicAnalyticsEventSchema = z
+  .object({
+    sessionKey: z.string().trim().min(16).max(128),
+    eventName: z.string().trim().min(1).max(200),
+    metadata: z.record(z.string(), z.json()).default({}),
+    dedupeKey: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .strict();
+
+export function registerPublicAnalyticsRoutes(
+  app: Hono<{ Variables: AuthVariables }>,
+  dependencies: OperationsDependencies,
+): void {
+  app.post("/v1/analytics/public/events", async (context) => {
+    const body = publicAnalyticsEventSchema.parse(await context.req.json());
+    return context.json(
+      { receipt: await dependencies.repository.appendPublicAnalytics(body) },
+      202,
+    );
+  });
+}
 
 export function registerOperationsRoutes(
   app: Hono<{ Variables: AuthVariables }>,

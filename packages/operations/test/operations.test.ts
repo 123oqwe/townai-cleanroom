@@ -247,4 +247,37 @@ describe("operations audit and summary", () => {
     expect(await repository.listPresence(ownerId)).toEqual([]);
     expect(await repository.listPresence(otherId)).toHaveLength(1);
   });
+
+  it("accepts anonymous analytics without storing network identity", async () => {
+    const repository = createOperationsRepository(sql);
+    await expect(
+      repository.appendPublicAnalytics({
+        sessionKey: "anonymous-session-1",
+        eventName: "web_vital_recorded",
+        dedupeKey: "fcp-1",
+        metadata: { metric: "FCP", value: 1080, pathname: "/sign-up" },
+      }),
+    ).resolves.toEqual({ accepted: true, replayed: false });
+    await expect(
+      repository.appendPublicAnalytics({
+        sessionKey: "anonymous-session-1",
+        eventName: "web_vital_recorded",
+        dedupeKey: "fcp-1",
+        metadata: { metric: "FCP", value: 1080, pathname: "/sign-up" },
+      }),
+    ).resolves.toEqual({ accepted: true, replayed: true });
+    await expect(
+      repository.appendPublicAnalytics({
+        sessionKey: "anonymous-session-1",
+        eventName: "other",
+        dedupeKey: "fcp-1",
+      }),
+    ).rejects.toMatchObject({ code: "AUDIT_CONFLICT" });
+    await expect(
+      repository.appendPublicAnalytics({
+        sessionKey: "short",
+        eventName: "web_vital_recorded",
+      }),
+    ).rejects.toThrow();
+  });
 });
