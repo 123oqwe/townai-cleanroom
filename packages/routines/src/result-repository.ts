@@ -192,7 +192,30 @@ export function createRoutineResultRepository(sql: Sql) {
     return row === undefined ? null : safe(row);
   }
 
-  return { complete, fail, listForSession, getForRun };
+  async function linkNotification(
+    ownerId: Id<"user">,
+    resultId: Id<"routine-result">,
+    notificationId: Id<"notification-delivery">,
+  ): Promise<RoutineResult> {
+    const value = z
+      .object({
+        ownerId: idSchema,
+        resultId: idSchema,
+        notificationId: idSchema,
+      })
+      .parse({ ownerId, resultId, notificationId });
+    const [row] = await sql<Row[]>`
+      update routine_results
+      set notification_id=${value.notificationId}, updated_at=now()
+      where owner_id=${value.ownerId} and id=${value.resultId}
+      returning ${sql.unsafe(returningColumns)}
+    `;
+    if (row === undefined)
+      throw new Error("ROUTINE_RESULT_NOT_FOUND: result cannot be linked.");
+    return safe(row);
+  }
+
+  return { complete, fail, listForSession, getForRun, linkNotification };
 }
 
 export type RoutineResultRepository = ReturnType<

@@ -562,6 +562,7 @@ const runtimeWorker =
               sql,
               routines: routineRepository,
               results: routineResultRepository,
+              channels: channelRepository,
               ownerId,
               runtimeRunId: runId,
               state,

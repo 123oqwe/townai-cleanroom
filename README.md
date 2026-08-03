@@ -117,6 +117,11 @@ empty to preserve the database's existing allowlist state.
   Each window is bounded, event updates use the provider `updated` version in
   the idempotency key, and event payloads enter the same untrusted calendar
   trigger queue for durable runtime execution.
+- Routine finalization can associate a notification only when an enabled
+  `outgoing_email` trigger explicitly names a notification channel. It queues
+  a real outbox delivery with `routine-result:<resultId>` idempotency, links the
+  delivery ID back to `RoutineResult`, and never changes a completed runtime
+  result into a failure when delivery is disabled or unavailable.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.
