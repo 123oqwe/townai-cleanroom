@@ -133,6 +133,12 @@ transport, and an optional non-secret credential reference; it does not claim
 remote MCP execution or automatic trust. An unauthenticated curl to the direct
 URL still receives the Vercel SSO `302` protection redirect.
 
+MCP servers can also be explicitly bound to an immutable AgentVersion through
+`POST /v1/mcp-servers/:serverId/bindings`; effective bindings are owner-scoped,
+revision-checked, and filtered to active servers. This records enablement only;
+the runtime still requires an explicit MCP transport adapter before any remote
+tool call can occur.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:

@@ -69,8 +69,10 @@ empty to preserve the database's existing allowlist state.
   and no worker capability token in public delivery DTOs.
 - Owner-scoped MCP server metadata under `/v1/mcp-servers` with HTTPS URL,
   `streamable_http`/`sse` transport, optional credential reference, and
-  revision-checked disable. Registration does not claim remote execution or
-  trust an external server automatically.
+  revision-checked disable. Servers can be explicitly enabled per immutable
+  AgentVersion through revision-checked bindings; inactive servers and bindings
+  are excluded from the effective list. Registration does not claim remote
+  execution or trust an external server automatically.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

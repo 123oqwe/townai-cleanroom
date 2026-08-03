@@ -10,6 +10,7 @@ import {
 import postgres, { type Sql } from "postgres";
 import { runMigrations } from "@town/db";
 import { newId, type Id } from "@town/contracts";
+import { createAgentRepository } from "@town/agents";
 import { createMcpRepository } from "../src/index.js";
 
 let sql: Sql;
@@ -53,5 +54,55 @@ describe("MCP server metadata", () => {
     await expect(repository.disable(ownerId, server.id, 1)).rejects.toThrow(
       "MCP_SERVER_CONFLICT",
     );
+  });
+
+  it("binds an MCP server only to an explicit immutable AgentVersion", async () => {
+    const agent = await createAgentRepository(sql).createPersonal({
+      ownerId,
+      displayName: "MCP Routine Fixture",
+      instructions: "Use only explicitly enabled servers.",
+      defaultApprovalMode: "require_approval",
+    });
+    const repository = createMcpRepository(sql);
+    const server = await repository.create({
+      ownerId,
+      name: "Routine MCP",
+      url: "https://mcp.example.invalid/tools",
+    });
+    const binding = await repository.bind({
+      ownerId,
+      agentVersionId: agent.activeVersion.id,
+      mcpServerId: server.id,
+      modeOverride: "approval_required",
+      accountScope: ["primary-account"],
+    });
+    await expect(
+      repository.listForAgentVersion({
+        ownerId,
+        agentVersionId: agent.activeVersion.id,
+      }),
+    ).resolves.toMatchObject([
+      {
+        id: server.id,
+        binding: {
+          id: binding.id,
+          modeOverride: "approval_required",
+          accountScope: ["primary-account"],
+        },
+      },
+    ]);
+    await expect(
+      repository.bind({
+        ownerId,
+        agentVersionId: agent.activeVersion.id,
+        mcpServerId: server.id,
+      }),
+    ).rejects.toThrow("MCP_SERVER_ALREADY_EXISTS");
+    await expect(
+      repository.disableBinding(ownerId, binding.id, 1),
+    ).resolves.toMatchObject({ enabled: false, revision: 2 });
+    await expect(
+      repository.disableBinding(ownerId, binding.id, 1),
+    ).rejects.toThrow("MCP_SERVER_CONFLICT");
   });
 });

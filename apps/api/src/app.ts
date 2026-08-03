@@ -43,6 +43,7 @@ import {
 } from "@town/runtime";
 import {
   ToolExecutionError,
+  McpRepositoryError,
   ToolRegistryError,
   type ToolExecutionRepository,
   type ToolRegistryRepository,
@@ -399,6 +400,10 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof A2AError && error.code === "A2A_CONFLICT") ||
       (error instanceof ToolRegistryError &&
         ["TOOL_NAME_CONFLICT", "TOOL_BINDING_CONFLICT"].includes(error.code)) ||
+      (error instanceof McpRepositoryError &&
+        ["MCP_SERVER_ALREADY_EXISTS", "MCP_SERVER_CONFLICT"].includes(
+          error.code,
+        )) ||
       (error instanceof ToolExecutionError &&
         [
           "IDEMPOTENCY_CONFLICT",
@@ -639,6 +644,8 @@ export function createApp(dependencies?: AppDependencies) {
     if (dependencies.mcpRepository !== undefined) {
       app.use("/v1/mcp-servers", authenticate);
       app.use("/v1/mcp-servers/*", authenticate);
+      app.use("/v1/mcp-server-bindings", authenticate);
+      app.use("/v1/mcp-server-bindings/*", authenticate);
       registerMcpRoutes(app, dependencies.mcpRepository);
     }
     if (dependencies.contentRepository !== undefined) {
