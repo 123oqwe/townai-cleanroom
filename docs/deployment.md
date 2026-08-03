@@ -1278,6 +1278,13 @@ completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. Gmail searches now include the
 configured assistant address before queueing messages.
 
+The policy-safe public `town_web_fetch` Harness tool is deployed as
+`https://town-clear-rf6m44fbm-123oqwes-projects.vercel.app`, deployment
+`dpl_ECHcjpY3udMmG8wzisn6WiwfA9tG`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The tool remains read-only,
+bounded, and labels fetched content as untrusted data.
+
 The routine-scoped webhook secret isolation fix is deployed as
 `https://town-clear-47o0y79fo-123oqwes-projects.vercel.app`, deployment
 `dpl_J7HkDdYzjBtRrW7Hi3KJ7hX57pNU`, state `READY`. The full workspace build
