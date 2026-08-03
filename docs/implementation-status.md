@@ -397,3 +397,9 @@ claim Vapi call orchestration or undocumented signature semantics. The
 adapter accepts both the current configurable bearer `Authorization` form and
 Vapi's documented legacy `X-Vapi-Secret` form, and the Routine webhook secret
 is bound to the requested routine id.
+
+The Harness now includes a real `town_web_fetch` read tool. It follows at most
+two public HTTP redirects, blocks localhost/private address patterns, enforces
+a ten-second request timeout and bounded text output, strips executable HTML
+content, and labels the returned page text as `untrusted_data`. It does not
+claim Town's private browser automation or sandbox implementation.

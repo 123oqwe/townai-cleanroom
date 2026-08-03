@@ -11,6 +11,7 @@ import {
   createRegistryHarnessBindings,
   createTownMemoryAddHarnessBinding,
   createTownContextHarnessBinding,
+  createTownWebFetchHarnessBinding,
   createTownSearchHarnessBinding,
   createTownVoiceSpeakHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
@@ -23,6 +24,36 @@ import type { SessionRepository } from "@town/runtime";
 import type { ThreadRepository } from "@town/agents";
 
 describe("Town Harness built-in tools", () => {
+  it("fetches bounded public web text and labels it untrusted", async () => {
+    const fetcher = vi.fn(
+      async () =>
+        new Response("<html><script>alert(1)</script><h1>Hello</h1></html>", {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+    );
+    const binding = createTownWebFetchHarnessBinding(fetcher);
+    const result = await binding.port.execute({
+      url: "https://example.com/article",
+      maxChars: 1_000,
+    });
+    expect(result).toMatchObject({ kind: "result" });
+    expect(JSON.parse(result.output)).toMatchObject({
+      text: "Hello",
+      trust: "untrusted_data",
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("denies private hosts before making a web request", async () => {
+    const fetcher = vi.fn();
+    const binding = createTownWebFetchHarnessBinding(fetcher);
+    await expect(
+      binding.port.execute({ url: "http://127.0.0.1/admin" }),
+    ).rejects.toThrow("WEB_FETCH_PRIVATE_HOST_DENIED");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("exposes configured voice synthesis only after approval", async () => {
     const synthesize = vi.fn().mockResolvedValue({
       audio: new Uint8Array([1, 2]),

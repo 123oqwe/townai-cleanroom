@@ -67,6 +67,7 @@ import {
   createRegistryHarnessBindings,
   createMcpHarnessBindings,
   createTownContextHarnessBinding,
+  createTownWebFetchHarnessBinding,
   createTownVoiceSpeakHarnessBinding,
   createTownSearchHarnessBinding,
   createGoogleGmailSearchHarnessBinding,
@@ -498,6 +499,7 @@ const harnessServerFactory =
                   typedOwnerId,
                   knowledgeContextBuilder,
                 ),
+                createTownWebFetchHarnessBinding(),
                 ...(voiceProvider === undefined
                   ? []
                   : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
