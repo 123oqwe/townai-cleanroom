@@ -1017,9 +1017,9 @@ are available.
 
 After adding npm workspace links and replacing internal workspace protocol
 references with equivalent local file references, the full 162-file source
-deployment built successfully: \`dpl_48EKVcVFK7gpTMR4a2sGy7R81pro\`,
-\`https://town-clear-current-ir9ygk4sl-123oqwes-projects.vercel.app\`, state
-\`READY\`, with Node.js Lambda runtime detected. Vercel reported no runtime
+deployment built successfully: `dpl_48EKVcVFK7gpTMR4a2sGy7R81pro`,
+`https://town-clear-current-ir9ygk4sl-123oqwes-projects.vercel.app`, state
+`READY`, with Node.js Lambda runtime detected. Vercel reported no runtime
 errors, and the protected alias returned \`302\` SSO. This is the first verified
 full-source build artifact; API requests still require the real database,
 credential master key, and allowlist environment before they can be claimed
@@ -1033,8 +1033,8 @@ protected alias returned the expected `302` SSO redirect. The API route is
 present in this full-source artifact but requires deployment environment
 configuration before an allowlisted login can be exercised remotely.
 
-The capability-readiness source state \`7ee7b6c\` is deployed as
-\`https://town-clear-current-jegy1zkil-123oqwes-projects.vercel.app\`,
-deployment \`dpl_AFtk19biM9afG2HVjjPS4rYgVhGt\`, state \`READY\`, with Node.js
+The capability-readiness source state `7ee7b6c` is deployed as
+`https://town-clear-current-jegy1zkil-123oqwes-projects.vercel.app`,
+deployment `dpl_AFtk19biM9afG2HVjjPS4rYgVhGt`, state `READY`, with Node.js
 Lambda runtime detected. Vercel reported no runtime errors; the protected alias
 returned the expected \`302\` SSO redirect.

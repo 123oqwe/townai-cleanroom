@@ -240,6 +240,11 @@ environment values. The command center reads this capability response and shows
 “Harness ready” versus “data only”, so a connected database is not presented as
 an executable AI runtime when the Responses provider is unconfigured.
 
+The Harness dialog now consumes the same readiness contract before creating a
+thread or queuing a turn. When the worker is not configured, the composer and
+thread controls are disabled and the UI explains that data/settings remain
+available; it does not present a queue action that cannot execute.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all

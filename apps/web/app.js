@@ -26,6 +26,7 @@ const state = {
   selectedPersonId: null,
   squarePolicyRevision: null,
   libraryContent: [],
+  capabilities: { api: false, auth: false, harness: false, googleOAuth: false },
   harnessStreamAbort: null,
 };
 const $ = (selector) => document.querySelector(selector);
@@ -236,6 +237,22 @@ function setHarnessState(text, tone = "") {
   $("#harness-state-text").textContent = text;
   $("#harness-state-text").classList.toggle("is-error", tone === "error");
 }
+function setHarnessAvailability(available) {
+  const input = $("#harness-input");
+  const send = $("#harness-send");
+  const threads = $("#thread-select");
+  const newThread = $("#thread-new");
+  input.disabled = !available;
+  send.disabled = !available;
+  threads.disabled = !available;
+  newThread.disabled = !available;
+  input.placeholder = available
+    ? "Ask Town to carry something durable…"
+    : "Harness worker is not configured for this API.";
+  $("#harness-hint").textContent = available
+    ? "Runs are queued durably before a worker touches them."
+    : "Connect data now; configure a Harness worker before sending turns.";
+}
 function renderHarnessTurns(turns) {
   const transcript = $("#harness-transcript");
   if (!turns?.length) {
@@ -323,10 +340,22 @@ async function selectHarnessThread(threadId) {
 }
 async function loadHarness() {
   if (!state.token) {
+    setHarnessAvailability(false);
     setHarnessState("Connect the API to begin.");
     return;
   }
   try {
+    const capabilities = await api("/v1/health/capabilities");
+    state.capabilities = capabilities;
+    if (!capabilities.harness) {
+      setHarnessAvailability(false);
+      setHarnessState(
+        "Harness is not configured; data and settings remain available.",
+        "error",
+      );
+      return;
+    }
+    setHarnessAvailability(true);
     await ensureHarnessThread();
     const threadId = await loadHarnessThreads();
     renderHarnessTurns(
@@ -336,6 +365,7 @@ async function loadHarness() {
     const sessionId = sessionStorage.getItem(storageKeys.session);
     if (sessionId) await refreshHarnessRun(sessionId);
   } catch (error) {
+    setHarnessAvailability(false);
     setHarnessState(
       error instanceof Error ? error.message : "Harness unavailable.",
       "error",
@@ -419,7 +449,7 @@ async function streamHarnessEvents(sessionId) {
 async function sendHarnessMessage() {
   const input = $("#harness-input");
   const text = input.value.trim();
-  if (!text || !state.token) return;
+  if (!text || !state.token || !state.capabilities.harness) return;
   const button = $("#harness-send");
   button.disabled = true;
   setHarnessState("Queueing durable turn…");
@@ -3309,6 +3339,8 @@ async function refresh() {
       api("/v1/operations/audit?limit=5"),
       api("/v1/health/capabilities").catch(() => ({ harness: false })),
     ]);
+    state.capabilities = capabilities;
+    setHarnessAvailability(Boolean(capabilities.harness));
     renderMetrics(summary.summary);
     renderTimeline(audit.audit.items);
     await loadSchedule();
