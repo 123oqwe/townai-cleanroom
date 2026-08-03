@@ -498,6 +498,21 @@ consent scope, and allows the recipient to revoke granted consent. An
 unauthenticated request returns the Vercel SSO `302`; Vercel reported no
 runtime errors in the verification window.
 
+Routine version history is deployed in API
+`dpl_44c5stkznARK79GZhqWxqbwk6Sdf`, built from commit `f1546ed`. Its protected
+direct URL is
+`https://town-clear-current-irz52b0ld-123oqwes-projects.vercel.app`, state
+`READY`; the Routine dialog can list owner-scoped immutable versions for the
+selected schedule. The direct `/v1/health` request returns the Vercel SSO
+`302`; Vercel reported no runtime errors in the verification window.
+
+The corresponding Routine history UI is deployed in
+`dpl_FhwLCbZP8EVQV8ZzAm2fQ7u5b8Bc`, built from commit `f1546ed`. Its protected
+direct URL is
+`https://town-clear-current-bgmofz8rf-123oqwes-projects.vercel.app`, state
+`READY`; the direct URL returns the Vercel SSO `302`, and Vercel reported no
+runtime errors in the verification window.
+
 The Personal Agent version history surface is deployed in
 `dpl_AaRwPe6NJNzRBcdWfc8xFKhkgwqS`, built from commit `9a5c7a6`. Its protected
 direct URL is

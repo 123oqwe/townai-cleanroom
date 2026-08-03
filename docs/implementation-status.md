@@ -54,6 +54,11 @@ The current repository inventory is 60 test files and 258 `it` cases. That
 inventory is descriptive only; it does not replace a completed full-suite
 run.
 
+Routine version history is now exposed through the protected
+`GET /v1/routines/:routineId/versions` route and the Routine dialog's immutable
+version list. The route resolves the owner-scoped Routine Agent before reading
+its versions; no private diff or generated history is claimed.
+
 The Personal Agent version history surface is implemented: Profile lists
 owner-scoped immutable versions from `GET /v1/agents/personal/versions`, with
 version, creator, timestamp, and approval mode. It does not claim unverified
