@@ -108,4 +108,35 @@ describe("Responses agent factory", () => {
       }),
     ).resolves.toEqual({ kind: "final", text: "routed" });
   });
+
+  it("can build an operation router per thread after tool bindings are known", async () => {
+    const factory = createResponsesAgentFactory({
+      endpoint: "https://model.example.invalid/v1/responses",
+      model: "unused-default",
+      modelRouterFactory: () =>
+        createModelRouter({
+          routes: [
+            {
+              id: "fallback",
+              operation: "interactive",
+              provider: "test",
+              model: "fallback-model",
+              priority: 1,
+              port: {
+                respond: async () => ({
+                  kind: "final",
+                  text: "factory-routed",
+                }),
+              },
+            },
+          ],
+        }),
+    });
+
+    await expect(
+      factory("thread").model.respond({
+        items: [{ type: "user_message", text: "hello" }],
+      }),
+    ).resolves.toMatchObject({ kind: "final", text: "factory-routed" });
+  });
 });

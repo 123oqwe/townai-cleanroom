@@ -1367,6 +1367,11 @@ The build completed successfully and no runtime errors were reported in the
 selected hour. `CODE_RUNNER_ENABLED=false` remains the deployed setting, so
 the preview exposes no code execution capability by default.
 
+The runtime now supports explicit Responses fallback routes through
+`RESPONSES_FALLBACKS_JSON`; this preview leaves that variable empty, so only
+the primary configured provider is active. No model output is fabricated when
+the provider is unavailable.
+
 The Library file-upload UI is included in the current READY source state. It
 uses the authenticated Content blob route and therefore remains visibly
 unavailable for durable upload until a storage backend is configured; no

@@ -21,6 +21,11 @@ export function createResponsesAgentFactory(input: {
   onUsage?: (usage: ResponsesUsage) => Promise<void> | void;
   /** Optional explicit operation router; omitted deployments use the default Responses model. */
   modelRouter?: ModelRouter;
+  /** Builds a router after the thread's tool bindings are resolved. */
+  modelRouterFactory?: (input: {
+    defaultModel: ModelPort;
+    bindings: readonly HarnessToolBinding[];
+  }) => ModelRouter;
   modelOperation?: ModelOperation;
   fetch?: typeof globalThis.fetch;
   tools?: (
@@ -70,10 +75,12 @@ export function createResponsesAgentFactory(input: {
       ...(input.fetch === undefined ? {} : { fetch: input.fetch }),
       tools: bindings.map(({ definition }) => definition),
     });
+    const router =
+      input.modelRouterFactory?.({ defaultModel, bindings }) ??
+      input.modelRouter;
     return {
       model:
-        input.modelRouter?.model(input.modelOperation ?? "interactive") ??
-        defaultModel,
+        router?.model(input.modelOperation ?? "interactive") ?? defaultModel,
       tools: bindings.map(({ port }) => port),
     };
   };

@@ -23,7 +23,13 @@ import {
   createHarnessThreadStore,
   runMigrations,
 } from "@town/db";
-import { createAppServer, createResponsesAgentFactory } from "@town/harness";
+import {
+  createAppServer,
+  createModelRouter,
+  createResponsesAgentFactory,
+  createResponsesModel,
+  type ResponsesUsage,
+} from "@town/harness";
 import {
   createAccountRepository,
   createCredentialCipher,
@@ -119,6 +125,7 @@ const environmentSchema = z.object({
     .default("https://api.openai.com/v1/responses"),
   RESPONSES_MODEL: z.string().min(1).default("gpt-5"),
   RESPONSES_API_KEY: z.string().min(1).optional(),
+  RESPONSES_FALLBACKS_JSON: z.string().default("[]"),
   WEB_ORIGIN: z.string().url().default("http://localhost:4173"),
   CHANNEL_CREDENTIALS_JSON: z.string().default("{}"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
@@ -152,6 +159,20 @@ const environmentSchema = z.object({
 });
 
 const environment = environmentSchema.parse(process.env);
+const responseFallbacks = z
+  .array(
+    z
+      .object({
+        id: z.string().trim().min(1).max(100),
+        endpoint: z.string().url(),
+        model: z.string().trim().min(1).max(200),
+        provider: z.string().trim().min(1).max(100).default("responses"),
+        priority: z.number().int().min(1).max(10_000),
+      })
+      .strict(),
+  )
+  .max(8)
+  .parse(JSON.parse(environment.RESPONSES_FALLBACKS_JSON));
 const channelCredentials = z
   .record(z.string().trim().min(1), z.string().min(1))
   .parse(JSON.parse(environment.CHANNEL_CREDENTIALS_JSON));
@@ -520,6 +541,24 @@ const harnessServerFactory =
             mcpByVersion.set(agent.activeVersion.id, discovered);
           }),
         );
+        const recordResponsesUsage = async (
+          usage: ResponsesUsage,
+          model: string,
+        ) => {
+          await billingRepository.recordUsage({
+            ownerId: typedOwnerId,
+            idempotencyKey: `responses:${usage.responseId}`,
+            category: "model",
+            quantity: usage.totalTokens,
+            unit: "tokens",
+            metadata: {
+              model,
+              responseId: usage.responseId,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+            },
+          });
+        };
         return createAppServer({
           store: createHarnessThreadStore(database.db, ownerId),
           createAgent: createResponsesAgentFactory({
@@ -530,21 +569,41 @@ const harnessServerFactory =
                 ? undefined
                 : versions.get(agentVersionId),
             apiKey: async () => environment.RESPONSES_API_KEY as string,
-            onUsage: async (usage) => {
-              await billingRepository.recordUsage({
-                ownerId: typedOwnerId,
-                idempotencyKey: `responses:${usage.responseId}`,
-                category: "model",
-                quantity: usage.totalTokens,
-                unit: "tokens",
-                metadata: {
-                  model: environment.RESPONSES_MODEL,
-                  responseId: usage.responseId,
-                  inputTokens: usage.inputTokens,
-                  outputTokens: usage.outputTokens,
-                },
-              });
-            },
+            onUsage: (usage) =>
+              recordResponsesUsage(usage, environment.RESPONSES_MODEL),
+            ...(responseFallbacks.length === 0
+              ? {}
+              : {
+                  modelRouterFactory: ({ defaultModel, bindings }) =>
+                    createModelRouter({
+                      routes: [
+                        {
+                          id: "responses-primary",
+                          operation: "interactive",
+                          provider: "responses",
+                          model: environment.RESPONSES_MODEL,
+                          priority: 0,
+                          port: defaultModel,
+                        },
+                        ...responseFallbacks.map((route) => ({
+                          id: route.id,
+                          operation: "interactive" as const,
+                          provider: route.provider,
+                          model: route.model,
+                          priority: route.priority,
+                          port: createResponsesModel({
+                            endpoint: route.endpoint,
+                            model: route.model,
+                            apiKey: async () =>
+                              environment.RESPONSES_API_KEY as string,
+                            onUsage: (usage) =>
+                              recordResponsesUsage(usage, route.model),
+                            tools: bindings.map(({ definition }) => definition),
+                          }),
+                        })),
+                      ],
+                    }),
+                }),
             tools: (threadId, agentVersionId) => {
               const builtIns = [
                 createTownSearchHarnessBinding(
