@@ -25,6 +25,21 @@ function appWith(config: Record<string, unknown> = {}) {
   return app;
 }
 
+function configuredApp(input: {
+  sql: ReturnType<typeof vi.fn>;
+  accounts: AccountRepository;
+  fetch: typeof fetch;
+}) {
+  return appWith({
+    clientId: "client-id",
+    clientSecret: "client-secret",
+    redirectUri: "http://localhost:3000/auth/google/callback",
+    sql: input.sql,
+    accounts: input.accounts,
+    fetch: input.fetch,
+  });
+}
+
 describe("Google OAuth routes", () => {
   it("returns not_configured instead of pretending to connect", async () => {
     const response = await appWith().request(
@@ -46,5 +61,87 @@ describe("Google OAuth routes", () => {
     );
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
     expect(response.headers.get("set-cookie")).toContain("SameSite=Lax");
+  });
+
+  it("exchanges a callback once and stores the Google account", async () => {
+    const stateRow = {
+      id: "01900000-0000-7000-8000-000000000002",
+      owner_id: ownerId,
+      redirect_uri: "http://localhost:3000/auth/google/callback",
+    };
+    let consumed = false;
+    const sql = vi.fn();
+    sql.mockImplementation(() => []);
+    sql.begin = vi.fn(async (callback: (tx: typeof sql) => unknown) => {
+      const tx = vi.fn().mockImplementation(() => {
+        if (!consumed) {
+          consumed = true;
+          return [stateRow];
+        }
+        return [];
+      });
+      return callback(tx);
+    });
+    const create = vi.fn().mockResolvedValue({});
+    const accounts = { create } as unknown as AccountRepository;
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "google-access-token",
+            refresh_token: "google-refresh-token",
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sub: "google-subject",
+            email: "person@gmail.com",
+            given_name: "Person",
+          }),
+          { status: 200 },
+        ),
+      );
+    const app = configuredApp({ sql, accounts, fetch });
+    const start = await app.request(
+      "http://town.test/v1/accounts/google/oauth/start",
+    );
+    const cookie = start.headers.get("set-cookie");
+    const location = new URL(start.headers.get("location") ?? "");
+    const callback = await app.request(
+      `http://town.test/auth/google/callback?code=one-time-code&state=${location.searchParams.get("state")}`,
+      { headers: { Cookie: cookie ?? "" } },
+    );
+
+    expect(callback.status).toBe(302);
+    expect(callback.headers.get("location")).toBe(
+      "http://localhost:4173/settings/accounts?connected=google",
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerId,
+        provider: "google",
+        providerUserId: "google-subject",
+        email: "person@gmail.com",
+        capabilities: { gmail: true, calendar: true },
+        credential: expect.objectContaining({
+          accessToken: "google-access-token",
+          refreshToken: "google-refresh-token",
+        }),
+      }),
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    const replay = await app.request(
+      `http://town.test/auth/google/callback?code=one-time-code&state=${location.searchParams.get("state")}`,
+      { headers: { Cookie: cookie ?? "" } },
+    );
+    expect(replay.status).toBe(400);
+    expect(await replay.json()).toEqual({ code: "OAUTH_STATE_EXPIRED" });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
