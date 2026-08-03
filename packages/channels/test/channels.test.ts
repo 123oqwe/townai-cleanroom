@@ -261,6 +261,40 @@ describe("notification channels", () => {
     });
   });
 
+  it("does not retry a permanent provider 4xx response", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/unauthorized",
+      config: { headers: {} },
+    });
+    await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.failed",
+      idempotencyKey: "delivery-unauthorized",
+      payload: { runId: "run-unauthorized" },
+    });
+
+    await expect(
+      repository.deliverNext({
+        workerId: "unauthorized-worker",
+        fetch: vi.fn(async () => new Response("no", { status: 401 })),
+      }),
+    ).resolves.toMatchObject({
+      claimed: true,
+      delivery: {
+        status: "failed",
+        lastError: "CHANNEL_HTTP_401",
+        nextAttemptAt: null,
+      },
+    });
+    await expect(
+      repository.claimNext("after-unauthorized-worker"),
+    ).resolves.toBe(null);
+  });
+
   it("sends email deliveries through an explicitly selected connected account", async () => {
     const repository = createChannelRepository(sql);
     const channel = await repository.create({
@@ -358,7 +392,7 @@ describe("notification channels", () => {
     expect(resolveCredential).toHaveBeenCalledTimes(3);
   });
 
-  it("isolates an empty provider credential as a retryable delivery failure", async () => {
+  it("isolates an empty provider credential as a terminal delivery failure", async () => {
     const repository = createChannelRepository(sql);
     const channel = await repository.create({
       ownerId,
@@ -385,7 +419,7 @@ describe("notification channels", () => {
       delivery: {
         status: "failed",
         lastError: expect.stringContaining("CHANNEL_CREDENTIAL_EMPTY"),
-        nextAttemptAt: expect.any(Date),
+        nextAttemptAt: null,
       },
     });
   });

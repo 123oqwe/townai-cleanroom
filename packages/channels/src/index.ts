@@ -152,6 +152,23 @@ const enqueueInput = z
   })
   .strict();
 
+function isRetryableDeliveryError(error: string): boolean {
+  if (
+    [
+      "CHANNEL_CREDENTIAL_EMPTY",
+      "CHANNEL_CREDENTIAL_UNAVAILABLE",
+      "CHANNEL_EMAIL_TRANSPORT_UNAVAILABLE",
+      "CHANNEL_EMAIL_ACCOUNT_NOT_CONFIGURED",
+      "CHANNEL_PHONE_NUMBER_ID_UNAVAILABLE",
+    ].some((code) => error.includes(code))
+  )
+    return false;
+  const status = /^CHANNEL_HTTP_(\d{3})$/.exec(error)?.[1];
+  if (status === undefined) return true;
+  const code = Number(status);
+  return code === 408 || code === 425 || code === 429 || code >= 500;
+}
+
 function safeChannel(row: ChannelRow): NotificationChannel {
   const config = Object.fromEntries(
     Object.entries(row.config).filter(
@@ -518,7 +535,9 @@ export function createChannelRepository(sql: Sql) {
         caught instanceof Error ? caught.message : "CHANNEL_DELIVERY_FAILED";
     }
     const retryAt =
-      success || claimed.attempts >= MAX_DELIVERY_ATTEMPTS
+      success ||
+      claimed.attempts >= MAX_DELIVERY_ATTEMPTS ||
+      (error !== undefined && !isRetryableDeliveryError(error))
         ? null
         : new Date(
             Date.now() +
