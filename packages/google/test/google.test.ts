@@ -91,6 +91,36 @@ describe("Google API client", () => {
     expect(result.calendars["primary"]?.busy).toEqual([]);
   });
 
+  it("lists Calendar events with an owner-selected account and time window", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url, options) => {
+      expect(String(url)).toContain("calendars/primary/events?");
+      expect(String(url)).toContain("singleEvents=true");
+      expect(options?.headers).toMatchObject({
+        authorization: "Bearer access-token",
+      });
+      return new Response(
+        JSON.stringify({
+          items: [{ id: "event-1", status: "confirmed", summary: "Focus" }],
+          nextPageToken: "next-1",
+        }),
+        { status: 200 },
+      );
+    });
+    const result = await createGoogleApiClient({
+      accounts: accounts(),
+      fetch,
+    }).calendarListEvents({
+      ownerId,
+      accountId,
+      calendarId: "primary",
+      timeMin: "2026-08-04T00:00:00Z",
+      timeMax: "2026-08-05T00:00:00Z",
+      maxResults: 25,
+    });
+    expect(result.items[0]?.id).toBe("event-1");
+    expect(result.nextPageToken).toBe("next-1");
+  });
+
   it("retrieves one Gmail message with full format", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async (url) => {
       expect(String(url)).toContain("messages/message-1");

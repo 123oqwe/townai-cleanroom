@@ -58,6 +58,7 @@ import {
 
 import { createApp } from "./app.js";
 import { createGoogleRoutinePoller } from "./google-routine-poller.js";
+import { createGoogleCalendarPoller } from "./google-calendar-poller.js";
 import {
   createTownMemoryAddHarnessBinding,
   createInvokeRoutineHarnessBinding,
@@ -201,6 +202,65 @@ const googleRoutinePoller = createGoogleRoutinePoller({
         ...(typeof maxResults === "number" && Number.isInteger(maxResults)
           ? { maxResults: Math.min(100, Math.max(1, maxResults)) }
           : {}),
+      };
+    });
+  },
+  google: googleApi,
+  routines: routineRepository,
+});
+const googleCalendarPoller = createGoogleCalendarPoller({
+  listTargets: async () => {
+    const rows = await sql<
+      {
+        owner_id: string;
+        routine_schedule_id: string;
+        routine_trigger_id: string;
+        account_id: string;
+        config: Record<string, unknown>;
+      }[]
+    >`
+      select t.owner_id, t.routine_schedule_id, t.id as routine_trigger_id,
+             ca.id as account_id, t.config
+      from routine_triggers t
+      join routine_schedules s
+        on s.owner_id=t.owner_id and s.id=t.routine_schedule_id and s.enabled=true
+      join lateral (
+        select ca.id
+        from connected_accounts ca
+        where ca.owner_id=t.owner_id and ca.provider='google' and ca.is_active=true
+          and (
+            t.config->>'accountId'=ca.id::text
+            or (t.config->>'accountId' is null and ca.is_primary=true)
+          )
+        order by ca.is_primary desc, ca.created_at, ca.id limit 1
+      ) ca on true
+      where t.enabled=true and t.kind in
+        ('calendar_start','calendar_end','calendar_rsvp','calendar_changed')
+      order by t.updated_at, t.id limit 100
+    `;
+    return rows.map((row) => {
+      const config = row.config;
+      const numberValue = (key: string) => {
+        const value = config[key];
+        return typeof value === "number" && Number.isInteger(value)
+          ? Math.min(10080, Math.max(0, value))
+          : undefined;
+      };
+      const calendarId = config["calendarId"];
+      const lookbackMinutes = numberValue("lookbackMinutes");
+      const lookaheadMinutes = numberValue("lookaheadMinutes");
+      const maxResults = numberValue("maxResults");
+      return {
+        ownerId: asId<"user">(row.owner_id),
+        routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
+        routineTriggerId: asId<"routine-trigger">(row.routine_trigger_id),
+        accountId: asId<"connected-account">(row.account_id),
+        ...(typeof calendarId === "string" && calendarId.trim().length > 0
+          ? { calendarId: calendarId.trim() }
+          : {}),
+        ...(lookbackMinutes === undefined ? {} : { lookbackMinutes }),
+        ...(lookaheadMinutes === undefined ? {} : { lookaheadMinutes }),
+        ...(maxResults === undefined ? {} : { maxResults }),
       };
     });
   },
@@ -541,6 +601,7 @@ if (workerSecret !== undefined) {
     return context.json({
       schedule,
       google: await googleRoutinePoller.poll(),
+      calendar: await googleCalendarPoller.poll(),
       runtime:
         runtimeWorker === undefined ? undefined : await runtimeWorker.runOnce(),
       channel: await channelRepository.deliverNext({ workerId }),
@@ -555,6 +616,7 @@ if (process.env["VERCEL"] !== "1") {
   const runWorker = async (): Promise<void> => {
     if (routineScheduler !== undefined) await routineScheduler();
     await googleRoutinePoller.poll();
+    await googleCalendarPoller.poll();
     if (runtimeWorker !== undefined) await runtimeWorker.runOnce();
     await channelRepository.deliverNext({ workerId });
     workerTimer = setTimeout(() => void runWorker(), 250);

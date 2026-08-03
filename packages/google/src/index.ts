@@ -33,6 +33,12 @@ const calendarEventSchema = z
     htmlLink: z.string().optional(),
   })
   .passthrough();
+const calendarEventsSchema = z
+  .object({
+    items: z.array(calendarEventSchema).default([]),
+    nextPageToken: z.string().optional(),
+  })
+  .passthrough();
 const freeBusySchema = z
   .object({
     calendars: z.record(
@@ -253,6 +259,31 @@ export function createGoogleApiClient(input: {
           "Google Calendar returned an unexpected response.",
         );
       return parsed.data;
+    },
+    async calendarListEvents(input_: {
+      ownerId: Id<"user">;
+      accountId: Id<"connected-account">;
+      calendarId: string;
+      timeMin: string;
+      timeMax: string;
+      maxResults?: number;
+      pageToken?: string;
+    }) {
+      const params = new URLSearchParams({
+        timeMin: input_.timeMin,
+        timeMax: input_.timeMax,
+        singleEvents: "true",
+        orderBy: "startTime",
+        maxResults: String(input_.maxResults ?? 100),
+      });
+      if (input_.pageToken !== undefined)
+        params.set("pageToken", input_.pageToken);
+      return json(
+        input_.ownerId,
+        input_.accountId,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(input_.calendarId)}/events?${params}`,
+        calendarEventsSchema,
+      );
     },
     async calendarCreateEvent(
       input_: {

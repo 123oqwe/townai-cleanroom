@@ -112,6 +112,11 @@ empty to preserve the database's existing allowlist state.
   triggers at a bounded interval. Polling resolves the configured account (or
   the owner's primary active Google account), fetches message details, and
   reuses the same message-id idempotency key as the explicit ingestion route.
+- Calendar triggers (`calendar_start`, `calendar_end`, `calendar_rsvp`, and
+  `calendar_changed`) are polled through the real Google Calendar Events API.
+  Each window is bounded, event updates use the provider `updated` version in
+  the idempotency key, and event payloads enter the same untrusted calendar
+  trigger queue for durable runtime execution.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.
