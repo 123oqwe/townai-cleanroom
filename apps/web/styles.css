@@ -2143,6 +2143,25 @@ dialog h2 {
   color: var(--muted);
   font-size: 0.7rem;
 }
+.mcp-server-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 1rem;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.mcp-server-form label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.mcp-server-form input,
+.mcp-server-form select {
+  width: 100%;
+}
+.mcp-server-disable {
+  margin-top: 0.55rem;
+}
 
 .mcp-binding-action {
   margin-top: 0.55rem;

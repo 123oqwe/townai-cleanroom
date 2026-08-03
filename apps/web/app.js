@@ -2131,7 +2131,7 @@ function renderMcpServers(result, bindingResult = { bindings: [] }) {
   target.innerHTML = servers
     .map(
       (server) =>
-        `<article class="tool-catalog-card" data-mcp-server-id="${escapeHtml(server.id)}"><div><strong>${escapeHtml(server.name)}</strong><p>${escapeHtml(server.url)}</p></div><small>${escapeHtml(server.transport)} · ${escapeHtml(server.status)} · auth ${server.authRef ? "configured" : "not configured"} · ${bindings.has(server.id) ? `bound (${escapeHtml(bindings.get(server.id).modeOverride || "default")})` : "not bound to Personal Agent"}</small>${server.status === "active" && state.agentVersionId ? `<button class="quiet-button mcp-binding-action" data-binding-id="${escapeHtml(bindings.get(server.id)?.id || "")}" data-binding-revision="${escapeHtml(String(bindings.get(server.id)?.revision || ""))}" type="button">${bindings.has(server.id) ? "Unbind" : "Bind to Personal Agent"}</button>` : ""}</article>`,
+        `<article class="tool-catalog-card" data-mcp-server-id="${escapeHtml(server.id)}"><div><strong>${escapeHtml(server.name)}</strong><p>${escapeHtml(server.url)}</p></div><small>${escapeHtml(server.transport)} · ${escapeHtml(server.status)} · auth ${server.authRef ? "configured" : "not configured"} · ${bindings.has(server.id) ? `bound (${escapeHtml(bindings.get(server.id).modeOverride || "default")})` : "not bound to Personal Agent"}</small>${server.status === "active" && state.agentVersionId ? `<button class="quiet-button mcp-binding-action" data-binding-id="${escapeHtml(bindings.get(server.id)?.id || "")}" data-binding-revision="${escapeHtml(String(bindings.get(server.id)?.revision || ""))}" type="button">${bindings.has(server.id) ? "Unbind" : "Bind to Personal Agent"}</button>` : ""}${server.status === "active" ? `<button class="quiet-button mcp-server-disable" data-revision="${escapeHtml(String(server.revision))}" type="button">Disable server</button>` : ""}</article>`,
     )
     .join("");
 }
@@ -2158,6 +2158,41 @@ async function loadMcpServers() {
   } catch (error) {
     $("#mcp-catalog-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "MCP servers unavailable.")}</p>`;
+  }
+}
+async function saveMcpServer() {
+  const error = $("#mcp-server-error");
+  try {
+    await apiJson("/v1/mcp-servers", {
+      name: $("#mcp-server-name").value.trim(),
+      url: $("#mcp-server-url").value.trim(),
+      transport: $("#mcp-server-transport").value,
+      authRef: $("#mcp-server-auth").value.trim() || null,
+    });
+    $("#mcp-server-name").value = "";
+    $("#mcp-server-url").value = "";
+    $("#mcp-server-auth").value = "";
+    error.hidden = true;
+    await loadMcpServers();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not add MCP server.";
+    error.hidden = false;
+  }
+}
+async function disableMcpServer(button) {
+  const card = button.closest(".tool-catalog-card");
+  if (!card) return;
+  try {
+    await api(
+      `/v1/mcp-servers/${card.dataset.mcpServerId}?expectedRevision=${encodeURIComponent(button.dataset.revision)}`,
+      { method: "DELETE" },
+    );
+    await loadMcpServers();
+  } catch (cause) {
+    $("#mcp-server-error").textContent =
+      cause instanceof Error ? cause.message : "Could not disable MCP server.";
+    $("#mcp-server-error").hidden = false;
   }
 }
 async function toggleMcpBinding(button) {
@@ -3436,7 +3471,10 @@ $("#agent-save").addEventListener("click", () => void saveAgentSettings());
 $("#mcp-catalog-list").addEventListener("click", (event) => {
   const button = event.target.closest(".mcp-binding-action");
   if (button) void toggleMcpBinding(button);
+  const disable = event.target.closest(".mcp-server-disable");
+  if (disable) void disableMcpServer(disable);
 });
+$("#mcp-server-save").addEventListener("click", () => void saveMcpServer());
 $("#tasks-open").addEventListener("click", () => {
   openDialog($("#tasks-dialog"));
   void loadTasks();

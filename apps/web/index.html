@@ -1340,6 +1340,42 @@
           <div id="mcp-catalog-list" aria-live="polite">
             <p class="harness-empty">Connect the API to load MCP servers.</p>
           </div>
+          <div class="mcp-server-form">
+            <label for="mcp-server-name">Add MCP server</label
+            ><input
+              id="mcp-server-name"
+              maxlength="120"
+              placeholder="Research tools"
+            />
+            <label for="mcp-server-url">URL</label
+            ><input
+              id="mcp-server-url"
+              type="url"
+              maxlength="2000"
+              placeholder="https://mcp.example.com"
+            />
+            <label for="mcp-server-transport">Transport</label
+            ><select id="mcp-server-transport">
+              <option value="streamable_http">Streamable HTTP</option>
+              <option value="sse">SSE</option>
+            </select>
+            <label for="mcp-server-auth"
+              >Auth reference <span class="form-hint">optional</span></label
+            ><input
+              id="mcp-server-auth"
+              maxlength="500"
+              placeholder="secret reference"
+            />
+            <button class="quiet-button" id="mcp-server-save" type="button">
+              Add server
+            </button>
+            <p
+              class="dialog-error"
+              id="mcp-server-error"
+              role="alert"
+              hidden
+            ></p>
+          </div>
         </section>
         <section class="approval-inbox" aria-labelledby="approval-inbox-title">
           <div class="tool-catalog-heading">
