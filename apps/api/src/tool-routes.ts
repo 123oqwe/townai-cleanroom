@@ -3,6 +3,13 @@ import { z } from "zod";
 
 import { asId } from "@town/contracts";
 import {
+  accountBindingSchema,
+  dataSensitivitySchema,
+  evaluatePolicy,
+  executionModeSchema,
+  inputTrustSchema,
+  sessionModeSchema,
+  toolSideEffectSchema,
   type ToolExecutionRepository,
   type ToolRegistryRepository,
 } from "@town/tools";
@@ -21,6 +28,19 @@ const decisionSchema = z
     note: z.string().trim().max(2_000).optional(),
   })
   .strict();
+const policyPreviewSchema = z
+  .object({
+    sessionMode: sessionModeSchema,
+    routineMode: executionModeSchema,
+    perToolOverride: executionModeSchema.nullable(),
+    sideEffect: toolSideEffectSchema,
+    dataSensitivity: dataSensitivitySchema,
+    inputTrust: inputTrustSchema,
+    targetIsSelf: z.boolean(),
+    targetIsTrusted: z.boolean(),
+    accountBound: z.boolean(),
+  })
+  .strict();
 
 export function registerToolRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -29,6 +49,10 @@ export function registerToolRoutes(
   app.get("/v1/tools", async (context) => {
     const ownerId = context.get("identity").user.id;
     return context.json({ tools: await dependencies.registry.list(ownerId) });
+  });
+  app.post("/v1/tools/policy/evaluate", async (context) => {
+    const policy = policyPreviewSchema.parse(await context.req.json());
+    return context.json({ policy: evaluatePolicy(policy) });
   });
 
   app.get("/v1/tool-calls/:toolCallId", async (context) => {

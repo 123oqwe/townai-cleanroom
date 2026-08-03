@@ -130,6 +130,21 @@ describe("protected Tool and Approval API", () => {
   it("requires auth and rejects caller-owned runtime fields", async () => {
     const { app, owner, submission, agent, tool } = await fixture();
     const unauthenticated = await app.request("/v1/tools");
+    const preview = await app.request("/v1/tools/policy/evaluate", {
+      method: "POST",
+      headers: headers(owner.token),
+      body: JSON.stringify({
+        sessionMode: "allow_all",
+        routineMode: "autonomous",
+        perToolOverride: null,
+        sideEffect: "external_write",
+        dataSensitivity: "private",
+        inputTrust: "untrusted_data",
+        targetIsSelf: false,
+        targetIsTrusted: false,
+        accountBound: true,
+      }),
+    });
     const spoofed = await app.request("/v1/tool-calls", {
       method: "POST",
       headers: headers(owner.token),
@@ -157,6 +172,17 @@ describe("protected Tool and Approval API", () => {
       }),
     });
     expect(unauthenticated.status).toBe(401);
+    expect(preview.status).toBe(200);
+    expect(await preview.json()).toMatchObject({
+      policy: {
+        decision: "approval_required",
+        riskFlags: [
+          "untrusted_account_target",
+          "private_data_untrusted_input_external_send",
+          "external_communication",
+        ],
+      },
+    });
     expect(spoofed.status).toBe(404);
   });
 
