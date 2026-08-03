@@ -361,6 +361,14 @@ commit `dcf3e80`. Its protected direct URL is
 retryable. An unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+Owner-scoped notification delivery observability is deployed in
+`dpl_A5o32KqcQXdJRNFYQx1YJVqXSBbF`, built from commit `a546f41`. Its protected
+direct URL is
+`https://town-clear-current-l2c4ri0jr-123oqwes-projects.vercel.app`, state
+`READY`; `GET /v1/notification-deliveries` exposes status, attempts, lastError,
+retry time, and sent time with optional status/limit filters. An unauthenticated
+curl receives the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
