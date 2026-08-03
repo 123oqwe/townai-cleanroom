@@ -410,6 +410,14 @@ protected direct URL is
 and renders explicit empty/unavailable states. An unauthenticated curl receives
 the Vercel SSO `302` protection redirect.
 
+Timeline pagination is now exposed in the UI via the server-provided cursor in
+deployment `dpl_9iAyaKJP7P8K6xaVvYv7vR7LrsM3`, built from commit `a690a82`. Its
+protected direct URL is
+`https://town-clear-current-cacdc46ip-123oqwes-projects.vercel.app`, state
+`READY`; `Load more` requests the next persisted cursor page and appends it
+without client-side reordering. An unauthenticated curl receives the Vercel SSO
+`302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
