@@ -10,6 +10,7 @@ import { Hono } from "hono";
 const app = new Hono();
 let runtimePromise;
 let runtimeError;
+let runtimeErrorLogged = false;
 
 async function runtime() {
   if (runtimePromise === undefined) {
@@ -28,14 +29,15 @@ app.all("*", async (context) => {
     const loaded = await runtime();
     return loaded.fetch(context.req.raw);
   } catch {
+    if (!runtimeErrorLogged && runtimeError !== undefined) {
+      runtimeErrorLogged = true;
+      console.error("Town API runtime failed to initialize.", runtimeError);
+    }
     return context.json(
       {
         code: "API_NOT_CONFIGURED",
         status: 503,
-        detail:
-          runtimeError instanceof Error
-            ? runtimeError.message
-            : "The API runtime is not configured.",
+        detail: "The API runtime is not configured.",
       },
       503,
     );

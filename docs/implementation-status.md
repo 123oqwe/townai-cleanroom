@@ -201,6 +201,12 @@ authenticated API, and cleared immediately after a successful encrypted server
 write; they are never persisted in browser storage or rendered back into the
 account card.
 
+The Vercel API entrypoint now logs initialization failures server-side while
+returning a fixed generic 503 response to callers. Database URLs, encryption
+configuration, and parser details are no longer reflected in public error
+payloads; the application still refuses to start without its real runtime
+configuration.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all
