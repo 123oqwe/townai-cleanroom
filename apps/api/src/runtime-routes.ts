@@ -31,6 +31,13 @@ const pageQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).default(50),
   })
   .strict();
+const streamQuerySchema = z
+  .object({
+    cursor: z.string().min(1).optional(),
+    intervalMs: z.coerce.number().int().min(250).max(5_000).default(1_000),
+    windowMs: z.coerce.number().int().min(1_000).max(25_000).default(20_000),
+  })
+  .strict();
 const runPageQuerySchema = pageQuerySchema
   .extend({ state: sessionRunStateSchema.optional() })
   .strict();
@@ -139,6 +146,87 @@ export function registerRuntimeRoutes(
         limit: query.limit,
       }),
     );
+  });
+
+  app.get("/v1/sessions/:sessionId/events/stream", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const sessionId = asId<"runtime-session">(context.req.param("sessionId"));
+    const query = streamQuerySchema.parse(context.req.query());
+    const session = await dependencies.sessionRepository.get(
+      ownerId,
+      sessionId,
+    );
+    if (session === null)
+      return context.json({ error: "SESSION_NOT_FOUND" }, 404);
+
+    const encoder = new TextEncoder();
+    const signal = context.req.raw.signal;
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let cursor = query.cursor;
+        let lastSequence = 0;
+        const startedAt = Date.now();
+        const write = (value: string) => {
+          if (!signal.aborted) controller.enqueue(encoder.encode(value));
+        };
+        const wait = async (milliseconds: number) => {
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, milliseconds);
+            if (signal.aborted) {
+              clearTimeout(timer);
+              resolve();
+            }
+            signal.addEventListener(
+              "abort",
+              () => {
+                clearTimeout(timer);
+                resolve();
+              },
+              { once: true },
+            );
+          });
+        };
+        try {
+          while (!signal.aborted && Date.now() - startedAt < query.windowMs) {
+            const page = await dependencies.sessionRepository.listEvents({
+              ownerId,
+              sessionId,
+              ...(cursor === undefined ? {} : { cursor }),
+              limit: 100,
+            });
+            let emitted = false;
+            for (const event of page.items) {
+              if (event.sequence <= lastSequence) continue;
+              lastSequence = event.sequence;
+              emitted = true;
+              write(
+                `id: ${event.sequence}\nevent: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`,
+              );
+            }
+            if (page.nextCursor !== null) cursor = page.nextCursor;
+            if (!emitted) write(`: heartbeat ${new Date().toISOString()}\n\n`);
+            await wait(query.intervalMs);
+          }
+          write("event: end\ndata: {}\n\n");
+        } catch (error) {
+          if (!signal.aborted) {
+            write(
+              `event: error\ndata: ${JSON.stringify({ code: "EVENT_STREAM_FAILED", detail: error instanceof Error ? error.message : "Event stream failed." })}\n\n`,
+            );
+          }
+        } finally {
+          controller.close();
+        }
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "cache-control": "no-cache, no-transform",
+        connection: "keep-alive",
+        "content-type": "text/event-stream; charset=utf-8",
+        "x-accel-buffering": "no",
+      },
+    });
   });
 
   app.post("/v1/sessions/:sessionId/runs/:runId/cancel", async (context) => {

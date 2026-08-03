@@ -455,4 +455,38 @@ describe("protected persistent Session API", () => {
       run: { state: "queued" },
     });
   });
+
+  it("streams owner-scoped durable events with a bounded reconnect window", async () => {
+    const { app, owner, other } = await fixture();
+    const created = await createThread(app, owner.token);
+    const submittedResponse = await app.request(
+      `/v1/threads/${created.thread.id}/messages`,
+      {
+        method: "POST",
+        headers: authorization(owner.token, "runtime-api-stream"),
+        body: JSON.stringify({
+          text: "Stream this queued event.",
+          mentions: [],
+        }),
+      },
+    );
+    const submitted = (await submittedResponse.json()) as {
+      session: { id: string };
+    };
+    const response = await app.request(
+      `/v1/sessions/${submitted.session.id}/events/stream?intervalMs=250&windowMs=1000`,
+      { headers: authorization(owner.token) },
+    );
+    const text = await response.text();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    expect(text).toContain("event: run_queued");
+    expect(text).toContain("event: end");
+
+    const forbidden = await app.request(
+      `/v1/sessions/${submitted.session.id}/events/stream?windowMs=1000`,
+      { headers: authorization(other.token) },
+    );
+    expect(forbidden.status).toBe(404);
+  });
 });
