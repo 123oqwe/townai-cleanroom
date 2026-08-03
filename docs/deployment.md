@@ -59,6 +59,22 @@ public. Neither is accepted as the final release until a deployment built from
 the current source is protected for all deployments. This distinction keeps
 hosted state from being represented as newer than the verified source.
 
+## Latest current-source deployment
+
+Using the Vercel deployment connector, the current static command center was
+deployed from the verified source files at:
+
+- Deployment: `dpl_EJgSE873XAj3xYDsGZhjY6TzCVSQ`
+- Protected direct URL: `https://town-clear-current-lblwqb9az-123oqwes-projects.vercel.app`
+- State: `READY`
+- Direct URL access check: unauthenticated request returns `302` to Vercel SSO.
+- Generated project aliases currently return `200` publicly and are not accepted
+  as restricted release URLs.
+
+The protected direct URL is the current minimal hosted artifact. The API is
+still intentionally not deployed because production requires a real PostgreSQL
+connection, credential-encryption key, worker secret, and approved web origin.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
