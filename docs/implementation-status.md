@@ -186,3 +186,4 @@ Content creation now exposes the complete server content-kind enum, including im
 Notifications now expose owner-scoped delivery records with status filtering through GET /v1/notification-deliveries, alongside the existing audit timeline. The UI displays event type, channel, attempts, timestamps, and server-reported errors.
 Approval Inspect now reads both GET /v1/tool-calls/:toolCallId and GET /v1/approvals/:approvalId, showing approval status/revision/expiry alongside immutable normalized ToolCall metadata before a decision.
 Waiting Harness runs now expose Cancel run alongside Continue. Cancellation uses the existing owner-scoped POST /v1/sessions/:sessionId/runs/:runId/cancel transition and reloads server truth.
+Profile Settings now expose immutable profile revision history from GET /v1/profile/history, including author, timestamp, revision and expandable server snapshots.

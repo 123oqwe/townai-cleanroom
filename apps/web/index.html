@@ -778,6 +778,29 @@
           </button>
         </div>
         <p class="dialog-error" id="profile-error" role="alert" hidden></p>
+        <section
+          class="profile-history"
+          aria-labelledby="profile-history-title"
+        >
+          <div class="profile-history-heading">
+            <div>
+              <p class="eyebrow">Immutable history</p>
+              <h3 id="profile-history-title">Profile revisions</h3>
+            </div>
+            <button
+              class="quiet-button"
+              id="profile-history-refresh"
+              type="button"
+            >
+              Refresh
+            </button>
+          </div>
+          <div id="profile-history-list" aria-live="polite">
+            <p class="harness-empty">
+              Connect the API to load profile history.
+            </p>
+          </div>
+        </section>
         <section class="agent-settings" aria-labelledby="agent-settings-title">
           <p class="eyebrow">Personal Agent</p>
           <h3 id="agent-settings-title">How Town should work</h3>

@@ -1132,6 +1132,24 @@ async function loadProfile() {
     $("#profile-error").hidden = false;
   }
   await loadAgentSettings();
+  await loadProfileHistory();
+}
+async function loadProfileHistory() {
+  if (!state.token) return;
+  try {
+    const revisions = (await api("/v1/profile/history")).revisions || [];
+    $("#profile-history-list").innerHTML = revisions.length
+      ? revisions
+          .map(
+            (revision) =>
+              `<article class="profile-history-item"><div><strong>Revision ${escapeHtml(String(revision.revision))}</strong><small>${escapeHtml(revision.authorType)} · ${escapeHtml(new Date(revision.createdAt).toLocaleString())}</small></div><details><summary>Snapshot</summary><pre>${escapeHtml(JSON.stringify(revision.snapshot, null, 2))}</pre></details></article>`,
+          )
+          .join("")
+      : '<p class="harness-empty">No profile revisions yet.</p>';
+  } catch (cause) {
+    $("#profile-history-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Profile history unavailable.")}</p>`;
+  }
 }
 async function loadAgentSettings() {
   if (!state.token) return;
@@ -3346,6 +3364,10 @@ document.querySelector(".profile-chip").addEventListener("click", (event) => {
   void loadAgentSettings();
 });
 $("#profile-save").addEventListener("click", () => void saveProfile());
+$("#profile-history-refresh").addEventListener(
+  "click",
+  () => void loadProfileHistory(),
+);
 $("#agent-save").addEventListener("click", () => void saveAgentSettings());
 $("#mcp-catalog-list").addEventListener("click", (event) => {
   const button = event.target.closest(".mcp-binding-action");
