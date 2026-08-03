@@ -232,6 +232,10 @@ const googleRoutinePoller = createGoogleRoutinePoller({
         routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
         accountId: asId<"connected-account">(row.account_id),
         triggerType: row.kind,
+        ...(row.kind === "email_to_assistant" &&
+        typeof row.config["assistantAddress"] === "string"
+          ? { assistantAddress: row.config["assistantAddress"].trim() }
+          : {}),
         ...(typeof query === "string" && query.trim().length > 0
           ? { query: query.trim() }
           : {}),

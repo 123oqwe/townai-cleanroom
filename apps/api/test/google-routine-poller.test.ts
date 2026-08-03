@@ -117,6 +117,7 @@ describe("Google routine poller", () => {
           routineScheduleId: routineId,
           accountId,
           triggerType: "email_to_assistant",
+          assistantAddress: "assistant@example.invalid",
         },
       ],
       google,
@@ -124,6 +125,11 @@ describe("Google routine poller", () => {
       intervalMs: 0,
     });
     await poller.poll(new Date("2026-08-04T00:00:00Z"));
+    expect(google.gmailSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: "in:anywhere newer_than:1d to:assistant@example.invalid",
+      }),
+    );
     expect(queueTrigger.mock.calls[0]?.[2]).toBe("email_to_assistant");
   });
 });

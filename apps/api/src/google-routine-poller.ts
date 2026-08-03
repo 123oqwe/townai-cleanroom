@@ -9,6 +9,7 @@ export interface GoogleRoutinePollingTarget {
   query?: string;
   maxResults?: number;
   triggerType?: "incoming_email" | "email_to_assistant";
+  assistantAddress?: string;
 }
 
 export interface GoogleRoutinePollResult {
@@ -40,10 +41,21 @@ export function createGoogleRoutinePoller(input: {
       let failed = 0;
       for (const target of targets) {
         try {
+          if (
+            target.triggerType === "email_to_assistant" &&
+            !target.assistantAddress
+          ) {
+            failed += 1;
+            continue;
+          }
+          const query =
+            target.triggerType === "email_to_assistant"
+              ? `${target.query ?? "in:anywhere newer_than:1d"} to:${target.assistantAddress}`
+              : (target.query ?? "in:anywhere newer_than:1d");
           const found = await input.google.gmailSearch({
             ownerId: target.ownerId,
             accountId: target.accountId,
-            query: target.query ?? "in:anywhere newer_than:1d",
+            query,
             maxResults: target.maxResults ?? 10,
           });
           messages += found.messages.length;

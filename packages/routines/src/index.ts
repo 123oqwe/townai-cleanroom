@@ -37,6 +37,21 @@ const updateScheduleInput = z
     enabled: z.boolean(),
   })
   .strict();
+const triggerConfigSchema = z.record(z.string(), z.json());
+
+function validateTriggerConfig(
+  kind: z.infer<typeof routineTriggerKindSchema>,
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const parsed = triggerConfigSchema.parse(config);
+  if (kind !== "email_to_assistant") return parsed;
+  return z
+    .object({
+      assistantAddress: z.string().trim().email().max(320),
+    })
+    .passthrough()
+    .parse(parsed);
+}
 
 export interface RoutineSchedule {
   id: Id<"routine-schedule">;
@@ -890,12 +905,13 @@ export function createRoutineRepository(sql: Sql) {
       })
       .strict()
       .parse(input);
+    const config = validateTriggerConfig(value.kind, value.config);
     const id = newId<"routine-trigger">();
     const rows = await sql<TriggerRow[]>`
       insert into routine_triggers
         (id, owner_id, routine_schedule_id, kind, config, enabled)
       select ${id}, ${value.ownerId}, ${value.routineScheduleId}, ${value.kind},
-        ${sql.json(value.config as never)}, ${value.enabled}
+        ${sql.json(config as never)}, ${value.enabled}
       where exists (
         select 1 from routine_schedules
         where owner_id=${value.ownerId} and id=${value.routineScheduleId}
@@ -924,9 +940,21 @@ export function createRoutineRepository(sql: Sql) {
     config: Record<string, unknown>;
     enabled: boolean;
   }): Promise<RoutineTrigger> {
+    const [existing] = await sql<
+      { kind: z.infer<typeof routineTriggerKindSchema> }[]
+    >`
+      select kind from routine_triggers
+      where owner_id=${input.ownerId} and id=${input.triggerId}
+    `;
+    if (!existing)
+      throw new RoutineError(
+        "ROUTINE_CONFLICT",
+        "The trigger changed since it was read or was not found.",
+      );
+    const config = validateTriggerConfig(existing.kind, input.config);
     const rows = await sql<TriggerRow[]>`
       update routine_triggers
-      set config=${sql.json(input.config as never)}, enabled=${input.enabled},
+      set config=${sql.json(config as never)}, enabled=${input.enabled},
         revision=revision+1, updated_at=now()
       where owner_id=${input.ownerId} and id=${input.triggerId}
         and revision=${input.expectedRevision}

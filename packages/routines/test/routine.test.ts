@@ -42,6 +42,37 @@ afterAll(async () => {
 });
 
 describe("routine schedules", () => {
+  it("requires an assistant address for email-to-assistant triggers", async () => {
+    const repo = createRoutineRepository(sql);
+    const schedule = await repo.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Address-bound email",
+      cron: "0 7 * * *",
+      nextRunAt: new Date("2026-08-02T07:00:00Z"),
+    });
+    await expect(
+      repo.createTrigger({
+        ownerId,
+        routineScheduleId: schedule.id,
+        kind: "email_to_assistant",
+        config: {},
+      }),
+    ).rejects.toThrow();
+    await expect(
+      repo.createTrigger({
+        ownerId,
+        routineScheduleId: schedule.id,
+        kind: "email_to_assistant",
+        config: { assistantAddress: "assistant@example.invalid" },
+      }),
+    ).resolves.toMatchObject({
+      kind: "email_to_assistant",
+      config: { assistantAddress: "assistant@example.invalid" },
+    });
+  });
+
   it("creates owner-scoped routine and claims due work into a sync run", async () => {
     const repo = createRoutineRepository(sql);
     const schedule = await repo.create({
