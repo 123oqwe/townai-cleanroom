@@ -91,6 +91,7 @@ import {
   createFileContentStorage,
   createS3ContentStorage,
 } from "./content-storage.js";
+import { createTownWorkspaceHarnessBinding } from "./workspace-tools.js";
 
 function mcpToolDefinitionVersion(tool: McpRemoteTool): number {
   const fingerprint = createHash("sha256")
@@ -142,6 +143,7 @@ const environmentSchema = z.object({
   CONTENT_STORAGE_S3_REGION: z.string().min(1).optional(),
   CONTENT_STORAGE_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
   CONTENT_STORAGE_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  WORKSPACE_ROOT: z.string().min(1).optional(),
 });
 
 const environment = environmentSchema.parse(process.env);
@@ -549,6 +551,13 @@ const harnessServerFactory =
                   knowledgeContextBuilder,
                 ),
                 createTownWebFetchHarnessBinding(),
+                ...(environment.WORKSPACE_ROOT === undefined
+                  ? []
+                  : [
+                      createTownWorkspaceHarnessBinding(
+                        environment.WORKSPACE_ROOT,
+                      ),
+                    ]),
                 ...(voiceProvider === undefined
                   ? []
                   : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
