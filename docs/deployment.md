@@ -48,8 +48,8 @@ shutdown and does not weaken the API's database or authentication requirements.
 ## Current verification snapshot
 
 The source repository has since advanced beyond the hosted preview to commit
-`466924d`, including the Harness, Knowledge, People, Memory, Task, Routine,
-Connected Accounts, Channels, Billing, Suggestions, and the built Vercel API entrypoint. A fresh unauthenticated check still
+`20b8d76`, including the Harness, Knowledge, People, Memory, Task, Routine,
+Connected Accounts, Channels, Billing, Suggestions, Squares, and the built Vercel API entrypoint. A fresh unauthenticated check still
 shows:
 
 - the preview hostname above returns `302` to Vercel SSO;
@@ -65,8 +65,8 @@ hosted state from being represented as newer than the verified source.
 Using the Vercel deployment connector, the current command center and API
 Function were deployed from the verified source files at:
 
-- Deployment: `dpl_DEG8LiweVS6D6EQ7WahHtRjMQwkS`
-- Protected direct URL: `https://town-clear-current-5d8a1oako-123oqwes-projects.vercel.app`
+- Deployment: `dpl_7nBEQxdEVixr39eDtC7s61Zi2HWS`
+- Protected direct URL: `https://town-clear-current-4wx1yih1r-123oqwes-projects.vercel.app`
 - State: `READY`
 - Direct URL access check: unauthenticated request returns `302` to Vercel SSO.
 - Generated project aliases currently return `200` publicly and are not accepted
