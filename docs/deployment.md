@@ -265,6 +265,11 @@ state `READY`; desktop and mobile Chromium smoke tests now load without page
 errors, and an unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+Routine schedule controls are deployed as
+`https://town-clear-current-drjjed0yv-123oqwes-projects.vercel.app`, deployment
+`dpl_FuMA51wa2fajYaKS7Dt18vFvWtK3`, state `READY`. Runtime errors are absent
+and direct unauthenticated access returns `302` to Vercel SSO.
+
 Task lifecycle controls are deployed as
 `https://town-clear-current-hej1b6kww-123oqwes-projects.vercel.app`, deployment
 `dpl_3AHYvetGQgRJEHcC6HAFppv4v99x`, state `READY`. Runtime errors are absent
