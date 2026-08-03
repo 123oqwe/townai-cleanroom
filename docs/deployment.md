@@ -891,6 +891,13 @@ The Gmail-to-Routine ingestion UI is deployed as
 no runtime errors; direct unauthenticated access returns the expected `302`
 SSO redirect.
 
+The live Harness SSE event updates are deployed as
+`https://town-clear-current-dl8bivbw9-123oqwes-projects.vercel.app`, deployment
+`dpl_R3ufupC3B3tRvUg1jUf14DWKJcxj`, state `READY`, alias
+`town-clear-current-ui-123oqwe-123oqwes-projects.vercel.app`. Vercel reported
+no runtime errors; direct unauthenticated access returns the expected `302`
+SSO redirect.
+
 The Routine external-trigger queue UI is deployed as
 `https://town-clear-current-99xnfgo5n-123oqwes-projects.vercel.app`, deployment
 `dpl_2M7kA51wdkuy7ytZaknd6rvLWRvY`, state `READY`, alias
