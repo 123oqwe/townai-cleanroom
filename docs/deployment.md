@@ -1194,3 +1194,8 @@ The signed Twilio voice transcription adapter source state is deployed as
 completed in 33 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The route remains inactive until
 `TWILIO_AUTH_TOKEN` is configured; the direct URL remains SSO-gated.
+
+The Voice Transcribed provider-boundary source state is included in the
+following READY deployment:
+`https://town-clear-lvhdvl1ce-123oqwes-projects.vercel.app` remains the
+current deployment URL for this module, with no runtime errors reported.
