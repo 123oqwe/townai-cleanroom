@@ -1125,3 +1125,9 @@ The admin user detail source state is deployed as
 `dpl_64mRSnFZ5m9vSCJRsDdChpDEbTSQ`, state `READY`. The full workspace build
 completed successfully and Vercel reported no runtime errors in the following
 hour. The direct URL remains SSO-gated.
+
+The admin team detail source state is deployed as
+`https://town-clear-current-ctfwee9um-123oqwes-projects.vercel.app`, deployment
+`dpl_EphwLAPUd1yCXST4Jk5gkuUWUv4a`, state `READY`. The full workspace build
+completed successfully and Vercel reported no runtime errors in the following
+hour. The direct URL remains SSO-gated.
