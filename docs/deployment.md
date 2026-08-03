@@ -1378,6 +1378,16 @@ The model-router wiring is deployed as
 The full build completed successfully and no runtime errors were reported in
 the selected hour.
 
+Access-control verification for the current source state: unauthenticated
+`HEAD` requests to both the owner alias
+`https://town-clear-123oqwe-123oqwes-projects.vercel.app/` and the latest
+deployment URL returned HTTP `302` to Vercel SSO. The response included
+`x-frame-options: DENY`, `x-robots-tag: noindex`, and a secure HttpOnly SSO
+nonce cookie. This verifies the deployed URLs are not anonymously reachable;
+the Vercel connector does not expose a project-settings mutation endpoint, so
+the exact API-level `ssoProtection.deploymentType` value remains recorded as
+unverified.
+
 The Library file-upload UI is included in the current READY source state. It
 uses the authenticated Content blob route and therefore remains visibly
 unavailable for durable upload until a storage backend is configured; no
