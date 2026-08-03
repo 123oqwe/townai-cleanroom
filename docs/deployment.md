@@ -191,6 +191,13 @@ direct URL is `https://town-clear-current-gjrsrjw6g-123oqwes-projects.vercel.app
 state `READY`; only runtime runs linked to a routine schedule produce a
 RoutineResult, and the unauthenticated URL check returns the Vercel SSO `302`.
 
+Typed routine trigger data is deployed in
+`dpl_A4ez9U7ozhWoybd98cFcgEvfjf5a`, built from commit `2c1679d`. Its protected
+direct URL is `https://town-clear-current-5mtxcrmji-123oqwes-projects.vercel.app`,
+state `READY`; `0034_routine_trigger_data.sql` records trigger type, payload,
+and idempotency key, while the unauthenticated URL check returns the Vercel SSO
+`302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
