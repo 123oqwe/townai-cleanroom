@@ -489,6 +489,16 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+Subscribed-calendar aggregation is deployed in
+`dpl_8p27apLqpcoiJJhgzMAEMQtCNxhB`, built from commit `dd2bc62`. Its protected
+direct URL is
+`https://town-clear-current-f0qe6g1hp-123oqwes-projects.vercel.app`, state
+`READY`; the schedule API now reads the Google CalendarList, includes visible
+calendars from each active Google account, and identifies each event's
+calendar. Calendar-list and per-calendar failures remain independently
+reported. An unauthenticated request receives the Vercel SSO `302`; Vercel
+reported no runtime errors in the verification window.
+
 The Home Schedule panel is deployed in
 `dpl_AkCjETmyTfDjd6VxFtaEjUMPertM`, built from commit `fdb36d0`. Its protected
 direct URL is
