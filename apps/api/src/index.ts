@@ -121,6 +121,7 @@ const environmentSchema = z.object({
   WORKER_SECRET: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
   SLACK_SIGNING_SECRET: z.string().min(1).optional(),
+  TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
@@ -594,6 +595,9 @@ const app = createApp({
   ...(environment.SLACK_SIGNING_SECRET === undefined
     ? {}
     : { slackSigningSecret: environment.SLACK_SIGNING_SECRET }),
+  ...(environment.TWILIO_AUTH_TOKEN === undefined
+    ? {}
+    : { twilioAuthToken: environment.TWILIO_AUTH_TOKEN }),
   workerEnabled:
     harnessServerFactory !== undefined &&
     (environment.WORKER_ENABLED ||
