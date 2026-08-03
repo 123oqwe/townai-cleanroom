@@ -626,3 +626,10 @@ direct URL is
 current revisions beside content and memory. An unauthenticated request returns
 the Vercel SSO `302`; Vercel reported no runtime errors in the verification
 window.
+
+The tool policy preview surface is deployed in
+`dpl_Fv6TetWiFBXZ3KqrfnWkCRs9LYTw`, built from commit `ffceb22`. Its protected
+direct URL is
+`https://town-clear-current-g75qxkd1j-123oqwes-projects.vercel.app`, state
+`READY`; the Connected accounts dialog can evaluate policy inputs without
+executing a tool. Vercel reported no runtime errors in the verification window.
