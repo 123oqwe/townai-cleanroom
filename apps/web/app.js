@@ -325,7 +325,7 @@ function renderLibraryContent(result) {
     .slice(0, 20)
     .map(
       (item) =>
-        `<article class="library-content-item"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || "Stored ${item.kind} content")}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></article>`,
+        `<article class="library-content-item"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></article>`,
     )
     .join("");
 }
