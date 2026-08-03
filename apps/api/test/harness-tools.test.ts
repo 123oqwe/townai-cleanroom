@@ -10,6 +10,7 @@ import {
   createInvokeRoutineHarnessBinding,
   createRegistryHarnessBindings,
   createTownMemoryAddHarnessBinding,
+  createTownContextHarnessBinding,
   createTownSearchHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
   createGoogleGmailSendHarnessBinding,
@@ -152,6 +153,37 @@ describe("Town Harness built-in tools", () => {
       query: "launch",
       limit: 5,
       cursor: "cursor-0",
+    });
+  });
+
+  it("binds bounded knowledge context without requiring approval", async () => {
+    const ownerId = newId<"user">();
+    const build = vi.fn().mockResolvedValue({
+      query: "roadmap",
+      items: [],
+      text: "[wiki:one] Roadmap",
+      includedChars: 18,
+      truncated: false,
+      source: { kind: "local_postgresql", algorithm: "postgres_full_text_v1" },
+    });
+    const binding = createTownContextHarnessBinding(ownerId, {
+      build,
+    } as never);
+
+    const result = await binding.port.execute({
+      query: "roadmap",
+      maxChars: 500,
+    });
+    expect(binding.definition.name).toBe("town_context");
+    expect(binding.port.requiresApproval).toBe(false);
+    expect(JSON.parse(result.output)).toMatchObject({
+      text: "[wiki:one] Roadmap",
+    });
+    expect(build).toHaveBeenCalledWith({
+      ownerId,
+      query: "roadmap",
+      limit: 10,
+      maxChars: 500,
     });
   });
 

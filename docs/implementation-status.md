@@ -301,3 +301,10 @@ explicitly. `createResponsesAgentFactory` can consume this router while the
 default single Responses model remains available. This is an honest routing
 boundary and does not claim Town's private model scores, prompts, or provider
 selection weights.
+
+Knowledge context construction is now a first-class owner-scoped contract at
+`GET /v1/knowledge/context` and the Harness `town_context` tool. It reuses the
+real PostgreSQL full-text search results, preserves citations, emits a bounded
+plain-text context block, and marks cursor/budget truncation explicitly. It
+does not summarize, invent, or cross owner boundaries; model-side compression
+remains an injected provider responsibility.

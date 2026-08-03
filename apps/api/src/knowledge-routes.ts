@@ -5,6 +5,7 @@ import { asId } from "@town/contracts";
 import {
   resourceTypeSchema,
   type KnowledgeConflictService,
+  createKnowledgeContextBuilder,
   type KnowledgeSearchRepository,
   type MemoryRepository,
   type PeopleRepository,
@@ -141,6 +142,14 @@ const searchQuerySchema = z
       });
     }
   });
+const contextQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(500),
+    types: z.string().trim().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    maxChars: z.coerce.number().int().min(500).max(50_000).default(12_000),
+  })
+  .strict();
 
 function userCitation(sourceRef: string) {
   return [
@@ -476,6 +485,28 @@ export function registerKnowledgeRoutes(
       limit: query.limit,
     });
     return context.json(result);
+  });
+
+  app.get("/v1/knowledge/context", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const query = contextQuerySchema.parse(context.req.query());
+    const rawTypes = query.types?.split(",").filter(Boolean);
+    const types =
+      rawTypes === undefined
+        ? undefined
+        : z.array(resourceTypeSchema).min(1).parse(rawTypes);
+    const builder = createKnowledgeContextBuilder(
+      dependencies.knowledgeSearchRepository,
+    );
+    return context.json(
+      await builder.build({
+        ownerId,
+        query: query.q,
+        ...(types === undefined ? {} : { types }),
+        limit: query.limit,
+        maxChars: query.maxChars,
+      }),
+    );
   });
 
   app.get("/v1/knowledge/conflicts", async (context) => {

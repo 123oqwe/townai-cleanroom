@@ -246,6 +246,26 @@ describe("protected knowledge API", () => {
     expect(serialized).not.toMatch(
       /accessToken|refreshToken|envelope|credential/,
     );
+
+    const contextResponse = await app.request(
+      "/v1/knowledge/context?q=roadmap&maxChars=500",
+      { headers },
+    );
+    const context = (await contextResponse.json()) as {
+      query: string;
+      text: string;
+      truncated: boolean;
+      source: { kind: string };
+      items: Array<{ resourceType: string; title: string | null }>;
+    };
+    expect(contextResponse.status).toBe(200);
+    expect(context).toMatchObject({
+      query: "roadmap",
+      source: { kind: "local_postgresql" },
+      items: [{ resourceType: "wiki", title: "Searchable Roadmap" }],
+      truncated: false,
+    });
+    expect(context.text).toContain("[wiki:");
   });
 
   it("exposes owner-scoped Person relationship edges", async () => {

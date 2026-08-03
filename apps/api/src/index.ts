@@ -32,6 +32,7 @@ import {
 } from "@town/identity";
 import {
   createKnowledgeConflictService,
+  createKnowledgeContextBuilder,
   createKnowledgeSearchRepository,
   createMemoryRepository,
   createPeopleRepository,
@@ -64,6 +65,7 @@ import {
   createInvokeRoutineHarnessBinding,
   createRegistryHarnessBindings,
   createMcpHarnessBindings,
+  createTownContextHarnessBinding,
   createTownSearchHarnessBinding,
   createGoogleGmailSearchHarnessBinding,
   createGoogleGmailGetMessageHarnessBinding,
@@ -148,6 +150,9 @@ const peopleRepository = createPeopleRepository(sql);
 const wikiRepository = createWikiRepository(sql);
 const revisionRepository = createRevisionRepository(sql);
 const knowledgeSearchRepository = createKnowledgeSearchRepository(sql);
+const knowledgeContextBuilder = createKnowledgeContextBuilder(
+  knowledgeSearchRepository,
+);
 const knowledgeConflictService = createKnowledgeConflictService(sql);
 const agentRepository = createAgentRepository(sql);
 const threadRepository = createThreadRepository(sql);
@@ -461,6 +466,10 @@ const harnessServerFactory =
                 createTownSearchHarnessBinding(
                   typedOwnerId,
                   knowledgeSearchRepository,
+                ),
+                createTownContextHarnessBinding(
+                  typedOwnerId,
+                  knowledgeContextBuilder,
                 ),
                 createTownMemoryAddHarnessBinding(
                   typedOwnerId,

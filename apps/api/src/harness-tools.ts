@@ -8,9 +8,10 @@ import type { AgentRepository, ThreadRepository } from "@town/agents";
 import { AgentError, approvalModeSchema } from "@town/agents";
 import type { SessionRepository } from "@town/runtime";
 import { createHash } from "node:crypto";
-import type {
-  KnowledgeSearchRepository,
-  MemoryRepository,
+import {
+  type KnowledgeContextBuilder,
+  type KnowledgeSearchRepository,
+  type MemoryRepository,
 } from "@town/knowledge";
 import { resourceTypeSchema } from "@town/knowledge";
 import type { Id } from "@town/contracts";
@@ -49,6 +50,27 @@ const searchArguments = z
     types: z.array(resourceTypeSchema).min(1).max(8).optional(),
     limit: z.number().int().min(1).max(20).default(10),
     cursor: z.string().min(1).max(4_096).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.types !== undefined &&
+      new Set(value.types).size !== value.types.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["types"],
+        message: "types must not contain duplicates",
+      });
+    }
+  });
+
+const contextArguments = z
+  .object({
+    query: z.string().trim().min(1).max(500),
+    types: z.array(resourceTypeSchema).min(1).max(4).optional(),
+    limit: z.number().int().min(1).max(20).default(10),
+    maxChars: z.number().int().min(500).max(20_000).default(12_000),
   })
   .strict()
   .superRefine((value, context) => {
@@ -240,6 +262,52 @@ export function createTownSearchHarnessBinding(
           kind: "result",
           output: bounded.output,
         };
+      },
+    },
+  };
+}
+
+/** Builds a bounded, citation-preserving context block for the model. */
+export function createTownContextHarnessBinding(
+  ownerId: Id<"user">,
+  contextBuilder: KnowledgeContextBuilder,
+): HarnessToolBinding {
+  return {
+    definition: {
+      name: "town_context",
+      description:
+        "Build a bounded context block from the owner's knowledge with citations.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", minLength: 1, maxLength: 500 },
+          types: {
+            type: "array",
+            items: { enum: resourceTypeSchema.options },
+            minItems: 1,
+            maxItems: 4,
+            uniqueItems: true,
+          },
+          limit: { type: "integer", minimum: 1, maximum: 20 },
+          maxChars: { type: "integer", minimum: 500, maximum: 20_000 },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+    port: {
+      name: "town_context",
+      requiresApproval: false,
+      async execute(arguments_) {
+        const value = contextArguments.parse(arguments_);
+        const result = await contextBuilder.build({
+          ownerId,
+          query: value.query,
+          ...(value.types === undefined ? {} : { types: value.types }),
+          limit: value.limit,
+          maxChars: value.maxChars,
+        });
+        return { kind: "result", output: JSON.stringify(result) };
       },
     },
   };
