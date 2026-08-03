@@ -587,11 +587,15 @@ async function saveContent() {
     await apiJson("/v1/content", {
       kind: $("#content-kind").value,
       title,
-      body: $("#content-body").value,
+      body: $("#content-body").value || null,
+      mimeType: $("#content-mime-type").value.trim() || null,
+      storageKey: $("#content-storage-key").value.trim() || null,
       metadata: {},
     });
     $("#content-title").value = "";
     $("#content-body").value = "";
+    $("#content-mime-type").value = "";
+    $("#content-storage-key").value = "";
     $("#content-add-form").hidden = true;
     error.hidden = true;
     await loadLibrary();

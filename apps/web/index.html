@@ -476,6 +476,10 @@
             <option value="spreadsheet">Spreadsheet</option>
             <option value="deck">Deck</option>
             <option value="file">File</option>
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+            <option value="audio">Audio</option>
+            <option value="recording">Recording</option>
           </select>
           <label for="content-title">Title</label>
           <input id="content-title" maxlength="500" />
@@ -483,6 +487,22 @@
             >Body <span class="form-hint">optional</span></label
           >
           <textarea id="content-body" rows="4" maxlength="200000"></textarea>
+          <label for="content-mime-type"
+            >MIME type <span class="form-hint">optional</span></label
+          >
+          <input
+            id="content-mime-type"
+            maxlength="255"
+            placeholder="audio/mpeg"
+          />
+          <label for="content-storage-key"
+            >Storage key <span class="form-hint">optional</span></label
+          >
+          <input
+            id="content-storage-key"
+            maxlength="2000"
+            placeholder="object key or provider reference"
+          />
           <button
             class="primary-button full-button"
             id="content-save"
