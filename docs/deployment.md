@@ -171,6 +171,13 @@ MCP ToolDefinition normalization is deployed in
 direct URL is `https://town-clear-current-370sg6u7f-123oqwes-projects.vercel.app`,
 state `READY`; the unauthenticated URL check returns the Vercel SSO `302`.
 
+Durable MCP execution is deployed in
+`dpl_4M2GHKXByJJH7nKFgZTET9ZGyz1i`, built from commit `c88e80e`. Its protected
+direct URL is `https://town-clear-current-kmjn76ap3-123oqwes-projects.vercel.app`,
+state `READY`; approved leased MCP calls now create, start, and complete/fail a
+durable ToolCall, and the unauthenticated URL check returns the Vercel SSO
+`302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
