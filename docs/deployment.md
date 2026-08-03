@@ -265,6 +265,14 @@ state `READY`; desktop and mobile Chromium smoke tests now load without page
 errors, and an unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+The Vercel API entrypoint/build-entrypoint hardening is deployed in
+`dpl_AXVK6TxongC6yFdgkbKM26Le9uJ1`, built from commit `c254980`. Its protected
+direct URL is `https://town-clear-current-ihq3o4nds-123oqwes-projects.vercel.app`,
+state `READY`; the entrypoint now returns a structured `503 API_NOT_CONFIGURED`
+response when required infrastructure secrets are absent, and the build checks
+that every workspace package `main` export exists after compilation. An
+unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
