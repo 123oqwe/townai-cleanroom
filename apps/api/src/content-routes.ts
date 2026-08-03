@@ -221,7 +221,7 @@ export function registerContentRoutes(
       mimeType: contentType ?? null,
       storageKey,
       body: null,
-      metadata: content.metadata,
+      metadata: content.metadata as never,
     });
     return context.json({ content: updated });
   });
