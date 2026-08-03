@@ -39,16 +39,16 @@ source row does not imply that an external provider is configured.
 ## Verification snapshot
 
 At the latest full verification on 2026-08-04 (after Harness routing, bounded
-knowledge context, Routine Step Executor, Wiki upkeep, Slack Events, and
-Twilio Voice adapters), the repository passed source-only policy, formatting,
-lint, typecheck, all 72 test files (329 tests), and all workspace builds. The
-current protected UI deployment is recorded in
+knowledge context, Routine Step Executor, Wiki upkeep, Slack Events, Twilio
+Voice adapters, and ElevenLabs TTS), the repository passed source-only policy,
+formatting, lint, typecheck, all 73 test files (332 tests), and all workspace
+builds. The current protected UI deployment is recorded in
 [`deployment.md`](./deployment.md). This ledger intentionally does not mark
 the overall product goal complete while the production API and project-level
 deployment protection remain unverified.
 
-The full Vitest run used Testcontainers PostgreSQL with one worker and
-completed in about 260 seconds with 72/72 files and 329/329 tests passing. The repository inventory
+The full Vitest run used Testcontainers PostgreSQL and completed in about 265
+seconds with 73/73 files and 332/332 tests passing. The repository inventory
 therefore now has a fresh completed full-suite evidence point covering the
 Harness model router, bounded knowledge context, Routine Step Executor, and
 Wiki upkeep scanner rather than only a descriptive test count.
