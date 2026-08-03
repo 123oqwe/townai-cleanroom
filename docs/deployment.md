@@ -534,6 +534,15 @@ visibility without rewriting or reordering server data. An unauthenticated
 request receives the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
 
+The Personal Agent settings surface is deployed in
+`dpl_AhEp4sLZGodZmi9PE4ReX9isjo7v`, built from commit `a4eb450`. Its protected
+direct URL is
+`https://town-clear-current-loa34ph15-123oqwe-projects.vercel.app`, state
+`READY`; the Profile dialog can read and revision-save the Personal Agent's
+display name, instructions, and default approval mode without resetting
+callable routines. The direct URL returns the Vercel SSO `302`; Vercel reported
+no runtime errors in the verification window.
+
 MCP Agent binding visibility is deployed in
 `dpl_F1R1ykVfRWtEHkryXspvY4M1buwZ`, built from commit `aab7fa6`. Its protected
 direct URL is
