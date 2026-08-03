@@ -224,4 +224,9 @@ deployments. Serverless deployments can instead set `WORKER_SECRET` and invoke
 scheduled tick; the endpoint processes at most one leased queue item and is not
 registered when the secret is absent.
 
+Vercel deployments may set `CRON_SECRET` instead. `vercel.json` schedules the
+same protected worker endpoint hourly, and Vercel supplies that secret as the
+Bearer credential. The endpoint remains unregistered when neither secret is
+present.
+
 The current product objective is recorded in [GOAL.md](./GOAL.md).

@@ -86,6 +86,7 @@ const environmentSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   WORKER_SECRET: z.string().min(1).optional(),
+  CRON_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
@@ -337,7 +338,9 @@ const routineScheduler =
         sessions: sessionRepository,
       });
 
-const workerSecret = environment.WORKER_SECRET;
+// Vercel Cron sends its configured CRON_SECRET as an Authorization bearer.
+// A manually managed WORKER_SECRET still takes precedence for other hosts.
+const workerSecret = environment.WORKER_SECRET ?? environment.CRON_SECRET;
 const workerId = process.env["WORKER_ID"] ?? `town-worker-${process.pid}`;
 if (workerSecret !== undefined) {
   app.post("/v1/internal/worker", async (context) => {
