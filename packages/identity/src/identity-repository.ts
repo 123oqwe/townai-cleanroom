@@ -54,13 +54,20 @@ export class IdentityRepository {
   constructor(private readonly sql: Sql) {}
 
   async syncAllowlist(emails: string[]): Promise<void> {
-    for (const email of emails) {
-      await this.sql`
-        insert into access_allowlist (email, enabled)
-        values (${email}, true)
-        on conflict (email) do update set enabled=true
+    await this.sql.begin(async (transaction) => {
+      await transaction`
+        update access_allowlist
+        set enabled=false
+        where enabled=true
       `;
-    }
+      for (const email of emails) {
+        await transaction`
+          insert into access_allowlist (email, enabled)
+          values (${email}, true)
+          on conflict (email) do update set enabled=true
+        `;
+      }
+    });
   }
 
   async establish(

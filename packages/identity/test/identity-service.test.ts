@@ -15,6 +15,7 @@ import {
   IdentityError,
   createIdentityService,
 } from "../src/identity-service.js";
+import { IdentityRepository } from "../src/identity-repository.js";
 
 let sql: Sql;
 let now: Date;
@@ -125,6 +126,24 @@ describe("allowlist-gated identity service", () => {
     expect(authenticated.user.id).toBe(established.user.id);
     expect(authenticated.session.id).toBe(established.session.id);
     expect(authenticated.session.lastSeenAt).toEqual(now);
+  });
+
+  it("treats the configured allowlist as authoritative and disables removed emails", async () => {
+    const repository = new IdentityRepository(sql);
+    await sql`
+      insert into access_allowlist (email, enabled)
+      values ('removed@example.invalid', true), ('kept@example.invalid', false)
+    `;
+    await repository.syncAllowlist(["kept@example.invalid"]);
+    const rows = await sql<{ email: string; enabled: boolean }[]>`
+      select email::text as email, enabled
+      from access_allowlist
+      order by email
+    `;
+    expect(rows).toEqual([
+      { email: "kept@example.invalid", enabled: true },
+      { email: "removed@example.invalid", enabled: false },
+    ]);
   });
 
   it("rejects expired and malformed session tokens", async () => {
