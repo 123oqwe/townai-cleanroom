@@ -102,6 +102,7 @@ import { registerScheduleRoutes } from "./schedule-routes.js";
 import type { SuggestionRepository } from "@town/suggestions";
 import { SuggestionError } from "@town/suggestions";
 import { registerA2ARoutes } from "./a2a-routes.js";
+import { registerSlackEventsRoute } from "./slack-events.js";
 import type { A2ARepository } from "@town/a2a";
 import { A2AError } from "@town/a2a";
 import type { HarnessExecutionContext } from "./harness-runtime-adapter.js";
@@ -145,6 +146,7 @@ export interface AppDependencies {
   googleApi?: GoogleApiClient;
   webOrigin?: string;
   workerEnabled?: boolean;
+  slackSigningSecret?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (
     ownerId: string,
@@ -675,6 +677,16 @@ export function createApp(dependencies?: AppDependencies) {
     if (dependencies.routineRepository !== undefined)
       registerRoutineWebhookRoutes(app, {
         repository: dependencies.routineRepository,
+      });
+    if (
+      dependencies.sql !== undefined &&
+      dependencies.routineRepository !== undefined &&
+      dependencies.slackSigningSecret !== undefined
+    )
+      registerSlackEventsRoute(app, {
+        sql: dependencies.sql,
+        repository: dependencies.routineRepository,
+        signingSecret: dependencies.slackSigningSecret,
       });
     if (dependencies.routineRepository !== undefined)
       registerRoutineShareRoutes(app, {

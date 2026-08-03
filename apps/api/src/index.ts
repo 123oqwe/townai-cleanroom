@@ -120,6 +120,7 @@ const environmentSchema = z.object({
   WORKER_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(10),
   WORKER_SECRET: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
+  SLACK_SIGNING_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
@@ -590,6 +591,9 @@ const app = createApp({
   },
   googleTokenRefresher,
   webOrigin: environment.WEB_ORIGIN,
+  ...(environment.SLACK_SIGNING_SECRET === undefined
+    ? {}
+    : { slackSigningSecret: environment.SLACK_SIGNING_SECRET }),
   workerEnabled:
     harnessServerFactory !== undefined &&
     (environment.WORKER_ENABLED ||
