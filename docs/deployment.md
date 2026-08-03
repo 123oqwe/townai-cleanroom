@@ -418,6 +418,14 @@ protected direct URL is
 without client-side reordering. An unauthenticated curl receives the Vercel SSO
 `302` protection redirect.
 
+Channel and timeline loading now fail independently in deployment
+`dpl_EEZm5rJwG41KtnHCt1gEAef2rF5u`, built from commit `0cdcecf`. Its protected
+direct URL is
+`https://town-clear-current-j67arxp1r-123oqwes-projects.vercel.app`, state
+`READY`; a timeline outage no longer hides a healthy channel list, and each
+surface renders its own explicit error state. An unauthenticated curl receives
+the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
