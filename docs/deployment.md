@@ -1243,3 +1243,11 @@ The Vapi voice event adapter source state is deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The endpoint remains inactive
 until `VAPI_WEBHOOK_SECRET` is configured; the direct URL remains SSO-gated.
+
+The Vapi voice event adapter's durable-enqueue/HTTP-200 acknowledgement state
+is deployed as
+`https://town-clear-2unja4xfd-123oqwes-projects.vercel.app`, deployment
+`dpl_8G33F2TVTR7mFTSEpUUhnazAR4jF`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The endpoint remains inactive
+until `VAPI_WEBHOOK_SECRET` is configured; the direct URL remains SSO-gated.
