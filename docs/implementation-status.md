@@ -125,6 +125,11 @@ Content Collections now have an owner-scoped discovery route
 Library can create collections, list them, and open a collection to read its
 persisted items; it does not invent collection IDs or membership.
 
+Collection detail now allows adding an active Library content item through
+the existing owner-scoped collection-item route. The client filters already
+included items from the selector and reloads the collection after the server
+confirms the relation.
+
 Content Library cards now support inline editing through the existing
 revision-aware `PATCH /v1/content/:contentId` route. The client first fetches
 the authoritative content item, preserves its MIME/storage/metadata fields,
