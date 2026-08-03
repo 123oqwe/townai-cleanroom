@@ -15,6 +15,18 @@ describe("routine catalog", () => {
       "auto-inbox",
       "meeting-briefing",
       "daily-work-summary",
+      "newsletter-digest",
+      "schedule-optimizer",
+      "deal-spotter",
+      "competitive-intel-briefing",
+      "contact-research-dossier",
+      "github-reports",
+      "invoice-expense-logger",
+      "travel-booking-organizer",
+      "relationship-reconnect",
+      "content-organizer",
+      "new-user-research",
+      "decline-cold-outreach",
     ]);
     expect(
       templates.every(
