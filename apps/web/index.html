@@ -1388,6 +1388,37 @@
             Load more <span>↓</span>
           </button>
         </section>
+        <section
+          class="channel-deliveries"
+          aria-labelledby="channel-deliveries-title"
+        >
+          <div class="channel-timeline-heading">
+            <div>
+              <p class="eyebrow">Delivery records</p>
+              <h3 id="channel-deliveries-title">What was sent</h3>
+            </div>
+            <select
+              id="channel-delivery-status"
+              aria-label="Filter delivery status"
+            >
+              <option value="">All</option>
+              <option value="queued">Queued</option>
+              <option value="sending">Sending</option>
+              <option value="sent">Sent</option>
+              <option value="failed">Failed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div
+            id="channel-delivery-list"
+            class="channel-delivery-list"
+            aria-live="polite"
+          >
+            <p class="harness-empty">
+              Connect the API to load delivery records.
+            </p>
+          </div>
+        </section>
         <button
           class="text-button channel-add-toggle"
           id="channel-add-toggle"

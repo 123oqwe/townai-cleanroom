@@ -2391,6 +2391,32 @@ function renderChannelTimeline(result) {
   more.hidden = !result.nextCursor;
   more.dataset.cursor = result.nextCursor || "";
 }
+function renderChannelDeliveries(result) {
+  const target = $("#channel-delivery-list");
+  const deliveries = result.deliveries || [];
+  target.innerHTML = deliveries.length
+    ? deliveries
+        .map(
+          (delivery) =>
+            `<article class="channel-delivery-item"><div><strong>${escapeHtml(delivery.eventType)}</strong><small>${escapeHtml(delivery.status)} · ${escapeHtml(delivery.channelId.slice(0, 8))} · attempts ${escapeHtml(String(delivery.attempts))}</small></div><time>${escapeHtml(formatTime(new Date(delivery.createdAt)))}</time>${delivery.lastError ? `<p>${escapeHtml(delivery.lastError)}</p>` : ""}</article>`,
+        )
+        .join("")
+    : '<p class="harness-empty">No delivery records match this filter.</p>';
+}
+async function loadChannelDeliveries() {
+  if (!state.token) return;
+  const status = $("#channel-delivery-status").value;
+  const query = new URLSearchParams({ limit: "20" });
+  if (status) query.set("status", status);
+  try {
+    renderChannelDeliveries(
+      await api(`/v1/notification-deliveries?${query.toString()}`),
+    );
+  } catch (cause) {
+    $("#channel-delivery-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Delivery records unavailable.")}</p>`;
+  }
+}
 let channelTimelineCursor = "";
 async function loadChannelTimeline(append = false) {
   const query =
@@ -2415,6 +2441,7 @@ async function loadChannels() {
     api("/v1/channels"),
     loadChannelTimeline(),
   ]);
+  void loadChannelDeliveries();
   if (channelsResult.status === "fulfilled") {
     renderChannels(channelsResult.value);
   } else {
@@ -3457,6 +3484,10 @@ $("#channels-open").addEventListener("click", () => {
 $("#channel-timeline-more").addEventListener("click", () => {
   void loadChannelTimeline(true).catch(() => undefined);
 });
+$("#channel-delivery-status").addEventListener(
+  "change",
+  () => void loadChannelDeliveries(),
+);
 $("#channel-add-toggle").addEventListener("click", () => {
   $("#channel-add-form").hidden = !$("#channel-add-form").hidden;
   if (!$("#channel-add-form").hidden) $("#channel-address").focus();

@@ -2260,6 +2260,41 @@ dialog h2 {
 .channel-timeline-more {
   margin-top: 0.7rem;
 }
+.channel-deliveries {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+.channel-deliveries select {
+  min-width: 110px;
+}
+.channel-delivery-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+.channel-delivery-item {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+}
+.channel-delivery-item strong,
+.channel-delivery-item small {
+  display: block;
+}
+.channel-delivery-item small,
+.channel-delivery-item time {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.channel-delivery-item p {
+  margin: 0.25rem 0 0;
+  color: #a03e2b;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
 .channel-status {
   color: var(--green);
   font-family: var(--mono);
