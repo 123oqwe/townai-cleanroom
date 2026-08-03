@@ -3,7 +3,7 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "apps/web",
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "maxDuration": 60
     }
   }

@@ -26,7 +26,7 @@ To run the API, copy `.env.example` to `.env`, set `DATABASE_URL`, and provide a
 starts. Never commit the populated `.env` file.
 
 The repository also contains the production entrypoint used by Vercel:
-`api/index.ts` re-exports the same `apps/api/src/index.ts` application and
+`api/index.js` re-exports the built `apps/api/dist/index.js` application and
 `vercel.json` builds the workspace before serving `apps/web`. Vercel startup
 still requires the real environment variables; this entrypoint does not embed
 fallback credentials or a fake database.
