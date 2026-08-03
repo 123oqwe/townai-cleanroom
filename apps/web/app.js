@@ -1,4 +1,4 @@
-/* global URLSearchParams, crypto, document, fetch, localStorage, location, navigator, sessionStorage, window */
+/* global URL, URLSearchParams, crypto, document, fetch, localStorage, location, navigator, sessionStorage, window */
 
 const storageKeys = {
   base: "town.api.base",

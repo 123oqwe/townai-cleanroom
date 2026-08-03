@@ -9,6 +9,10 @@ describe("serverless health probes", () => {
       "RESPONSES_API_KEY",
       "WORKER_SECRET",
       "CRON_SECRET",
+      "SLACK_SIGNING_SECRET",
+      "TWILIO_AUTH_TOKEN",
+      "ELEVENLABS_API_KEY",
+      "ELEVENLABS_VOICE_ID",
       "GOOGLE_OAUTH_CLIENT_ID",
       "GOOGLE_OAUTH_CLIENT_SECRET",
       "GOOGLE_OAUTH_REDIRECT_URI",
@@ -28,6 +32,9 @@ describe("serverless health probes", () => {
         auth: false,
         harness: false,
         worker: false,
+        slackEvents: false,
+        twilioVoice: false,
+        voiceSynthesis: false,
         googleOAuth: false,
       });
     } finally {

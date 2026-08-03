@@ -66,6 +66,11 @@ app.get("/v1/health/capabilities", (context) =>
     auth: hasRequiredRuntimeConfig(),
     harness: Boolean(process.env.RESPONSES_API_KEY),
     worker: Boolean(process.env.WORKER_SECRET || process.env.CRON_SECRET),
+    slackEvents: Boolean(process.env.SLACK_SIGNING_SECRET),
+    twilioVoice: Boolean(process.env.TWILIO_AUTH_TOKEN),
+    voiceSynthesis: Boolean(
+      process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID,
+    ),
     googleOAuth: Boolean(
       process.env.GOOGLE_OAUTH_CLIENT_ID &&
       process.env.GOOGLE_OAUTH_CLIENT_SECRET &&

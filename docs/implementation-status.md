@@ -333,6 +333,11 @@ than only checking variable presence: `DATABASE_URL` must use PostgreSQL,
 `api:false`/`auth:false` and retain the generic `API_NOT_CONFIGURED` boundary
 instead of claiming an executable API.
 
+The unauthenticated capability probe now reports provider readiness separately
+for `slackEvents`, `twilioVoice`, and `voiceSynthesis`. These flags only reflect
+the presence of the corresponding deployment credentials; they do not claim
+that a provider account, callback mapping, or external quota is valid.
+
 Routine webhook ingestion now rejects bodies over 256 KiB with `413`, malformed
 JSON with `400`, and does so before calling the durable repository. Valid
 payloads retain the existing bearer-secret and `X-Town-Idempotency-Key`
