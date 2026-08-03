@@ -292,3 +292,12 @@ users, connected accounts, sessions, runs, approvals, deliveries, Squares, and
 recent failed audit events, plus explicit readiness flags. It never returns
 credentials, prompts, or provider payloads; this is a clean-room operational
 surface rather than a claim about Town's private admin console.
+
+Harness now also exposes a provider-neutral model router with explicit
+`interactive`, `routine`, and `compaction` operation classes. Routes are sorted
+by configured priority, disabled routes are excluded, and fallback occurs only
+after a provider port rejects; an operation with no enabled route fails
+explicitly. `createResponsesAgentFactory` can consume this router while the
+default single Responses model remains available. This is an honest routing
+boundary and does not claim Town's private model scores, prompts, or provider
+selection weights.

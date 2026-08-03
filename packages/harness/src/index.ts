@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./model-router.js";
+
 const toolArgumentsSchema = z.record(z.string(), z.unknown());
 const toolResultSchema = z
   .object({ kind: z.literal("result"), output: z.string() })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createResponsesAgentFactory } from "../src/agent-factory.js";
+import { createModelRouter } from "../src/model-router.js";
 
 describe("Responses agent factory", () => {
   it("binds provider tools and ports without inventing execution", async () => {
@@ -77,5 +78,34 @@ describe("Responses agent factory", () => {
     expect(() => mismatched("thread")).toThrow("names must match");
     const duplicated = make([{ name: "read" }, { name: "read" }]);
     expect(() => duplicated("thread")).toThrow("bound more than once");
+  });
+
+  it("uses an explicit operation router when supplied", async () => {
+    const router = createModelRouter({
+      routes: [
+        {
+          id: "routine-primary",
+          operation: "routine",
+          provider: "test",
+          model: "routine-model",
+          priority: 1,
+          port: {
+            respond: async () => ({ kind: "final", text: "routed" }),
+          },
+        },
+      ],
+    });
+    const factory = createResponsesAgentFactory({
+      endpoint: "https://model.example.invalid/v1/responses",
+      model: "unused-default",
+      modelRouter: router,
+      modelOperation: "routine",
+    });
+
+    await expect(
+      factory("thread").model.respond({
+        items: [{ type: "user_message", text: "run" }],
+      }),
+    ).resolves.toEqual({ kind: "final", text: "routed" });
   });
 });

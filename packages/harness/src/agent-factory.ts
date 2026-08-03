@@ -4,6 +4,7 @@ import {
   type ResponsesToolDefinition,
 } from "./responses.js";
 import type { ModelPort, ToolPort } from "./index.js";
+import type { ModelOperation, ModelRouter } from "./model-router.js";
 
 export interface HarnessToolBinding {
   definition: ResponsesToolDefinition;
@@ -18,6 +19,9 @@ export function createResponsesAgentFactory(input: {
   headers?: Record<string, string>;
   apiKey?: () => Promise<string>;
   onUsage?: (usage: ResponsesUsage) => Promise<void> | void;
+  /** Optional explicit operation router; omitted deployments use the default Responses model. */
+  modelRouter?: ModelRouter;
+  modelOperation?: ModelOperation;
   fetch?: typeof globalThis.fetch;
   tools?: (
     threadId: string,
@@ -54,19 +58,22 @@ export function createResponsesAgentFactory(input: {
       definitionNames.add(definition.name);
       portNames.add(port.name);
     }
+    const defaultModel = createResponsesModel({
+      endpoint: input.endpoint,
+      model: input.model,
+      ...((selected?.instructions ?? input.instructions) === undefined
+        ? {}
+        : { instructions: selected?.instructions ?? input.instructions }),
+      ...(input.headers === undefined ? {} : { headers: input.headers }),
+      ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
+      ...(input.onUsage === undefined ? {} : { onUsage: input.onUsage }),
+      ...(input.fetch === undefined ? {} : { fetch: input.fetch }),
+      tools: bindings.map(({ definition }) => definition),
+    });
     return {
-      model: createResponsesModel({
-        endpoint: input.endpoint,
-        model: input.model,
-        ...((selected?.instructions ?? input.instructions) === undefined
-          ? {}
-          : { instructions: selected?.instructions ?? input.instructions }),
-        ...(input.headers === undefined ? {} : { headers: input.headers }),
-        ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
-        ...(input.onUsage === undefined ? {} : { onUsage: input.onUsage }),
-        ...(input.fetch === undefined ? {} : { fetch: input.fetch }),
-        tools: bindings.map(({ definition }) => definition),
-      }),
+      model:
+        input.modelRouter?.model(input.modelOperation ?? "interactive") ??
+        defaultModel,
       tools: bindings.map(({ port }) => port),
     };
   };
