@@ -1059,3 +1059,10 @@ On 2026-08-03, unauthenticated `HEAD` requests to both the current owner alias
 URL above returned HTTP `302` to Vercel SSO. This verifies the observed access
 boundary for these URLs only; it does not prove that every future generated
 deployment is covered by a project-level protection setting.
+
+The connected-account route protection fix from source state `9871c78` is
+deployed as `https://town-clear-current-h5vqwfc1o-123oqwes-projects.vercel.app`,
+deployment `dpl_CUUYoskz8n7PB3BZaoaWH6Fc2Zpv`, state `READY`. The full workspace
+build completed with Node.js Lambda detection and Vercel reported no runtime
+errors. The deployment's owner alias remains SSO-protected; API operation still
+requires the documented real environment configuration.
