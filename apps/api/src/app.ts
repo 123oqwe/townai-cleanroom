@@ -401,9 +401,11 @@ export function createApp(dependencies?: AppDependencies) {
       (error instanceof ToolRegistryError &&
         ["TOOL_NAME_CONFLICT", "TOOL_BINDING_CONFLICT"].includes(error.code)) ||
       (error instanceof McpRepositoryError &&
-        ["MCP_SERVER_ALREADY_EXISTS", "MCP_SERVER_CONFLICT"].includes(
-          error.code,
-        )) ||
+        [
+          "MCP_SERVER_ALREADY_EXISTS",
+          "MCP_BINDING_ALREADY_EXISTS",
+          "MCP_SERVER_CONFLICT",
+        ].includes(error.code)) ||
       (error instanceof ToolExecutionError &&
         [
           "IDEMPOTENCY_CONFLICT",
@@ -502,6 +504,21 @@ export function createApp(dependencies?: AppDependencies) {
           code: error.code,
         },
         409,
+      );
+    }
+    if (
+      error instanceof McpRepositoryError &&
+      error.code === "MCP_SERVER_NOT_FOUND"
+    ) {
+      return context.json(
+        {
+          type: "https://town.local/problems/not-found",
+          title: "MCP server not found",
+          status: 404,
+          detail: "The MCP server is not active or is not owned by this user.",
+          code: error.code,
+        },
+        404,
       );
     }
     if (error instanceof KnowledgeSearchError) {

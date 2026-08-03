@@ -7,7 +7,11 @@ export const mcpTransportSchema = z.enum(["streamable_http", "sse"]);
 export const mcpStatusSchema = z.enum(["active", "disabled"]);
 export class McpRepositoryError extends Error {
   constructor(
-    readonly code: "MCP_SERVER_ALREADY_EXISTS" | "MCP_SERVER_CONFLICT",
+    readonly code:
+      | "MCP_SERVER_NOT_FOUND"
+      | "MCP_SERVER_ALREADY_EXISTS"
+      | "MCP_BINDING_ALREADY_EXISTS"
+      | "MCP_SERVER_CONFLICT",
     options?: ErrorOptions,
   ) {
     super(code, options);
@@ -172,6 +176,11 @@ export function createMcpRepository(sql: Sql) {
     const v = bindingInput.parse(value);
     const id = newId<"mcp-server-binding">();
     try {
+      const [server] = await sql<{ id: string }[]>`
+        select id from mcp_servers
+        where owner_id=${v.ownerId} and id=${v.mcpServerId} and status='active'
+      `;
+      if (!server) throw new McpRepositoryError("MCP_SERVER_NOT_FOUND");
       const rows = await sql<BindingRow[]>`
         insert into mcp_server_bindings
           (id, owner_id, agent_version_id, mcp_server_id, mode_override, account_scope)
@@ -190,7 +199,7 @@ export function createMcpRepository(sql: Sql) {
         "constraint_name" in error &&
         error.constraint_name === "mcp_bindings_owner_version_server_unique"
       ) {
-        throw new McpRepositoryError("MCP_SERVER_ALREADY_EXISTS", {
+        throw new McpRepositoryError("MCP_BINDING_ALREADY_EXISTS", {
           cause: error,
         });
       }

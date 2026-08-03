@@ -97,7 +97,7 @@ describe("MCP server metadata", () => {
         agentVersionId: agent.activeVersion.id,
         mcpServerId: server.id,
       }),
-    ).rejects.toThrow("MCP_SERVER_ALREADY_EXISTS");
+    ).rejects.toThrow("MCP_BINDING_ALREADY_EXISTS");
     await expect(
       repository.disableBinding(ownerId, binding.id, 1),
     ).resolves.toMatchObject({ enabled: false, revision: 2 });
