@@ -997,3 +997,20 @@ deployment `dpl_9k9JCUJTCtH7r6fxCMhZPnPUYXMf`, state `READY`, aliases
 `town-clear-current-123oqwe-123oqwes-projects.vercel.app`. Vercel reported no
 runtime errors; an unauthenticated HEAD request to the alias returned the
 expected `302` SSO redirect.
+
+The server-bootstrap hardening and hosted engine source state `65a240e` was
+tested against full-source Vercel builds. Deployment
+`dpl_7ajYkq3kZzaUajsrh6gZmYxvBjNZ` failed because the host rejected the pnpm
+engine constraint; after removing that redundant constraint,
+`dpl_71zrm1DEc38are3BoeqJkRJ4waRK` reached the build step but failed because
+the deployment connector did not install workspace dependencies
+(`zod` / `uuid` module-not-found). These are recorded as failed and are not
+release artifacts.
+
+The latest static UI source state `65a240e` is nevertheless deployed as
+`https://town-clear-current-er3l2rev6-123oqwes-projects.vercel.app`,
+deployment `dpl_J2y6u93yHsTdY9hjVDcq9NGyVBjo`, state `READY`. Vercel
+reported no runtime errors and the protected alias continues to return the
+expected `302` SSO redirect. The API remains unclaimed as operational until
+its real database/encryption environment and a reproducible workspace install
+are available.
