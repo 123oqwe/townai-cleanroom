@@ -346,6 +346,13 @@ commit `e2a555b`. Its protected direct URL is
 `READY`; an unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+Notification delivery retries are bounded at ten attempts in deployment
+`dpl_6KhGezLKmFnNSzjWGVrppxYTjPLG`, built from commit `047e3fe`. Its protected
+direct URL is
+`https://town-clear-current-1km8bk7dq-123oqwes-projects.vercel.app`, state
+`READY`; exhausted deliveries remain failed without a future retry timestamp.
+An unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
