@@ -697,10 +697,91 @@ function renderRoutines(result) {
     button.addEventListener("click", () => {
       selectedRoutineId = button.dataset.routineId;
       $("#routine-trigger").hidden = false;
+      void loadRoutineWebhook();
       renderRoutines(result);
       $("#routine-input").focus();
     });
   });
+}
+async function loadRoutineWebhook() {
+  const panel = $("#routine-webhook");
+  if (!selectedRoutineId || !state.token) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  $("#routine-webhook-secret").hidden = true;
+  try {
+    const result = await api(`/v1/routines/${selectedRoutineId}/webhook`);
+    const webhook = result.webhook;
+    $("#routine-webhook-state").textContent = webhook.enabled
+      ? "Enabled"
+      : "Disabled";
+    $("#routine-webhook-toggle").hidden = false;
+    $("#routine-webhook-toggle").textContent = webhook.enabled
+      ? "Disable"
+      : "Enable";
+    $("#routine-webhook-toggle").dataset.enabled = String(webhook.enabled);
+  } catch (error) {
+    if (error.status === 404) {
+      $("#routine-webhook-state").textContent = "Not configured";
+      $("#routine-webhook-toggle").hidden = true;
+      return;
+    }
+    $("#routine-webhook-error").textContent =
+      error instanceof Error ? error.message : "Webhook unavailable.";
+    $("#routine-webhook-error").hidden = false;
+  }
+}
+async function createRoutineWebhook() {
+  if (!selectedRoutineId || !state.token) return;
+  const error = $("#routine-webhook-error");
+  error.hidden = true;
+  const button = $("#routine-webhook-create");
+  button.disabled = true;
+  try {
+    const result = await apiJson(
+      `/v1/routines/${selectedRoutineId}/webhook`,
+      {},
+    );
+    $("#routine-webhook-state").textContent = "Enabled";
+    $("#routine-webhook-toggle").hidden = false;
+    $("#routine-webhook-toggle").textContent = "Disable";
+    $("#routine-webhook-toggle").dataset.enabled = "true";
+    $("#routine-webhook-url").value =
+      `${state.base.replace(/\/$/, "")}/v1/routine-webhooks/${selectedRoutineId}`;
+    $("#routine-webhook-token").value = result.secret;
+    $("#routine-webhook-secret").hidden = false;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not create webhook.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+async function toggleRoutineWebhook() {
+  if (!selectedRoutineId || !state.token) return;
+  const button = $("#routine-webhook-toggle");
+  const enabled = button.dataset.enabled === "true";
+  button.disabled = true;
+  try {
+    const result = await api(`/v1/routines/${selectedRoutineId}/webhook`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: !enabled }),
+    });
+    button.dataset.enabled = String(result.webhook.enabled);
+    button.textContent = result.webhook.enabled ? "Disable" : "Enable";
+    $("#routine-webhook-state").textContent = result.webhook.enabled
+      ? "Enabled"
+      : "Disabled";
+  } catch (cause) {
+    $("#routine-webhook-error").textContent =
+      cause instanceof Error ? cause.message : "Could not update webhook.";
+    $("#routine-webhook-error").hidden = false;
+  } finally {
+    button.disabled = false;
+  }
 }
 async function loadRoutines() {
   if (!state.token) {
@@ -1324,6 +1405,24 @@ $("#routines-open").addEventListener("click", () => {
   void loadRoutines();
 });
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
+$("#routine-webhook-create").addEventListener(
+  "click",
+  () => void createRoutineWebhook(),
+);
+$("#routine-webhook-toggle").addEventListener(
+  "click",
+  () => void toggleRoutineWebhook(),
+);
+$("#routine-webhook-copy").addEventListener("click", async () => {
+  const token = $("#routine-webhook-token").value;
+  if (!token) return;
+  try {
+    await navigator.clipboard.writeText(token);
+    $("#routine-webhook-copy").textContent = "Copied";
+  } catch {
+    $("#routine-webhook-token").select();
+  }
+});
 $("#account-open").addEventListener("click", () => {
   $("#accounts-error").hidden = true;
   openDialog($("#accounts-dialog"));

@@ -1386,6 +1386,62 @@ dialog h2 {
   font-size: 12px;
   resize: vertical;
 }
+.routine-webhook {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.routine-webhook-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.routine-webhook-heading .eyebrow {
+  margin: 0;
+}
+.routine-webhook-heading strong {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 500;
+}
+.routine-webhook-copy {
+  margin: 0;
+  color: var(--muted-deep);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.routine-webhook-secret {
+  display: grid;
+  gap: 7px;
+  padding-top: 7px;
+}
+.routine-webhook-secret label {
+  color: var(--muted-deep);
+  font-size: 10px;
+}
+.routine-webhook-secret input {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted-deep);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.routine-webhook-secret button {
+  justify-self: start;
+  min-height: 30px;
+  padding: 0 9px;
+  border-color: var(--line);
+  font-size: 10px;
+}
 .accounts-dialog {
   max-width: 520px;
 }

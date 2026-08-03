@@ -663,6 +663,52 @@
           </button>
           <p class="dialog-error" id="routine-error" role="alert" hidden></p>
         </div>
+        <div class="routine-webhook" id="routine-webhook" hidden>
+          <div class="routine-webhook-heading">
+            <div>
+              <p class="eyebrow">Incoming webhook</p>
+              <strong id="routine-webhook-state">Not configured</strong>
+            </div>
+            <button
+              class="quiet-button"
+              id="routine-webhook-toggle"
+              type="button"
+              hidden
+            >
+              Disable
+            </button>
+          </div>
+          <p class="routine-webhook-copy">
+            A new secret is shown once. Store it in your sender; Town only keeps
+            a hash.
+          </p>
+          <button class="text-button" id="routine-webhook-create" type="button">
+            Create or rotate secret <span>→</span>
+          </button>
+          <div
+            class="routine-webhook-secret"
+            id="routine-webhook-secret"
+            hidden
+          >
+            <label for="routine-webhook-url">Endpoint</label>
+            <input id="routine-webhook-url" readonly />
+            <label for="routine-webhook-token">One-time secret</label>
+            <input id="routine-webhook-token" readonly />
+            <button
+              class="quiet-button"
+              id="routine-webhook-copy"
+              type="button"
+            >
+              Copy secret
+            </button>
+          </div>
+          <p
+            class="dialog-error"
+            id="routine-webhook-error"
+            role="alert"
+            hidden
+          ></p>
+        </div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>

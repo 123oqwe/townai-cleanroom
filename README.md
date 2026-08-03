@@ -115,6 +115,9 @@ control using your platform's secure secret-management workflow.
 - The system signal also exposes configured Routines from `/v1/routines` and
   can trigger a selected routine through its idempotent `/run` endpoint. The
   UI reports the returned queued Run; it does not claim provider completion.
+- Routine selection also exposes the real webhook lifecycle: create/rotate a
+  one-time `whsec_` secret, copy the endpoint, and enable or disable delivery.
+  The secret is never refetched or rendered after the one-time response.
 - The top account control reads safe connected-account projections from
   `/v1/accounts` and starts the authenticated Google OAuth flow. OAuth and
   provider credentials remain server-side; an unconfigured deployment reports
