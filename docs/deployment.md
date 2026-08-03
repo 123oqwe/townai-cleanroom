@@ -1285,6 +1285,10 @@ completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The tool remains read-only,
 bounded, and labels fetched content as untrusted data.
 
+The public web fetch Harness binding is included in the current READY source
+state above; it remains available only to configured Harness sessions and does
+not imply that Town's private browser automation or sandbox is reproduced.
+
 The routine-scoped webhook secret isolation fix is deployed as
 `https://town-clear-47o0y79fo-123oqwes-projects.vercel.app`, deployment
 `dpl_J7HkDdYzjBtRrW7Hi3KJ7hX57pNU`, state `READY`. The full workspace build
