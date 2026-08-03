@@ -12,6 +12,8 @@ const state = {
   token: sessionStorage.getItem(storageKeys.token) || "",
   connected: false,
   profileRevision: null,
+  agentRevision: null,
+  agentCallableRoutineIds: [],
   operationsCursor: null,
   suggestionsCursor: null,
   scheduleItems: [],
@@ -686,6 +688,56 @@ async function loadProfile() {
     $("#profile-error").textContent =
       error instanceof Error ? error.message : "Profile unavailable.";
     $("#profile-error").hidden = false;
+  }
+  await loadAgentSettings();
+}
+async function loadAgentSettings() {
+  if (!state.token) return;
+  try {
+    const result = await api("/v1/agents/personal");
+    const agent = result.agent;
+    state.agentRevision = agent.revision;
+    state.agentCallableRoutineIds =
+      agent.activeVersion.snapshot.callableRoutineIds || [];
+    $("#agent-display-name").value = agent.activeVersion.snapshot.displayName;
+    $("#agent-instructions").value = agent.activeVersion.snapshot.instructions;
+    $("#agent-approval-mode").value =
+      agent.activeVersion.snapshot.defaultApprovalMode;
+    $("#agent-revision").textContent =
+      `Revision ${state.agentRevision} · version ${agent.activeVersion.version}`;
+  } catch (error) {
+    $("#agent-error").textContent =
+      error instanceof Error ? error.message : "Agent unavailable.";
+    $("#agent-error").hidden = false;
+  }
+}
+async function saveAgentSettings() {
+  const error = $("#agent-error");
+  error.hidden = true;
+  if (!Number.isInteger(state.agentRevision)) return;
+  const button = $("#agent-save");
+  button.disabled = true;
+  try {
+    const result = await api("/v1/agents/personal", {
+      method: "PUT",
+      body: JSON.stringify({
+        expectedRevision: state.agentRevision,
+        displayName: $("#agent-display-name").value.trim(),
+        instructions: $("#agent-instructions").value,
+        defaultApprovalMode: $("#agent-approval-mode").value,
+        callableRoutineIds: state.agentCallableRoutineIds,
+      }),
+    });
+    state.agentRevision = result.agent.revision;
+    $("#agent-revision").textContent =
+      `Revision ${state.agentRevision} · version ${result.agent.activeVersion.version}`;
+    setConnection(true, "Agent saved");
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save Agent.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
   }
 }
 async function saveProfile() {
@@ -2058,8 +2110,10 @@ document.querySelector(".profile-chip").addEventListener("click", (event) => {
   $("#profile-error").hidden = true;
   openDialog($("#profile-dialog"));
   void loadProfile();
+  void loadAgentSettings();
 });
 $("#profile-save").addEventListener("click", () => void saveProfile());
+$("#agent-save").addEventListener("click", () => void saveAgentSettings());
 $("#tasks-open").addEventListener("click", () => {
   openDialog($("#tasks-dialog"));
   void loadTasks();

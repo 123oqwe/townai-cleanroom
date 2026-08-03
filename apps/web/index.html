@@ -614,6 +614,31 @@
           </button>
         </div>
         <p class="dialog-error" id="profile-error" role="alert" hidden></p>
+        <section class="agent-settings" aria-labelledby="agent-settings-title">
+          <p class="eyebrow">Personal Agent</p>
+          <h3 id="agent-settings-title">How Town should work</h3>
+          <label for="agent-display-name">Display name</label>
+          <input id="agent-display-name" maxlength="100" />
+          <label for="agent-instructions">Instructions</label>
+          <textarea
+            id="agent-instructions"
+            rows="5"
+            maxlength="50000"
+          ></textarea>
+          <label for="agent-approval-mode">Default approval mode</label>
+          <select id="agent-approval-mode">
+            <option value="respect_tool_setting">Respect tool setting</option>
+            <option value="require_approval">Require approval</option>
+            <option value="autonomous">Autonomous</option>
+          </select>
+          <div class="profile-meta">
+            <span id="agent-revision">Not loaded</span
+            ><button class="primary-button" id="agent-save" type="button">
+              Save Agent <span>→</span>
+            </button>
+          </div>
+          <p class="dialog-error" id="agent-error" role="alert" hidden></p>
+        </section>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>
