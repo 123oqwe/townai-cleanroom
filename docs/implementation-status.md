@@ -164,3 +164,8 @@ Task cards now expose the existing owner-scoped mark-read and revision-checked
 delete actions. `POST /v1/tasks/:taskId/mark-read` and
 `DELETE /v1/tasks/:taskId` are followed by a server-truth reload; no client-only
 read or removal state is claimed.
+
+Recipients can now install a shared Routine from the Routine dialog using the
+real `rtnshare_…` token and first-run contract through
+`POST /v1/routines/install`; the installed schedule is reloaded from the
+owner-scoped server list.

@@ -1095,6 +1095,13 @@ async function createRoutineShare() {
   try { const result = await apiJson(`/v1/routines/${selectedRoutineId}/shares`, { expiresAt: new Date(Date.now() + 86400000).toISOString() }); routineShareId = result.share.id; $("#routine-share-url").value = `${state.base.replace(/\/$/, "")}/v1/routine-shares/${result.token}`; $("#routine-share-secret").hidden = false; error.hidden = true; } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not create share link."; error.hidden = false; }
 }
 async function revokeRoutineShare() { if (!routineShareId) return; const error = $("#routine-share-error"); try { await api(`/v1/routines/shares/${routineShareId}`, { method: "DELETE" }); routineShareId = null; $("#routine-share-secret").hidden = true; error.hidden = true; } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not revoke share link."; error.hidden = false; } }
+async function installSharedRoutine() {
+  const error = $("#routine-install-error");
+  const token = $("#routine-share-token").value.trim();
+  const nextRun = $("#routine-install-next-run").value;
+  if (!token || !nextRun) { error.textContent = "Share token and first run are required."; error.hidden = false; return; }
+  try { await apiJson("/v1/routines/install", { token, name: $("#routine-install-name").value.trim() || undefined, nextRunAt: new Date(nextRun).toISOString(), enabled: true }); $("#routine-share-token").value = ""; $("#routine-install-name").value = ""; error.hidden = true; await loadRoutines(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not install shared routine."; error.hidden = false; }
+}
 async function saveRoutineEdit() {
   if (!selectedRoutine) return;
   const error = $("#routine-edit-error");
@@ -2566,6 +2573,7 @@ $("#routine-edit-delete").addEventListener("click", () => void deleteRoutine());
 $("#routine-share-create").addEventListener("click", () => void createRoutineShare());
 $("#routine-share-revoke").addEventListener("click", () => void revokeRoutineShare());
 $("#routine-share-copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#routine-share-url").value); $("#routine-share-copy").textContent = "Copied"; } catch { $("#routine-share-url").select(); } });
+$("#routine-install-button").addEventListener("click", () => void installSharedRoutine());
 $("#routine-trigger-list").addEventListener("click", (event) => {
   const button = event.target.closest(".routine-trigger-toggle");
   const row = button?.closest(".routine-trigger-row") || event.target.closest(".routine-trigger-row");

@@ -774,6 +774,14 @@
           <div class="routine-edit-actions"><button class="quiet-button" id="routine-edit-save" type="button">Save routine</button><button class="quiet-button" id="routine-edit-delete" type="button">Delete routine</button></div>
           <p class="dialog-error" id="routine-edit-error" role="alert" hidden></p>
         </div>
+        <div class="routine-install-form">
+          <label for="routine-share-token">Install a shared routine</label>
+          <input id="routine-share-token" placeholder="rtnshare_…" maxlength="500" />
+          <label for="routine-install-name">Name <span class="form-hint">optional</span></label><input id="routine-install-name" maxlength="120" />
+          <label for="routine-install-next-run">First run</label><input id="routine-install-next-run" type="datetime-local" />
+          <button class="quiet-button" id="routine-install-button" type="button">Install shared routine</button>
+          <p class="dialog-error" id="routine-install-error" role="alert" hidden></p>
+        </div>
         <section
           class="routine-templates"
           aria-labelledby="routine-templates-title"
