@@ -1107,6 +1107,13 @@ dialog h2 {
 .content-add-form input, .content-add-form select, .content-add-form textarea { width: 100%; }
 .content-edit-form { display: grid; gap: 6px; margin-top: .7rem; }
 .content-edit-form input, .content-edit-form textarea { width: 100%; }
+.collection-list { display: grid; gap: 6px; }
+.collection-card { display: grid; gap: 6px; padding: .65rem 0; border-bottom: 1px solid var(--line); }
+.collection-card > div:first-child { display: flex; justify-content: space-between; gap: .6rem; }
+.collection-card small { display: block; color: var(--muted); }
+.collection-items { display: grid; gap: 3px; padding-left: .6rem; }
+.collection-add-form { display: grid; gap: 6px; margin: .8rem 0; }
+.collection-add-form input, .collection-add-form textarea { width: 100%; }
 .content-history-button {
   min-height: 31px;
   padding: 0 9px;

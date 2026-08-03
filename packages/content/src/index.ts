@@ -442,6 +442,14 @@ export function createContentRepository(sql: Sql) {
       throw error;
     }
   }
+  async function listCollections(ownerId: Id<"user">): Promise<ContentCollection[]> {
+    const value = idSchema.parse(ownerId);
+    const rows = await sql<{ id: string; owner_id: string; name: string; description: string; created_at: Date; updated_at: Date }[]>`
+      select id,owner_id,name,description,created_at,updated_at
+      from content_collections where owner_id=${value}
+      order by updated_at desc,id desc`;
+    return rows.map((row) => ({ id: asId<"content-collection">(row.id), ownerId: asId<"user">(row.owner_id), name: row.name, description: row.description, createdAt: row.created_at, updatedAt: row.updated_at }));
+  }
   async function addToCollection(
     ownerId: Id<"user">,
     collectionId: Id<"content-collection">,
@@ -571,6 +579,7 @@ export function createContentRepository(sql: Sql) {
     listRevisions,
     archive,
     createCollection,
+    listCollections,
     addToCollection,
     listCollection,
     createShare,

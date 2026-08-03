@@ -120,6 +120,11 @@ the server's real content-kind enum, title, body, and metadata contract. The
 new item is persisted through `POST /v1/content` and the active list reloads
 from server truth.
 
+Content Collections now have an owner-scoped discovery route
+`GET /v1/content/collections`, backed by the real repository query. The Web
+Library can create collections, list them, and open a collection to read its
+persisted items; it does not invent collection IDs or membership.
+
 Content Library cards now support inline editing through the existing
 revision-aware `PATCH /v1/content/:contentId` route. The client first fetches
 the authoritative content item, preserves its MIME/storage/metadata fields,

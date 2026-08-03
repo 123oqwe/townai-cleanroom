@@ -454,6 +454,15 @@
           <button class="primary-button full-button" id="content-save" type="button">Save content <span>→</span></button>
           <p class="dialog-error" id="content-error" role="alert" hidden></p>
         </div>
+        <div class="library-divider"></div>
+        <div class="library-section-heading"><p class="eyebrow">Collections</p><span id="collection-count">—</span></div>
+        <div class="collection-list" id="collection-list" aria-live="polite"><p class="harness-empty">Connect the API to load collections.</p></div>
+        <button class="text-button collection-add-toggle" id="collection-add-toggle" type="button">New collection <span>＋</span></button>
+        <div class="collection-add-form" id="collection-add-form" hidden>
+          <label for="collection-name">Name</label><input id="collection-name" maxlength="200" />
+          <label for="collection-description">Description <span class="form-hint">optional</span></label><textarea id="collection-description" rows="2" maxlength="2000"></textarea>
+          <button class="quiet-button" id="collection-save" type="button">Save collection</button><p class="dialog-error" id="collection-error" role="alert" hidden></p>
+        </div>
         <div
           class="library-content-list"
           id="library-content-list"

@@ -607,6 +607,26 @@ function renderWiki(result) {
     )
     .join("");
 }
+function renderCollections(result) {
+  const collections = result.collections || [];
+  $("#collection-count").textContent = `${collections.length}`;
+  $("#collection-list").innerHTML = collections.length ? collections.map((collection) => `<article class="collection-card"><div><strong>${escapeHtml(collection.name)}</strong><small>${escapeHtml(collection.description || "No description")}</small></div><button class="quiet-button collection-open" data-collection-id="${escapeHtml(collection.id)}" type="button">Open</button></article>`).join("") : '<p class="harness-empty">No collections yet.</p>';
+}
+async function loadCollections() {
+  try { renderCollections(await api("/v1/content/collections")); } catch (cause) { $("#collection-list").innerHTML = `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Collections unavailable.")}</p>`; }
+}
+async function saveCollection() {
+  const name = $("#collection-name").value.trim();
+  const error = $("#collection-error");
+  if (!name) { error.textContent = "Name is required."; error.hidden = false; return; }
+  try { await apiJson("/v1/content/collections", { name, description: $("#collection-description").value }); $("#collection-name").value = ""; $("#collection-description").value = ""; $("#collection-add-form").hidden = true; error.hidden = true; await loadCollections(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save collection."; error.hidden = false; }
+}
+async function openCollection(button) {
+  const card = button.closest(".collection-card");
+  const existing = card.querySelector(".collection-items");
+  if (existing) { existing.remove(); return; }
+  try { const result = await api(`/v1/content/collections/${button.dataset.collectionId}`); const items = document.createElement("div"); items.className = "collection-items"; items.innerHTML = (result.items || []).length ? result.items.map((item) => `<small>${escapeHtml(item.title)} · ${escapeHtml(item.kind)}</small>`).join("") : "<small>No content in this collection.</small>"; card.append(items); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Collection unavailable."; card.append(error); }
+}
 async function loadLibrary() {
   if (!state.token) {
     $("#library-results").innerHTML =
@@ -614,16 +634,18 @@ async function loadLibrary() {
     return;
   }
   try {
-    const [content, memories, wiki] = await Promise.all([
+    const [content, memories, wiki, collections] = await Promise.all([
       api("/v1/content?status=active&limit=20"),
       api("/v1/memories"),
       api("/v1/wiki"),
+      api("/v1/content/collections"),
     ]);
     renderLibraryContent(content);
     libraryContentCursor = content.nextCursor;
     $("#library-content-more").hidden = !libraryContentCursor;
     renderMemories(memories);
     renderWiki(wiki);
+    renderCollections(collections);
   } catch (error) {
     $("#library-content-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Library unavailable.")}</p>`;
@@ -2367,6 +2389,9 @@ $("#library-content-list").addEventListener("click", (event) => {
 });
 $("#content-add-toggle").addEventListener("click", () => { $("#content-add-form").hidden = !$("#content-add-form").hidden; if (!$("#content-add-form").hidden) $("#content-title").focus(); });
 $("#content-save").addEventListener("click", () => void saveContent());
+$("#collection-add-toggle").addEventListener("click", () => { $("#collection-add-form").hidden = !$("#collection-add-form").hidden; if (!$("#collection-add-form").hidden) $("#collection-name").focus(); });
+$("#collection-save").addEventListener("click", () => void saveCollection());
+$("#collection-list").addEventListener("click", (event) => { const button = event.target.closest(".collection-open"); if (button) void openCollection(button); });
 $("#library-content-more").addEventListener(
   "click",
   () => void loadMoreLibraryContent(),

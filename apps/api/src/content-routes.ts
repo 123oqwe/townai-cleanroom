@@ -97,6 +97,10 @@ export function registerContentRoutes(
       201,
     );
   });
+  app.get("/v1/content/collections", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({ collections: await dependencies.repository.listCollections(ownerId) });
+  });
   app.get("/v1/content/collections/:collectionId", async (context) => {
     const ownerId = context.get("identity").user.id;
     return context.json({
