@@ -1180,3 +1180,10 @@ The bounded runtime-worker batch source state is deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The direct URL remains SSO-gated;
 the project-level all-deployment protection setting is still not verified.
+
+The signed Slack Events adapter source state is deployed as
+`https://town-clear-y6eseul08-123oqwes-projects.vercel.app`, deployment
+`dpl_v63ztYnK7tD3ok9DPmgg1CsUrBJj`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The route remains inactive until
+`SLACK_SIGNING_SECRET` is configured; the direct URL remains SSO-gated.
