@@ -663,6 +663,53 @@
         <div class="routine-list" id="routine-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load routines.</p>
         </div>
+        <section
+          class="routine-templates"
+          aria-labelledby="routine-templates-title"
+        >
+          <div class="routine-history-heading">
+            <div>
+              <p class="eyebrow">Stock routines</p>
+              <h3 id="routine-templates-title">
+                Start from a documented pattern
+              </h3>
+            </div>
+          </div>
+          <div
+            class="routine-template-list"
+            id="routine-template-list"
+            aria-live="polite"
+          >
+            <p class="harness-empty">Connect the API to load templates.</p>
+          </div>
+          <div class="routine-template-form" id="routine-template-form" hidden>
+            <strong id="routine-template-name"></strong>
+            <small id="routine-template-summary"></small>
+            <label for="routine-template-cron">Cron schedule</label>
+            <input
+              id="routine-template-cron"
+              value="0 9 * * 1-5"
+              maxlength="200"
+            />
+            <label for="routine-template-timezone">Timezone</label>
+            <input id="routine-template-timezone" value="UTC" maxlength="100" />
+            <label for="routine-template-next-run">First run</label>
+            <input id="routine-template-next-run" type="datetime-local" />
+            <button
+              class="primary-button full-button"
+              id="routine-template-install"
+              type="button"
+            >
+              Install template <span>→</span>
+            </button>
+            <p
+              class="dialog-error"
+              id="routine-template-error"
+              role="alert"
+              hidden
+            ></p>
+          </div>
+        </section>
         <div class="routine-trigger" id="routine-trigger" hidden>
           <label for="routine-input">What should this run carry?</label>
           <textarea

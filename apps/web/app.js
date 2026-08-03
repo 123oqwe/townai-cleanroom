@@ -757,6 +757,7 @@ async function saveTask() {
   }
 }
 let selectedRoutineId = null;
+let selectedRoutineTemplate = null;
 function renderRoutines(result) {
   const target = $("#routine-list");
   const routines = result.routines || [];
@@ -938,10 +939,76 @@ async function loadRoutines() {
     return;
   }
   try {
-    renderRoutines(await api("/v1/routines"));
+    const [routines, templates] = await Promise.all([
+      api("/v1/routines"),
+      api("/v1/routine-templates"),
+    ]);
+    renderRoutines(routines);
+    renderRoutineTemplates(templates);
   } catch (error) {
     $("#routine-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Routines unavailable.")}</p>`;
+  }
+}
+function renderRoutineTemplates(result) {
+  const target = $("#routine-template-list");
+  const templates = result.templates || [];
+  if (!templates.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No stock templates available.</p>';
+    return;
+  }
+  target.innerHTML = templates
+    .map(
+      (template) =>
+        `<article class="routine-template-card"><div><strong>${escapeHtml(template.name)}</strong><small>${escapeHtml(template.summary)}</small></div><button class="quiet-button routine-template-select" data-template-id="${escapeHtml(template.id)}" type="button">Use</button></article>`,
+    )
+    .join("");
+  target.querySelectorAll(".routine-template-select").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedRoutineTemplate =
+        templates.find((item) => item.id === button.dataset.templateId) || null;
+      if (!selectedRoutineTemplate) return;
+      $("#routine-template-name").textContent = selectedRoutineTemplate.name;
+      $("#routine-template-summary").textContent =
+        selectedRoutineTemplate.summary;
+      $("#routine-template-error").hidden = true;
+      $("#routine-template-form").hidden = false;
+      const next = new Date(Date.now() + 60 * 60 * 1000);
+      next.setSeconds(0, 0);
+      $("#routine-template-next-run").value = next.toISOString().slice(0, 16);
+      $("#routine-template-cron").focus();
+    });
+  });
+}
+async function installRoutineTemplate() {
+  if (!selectedRoutineTemplate || !state.token) return;
+  const error = $("#routine-template-error");
+  error.hidden = true;
+  const button = $("#routine-template-install");
+  button.disabled = true;
+  try {
+    const nextRunAt = new Date($("#routine-template-next-run").value);
+    if (Number.isNaN(nextRunAt.getTime()))
+      throw new Error("Choose a valid first run time.");
+    await apiJson(
+      `/v1/routine-templates/${selectedRoutineTemplate.id}/install`,
+      {
+        cron: $("#routine-template-cron").value.trim(),
+        timezone: $("#routine-template-timezone").value.trim() || "UTC",
+        nextRunAt: nextRunAt.toISOString(),
+      },
+    );
+    selectedRoutineTemplate = null;
+    $("#routine-template-form").hidden = true;
+    await loadRoutines();
+    setConnection(true, "Template installed");
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not install template.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
   }
 }
 async function runSelectedRoutine() {
@@ -1663,6 +1730,10 @@ $("#routines-open").addEventListener("click", () => {
   void loadRoutines();
 });
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
+$("#routine-template-install").addEventListener(
+  "click",
+  () => void installRoutineTemplate(),
+);
 $("#routine-run-list").addEventListener("click", (event) => {
   const button = event.target.closest(".routine-replay");
   if (button) void replayRoutineRun(button.dataset.runId, button);

@@ -1455,6 +1455,62 @@ dialog h2 {
   min-height: 32px;
   padding: 0 10px;
 }
+.routine-template-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  margin: 12px 0;
+  overflow: auto;
+}
+.routine-template-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-deep);
+}
+.routine-template-card strong,
+.routine-template-card small {
+  display: block;
+}
+.routine-template-card strong {
+  font-size: 11px;
+}
+.routine-template-card small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.routine-template-form {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.routine-template-form small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+.routine-template-form label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.routine-template-form input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
 .routine-trigger {
   display: grid;
   gap: 8px;
