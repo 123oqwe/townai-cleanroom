@@ -48,7 +48,7 @@ shutdown and does not weaken the API's database or authentication requirements.
 ## Current verification snapshot
 
 The source repository has since advanced beyond the hosted preview to commit
-`81200f2`, including the Harness, Knowledge, People, Memory, Task, Routine,
+`a54ad64`, including the Harness, Knowledge, People, Memory, Task, Routine,
 Connected Accounts, Channels, Billing, Suggestions, Squares, Square policy
 detail, the built Vercel API entrypoint, the hourly worker Cron, A2A expiry
 enforcement, the A2A command center, Content share controls, Operations audit
@@ -68,8 +68,8 @@ hosted state from being represented as newer than the verified source.
 Using the Vercel deployment connector, the current command center and API
 Function were deployed from the verified source files at:
 
-- Deployment: `dpl_v46CXJ85KsRgEaPqTHTsHUxQqUoV`
-- Protected direct URL: `https://town-clear-current-iyqfxdhjx-123oqwes-projects.vercel.app`
+- Deployment: `dpl_EuNVEorDBTAfzRiXMCg1y3DaxQKL`
+- Protected direct URL: `https://town-clear-current-qcufrpc80-123oqwes-projects.vercel.app`
 - State: `READY`
 - Direct URL access check: unauthenticated request returns `302` to Vercel SSO.
 - Generated project aliases currently return `200` publicly and are not accepted
@@ -114,6 +114,10 @@ the preview hostname still return a Vercel SSO `302`.
 It also includes the `0028_person_relationships.sql` migration and the
 owner-scoped Person relationship routes; no relationship can be created with
 people belonging to a different owner.
+
+This version also includes the `0029_notification_channel_kinds.sql` migration
+and explicit Slack/iMessage channel kinds. Channel creation still only records
+metadata; delivery remains an outbox/provider state transition.
 
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
