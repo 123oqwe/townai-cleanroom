@@ -6,7 +6,7 @@
   "description": "Evidence-driven clean-room implementation of a durable personal AI operating system.",
   "packageManager": "pnpm@10.30.3",
   "engines": {
-    "node": ">=24.0.0",
+    "node": ">=20.0.0",
     "pnpm": ">=10.0.0"
   },
   "scripts": {

@@ -207,6 +207,12 @@ configuration, and parser details are no longer reflected in public error
 payloads; the application still refuses to start without its real runtime
 configuration.
 
+The full-source Vercel build exposed and fixed a deployment compatibility issue:
+the root Node engine constraint now accepts Node 20+ (the Vercel build
+environment) instead of requiring Node 24. Local API and workspace builds remain
+the verification gate; no deployment is called READY until the full source
+build completes.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all
