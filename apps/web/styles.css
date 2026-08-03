@@ -948,6 +948,18 @@ dialog h2 {
   border-radius: 10px;
   background: var(--surface);
 }
+.library-content-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.content-share-button {
+  min-height: 31px;
+  padding: 0 9px;
+  border-color: var(--line);
+  font-size: 10px;
+}
 .library-result strong,
 .library-content-item strong {
   display: block;
@@ -969,6 +981,44 @@ dialog h2 {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 9px;
+}
+.content-share-status {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 18px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--paper-deep);
+}
+.content-share-status .eyebrow {
+  margin: 0;
+}
+.content-share-row {
+  display: flex;
+  gap: 7px;
+}
+.content-share-row input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted-deep);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.content-share-status small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.content-share-revoke {
+  justify-self: start;
+  min-height: 30px;
+  padding: 0 9px;
+  border-color: var(--line);
+  color: var(--muted-deep);
+  font-size: 10px;
 }
 .memory-list {
   display: grid;

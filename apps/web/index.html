@@ -431,6 +431,23 @@
         >
           <p class="harness-empty">Connect the API to load saved documents.</p>
         </div>
+        <div class="content-share-status" id="content-share-status" hidden>
+          <p class="eyebrow">Share link · expires in 24h</p>
+          <div class="content-share-row">
+            <input id="content-share-url" readonly aria-label="Share URL" />
+            <button class="quiet-button" id="content-share-copy" type="button">
+              Copy
+            </button>
+          </div>
+          <small>The token can be revoked from this workspace.</small>
+          <button
+            class="quiet-button content-share-revoke"
+            id="content-share-revoke"
+            type="button"
+          >
+            Revoke link
+          </button>
+        </div>
         <div class="library-divider"></div>
         <div class="library-section-heading">
           <p class="eyebrow">Durable memory</p>

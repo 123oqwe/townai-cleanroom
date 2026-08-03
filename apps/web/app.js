@@ -1,4 +1,4 @@
-/* global URLSearchParams, crypto, document, fetch, localStorage, location, sessionStorage, window */
+/* global URLSearchParams, crypto, document, fetch, localStorage, location, navigator, sessionStorage, window */
 
 const storageKeys = {
   base: "town.api.base",
@@ -326,9 +326,32 @@ function renderLibraryContent(result) {
     .slice(0, 20)
     .map(
       (item) =>
-        `<article class="library-content-item"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></article>`,
+        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><button class="quiet-button content-share-button" type="button">Share</button></article>`,
     )
     .join("");
+}
+async function createContentShare(contentId, card) {
+  if (!contentId || !state.token) return;
+  const button = card.querySelector(".content-share-button");
+  button.disabled = true;
+  try {
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const result = await apiJson(`/v1/content/${contentId}/shares`, {
+      expiresAt,
+    });
+    const url = `${state.base.replace(/\/$/, "")}/v1/content-shares/${result.token}`;
+    $("#content-share-url").value = url;
+    $("#content-share-status").dataset.shareId = result.share.id;
+    $("#content-share-status").hidden = false;
+    $("#content-share-copy").textContent = "Copy";
+  } catch (cause) {
+    $("#library-content-list").insertAdjacentHTML(
+      "afterbegin",
+      `<p class="harness-empty content-share-error">${escapeHtml(cause instanceof Error ? cause.message : "Could not create share link.")}</p>`,
+    );
+  } finally {
+    button.disabled = false;
+  }
 }
 function renderMemories(result) {
   const target = $("#memory-list");
@@ -1179,6 +1202,40 @@ $("#library-query").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     void searchLibrary();
+  }
+});
+$("#library-content-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".content-share-button");
+  const card = event.target.closest(".library-content-item");
+  if (!button || !card) return;
+  void createContentShare(card.dataset.contentId, card);
+});
+$("#content-share-copy").addEventListener("click", async () => {
+  const url = $("#content-share-url").value;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    $("#content-share-copy").textContent = "Copied";
+  } catch {
+    $("#content-share-url").select();
+  }
+});
+$("#content-share-revoke").addEventListener("click", async () => {
+  const status = $("#content-share-status");
+  const shareId = status.dataset.shareId;
+  if (!shareId) return;
+  const button = $("#content-share-revoke");
+  button.disabled = true;
+  try {
+    await api(`/v1/content/shares/${shareId}`, { method: "DELETE" });
+    status.hidden = true;
+    $("#content-share-url").value = "";
+    delete status.dataset.shareId;
+  } catch (cause) {
+    button.textContent =
+      cause instanceof Error ? cause.message : "Could not revoke link.";
+  } finally {
+    button.disabled = false;
   }
 });
 $("#memory-add-toggle").addEventListener("click", () => {
