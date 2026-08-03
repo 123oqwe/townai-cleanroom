@@ -4,6 +4,7 @@ import { z } from "zod";
 import { asId, idSchema, newId, type Id } from "@town/contracts";
 
 export * from "./step-repository.js";
+export * from "./step-executor.js";
 export * from "./result-repository.js";
 export * from "./catalog.js";
 

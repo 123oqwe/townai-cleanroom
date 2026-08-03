@@ -308,3 +308,11 @@ real PostgreSQL full-text search results, preserves citations, emits a bounded
 plain-text context block, and marks cursor/budget truncation explicitly. It
 does not summarize, invent, or cross owner boundaries; model-side compression
 remains an injected provider responsibility.
+
+Routine step execution now has a public `createRoutineStepExecutor` wrapper
+around `routine_step_results`. It returns completed outputs from cache, claims
+new or previously failed steps, persists successful JSON output, records
+bounded failures, and rejects concurrent running work explicitly. This makes
+the durable Step cache executable by routine adapters rather than only
+inspectable through the repository; it still requires a caller-provided
+Routine adapter and does not claim Town's private step graph or retry policy.
