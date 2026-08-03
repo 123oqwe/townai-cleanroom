@@ -144,6 +144,11 @@ from commit `8e5d2c8`. Its protected direct URL is
 `https://town-clear-current-2r5db99u5-123oqwes-projects.vercel.app`, state
 `READY`; an unauthenticated curl receives the Vercel SSO `302` redirect.
 
+The final ownership-hardening fix is deployed in `dpl_5Wm5ud8oL6Jv9RyLbGdBL97zefQZ`,
+built from commit `e313e60`. Its protected direct URL is
+`https://town-clear-current-idv8i0k9k-123oqwes-projects.vercel.app`, state
+`READY`; an unauthenticated curl also receives the Vercel SSO `302` redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
