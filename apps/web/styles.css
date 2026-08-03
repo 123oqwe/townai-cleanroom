@@ -15,6 +15,87 @@
   --radius: 18px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+.routine-history {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.routine-history-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.routine-history-heading h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.routine-history-note {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.routine-run-list {
+  display: grid;
+  gap: 7px;
+}
+.routine-run-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.routine-run-main,
+.routine-run-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.routine-run-main strong,
+.routine-run-main small {
+  display: block;
+}
+.routine-run-main strong {
+  font-size: 12px;
+}
+.routine-run-main small,
+.routine-run-state {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.routine-run-status {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.routine-run-status-succeeded,
+.routine-run-status-completed {
+  background: var(--green);
+}
+.routine-run-status-failed,
+.routine-run-status-blocked {
+  background: var(--accent);
+}
+.routine-replay {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 10px;
+}
 * {
   box-sizing: border-box;
 }

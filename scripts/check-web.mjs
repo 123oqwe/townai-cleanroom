@@ -15,6 +15,7 @@ for (const marker of [
 for (const marker of [
   "/v1/operations/summary",
   "/v1/operations/audit",
+  "/v1/routine-runs/",
   "localStorage",
 ]) {
   if (!js.includes(marker))

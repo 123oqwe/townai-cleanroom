@@ -336,3 +336,8 @@ Bearer credential. The endpoint remains unregistered when neither secret is
 present.
 
 The current product objective is recorded in [GOAL.md](./GOAL.md).
+
+The command center's Routines surface now reads each selected routine's durable
+run history and linked `RoutineResult` detail from the API. Terminal runs expose
+an explicit Replay action that calls the idempotent replay endpoint; the UI
+never invents a result for a queued or unlinked run.

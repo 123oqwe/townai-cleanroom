@@ -697,11 +697,80 @@ function renderRoutines(result) {
     button.addEventListener("click", () => {
       selectedRoutineId = button.dataset.routineId;
       $("#routine-trigger").hidden = false;
+      $("#routine-history").hidden = false;
       void loadRoutineWebhook();
+      void loadRoutineRuns();
       renderRoutines(result);
       $("#routine-input").focus();
     });
   });
+}
+function renderRoutineRuns(items) {
+  const target = $("#routine-run-list");
+  if (!items?.length) {
+    target.innerHTML = '<p class="harness-empty">No runs recorded yet.</p>';
+    return;
+  }
+  target.innerHTML = items
+    .slice(0, 8)
+    .map((item) => {
+      const result = item.result;
+      const status = result?.status || item.run.status;
+      const subject = result?.subject || item.run.triggerType || "Routine run";
+      const terminal = ["succeeded", "failed", "blocked"].includes(
+        item.run.status,
+      );
+      return `<article class="routine-run-card"><div class="routine-run-main"><span class="routine-run-status routine-run-status-${escapeHtml(status)}"></span><div><strong>${escapeHtml(subject)}</strong><small>${escapeHtml(item.run.triggerType)} · ${formatTime(new Date(item.run.createdAt))}</small></div></div><div class="routine-run-actions"><span class="routine-run-state">${escapeHtml(status)}</span>${terminal ? `<button class="quiet-button routine-replay" data-run-id="${escapeHtml(item.run.id)}" type="button">Replay</button>` : ""}</div></article>`;
+    })
+    .join("");
+}
+async function loadRoutineRuns() {
+  if (!selectedRoutineId || !state.token) return;
+  const target = $("#routine-run-list");
+  const error = $("#routine-history-error");
+  error.hidden = true;
+  target.innerHTML =
+    '<p class="harness-empty">Reading durable run history…</p>';
+  try {
+    const runs =
+      (await api(`/v1/routines/${selectedRoutineId}/runs?limit=8`)).runs || [];
+    const details = await Promise.all(
+      runs.map(async (run) => {
+        try {
+          return await api(`/v1/routine-runs/${run.id}`);
+        } catch {
+          return { run, result: null };
+        }
+      }),
+    );
+    renderRoutineRuns(details);
+  } catch (cause) {
+    target.innerHTML = '<p class="harness-empty">Run history unavailable.</p>';
+    error.textContent =
+      cause instanceof Error ? cause.message : "Run history unavailable.";
+    error.hidden = false;
+  }
+}
+async function replayRoutineRun(runId, button) {
+  button.disabled = true;
+  try {
+    await apiJson(
+      `/v1/routine-runs/${runId}/replay`,
+      {},
+      {
+        "Idempotency-Key": crypto.randomUUID(),
+      },
+    );
+    await loadRoutineRuns();
+    await refresh();
+  } catch (cause) {
+    const error = $("#routine-history-error");
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not replay run.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
 }
 async function loadRoutineWebhook() {
   const panel = $("#routine-webhook");
@@ -813,6 +882,7 @@ async function runSelectedRoutine() {
     );
     $("#routine-input").value = "";
     $("#routine-trigger").hidden = true;
+    await loadRoutineRuns();
     setConnection(true, `Queued ${result.run.state}`);
     await refresh();
   } catch (cause) {
@@ -1401,10 +1471,15 @@ $("#task-save").addEventListener("click", () => void saveTask());
 $("#routines-open").addEventListener("click", () => {
   selectedRoutineId = null;
   $("#routine-trigger").hidden = true;
+  $("#routine-history").hidden = true;
   openDialog($("#routines-dialog"));
   void loadRoutines();
 });
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
+$("#routine-run-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".routine-replay");
+  if (button) void replayRoutineRun(button.dataset.runId, button);
+});
 $("#routine-webhook-create").addEventListener(
   "click",
   () => void createRoutineWebhook(),
