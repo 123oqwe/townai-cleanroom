@@ -1652,6 +1652,9 @@ dialog h2 {
   color: var(--muted);
   font-size: 0.76rem;
 }
+.channel-timeline-more {
+  margin-top: 0.7rem;
+}
 .channel-status {
   color: var(--green);
   font-family: var(--mono);

@@ -972,11 +972,11 @@ function renderChannels(result) {
 function renderChannelTimeline(result) {
   const target = $("#channel-timeline-list");
   const items = result.items || [];
-  if (!items.length) {
+  if (!items.length && !result.append) {
     target.innerHTML = '<p class="harness-empty">No delivery events yet.</p>';
     return;
   }
-  target.innerHTML = items
+  const markup = items
     .map((item) => {
       const data = item.data || {};
       const label =
@@ -990,6 +990,21 @@ function renderChannelTimeline(result) {
       return `<article class="channel-timeline-item"><div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div><time>${escapeHtml(formatTime(new Date(item.createdAt)))}</time></article>`;
     })
     .join("");
+  if (result.append) target.insertAdjacentHTML("beforeend", markup);
+  else target.innerHTML = markup;
+  const more = $("#channel-timeline-more");
+  more.hidden = !result.nextCursor;
+  more.dataset.cursor = result.nextCursor || "";
+}
+let channelTimelineCursor = "";
+async function loadChannelTimeline(append = false) {
+  const query =
+    append && channelTimelineCursor
+      ? `?limit=12&cursor=${encodeURIComponent(channelTimelineCursor)}`
+      : "?limit=12";
+  const result = await api(`/v1/notification-timeline${query}`);
+  channelTimelineCursor = result.nextCursor || "";
+  renderChannelTimeline({ ...result, append });
 }
 async function loadChannels() {
   if (!state.token) {
@@ -998,12 +1013,12 @@ async function loadChannels() {
     return;
   }
   try {
-    const [channels, timeline] = await Promise.all([
+    channelTimelineCursor = "";
+    const [channels] = await Promise.all([
       api("/v1/channels"),
-      api("/v1/notification-timeline?limit=12"),
+      loadChannelTimeline(),
     ]);
     renderChannels(channels);
-    renderChannelTimeline(timeline);
   } catch (error) {
     $("#channel-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Channels unavailable.")}</p>`;
@@ -1576,6 +1591,9 @@ $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
 $("#channels-open").addEventListener("click", () => {
   openDialog($("#channels-dialog"));
   void loadChannels();
+});
+$("#channel-timeline-more").addEventListener("click", () => {
+  void loadChannelTimeline(true).catch(() => undefined);
 });
 $("#channel-add-toggle").addEventListener("click", () => {
   $("#channel-add-form").hidden = !$("#channel-add-form").hidden;
