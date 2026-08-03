@@ -322,6 +322,14 @@ direct URL is
 authenticate against a stale allowlist. An unauthenticated curl receives the
 Vercel SSO `302` protection redirect.
 
+Authenticated session revocation is deployed in
+`dpl_EW8GLYkffgir8Gprw9YjD6F67ECG`, built from commit `f880267`. Its protected
+direct URL is
+`https://town-clear-current-ij0a24p2l-123oqwes-projects.vercel.app`, state
+`READY`; `DELETE /v1/me/session` revokes the current bearer session and the UI
+exposes the same action. An unauthenticated curl receives the Vercel SSO `302`
+protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
