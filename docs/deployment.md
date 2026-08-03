@@ -534,6 +534,14 @@ visibility without rewriting or reordering server data. An unauthenticated
 request receives the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
 
+Callable Routine selection is deployed in
+`dpl_3ynxMTMeBAdgkpJBaXMRxBP3wmZD`, built from commit `74ad888`. Its protected
+direct URL is
+`https://town-clear-current-j4dwjavwb-123oqwes-projects.vercel.app`, state
+`READY`; Personal Agent settings now selects only real owner-scoped Routine
+IDs and preserves them on revision-checked saves. The direct URL returns the
+Vercel SSO `302`; Vercel reported no runtime errors in the verification window.
+
 The Personal Agent settings surface is deployed in
 `dpl_AhEp4sLZGodZmi9PE4ReX9isjo7v`, built from commit `a4eb450`. Its protected
 direct URL is
