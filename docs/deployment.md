@@ -1222,3 +1222,10 @@ completed in 32 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. Browser playback remains inactive
 until the authenticated API has ElevenLabs credentials; the direct URL
 remains SSO-gated.
+
+The provider-readiness capability probe source state is deployed as
+`https://town-clear-7ggbgwaqf-123oqwes-projects.vercel.app`, deployment
+`dpl_4kLQwrdKagGUGk1fM2KmsCrZUB19`, state `READY`. The full workspace build
+completed in 32 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The probe reports credential
+presence only; actual provider account validity remains deployment-owned.
