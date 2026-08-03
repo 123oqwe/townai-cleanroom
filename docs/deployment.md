@@ -45,6 +45,20 @@ The API entrypoint now exports the Hono app as the default from
 server listener. This keeps serverless invocation separate from local process
 shutdown and does not weaken the API's database or authentication requirements.
 
+## Current verification snapshot
+
+The source repository has since advanced beyond the hosted preview to commit
+`416733e`, including the Harness, Knowledge, People, Memory, Task, and Routine
+surfaces. A fresh unauthenticated check still shows:
+
+- the preview hostname above returns `302` to Vercel SSO;
+- `https://town-clear.vercel.app` returns `200` without an SSO redirect.
+
+The preview is therefore protected but stale, while the production alias is
+public. Neither is accepted as the final release until a deployment built from
+the current source is protected for all deployments. This distinction keeps
+hosted state from being represented as newer than the verified source.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
