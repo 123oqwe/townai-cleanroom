@@ -599,3 +599,12 @@ direct URL is
 revisions and the Library “History” control renders them inline. An
 unauthenticated request to `/v1/health` returns the Vercel SSO `302`; Vercel
 reported no runtime errors in the verification window.
+
+Wiki revision history is deployed in
+`dpl_3YYQ2pM6wyizohVoFoPw58NnzsQg`, built from commit `b7df253`. Its protected
+direct URL is
+`https://town-clear-current-a6dejzyt3-123oqwes-projects.vercel.app`, state
+`READY`; `GET /v1/wiki/:documentId/revisions` returns the owner-scoped,
+citation-aware ordered revision snapshots used by Wiki updates. An
+unauthenticated request to `/v1/health` returns the Vercel SSO `302`; Vercel
+reported no runtime errors in the verification window.
