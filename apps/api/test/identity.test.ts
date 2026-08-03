@@ -18,6 +18,7 @@ import postgres, { type Sql } from "postgres";
 
 import { createApp } from "../src/app.js";
 import { createChannelRepository } from "@town/channels";
+import { createOperationsRepository } from "@town/operations";
 
 let sql: Sql;
 
@@ -77,12 +78,16 @@ async function fixture() {
 
   return {
     app: createApp({
+      sql,
       identityService,
       accountRepository,
       channelRepository: createChannelRepository(sql),
+      operationsRepository: createOperationsRepository(sql),
+      adminAllowlistEmails: ["owner@example.test"],
     }),
     identityService,
     owner,
+    other,
   };
 }
 
@@ -259,5 +264,40 @@ describe("protected identity API", () => {
       headers: { Authorization: `Bearer ${owner.token}` },
     });
     expect(after.status).toBe(401);
+  });
+
+  it("exposes safe agent health only to the deployment admin allowlist", async () => {
+    const { app, owner, other } = await fixture();
+    const response = await app.request(
+      `/v1/admin/agent-health/${other.user.id}`,
+      { headers: { Authorization: `Bearer ${owner.token}` } },
+    );
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      user: { id: other.user.id, email: other.user.email, status: "active" },
+      readiness: {
+        api: true,
+        harness: false,
+        worker: false,
+        googleOAuth: false,
+      },
+      summary: {
+        activeSessions: 0,
+        queuedRuns: 0,
+        failedRuns: 0,
+        pendingApprovals: 0,
+        queuedDeliveries: 0,
+        failedDeliveries: 0,
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain(owner.token);
+
+    const denied = await app.request(
+      `/v1/admin/agent-health/${owner.user.id}`,
+      { headers: { Authorization: `Bearer ${other.token}` } },
+    );
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({ code: "ADMIN_NOT_AUTHORIZED" });
   });
 });

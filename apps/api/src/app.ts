@@ -79,6 +79,7 @@ import { registerSharedAccountRoutes } from "./shared-account-routes.js";
 import { registerChannelRoutes } from "./channel-routes.js";
 import { registerBillingRoutes } from "./billing-routes.js";
 import { registerOperationsRoutes } from "./operations-routes.js";
+import { registerAdminRoutes } from "./admin-routes.js";
 import {
   registerRoutineRoutes,
   registerRoutineShareRoutes,
@@ -132,6 +133,7 @@ export interface AppDependencies {
   channelRepository?: ChannelRepository;
   billingRepository?: BillingRepository;
   operationsRepository?: OperationsRepository;
+  adminAllowlistEmails?: readonly string[];
   routineRepository?: RoutineRepository;
   routineResultRepository?: RoutineResultRepository;
   suggestionRepository?: SuggestionRepository;
@@ -652,6 +654,20 @@ export function createApp(dependencies?: AppDependencies) {
       );
     });
     const authenticate = createAuthMiddleware(dependencies.identityService);
+    const adminAllowlist = new Set(
+      (dependencies.adminAllowlistEmails ?? []).map((email) =>
+        email.trim().toLowerCase(),
+      ),
+    );
+    const requireAdmin = async (
+      context: Parameters<typeof authenticate>[0],
+      next: () => Promise<void>,
+    ) => {
+      const email = context.get("identity").user.email.toLowerCase();
+      if (!adminAllowlist.has(email))
+        return context.json({ code: "ADMIN_NOT_AUTHORIZED" }, 403);
+      await next();
+    };
     if (dependencies.routineRepository !== undefined)
       registerRoutineWebhookRoutes(app, {
         repository: dependencies.routineRepository,
@@ -791,6 +807,24 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/operations/*", authenticate);
       registerOperationsRoutes(app, {
         repository: dependencies.operationsRepository,
+      });
+    }
+    if (
+      dependencies.sql !== undefined &&
+      dependencies.operationsRepository !== undefined
+    ) {
+      app.use("/v1/admin", authenticate);
+      app.use("/v1/admin/*", authenticate);
+      app.use("/v1/admin", requireAdmin);
+      app.use("/v1/admin/*", requireAdmin);
+      registerAdminRoutes(app, {
+        sql: dependencies.sql,
+        operations: dependencies.operationsRepository,
+        harnessReady:
+          dependencies.harnessServer !== undefined ||
+          dependencies.harnessServerFactory !== undefined,
+        workerEnabled: dependencies.workerEnabled === true,
+        googleOAuthReady: dependencies.googleOAuth !== undefined,
       });
     }
     if (dependencies.routineRepository !== undefined) {

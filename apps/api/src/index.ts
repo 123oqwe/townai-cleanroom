@@ -100,6 +100,7 @@ const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
   CREDENTIAL_MASTER_KEY_BASE64URL: z.string().min(1),
   ACCESS_ALLOWLIST_EMAILS: z.string().default(""),
+  ADMIN_ALLOWLIST_EMAILS: z.string().default(""),
   RESPONSES_API_ENDPOINT: z
     .string()
     .url()
@@ -137,6 +138,9 @@ const configuredAllowlist = environment.ACCESS_ALLOWLIST_EMAILS.split(",")
   .filter(Boolean);
 if (configuredAllowlist.length > 0)
   await identityService.syncAllowlist(configuredAllowlist);
+const configuredAdminAllowlist = environment.ADMIN_ALLOWLIST_EMAILS.split(",")
+  .map((email) => email.trim())
+  .filter(Boolean);
 const accountRepository = createAccountRepository(sql, credentialCipher);
 const profileRepository = createProfileRepository(sql);
 const memoryRepository = createMemoryRepository(sql);
@@ -550,6 +554,7 @@ const app = createApp({
   channelRepository,
   billingRepository,
   operationsRepository,
+  adminAllowlistEmails: configuredAdminAllowlist,
   mcpRepository,
   routineRepository,
   routineResultRepository,

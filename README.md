@@ -141,6 +141,11 @@ existing allowlist state.
 - Owner-scoped Operations audit events with deduplication, opaque keyset
   pagination, authenticated audit reads, and live runtime backlog summaries for
   sessions, runs, approvals, and notification delivery recovery.
+- Deployment-admin Agent health diagnostics at
+  `/v1/admin/agent-health/:userId` are gated by the explicit
+  `ADMIN_ALLOWLIST_EMAILS` environment variable. They return only safe user
+  identity, runtime readiness, and owner-scoped backlog counters; prompts,
+  credentials, and provider payloads are never exposed.
 - Owner-scoped Suggestions/Need-to-Know records with source provenance,
   fingerprint deduplication, expiry, and optimistic dismiss/convert actions;
   converting a suggestion atomically creates a Task thread and source

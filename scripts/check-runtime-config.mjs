@@ -51,6 +51,10 @@ export function inspectRuntimeConfig(environment = process.env) {
       status: environment.ACCESS_ALLOWLIST_EMAILS ? "configured" : "empty",
     },
     {
+      name: "ADMIN_ALLOWLIST_EMAILS",
+      status: environment.ADMIN_ALLOWLIST_EMAILS ? "configured" : "empty",
+    },
+    {
       name: "WORKER_SECRET_OR_CRON_SECRET",
       status:
         environment.WORKER_SECRET || environment.CRON_SECRET

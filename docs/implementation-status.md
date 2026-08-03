@@ -251,6 +251,13 @@ unauthenticated requests are rejected before the route can read an owner-scoped
 operations repository. This closes the same nested-route class of boundary bug
 previously fixed for connected-account mutations and delivery replay.
 
+The clean-room admin health surface now exposes
+`GET /v1/admin/agent-health/:userId` for deployment-configured administrator
+emails only (`ADMIN_ALLOWLIST_EMAILS`). It reports a safe user projection,
+runtime readiness flags, and owner-scoped Operations backlog counts. It does
+not claim Town's private admin implementation and never returns prompts,
+credentials, or provider payloads; an empty admin allowlist denies the route.
+
 The Harness dialog now consumes the same readiness contract before creating a
 thread or queuing a turn. When the worker is not configured, the composer and
 thread controls are disabled and the UI explains that data/settings remain
