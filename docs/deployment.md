@@ -330,6 +330,15 @@ direct URL is
 exposes the same action. An unauthenticated curl receives the Vercel SSO `302`
 protection redirect.
 
+The Google OAuth callback redirect-state fix is deployed in
+`dpl_766eUTeEsZJwxc9EQjyGFi9YXDnL`, built from commit `4f46413`. Its protected
+direct URL is
+`https://town-clear-current-1xlzalyjq-123oqwes-projects.vercel.app`, state
+`READY`; the callback consumes PKCE state once, exchanges the code using the
+stored redirect URI, and persists the connected account through the encrypted
+account repository. An unauthenticated curl receives the Vercel SSO `302`
+protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
