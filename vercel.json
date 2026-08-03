@@ -4,7 +4,6 @@
   "outputDirectory": "apps/web",
   "functions": {
     "api/index.ts": {
-      "runtime": "nodejs24.x",
       "maxDuration": 60
     }
   }
