@@ -161,6 +161,13 @@
             <p class="panel-foot" id="signal-foot">
               Connect an authenticated API to see live state.
             </p>
+            <button
+              class="text-button panel-action"
+              id="routines-open"
+              type="button"
+            >
+              View routines <span>→</span>
+            </button>
           </article>
 
           <article class="panel timeline-panel" id="library">
@@ -562,6 +569,44 @@
             Create task <span>→</span>
           </button>
           <p class="dialog-error" id="task-error" role="alert" hidden></p>
+        </div>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <dialog
+      class="routines-dialog"
+      id="routines-dialog"
+      aria-labelledby="routines-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Routines</p>
+        <h2 id="routines-title">Let good work<br /><em>run on time.</em></h2>
+        <p class="dialog-copy">
+          Schedules are read from the server. Triggering one creates a real
+          queued Session Run.
+        </p>
+        <div class="routine-list" id="routine-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load routines.</p>
+        </div>
+        <div class="routine-trigger" id="routine-trigger" hidden>
+          <label for="routine-input">What should this run carry?</label>
+          <textarea
+            id="routine-input"
+            rows="3"
+            maxlength="50000"
+            placeholder="Give this run its input…"
+          ></textarea>
+          <button
+            class="primary-button full-button"
+            id="routine-run"
+            type="button"
+          >
+            Run selected routine <span>→</span>
+          </button>
+          <p class="dialog-error" id="routine-error" role="alert" hidden></p>
         </div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>

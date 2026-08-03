@@ -103,6 +103,9 @@ control using your platform's secure secret-management workflow.
   owner-scoped open-task reads and task creation that creates the linked Task
   Thread on the server. No task is marked complete by the UI without server
   state.
+- The system signal also exposes configured Routines from `/v1/routines` and
+  can trigger a selected routine through its idempotent `/run` endpoint. The
+  UI reports the returned queued Run; it does not claim provider completion.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

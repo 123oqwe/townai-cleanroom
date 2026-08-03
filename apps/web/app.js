@@ -615,6 +615,71 @@ async function saveTask() {
     button.disabled = false;
   }
 }
+let selectedRoutineId = null;
+function renderRoutines(result) {
+  const target = $("#routine-list");
+  const routines = result.routines || [];
+  if (!routines.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No routines configured yet.</p>';
+    $("#routine-trigger").hidden = true;
+    return;
+  }
+  target.innerHTML = routines
+    .map(
+      (routine) =>
+        `<article class="routine-card ${routine.id === selectedRoutineId ? "is-selected" : ""}"><div><strong>${escapeHtml(routine.name)}</strong><small>${escapeHtml(routine.cron)} · ${escapeHtml(routine.timezone)} · ${routine.enabled ? `next ${formatTime(new Date(routine.nextRunAt))}` : "disabled"}</small></div><button class="quiet-button routine-select" data-routine-id="${escapeHtml(routine.id)}" type="button">${routine.id === selectedRoutineId ? "Selected" : "Select"}</button></article>`,
+    )
+    .join("");
+  target.querySelectorAll(".routine-select").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedRoutineId = button.dataset.routineId;
+      $("#routine-trigger").hidden = false;
+      renderRoutines(result);
+      $("#routine-input").focus();
+    });
+  });
+}
+async function loadRoutines() {
+  if (!state.token) {
+    $("#routine-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load routines.</p>';
+    return;
+  }
+  try {
+    renderRoutines(await api("/v1/routines"));
+  } catch (error) {
+    $("#routine-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Routines unavailable.")}</p>`;
+  }
+}
+async function runSelectedRoutine() {
+  const error = $("#routine-error");
+  const input = $("#routine-input").value.trim();
+  if (!selectedRoutineId || !input || !state.token) return;
+  error.hidden = true;
+  const button = $("#routine-run");
+  button.disabled = true;
+  try {
+    const result = await apiJson(
+      `/v1/routines/${selectedRoutineId}/run`,
+      { input },
+      {
+        "Idempotency-Key": crypto.randomUUID(),
+      },
+    );
+    $("#routine-input").value = "";
+    $("#routine-trigger").hidden = true;
+    setConnection(true, `Queued ${result.run.state}`);
+    await refresh();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not queue routine.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -755,6 +820,13 @@ $("#task-add-toggle").addEventListener("click", () => {
   if (!$("#task-add-form").hidden) $("#task-title").focus();
 });
 $("#task-save").addEventListener("click", () => void saveTask());
+$("#routines-open").addEventListener("click", () => {
+  selectedRoutineId = null;
+  $("#routine-trigger").hidden = true;
+  openDialog($("#routines-dialog"));
+  void loadRoutines();
+});
+$("#routine-run").addEventListener("click", () => void runSelectedRoutine());
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),
