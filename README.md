@@ -108,6 +108,10 @@ empty to preserve the database's existing allowlist state.
   each message by stable Gmail message ID, and preserves the provider payload as
   untrusted trigger data. It returns `503` when the connector is not wired and
   never reports a message as ingested without a successful Gmail response.
+- The local worker and protected internal worker tick also poll enabled Gmail
+  triggers at a bounded interval. Polling resolves the configured account (or
+  the owner's primary active Google account), fetches message details, and
+  reuses the same message-id idempotency key as the explicit ingestion route.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

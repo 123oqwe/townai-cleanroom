@@ -57,6 +57,7 @@ import {
 } from "@town/tools";
 
 import { createApp } from "./app.js";
+import { createGoogleRoutinePoller } from "./google-routine-poller.js";
 import {
   createTownMemoryAddHarnessBinding,
   createInvokeRoutineHarnessBinding,
@@ -163,6 +164,48 @@ const googleTokenRefresher = createGoogleTokenRefresher({
 const googleApi = createGoogleApiClient({
   accounts: accountRepository,
   refresher: googleTokenRefresher,
+});
+const googleRoutinePoller = createGoogleRoutinePoller({
+  listTargets: async () => {
+    const rows = await sql<
+      {
+        owner_id: string;
+        routine_schedule_id: string;
+        account_id: string;
+        config: Record<string, unknown>;
+      }[]
+    >`
+      select t.owner_id, t.routine_schedule_id, ca.id as account_id, t.config
+      from routine_triggers t
+      join routine_schedules s
+        on s.owner_id=t.owner_id and s.id=t.routine_schedule_id and s.enabled=true
+      join connected_accounts ca
+        on ca.owner_id=t.owner_id and ca.provider='google' and ca.is_active=true
+       and (
+         t.config->>'accountId'=ca.id::text
+         or (t.config->>'accountId' is null and ca.is_primary=true)
+       )
+      where t.enabled=true and t.kind in ('incoming_email','email_to_assistant')
+      order by t.updated_at, t.id limit 100
+    `;
+    return rows.map((row) => {
+      const query = row.config["query"];
+      const maxResults = row.config["maxResults"];
+      return {
+        ownerId: asId<"user">(row.owner_id),
+        routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
+        accountId: asId<"connected-account">(row.account_id),
+        ...(typeof query === "string" && query.trim().length > 0
+          ? { query: query.trim() }
+          : {}),
+        ...(typeof maxResults === "number" && Number.isInteger(maxResults)
+          ? { maxResults: Math.min(100, Math.max(1, maxResults)) }
+          : {}),
+      };
+    });
+  },
+  google: googleApi,
+  routines: routineRepository,
 });
 const toolRegistryRepository = createToolRegistryRepository(sql);
 const toolExecutionRepository = createToolExecutionRepository(sql);
@@ -497,6 +540,7 @@ if (workerSecret !== undefined) {
       routineScheduler === undefined ? undefined : await routineScheduler();
     return context.json({
       schedule,
+      google: await googleRoutinePoller.poll(),
       runtime:
         runtimeWorker === undefined ? undefined : await runtimeWorker.runOnce(),
       channel: await channelRepository.deliverNext({ workerId }),
@@ -510,6 +554,7 @@ if (process.env["VERCEL"] !== "1") {
   let workerTimer: ReturnType<typeof setTimeout> | undefined;
   const runWorker = async (): Promise<void> => {
     if (routineScheduler !== undefined) await routineScheduler();
+    await googleRoutinePoller.poll();
     if (runtimeWorker !== undefined) await runtimeWorker.runOnce();
     await channelRepository.deliverNext({ workerId });
     workerTimer = setTimeout(() => void runWorker(), 250);
