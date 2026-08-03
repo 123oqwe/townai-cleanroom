@@ -180,6 +180,12 @@ existing revision-aware `PATCH /v1/a2a/requests/:requestId` route. Server-side
 role and revision checks remain authoritative.
 Knowledge conflicts now appear in Library from GET /v1/knowledge/conflicts. Each pending conflict shows the proposed snapshot and explicit Accept/Reject actions using expectedRevision via POST /v1/knowledge/conflicts/:conflictId/resolve. Server-side revision/citation application remains authoritative.
 Routine details now expose Gmail ingestion through a selected connected Google account, optional Gmail query, and bounded max-message input calling POST /v1/routines/:routineId/ingest/email. Provider access, trigger configuration, idempotency, and queue creation remain server-authoritative.
+
+Google Gmail polling now preserves the configured `email_to_assistant` trigger
+kind instead of collapsing it into `incoming_email`. The database constraint,
+routine repository, poller target contract, and idempotent queue path all carry
+the distinct kind; the provider still requires an active Google account and a
+deployment-specific assistant-address/query policy.
 Approval inbox cards now support an explicit Inspect action that fetches the owner-scoped ToolCall record and shows its normalized name, status, side-effect class, data sensitivity, account binding, and arguments before a decision.
 Content creation now exposes the complete server content-kind enum, including image, video, audio, and recording, with optional MIME type and storage key fields. The server still requires either body or storageKey and remains authoritative for persistence.
 Notifications now expose owner-scoped delivery records with status filtering through GET /v1/notification-deliveries, alongside the existing audit timeline. The UI displays event type, channel, attempts, timestamps, and server-reported errors.

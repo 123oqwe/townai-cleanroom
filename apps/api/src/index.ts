@@ -206,10 +206,12 @@ const googleRoutinePoller = createGoogleRoutinePoller({
         owner_id: string;
         routine_schedule_id: string;
         account_id: string;
+        kind: "incoming_email" | "email_to_assistant";
         config: Record<string, unknown>;
       }[]
     >`
-      select t.owner_id, t.routine_schedule_id, ca.id as account_id, t.config
+      select t.owner_id, t.routine_schedule_id, ca.id as account_id,
+             t.kind, t.config
       from routine_triggers t
       join routine_schedules s
         on s.owner_id=t.owner_id and s.id=t.routine_schedule_id and s.enabled=true
@@ -229,6 +231,7 @@ const googleRoutinePoller = createGoogleRoutinePoller({
         ownerId: asId<"user">(row.owner_id),
         routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
         accountId: asId<"connected-account">(row.account_id),
+        triggerType: row.kind,
         ...(typeof query === "string" && query.trim().length > 0
           ? { query: query.trim() }
           : {}),

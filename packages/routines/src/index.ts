@@ -70,6 +70,7 @@ export interface IntegrationSyncRun {
     | "manual"
     | "webhook"
     | "incoming_email"
+    | "email_to_assistant"
     | "calendar"
     | "voice_transcribed"
     | "slack_mention";
@@ -610,6 +611,7 @@ export function createRoutineRepository(sql: Sql) {
     triggerType:
       | "manual"
       | "incoming_email"
+      | "email_to_assistant"
       | "calendar"
       | "voice_transcribed"
       | "slack_mention"
@@ -622,6 +624,7 @@ export function createRoutineRepository(sql: Sql) {
       .enum([
         "manual",
         "incoming_email",
+        "email_to_assistant",
         "calendar",
         "voice_transcribed",
         "slack_mention",

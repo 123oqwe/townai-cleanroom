@@ -99,4 +99,31 @@ describe("Google routine poller", () => {
     });
     expect(google.gmailSearch).toHaveBeenCalledTimes(1);
   });
+
+  it("preserves the email-to-assistant trigger kind", async () => {
+    const google = {
+      gmailSearch: vi
+        .fn()
+        .mockResolvedValue({ messages: [{ id: "m-assistant" }] }),
+      gmailGetMessage: vi
+        .fn()
+        .mockResolvedValue({ payload: { body: "hello" } }),
+    } as unknown as GoogleApiClient;
+    const queueTrigger = vi.fn().mockResolvedValue({ id: "run-assistant" });
+    const poller = createGoogleRoutinePoller({
+      listTargets: async () => [
+        {
+          ownerId,
+          routineScheduleId: routineId,
+          accountId,
+          triggerType: "email_to_assistant",
+        },
+      ],
+      google,
+      routines: { queueTrigger } as unknown as RoutineRepository,
+      intervalMs: 0,
+    });
+    await poller.poll(new Date("2026-08-04T00:00:00Z"));
+    expect(queueTrigger.mock.calls[0]?.[2]).toBe("email_to_assistant");
+  });
 });

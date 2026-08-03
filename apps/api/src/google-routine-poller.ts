@@ -8,6 +8,7 @@ export interface GoogleRoutinePollingTarget {
   accountId: Id<"connected-account">;
   query?: string;
   maxResults?: number;
+  triggerType?: "incoming_email" | "email_to_assistant";
 }
 
 export interface GoogleRoutinePollResult {
@@ -53,10 +54,13 @@ export function createGoogleRoutinePoller(input: {
               messageId: message.id,
             });
             const labels = detail["labelIds"] ?? message["labelIds"] ?? [];
+            const triggerType = target.triggerType ?? "incoming_email";
             await input.routines.queueTrigger(
               target.ownerId,
               target.routineScheduleId,
-              "incoming_email",
+              // A configured email-to-assistant trigger must remain distinct
+              // so downstream policy can apply the assistant-address boundary.
+              triggerType,
               {
                 provider: "google_gmail",
                 accountId: target.accountId,
