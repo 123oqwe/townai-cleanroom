@@ -96,6 +96,7 @@ import {
   type GoogleOAuthDependencies,
 } from "./google-oauth-routes.js";
 import { registerSuggestionRoutes } from "./suggestion-routes.js";
+import { registerScheduleRoutes } from "./schedule-routes.js";
 import type { SuggestionRepository } from "@town/suggestions";
 import { SuggestionError } from "@town/suggestions";
 import { registerA2ARoutes } from "./a2a-routes.js";
@@ -766,6 +767,25 @@ export function createApp(dependencies?: AppDependencies) {
         dependencies.suggestionRepository,
         dependencies.agentRepository,
       );
+    }
+    if (
+      dependencies.taskRepository !== undefined ||
+      dependencies.routineRepository !== undefined
+    ) {
+      app.use("/v1/schedule", authenticate);
+      app.use("/v1/schedule/*", authenticate);
+      registerScheduleRoutes(app, {
+        ...(dependencies.taskRepository === undefined
+          ? {}
+          : { tasks: dependencies.taskRepository }),
+        ...(dependencies.routineRepository === undefined
+          ? {}
+          : { routines: dependencies.routineRepository }),
+        accounts: dependencies.accountRepository,
+        ...(dependencies.googleApi === undefined
+          ? {}
+          : { google: dependencies.googleApi }),
+      });
     }
 
     const harnessServer = dependencies.harnessServer;
