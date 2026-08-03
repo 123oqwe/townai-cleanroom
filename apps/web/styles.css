@@ -1751,6 +1751,34 @@ dialog h2 {
   color: var(--muted);
   font-size: 0.7rem;
 }
+
+.approval-inbox {
+  margin: 1rem 0;
+}
+
+.approval-inbox-card {
+  border-top: 1px solid var(--line);
+  padding: 0.7rem 0;
+}
+
+.approval-inbox-card p {
+  max-height: 3.2em;
+  margin: 0.2rem 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.approval-inbox-card small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.approval-inbox-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
 .account-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;

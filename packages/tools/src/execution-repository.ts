@@ -206,6 +206,24 @@ export function createToolExecutionRepository(sql: Sql) {
     return safeApproval(row);
   }
 
+  async function listApprovals(
+    ownerId: Id<"user">,
+    state: ApprovalRequest["state"] = "pending",
+  ): Promise<ApprovalRequest[]> {
+    const rows = await sql<ApprovalRow[]>`
+      select id, owner_id, session_id, run_id, tool_call_id, argument_hash,
+        arguments, state, revision, expires_at, decided_at, decided_by,
+        decision_note
+      from approval_requests
+      where owner_id = ${ownerId}
+        and state = ${state}
+        and (state <> 'pending' or expires_at is null or expires_at > clock_timestamp())
+      order by requested_at desc, id desc
+      limit 100
+    `;
+    return rows.map(safeApproval);
+  }
+
   async function propose(input: {
     ownerId: Id<"user">;
     sessionId: Id<"runtime-session">;
@@ -987,6 +1005,7 @@ export function createToolExecutionRepository(sql: Sql) {
   return {
     getCall,
     getApproval,
+    listApprovals,
     propose,
     decideApproval,
     expireApproval,

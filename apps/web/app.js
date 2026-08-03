@@ -1172,6 +1172,59 @@ async function loadTools() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Tools unavailable.")}</p>`;
   }
 }
+function renderApprovals(result) {
+  const target = $("#approval-inbox-list");
+  const approvals = result.approvals || [];
+  $("#approval-inbox-count").textContent = `${approvals.length} pending`;
+  if (!approvals.length) {
+    target.innerHTML = '<p class="harness-empty">No pending approvals.</p>';
+    return;
+  }
+  target.innerHTML = approvals
+    .map(
+      (approval) =>
+        `<article class="approval-inbox-card" data-approval-id="${escapeHtml(approval.id)}" data-approval-revision="${escapeHtml(String(approval.revision))}"><div><strong>Tool call ${escapeHtml(approval.toolCallId.slice(0, 8))}</strong><p>${escapeHtml(JSON.stringify(approval.arguments))}</p><small>${approval.expiresAt ? `expires ${escapeHtml(new Date(approval.expiresAt).toLocaleString())}` : "no expiry"}</small></div><div class="approval-inbox-actions"><button class="quiet-button approval-inbox-reject" type="button">Reject</button><button class="primary-button approval-inbox-approve" type="button">Approve</button></div></article>`,
+    )
+    .join("");
+}
+async function loadApprovals() {
+  if (!state.token) {
+    $("#approval-inbox-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load approvals.</p>';
+    $("#approval-inbox-count").textContent = "—";
+    return;
+  }
+  try {
+    renderApprovals(await api("/v1/approvals"));
+  } catch (error) {
+    $("#approval-inbox-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Approvals unavailable.")}</p>`;
+  }
+}
+async function decideInboxApproval(card, decision) {
+  const approvalId = card.dataset.approvalId;
+  const expectedRevision = Number(card.dataset.approvalRevision);
+  if (!approvalId || !Number.isInteger(expectedRevision)) return;
+  card.querySelectorAll("button").forEach((button) => (button.disabled = true));
+  try {
+    await apiJson(`/v1/approvals/${approvalId}/decision`, {
+      expectedRevision,
+      decision,
+    });
+    await loadApprovals();
+    await refresh();
+  } catch (error) {
+    card
+      .querySelector(".approval-inbox-actions")
+      .insertAdjacentHTML(
+        "beforebegin",
+        `<p class="dialog-error">${escapeHtml(error instanceof Error ? error.message : "Could not resolve approval.")}</p>`,
+      );
+    card
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = false));
+  }
+}
 async function previewPolicy() {
   const target = $("#policy-preview-result");
   if (!state.token) {
@@ -1906,8 +1959,18 @@ $("#account-open").addEventListener("click", () => {
   openDialog($("#accounts-dialog"));
   void loadAccounts();
   void loadTools();
+  void loadApprovals();
 });
 $("#policy-preview-run").addEventListener("click", () => void previewPolicy());
+$("#approval-inbox-list").addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  const card = event.target.closest(".approval-inbox-card");
+  if (!button || !card) return;
+  void decideInboxApproval(
+    card,
+    button.classList.contains("approval-inbox-approve") ? "approve" : "reject",
+  );
+});
 $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
 $("#channels-open").addEventListener("click", () => {
   openDialog($("#channels-dialog"));

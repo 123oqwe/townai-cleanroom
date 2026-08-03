@@ -4,6 +4,7 @@ import { z } from "zod";
 import { asId } from "@town/contracts";
 import {
   accountBindingSchema,
+  approvalStateSchema,
   dataSensitivitySchema,
   evaluatePolicy,
   executionModeSchema,
@@ -70,6 +71,19 @@ export function registerToolRoutes(
     );
     return context.json({
       approval: await dependencies.execution.getApproval(ownerId, approvalId),
+    });
+  });
+
+  app.get("/v1/approvals", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const state = context.req.query("state");
+    const parsedState =
+      state === undefined ? "pending" : approvalStateSchema.parse(state);
+    return context.json({
+      approvals: await dependencies.execution.listApprovals(
+        ownerId,
+        parsedState,
+      ),
     });
   });
 

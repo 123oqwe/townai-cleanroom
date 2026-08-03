@@ -213,6 +213,13 @@ describe("protected Tool and Approval API", () => {
     });
     if (proposal.approval === null)
       throw new Error("Expected approval request.");
+    const pendingResponse = await app.request("/v1/approvals", {
+      headers: headers(owner.token),
+    });
+    expect(pendingResponse.status).toBe(200);
+    expect(await pendingResponse.json()).toMatchObject({
+      approvals: [{ id: proposal.approval.id, state: "pending" }],
+    });
     const decisionResponse = await app.request(
       `/v1/approvals/${proposal.approval.id}/decision`,
       {
