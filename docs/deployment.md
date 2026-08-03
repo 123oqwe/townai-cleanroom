@@ -758,3 +758,10 @@ direct URL is
 `READY`; the Connected accounts dialog can list and approve or reject pending
 requests. The direct URL returns the Vercel SSO `302`; Vercel reported no
 runtime errors in the verification window.
+The latest UI preview after the Square shared Connected Account module is
+`https://town-clear-current-jn65a0glu-123oqwes-projects.vercel.app`, deployment
+`dpl_HNLd5gH1CR2QpRryMwnyuWPXqG2Y`. Vercel reports `READY`, the deployment
+runtime-error query reports no errors, and an unauthenticated direct `HEAD`
+request returns `302` to Vercel SSO. The generated alias is therefore recorded
+as protected in this environment, while project-level protection remains an
+explicit infrastructure boundary.
