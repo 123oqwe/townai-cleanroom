@@ -216,6 +216,13 @@ direct URL is `https://town-clear-current-cdt2gos38-123oqwes-projects.vercel.app
 state `READY`; `0037_routine_trigger_idempotency.sql` protects typed trigger
 keys, and the unauthenticated URL check returns the Vercel SSO `302`.
 
+Routine run result replay/audit detail is deployed in
+`dpl_4GGaU4p5GtyGeQDYZ6nYkiweYteA`, built from commit `14cded8`. Its protected
+direct URL is `https://town-clear-current-qbb88jz91-123oqwes-projects.vercel.app`,
+state `READY`; `GET /v1/routine-runs/:runId` returns the owner-scoped trigger
+record and linked `RoutineResult`, and an unauthenticated curl receives the
+Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
