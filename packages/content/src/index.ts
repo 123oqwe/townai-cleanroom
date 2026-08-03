@@ -2,7 +2,14 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Sql } from "postgres";
 import { z } from "zod";
 
-import { asId, idSchema, newId, type Id } from "@town/contracts";
+import {
+  asId,
+  decodeCursor,
+  encodeCursor,
+  idSchema,
+  newId,
+  type Id,
+} from "@town/contracts";
 
 export const contentKindSchema = z.enum([
   "document",
@@ -81,6 +88,10 @@ export interface ContentShare {
   contentId: Id<"content">;
   expiresAt: Date | null;
   createdAt: Date;
+}
+export interface ContentPage {
+  items: ContentItem[];
+  nextCursor: string | null;
 }
 export interface PublicContent {
   id: Id<"content">;
@@ -257,22 +268,69 @@ export function createContentRepository(sql: Sql) {
     ownerId: Id<"user">,
     options?: { status?: ContentItem["status"]; limit?: number },
   ): Promise<ContentItem[]> {
+    return (await listPage({ ownerId, ...options })).items;
+  }
+  async function listPage(input: {
+    ownerId: Id<"user">;
+    status?: ContentItem["status"];
+    limit?: number;
+    cursor?: string;
+  }): Promise<ContentPage> {
     const value = z
       .object({
         ownerId: idSchema,
         status: contentStatusSchema.optional(),
         limit: z.number().int().min(1).max(100).default(50),
+        cursor: z.string().min(1).optional(),
       })
-      .parse({ ownerId, ...options });
+      .parse(input);
+    const decoded =
+      value.cursor === undefined ? null : decodeCursor(value.cursor);
+    const cursorKey =
+      decoded === null
+        ? null
+        : z
+            .object({
+              status: contentStatusSchema.optional(),
+              updatedAt: z.iso.datetime(),
+            })
+            .strict()
+            .parse(JSON.parse(decoded.key));
+    if (cursorKey?.status !== value.status)
+      throw new z.ZodError([
+        {
+          code: "custom",
+          path: ["cursor"],
+          message: "Cursor status does not match the requested status.",
+        },
+      ]);
+    const before = cursorKey?.updatedAt ?? null;
+    const beforeId = decoded?.id ?? "00000000-0000-7000-8000-000000000000";
     const rows =
       value.status === undefined
         ? await sql<
             ContentRow[]
-          >`select * from content_items where owner_id=${value.ownerId} order by updated_at desc,id desc limit ${value.limit}`
+          >`select * from content_items where owner_id=${value.ownerId} and (${cursorKey === null} or updated_at < ${before}::timestamptz or (updated_at = ${before}::timestamptz and id < ${beforeId}::uuid)) order by updated_at desc,id desc limit ${value.limit + 1}`
         : await sql<
             ContentRow[]
-          >`select * from content_items where owner_id=${value.ownerId} and status=${value.status} order by updated_at desc,id desc limit ${value.limit}`;
-    return rows.map(safe);
+          >`select * from content_items where owner_id=${value.ownerId} and status=${value.status} and (${cursorKey === null} or updated_at < ${before}::timestamptz or (updated_at = ${before}::timestamptz and id < ${beforeId}::uuid)) order by updated_at desc,id desc limit ${value.limit + 1}`;
+    const hasMore = rows.length > value.limit;
+    const pageRows = hasMore ? rows.slice(0, value.limit) : rows;
+    const last = hasMore ? pageRows.at(-1) : undefined;
+    return {
+      items: pageRows.map(safe),
+      nextCursor:
+        last === undefined
+          ? null
+          : encodeCursor({
+              version: 1,
+              key: JSON.stringify({
+                status: value.status,
+                updatedAt: last.updated_at.toISOString(),
+              }),
+              id: asId(last.id),
+            }),
+    };
   }
   async function archive(
     ownerId: Id<"user">,
@@ -464,6 +522,7 @@ export function createContentRepository(sql: Sql) {
     create,
     update,
     list,
+    listPage,
     archive,
     createCollection,
     addToCollection,

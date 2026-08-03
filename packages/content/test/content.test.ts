@@ -169,4 +169,45 @@ describe("content library", () => {
       content.listCollection(ownerId, collection.id),
     ).resolves.toMatchObject([{ id: first.id }, { id: second.id }]);
   });
+
+  it("paginates content with a stable owner-scoped cursor", async () => {
+    const content = createContentRepository(sql);
+    const created = [];
+    for (const title of ["One", "Two", "Three"]) {
+      created.push(
+        await content.create({
+          ownerId,
+          kind: "document",
+          title,
+          body: title,
+          metadata: {},
+        }),
+      );
+    }
+    const first = await content.listPage({
+      ownerId,
+      status: "active",
+      limit: 2,
+    });
+    expect(first.items).toHaveLength(2);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    const second = await content.listPage({
+      ownerId,
+      status: "active",
+      limit: 2,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items).toHaveLength(1);
+    expect(
+      new Set([...first.items, ...second.items].map((item) => item.id)),
+    ).toEqual(new Set(created.map((item) => item.id)));
+    await expect(
+      content.listPage({
+        ownerId,
+        status: "archived",
+        limit: 2,
+        cursor: first.nextCursor!,
+      }),
+    ).rejects.toThrow("Cursor status does not match");
+  });
 });

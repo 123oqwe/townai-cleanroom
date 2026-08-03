@@ -49,16 +49,25 @@ export function registerContentRoutes(
       .object({
         status: contentStatusSchema.optional(),
         limit: z.coerce.number().int().min(1).max(100).default(50),
+        cursor: z.string().min(1).optional(),
       })
       .strict()
       .parse(context.req.query());
     return context.json({
-      items: await dependencies.repository.list(
-        ownerId,
+      ...(await dependencies.repository.listPage(
         query.status === undefined
-          ? { limit: query.limit }
-          : { status: query.status, limit: query.limit },
-      ),
+          ? {
+              ownerId,
+              limit: query.limit,
+              ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+            }
+          : {
+              ownerId,
+              status: query.status,
+              limit: query.limit,
+              ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+            },
+      )),
     });
   });
   app.post("/v1/content", async (context) => {

@@ -432,21 +432,42 @@ function renderLibrarySearch(result) {
     )
     .join("");
 }
-function renderLibraryContent(result) {
+function renderLibraryContent(result, append = false) {
   const target = $("#library-content-list");
   const items = result.items || [];
-  $("#library-count").textContent = `${items.length} saved`;
-  if (!items.length) {
+  const existing = append
+    ? target.querySelectorAll(".library-content-item").length
+    : 0;
+  $("#library-count").textContent = `${existing + items.length} saved`;
+  if (!items.length && !append) {
     target.innerHTML = '<p class="harness-empty">No saved content yet.</p>';
     return;
   }
-  target.innerHTML = items
+  const html = items
     .slice(0, 20)
     .map(
       (item) =>
         `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><button class="quiet-button content-share-button" type="button">Share</button></article>`,
     )
     .join("");
+  if (append) target.insertAdjacentHTML("beforeend", html);
+  else target.innerHTML = html;
+}
+let libraryContentCursor = null;
+async function loadMoreLibraryContent() {
+  if (!state.token || !libraryContentCursor) return;
+  const button = $("#library-content-more");
+  button.disabled = true;
+  try {
+    const result = await api(
+      `/v1/content?status=active&limit=20&cursor=${encodeURIComponent(libraryContentCursor)}`,
+    );
+    renderLibraryContent(result, true);
+    libraryContentCursor = result.nextCursor;
+    button.hidden = !libraryContentCursor;
+  } finally {
+    button.disabled = false;
+  }
 }
 async function createContentShare(contentId, card) {
   if (!contentId || !state.token) return;
@@ -501,6 +522,8 @@ async function loadLibrary() {
       api("/v1/memories"),
     ]);
     renderLibraryContent(content);
+    libraryContentCursor = content.nextCursor;
+    $("#library-content-more").hidden = !libraryContentCursor;
     renderMemories(memories);
   } catch (error) {
     $("#library-content-list").innerHTML =
@@ -1668,6 +1691,10 @@ $("#library-content-list").addEventListener("click", (event) => {
   if (!button || !card) return;
   void createContentShare(card.dataset.contentId, card);
 });
+$("#library-content-more").addEventListener(
+  "click",
+  () => void loadMoreLibraryContent(),
+);
 $("#content-share-copy").addEventListener("click", async () => {
   const url = $("#content-share-url").value;
   if (!url) return;
