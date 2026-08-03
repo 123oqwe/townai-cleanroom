@@ -1053,3 +1053,9 @@ The worker-readiness source state `98a6fb6` is deployed as
 detected. Vercel reported no runtime errors. The capability contract now keeps
 provider readiness separate from worker readiness; no configured deployment
 secrets were inferred from this build-only verification.
+
+On 2026-08-03, unauthenticated `HEAD` requests to both the current owner alias
+`town-clear-current-123oqwe-123oqwes-projects.vercel.app` and the deployment
+URL above returned HTTP `302` to Vercel SSO. This verifies the observed access
+boundary for these URLs only; it does not prove that every future generated
+deployment is covered by a project-level protection setting.

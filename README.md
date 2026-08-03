@@ -36,6 +36,11 @@ fallback credentials or a fake database.
 Generate a development encryption key without printing or storing it in source
 control using your platform's secure secret-management workflow.
 
+Before starting a real deployment, run `pnpm check:runtime-config` to inspect
+configuration readiness. It reports only variable names and states, never secret
+values; add `--strict` to fail when the database, encryption key, or web origin
+is missing or invalid.
+
 For an allowlisted deployment, set `ACCESS_ALLOWLIST_EMAILS` to a comma-separated
 list of approved email addresses. Startup idempotently enables those rows in
 the server-side allowlist and disables previously enabled rows that are no
