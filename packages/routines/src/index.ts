@@ -63,6 +63,10 @@ export interface IntegrationSyncRun {
   routineScheduleId: Id<"routine-schedule"> | null;
   provider: string;
   status: SyncRunStatus;
+  triggerType:
+    "schedule" | "manual" | "webhook" | "incoming_email" | "calendar";
+  triggerData: Record<string, unknown>;
+  idempotencyKey: string | null;
   cursor: Record<string, unknown>;
   errorCode: string | null;
   startedAt: Date | null;
@@ -176,6 +180,10 @@ type SyncRunRow = {
   routine_schedule_id: string | null;
   provider: string;
   status: SyncRunStatus;
+  trigger_type:
+    "schedule" | "manual" | "webhook" | "incoming_email" | "calendar";
+  trigger_data: Record<string, unknown>;
+  idempotency_key: string | null;
   cursor: Record<string, unknown>;
   error_code: string | null;
   started_at: Date | null;
@@ -251,6 +259,9 @@ function safeRun(row: SyncRunRow): IntegrationSyncRun {
       : null,
     provider: row.provider,
     status: row.status,
+    triggerType: row.trigger_type,
+    triggerData: row.trigger_data,
+    idempotencyKey: row.idempotency_key,
     cursor: row.cursor,
     errorCode: row.error_code,
     startedAt: row.started_at,
@@ -478,7 +489,7 @@ export function createRoutineRepository(sql: Sql) {
       const claimed: DueRoutine[] = [];
       for (const row of rows) {
         const claimId = newId<"integration-sync-run">();
-        await tx`insert into integration_sync_runs (id, owner_id, account_id, routine_schedule_id, provider, status) select ${claimId}, ${ownerId}, ca.id, ${row.id}, ca.provider, 'queued' from connected_accounts ca where ca.owner_id=${ownerId} and ca.is_active=true order by ca.is_primary desc, ca.created_at, ca.id limit 1`;
+        await tx`insert into integration_sync_runs (id, owner_id, account_id, routine_schedule_id, provider, status, trigger_type, trigger_data, idempotency_key) select ${claimId}, ${ownerId}, ca.id, ${row.id}, ca.provider, 'queued', 'schedule', ${tx.json({ scheduleId: row.id })}, ${`schedule:${row.id}:${claimId}`} from connected_accounts ca where ca.owner_id=${ownerId} and ca.is_active=true order by ca.is_primary desc, ca.created_at, ca.id limit 1`;
         await tx`update routine_schedules set last_run_at=${now}, next_run_at=${now} + interval '1 minute', revision=revision+1, updated_at=now() where owner_id=${ownerId} and id=${row.id}`;
         claimed.push({ ...safe(row), claimId });
       }
@@ -912,9 +923,9 @@ export function createRoutineRepository(sql: Sql) {
           duplicate: true,
         };
       const [run] = await tx<{ id: string }[]>`
-        insert into integration_sync_runs (id,owner_id,account_id,routine_schedule_id,provider,status,cursor)
+        insert into integration_sync_runs (id,owner_id,account_id,routine_schedule_id,provider,status,trigger_type,trigger_data,idempotency_key)
         select ${newId<"integration-sync-run">()}, ${webhook.owner_id}, ca.id,
-          ${webhook.routine_schedule_id}, ca.provider, 'queued', ${tx.json(body as never)}
+          ${webhook.routine_schedule_id}, ca.provider, 'queued', 'webhook', ${tx.json(body as never)}, ${key}
         from connected_accounts ca where ca.owner_id=${webhook.owner_id} and ca.is_active=true
         order by ca.is_primary desc, ca.created_at, ca.id limit 1 returning id
       `;

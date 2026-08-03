@@ -1278,6 +1278,9 @@ export const integrationSyncRuns = pgTable(
     routineScheduleId: uuid("routine_schedule_id"),
     provider: text("provider").notNull(),
     status: text("status").notNull().default("queued"),
+    triggerType: text("trigger_type").notNull().default("schedule"),
+    triggerData: jsonb("trigger_data").notNull().default({}),
+    idempotencyKey: text("idempotency_key"),
     cursor: jsonb("cursor").notNull().default({}),
     errorCode: text("error_code"),
     startedAt: timestamp("started_at", { withTimezone: true }),
@@ -1315,6 +1318,14 @@ export const integrationSyncRuns = pgTable(
     check(
       "integration_sync_runs_status_allowed",
       sql`${table.status} in ('queued','running','succeeded','failed','blocked')`,
+    ),
+    check(
+      "integration_sync_runs_trigger_type_allowed",
+      sql`${table.triggerType} in ('schedule','manual','webhook','incoming_email','calendar')`,
+    ),
+    check(
+      "integration_sync_runs_trigger_data_object",
+      sql`jsonb_typeof(${table.triggerData}) = 'object'`,
     ),
   ],
 );

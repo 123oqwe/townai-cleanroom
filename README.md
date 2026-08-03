@@ -89,6 +89,9 @@ empty to preserve the database's existing allowlist state.
   the immutable runtime session/run. Results preserve completion/failure,
   subject, output, and optional document/notification references and can be
   listed through `/v1/routine-results?sessionId=...`.
+- Schedule and webhook runs now carry explicit `triggerType`, `triggerData`,
+  and `idempotencyKey` fields; webhook payloads are no longer overloaded into
+  the integration cursor.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

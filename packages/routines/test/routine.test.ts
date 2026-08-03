@@ -324,4 +324,34 @@ describe("routine schedules", () => {
       expect.objectContaining({ id: result.id, subject: "Weekly briefing" }),
     ]);
   });
+
+  it("stores webhook payload as typed trigger data with its idempotency key", async () => {
+    const repository = createRoutineRepository(sql);
+    const schedule = await repository.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Webhook briefing",
+      cron: "0 9 * * *",
+      nextRunAt: new Date("2026-08-03T01:00:00Z"),
+    });
+    const { secret } = await repository.createWebhook(ownerId, schedule.id);
+    const delivery = await repository.deliverWebhook(secret, "event-typed", {
+      event: "ping",
+    });
+    expect(delivery).not.toBeNull();
+    if (delivery === null) throw new Error("expected webhook delivery");
+    const [run] = await sql<
+      {
+        trigger_type: string;
+        trigger_data: Record<string, unknown>;
+        idempotency_key: string;
+      }[]
+    >`select trigger_type,trigger_data,idempotency_key from integration_sync_runs where id=${delivery?.runId}`;
+    expect(run).toEqual({
+      trigger_type: "webhook",
+      trigger_data: { event: "ping" },
+      idempotency_key: "event-typed",
+    });
+  });
 });
