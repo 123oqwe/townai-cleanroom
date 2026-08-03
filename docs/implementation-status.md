@@ -447,3 +447,10 @@ bounded client metadata, expire after a bounded interval, and never expose
 another owner's sessions. This is the durable presence boundary observed in
 the product; a Convex-compatible multiplexed WebSocket transport is not
 claimed yet.
+
+Billing state now gates new assistant message submissions when an explicitly
+configured owner account is blocked: `POST /v1/threads/:threadId/messages`
+returns a structured `402 BILLING_BLOCKED` response before creating a queued
+run. Unconfigured billing remains backward-compatible and does not pretend to
+enforce credits; queued work is not silently deleted when a later block is
+provisioned.

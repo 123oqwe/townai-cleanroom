@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { turnMentionsInputSchema } from "@town/agents";
 import { asId } from "@town/contracts";
+import type { BillingRepository } from "@town/billing";
 import {
   sessionRunStateSchema,
   type ApprovalDecisionRepository,
@@ -16,6 +17,7 @@ export interface RuntimeDependencies {
   sessionRepository: SessionRepository;
   runtimeTransitionService: RuntimeTransitionService;
   approvalDecisions?: ApprovalDecisionRepository;
+  billingRepository?: BillingRepository;
 }
 
 const messageSchema = z
@@ -63,6 +65,21 @@ export function registerRuntimeRoutes(
 ): void {
   app.post("/v1/threads/:threadId/messages", async (context) => {
     const ownerId = context.get("identity").user.id;
+    const billing =
+      dependencies.billingRepository === undefined
+        ? null
+        : await dependencies.billingRepository.get(ownerId);
+    if (billing?.isBlocked === true)
+      return context.json(
+        {
+          type: "https://town.local/problems/billing-blocked",
+          title: "Credits unavailable",
+          status: 402,
+          detail: "This account is blocked from starting new assistant work.",
+          code: "BILLING_BLOCKED",
+        },
+        402,
+      );
     const threadId = asId<"thread">(context.req.param("threadId"));
     const idempotencyKey = idempotencyKeySchema.parse(
       context.req.header("Idempotency-Key"),

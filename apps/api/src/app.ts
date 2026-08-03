@@ -53,7 +53,7 @@ import {
 import type { AppServer, AppServerRequest } from "@town/harness";
 import { ContentError, type ContentRepository } from "@town/content";
 import { ChannelError, type ChannelRepository } from "@town/channels";
-import type { BillingRepository } from "@town/billing";
+import { BillingError, type BillingRepository } from "@town/billing";
 import { OperationsError, type OperationsRepository } from "@town/operations";
 import {
   SquareError,
@@ -181,6 +181,9 @@ function runtimeDependencies(
     ...(dependencies.approvalDecisions === undefined
       ? {}
       : { approvalDecisions: dependencies.approvalDecisions }),
+    ...(dependencies.billingRepository === undefined
+      ? {}
+      : { billingRepository: dependencies.billingRepository }),
   };
 }
 
@@ -350,6 +353,19 @@ export function createApp(dependencies?: AppDependencies) {
         {
           type: "https://town.local/problems/invalid-request",
           title: "Invalid operations request",
+          status,
+          detail: error.message,
+          code: error.code,
+        },
+        status,
+      );
+    }
+    if (error instanceof BillingError) {
+      const status = error.code === "BILLING_NOT_CONFIGURED" ? 503 : 409;
+      return context.json(
+        {
+          type: "https://town.local/problems/billing",
+          title: "Billing request rejected",
           status,
           detail: error.message,
           code: error.code,

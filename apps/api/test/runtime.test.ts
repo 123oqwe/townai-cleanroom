@@ -29,6 +29,7 @@ import {
   createRuntimeQueueRepository,
   createApprovalDecisionRepository,
 } from "@town/runtime";
+import { createBillingRepository } from "@town/billing";
 
 import { createApp } from "../src/app.js";
 
@@ -69,6 +70,7 @@ async function fixture() {
     sessionRepository: createSessionRepository(sql),
     runtimeTransitionService: createRuntimeTransitionService(sql),
     approvalDecisions: createApprovalDecisionRepository(sql),
+    billingRepository: createBillingRepository(sql),
   };
   const owner = await identityService.establishIdentity({
     email: "runtime-api-owner@example.invalid",
@@ -121,6 +123,29 @@ async function createThread(
 }
 
 describe("protected persistent Session API", () => {
+  it("blocks new assistant work when the owner billing state is blocked", async () => {
+    const { app, owner, dependencies } = await fixture();
+    const created = await createThread(app, owner.token);
+    await dependencies.billingRepository.setState({
+      ownerId: owner.user.id,
+      planName: "free",
+      isBlocked: true,
+      creditBand: "blocked",
+    });
+    const response = await app.request(
+      `/v1/threads/${created.thread.id}/messages`,
+      {
+        method: "POST",
+        headers: authorization(owner.token, "blocked-message"),
+        body: JSON.stringify({ text: "Should be blocked", mentions: [] }),
+      },
+    );
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "BILLING_BLOCKED",
+    });
+  });
+
   it("requires authentication and rejects missing keys or runtime-field spoofing", async () => {
     const { app, owner, other } = await fixture();
     const created = await createThread(app, owner.token);
