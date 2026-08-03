@@ -181,3 +181,4 @@ existing revision-aware `PATCH /v1/a2a/requests/:requestId` route. Server-side
 role and revision checks remain authoritative.
 Knowledge conflicts now appear in Library from GET /v1/knowledge/conflicts. Each pending conflict shows the proposed snapshot and explicit Accept/Reject actions using expectedRevision via POST /v1/knowledge/conflicts/:conflictId/resolve. Server-side revision/citation application remains authoritative.
 Routine details now expose Gmail ingestion through a selected connected Google account, optional Gmail query, and bounded max-message input calling POST /v1/routines/:routineId/ingest/email. Provider access, trigger configuration, idempotency, and queue creation remain server-authoritative.
+Approval inbox cards now support an explicit Inspect action that fetches the owner-scoped ToolCall record and shows its normalized name, status, side-effect class, data sensitivity, account binding, and arguments before a decision.

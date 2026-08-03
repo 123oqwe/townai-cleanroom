@@ -1604,9 +1604,18 @@ function renderApprovals(result) {
   target.innerHTML = approvals
     .map(
       (approval) =>
-        `<article class="approval-inbox-card" data-approval-id="${escapeHtml(approval.id)}" data-approval-revision="${escapeHtml(String(approval.revision))}"><div><strong>Tool call ${escapeHtml(approval.toolCallId.slice(0, 8))}</strong><p>${escapeHtml(JSON.stringify(approval.arguments))}</p><small>${approval.expiresAt ? `expires ${escapeHtml(new Date(approval.expiresAt).toLocaleString())}` : "no expiry"}</small></div><div class="approval-inbox-actions"><button class="quiet-button approval-inbox-reject" type="button">Reject</button><button class="primary-button approval-inbox-approve" type="button">Approve</button></div></article>`,
+        `<article class="approval-inbox-card" data-approval-id="${escapeHtml(approval.id)}" data-tool-call-id="${escapeHtml(approval.toolCallId)}" data-approval-revision="${escapeHtml(String(approval.revision))}"><div><strong>Tool call ${escapeHtml(approval.toolCallId.slice(0, 8))}</strong><p>${escapeHtml(JSON.stringify(approval.arguments))}</p><small>${approval.expiresAt ? `expires ${escapeHtml(new Date(approval.expiresAt).toLocaleString())}` : "no expiry"}</small></div><div class="approval-inbox-actions"><button class="quiet-button approval-inbox-inspect" type="button">Inspect</button><button class="quiet-button approval-inbox-reject" type="button">Reject</button><button class="primary-button approval-inbox-approve" type="button">Approve</button></div></article>`,
     )
     .join("");
+}
+async function inspectInboxApproval(card) {
+  const existing = card.querySelector(".approval-inbox-detail");
+  if (existing) { existing.remove(); return; }
+  try {
+    const result = await api(`/v1/tool-calls/${card.dataset.toolCallId}`);
+    const call = result.toolCall;
+    card.insertAdjacentHTML("beforeend", `<pre class="approval-inbox-detail">${escapeHtml(JSON.stringify({ name: call.name, status: call.status, sideEffect: call.sideEffect, dataSensitivity: call.dataSensitivity, accountBinding: call.accountBinding, arguments: call.arguments }, null, 2))}</pre>`);
+  } catch (cause) { card.insertAdjacentHTML("beforeend", `<small class="approval-inbox-detail-error">${escapeHtml(cause instanceof Error ? cause.message : "Tool call unavailable.")}</small>`); }
 }
 async function loadApprovals() {
   if (!state.token) {
@@ -2669,6 +2678,7 @@ $("#approval-inbox-list").addEventListener("click", (event) => {
   const button = event.target.closest("button");
   const card = event.target.closest(".approval-inbox-card");
   if (!button || !card) return;
+  if (button.classList.contains("approval-inbox-inspect")) { void inspectInboxApproval(card); return; }
   void decideInboxApproval(
     card,
     button.classList.contains("approval-inbox-approve") ? "approve" : "reject",

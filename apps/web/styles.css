@@ -1919,6 +1919,16 @@ dialog h2 {
   gap: 0.5rem;
   margin-top: 0.55rem;
 }
+.approval-inbox-detail {
+  max-height: 180px;
+  margin: 0.55rem 0 0;
+  overflow: auto;
+  padding: 0.65rem;
+  background: var(--paper-deep);
+  white-space: pre-wrap;
+  font-size: 10px;
+}
+.approval-inbox-detail-error { color: #a03e2b; }
 
 .input-inbox {
   margin: 1rem 0;
