@@ -605,7 +605,12 @@ if (workerSecret !== undefined) {
       calendar: await googleCalendarPoller.poll(),
       runtime:
         runtimeWorker === undefined ? undefined : await runtimeWorker.runOnce(),
-      channel: await channelRepository.deliverNext({ workerId }),
+      channel: await channelRepository.deliverNext({
+        workerId,
+        sendEmail: async (value) => {
+          await googleApi.gmailSend(value);
+        },
+      }),
     });
   });
 }
@@ -619,7 +624,12 @@ if (process.env["VERCEL"] !== "1") {
     await googleRoutinePoller.poll();
     await googleCalendarPoller.poll();
     if (runtimeWorker !== undefined) await runtimeWorker.runOnce();
-    await channelRepository.deliverNext({ workerId });
+    await channelRepository.deliverNext({
+      workerId,
+      sendEmail: async (value) => {
+        await googleApi.gmailSend(value);
+      },
+    });
     workerTimer = setTimeout(() => void runWorker(), 250);
     workerTimer.unref?.();
   };

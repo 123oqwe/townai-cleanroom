@@ -260,4 +260,43 @@ describe("notification channels", () => {
       },
     });
   });
+
+  it("sends email deliveries through an explicitly selected connected account", async () => {
+    const repository = createChannelRepository(sql);
+    const channel = await repository.create({
+      ownerId,
+      kind: "email",
+      address: "recipient@example.invalid",
+      config: { accountId: ownerId },
+    });
+    await repository.enqueue({
+      ownerId,
+      channelId: channel.id,
+      eventType: "routine.result",
+      idempotencyKey: "delivery-email",
+      payload: { subject: "Weekly brief", body: "The brief is ready." },
+    });
+    const sendEmail = vi.fn(
+      async (value: {
+        ownerId: Id<"user">;
+        accountId: Id<"connected-account">;
+        to: string;
+        subject: string;
+        body: string;
+      }) => {
+        expect(value).toMatchObject({
+          to: "recipient@example.invalid",
+          subject: "Weekly brief",
+          body: "The brief is ready.",
+        });
+      },
+    );
+    await expect(
+      repository.deliverNext({ workerId: "email-worker", sendEmail }),
+    ).resolves.toMatchObject({
+      claimed: true,
+      delivery: { status: "succeeded" },
+    });
+    expect(sendEmail).toHaveBeenCalledOnce();
+  });
 });

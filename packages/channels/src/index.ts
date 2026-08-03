@@ -104,7 +104,10 @@ type DeliveryRow = {
 };
 
 const emailConfig = z
-  .object({ displayName: z.string().trim().max(200).optional() })
+  .object({
+    displayName: z.string().trim().max(200).optional(),
+    accountId: idSchema.optional(),
+  })
   .strict();
 const webhookConfig = z
   .object({
@@ -384,6 +387,13 @@ export function createChannelRepository(sql: Sql) {
     workerId: string;
     leaseMs?: number;
     fetch?: typeof globalThis.fetch;
+    sendEmail?: (value: {
+      ownerId: Id<"user">;
+      accountId: Id<"connected-account">;
+      to: string;
+      subject: string;
+      body: string;
+    }) => Promise<void>;
   }): Promise<{ delivery: NotificationDelivery | null; claimed: boolean }> {
     const claimed = await claimNext(input.workerId, input.leaseMs);
     if (claimed === null) return { delivery: null, claimed: false };
@@ -392,25 +402,50 @@ export function createChannelRepository(sql: Sql) {
     let error: string | undefined;
     try {
       if (request === undefined) throw new Error("CHANNEL_FETCH_UNAVAILABLE");
-      const [channel] = await sql<Pick<ChannelRow, "kind" | "address">[]>`
-        select kind, address from notification_channels
+      const [channel] = await sql<
+        Pick<ChannelRow, "kind" | "address" | "config">[]
+      >`
+        select kind, address, config from notification_channels
         where owner_id=${claimed.ownerId} and id=${claimed.channelId} and status='active'
       `;
       if (channel === undefined) throw new Error("CHANNEL_NOT_FOUND");
-      if (channel.kind !== "webhook")
-        throw new Error(`CHANNEL_KIND_UNSUPPORTED:${channel.kind}`);
-      const response = await request(channel.address, {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          eventType: claimed.eventType,
-          payload: claimed.payload,
-        }),
-      });
-      if (!response.ok) throw new Error(`CHANNEL_HTTP_${response.status}`);
+      if (channel.kind === "email") {
+        if (input.sendEmail === undefined)
+          throw new Error("CHANNEL_EMAIL_TRANSPORT_UNAVAILABLE");
+        const accountId = idSchema.safeParse(channel.config["accountId"]);
+        if (!accountId.success)
+          throw new Error("CHANNEL_EMAIL_ACCOUNT_NOT_CONFIGURED");
+        const subject =
+          typeof claimed.payload["subject"] === "string"
+            ? claimed.payload["subject"]
+            : claimed.eventType;
+        const body =
+          typeof claimed.payload["body"] === "string"
+            ? claimed.payload["body"]
+            : JSON.stringify(claimed.payload, null, 2);
+        await input.sendEmail({
+          ownerId: claimed.ownerId,
+          accountId: asId<"connected-account">(accountId.data),
+          to: channel.address,
+          subject,
+          body,
+        });
+      } else {
+        if (channel.kind !== "webhook")
+          throw new Error(`CHANNEL_KIND_UNSUPPORTED:${channel.kind}`);
+        const response = await request(channel.address, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            eventType: claimed.eventType,
+            payload: claimed.payload,
+          }),
+        });
+        if (!response.ok) throw new Error(`CHANNEL_HTTP_${response.status}`);
+      }
       success = true;
     } catch (caught) {
       error =
