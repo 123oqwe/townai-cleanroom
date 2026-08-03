@@ -8,6 +8,8 @@ export const channelKindSchema = z.enum([
   "webhook",
   "telegram",
   "whatsapp",
+  "slack",
+  "imessage",
 ]);
 export const channelStatusSchema = z.enum(["active", "disabled"]);
 export const deliveryStatusSchema = z.enum([

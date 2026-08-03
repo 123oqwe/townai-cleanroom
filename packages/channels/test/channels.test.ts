@@ -33,6 +33,38 @@ afterAll(async () => {
 });
 
 describe("notification channels", () => {
+  it("accepts every verified multi-channel destination kind", async () => {
+    const repository = createChannelRepository(sql);
+    const kinds = [
+      "email",
+      "webhook",
+      "telegram",
+      "whatsapp",
+      "slack",
+      "imessage",
+    ] as const;
+    const channels = [];
+    for (const kind of kinds) {
+      channels.push(
+        await repository.create({
+          ownerId,
+          kind,
+          address: `${kind}:destination`,
+          ...(kind === "webhook"
+            ? { config: { headers: {} } }
+            : kind === "telegram" ||
+                kind === "whatsapp" ||
+                kind === "slack" ||
+                kind === "imessage"
+              ? { config: { chatId: `${kind}-chat` } }
+              : {}),
+        }),
+      );
+    }
+    expect(channels.map(({ kind }) => kind)).toEqual(kinds);
+    expect(channels.every(({ status }) => status === "active")).toBe(true);
+  });
+
   it("keeps channel ownership, idempotent outbox delivery, and completion state", async () => {
     const repository = createChannelRepository(sql);
     const channel = await repository.create({

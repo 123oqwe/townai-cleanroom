@@ -1791,7 +1791,7 @@ export const notificationChannels = pgTable(
     ),
     check(
       "notification_channels_kind_allowed",
-      sql`${table.kind} in ('email','webhook','telegram','whatsapp')`,
+      sql`${table.kind} in ('email','webhook','telegram','whatsapp','slack','imessage')`,
     ),
     check(
       "notification_channels_status_allowed",

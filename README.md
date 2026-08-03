@@ -137,8 +137,8 @@ empty to preserve the database's existing allowlist state.
   the API's explicit error instead of showing a fake connected account.
 - The System Signal surface also exposes notification Channels from
   `/v1/channels` and supports creating channel metadata for email, webhook,
-  Telegram, and WhatsApp. Delivery remains asynchronous and server-owned;
-  saving a channel never claims a message was sent.
+  Telegram, WhatsApp, Slack, and iMessage. Delivery remains asynchronous and
+  server-owned; saving a channel never claims a message was sent.
 - The Run trail opens a read-only Operations audit view backed by
   `/v1/operations/audit`, with outcome filtering and opaque cursor pagination;
   audit records cannot be edited from the UI.
