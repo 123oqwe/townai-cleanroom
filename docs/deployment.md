@@ -265,6 +265,11 @@ state `READY`; desktop and mobile Chromium smoke tests now load without page
 errors, and an unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+The current People relationship-graph UI is deployed as
+`https://town-clear-current-fu7kfoluh-123oqwes-projects.vercel.app`, deployment
+`dpl_H1XN5PmUEAieaBT72UKpUELwuj4w`, state `READY`. Vercel reports no runtime
+errors and an unauthenticated direct `HEAD` request returns `302` to SSO.
+
 The Vercel API entrypoint/build-entrypoint hardening is deployed in
 `dpl_AXVK6TxongC6yFdgkbKM26Le9uJ1`, built from commit `c254980`. Its protected
 direct URL is `https://town-clear-current-ihq3o4nds-123oqwes-projects.vercel.app`,
