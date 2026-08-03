@@ -114,6 +114,9 @@ control using your platform's secure secret-management workflow.
   `/v1/channels` and supports creating channel metadata for email, webhook,
   Telegram, and WhatsApp. Delivery remains asynchronous and server-owned;
   saving a channel never claims a message was sent.
+- Usage & Billing is read from `/v1/billing`; configured workspaces show the
+  plan, credit band, period, and recorded category totals, while an absent
+  billing provider renders the server's `not_configured` state.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

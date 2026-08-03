@@ -176,6 +176,13 @@
             >
               Notification channels <span>→</span>
             </button>
+            <button
+              class="text-button panel-action"
+              id="billing-open"
+              type="button"
+            >
+              Usage &amp; billing <span>→</span>
+            </button>
           </article>
 
           <article class="panel timeline-panel" id="library">
@@ -696,6 +703,28 @@
           </button>
           <p class="dialog-error" id="channel-error" role="alert" hidden></p>
         </div>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <dialog
+      class="billing-dialog"
+      id="billing-dialog"
+      aria-labelledby="billing-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Usage &amp; billing</p>
+        <h2 id="billing-title">Know the shape<br /><em>of your work.</em></h2>
+        <p class="dialog-copy">
+          Usage is server-recorded by category. When billing is not configured,
+          Town says so plainly.
+        </p>
+        <div class="billing-state" id="billing-state" aria-live="polite">
+          <p class="harness-empty">Connect the API to load billing state.</p>
+        </div>
+        <div class="usage-list" id="usage-list" aria-live="polite"></div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>

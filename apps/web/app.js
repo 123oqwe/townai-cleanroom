@@ -793,6 +793,39 @@ async function saveChannel() {
     button.disabled = false;
   }
 }
+function renderBilling(result) {
+  const state = $("#billing-state");
+  const usage = $("#usage-list");
+  if (result.status === "not_configured") {
+    state.innerHTML =
+      '<p class="harness-empty">Billing is not configured for this workspace.</p>';
+    usage.innerHTML = "";
+    return;
+  }
+  const billing = result.billing;
+  state.innerHTML = `<strong>${escapeHtml(billing.planName)}</strong><small>${escapeHtml(billing.creditBand)} · ${billing.isBlocked ? "blocked" : "available"} · period ${escapeHtml(new Date(result.period.start).toLocaleDateString())}–${escapeHtml(new Date(result.period.end).toLocaleDateString())}</small>`;
+  usage.innerHTML = (result.usage || []).length
+    ? result.usage
+        .map(
+          (item) =>
+            `<div class="usage-row"><span>${escapeHtml(item.category)}</span><strong>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</strong></div>`,
+        )
+        .join("")
+    : '<p class="harness-empty">No usage recorded for this period.</p>';
+}
+async function loadBilling() {
+  if (!state.token) {
+    $("#billing-state").innerHTML =
+      '<p class="harness-empty">Connect the API to load billing state.</p>';
+    return;
+  }
+  try {
+    renderBilling(await api("/v1/billing"));
+  } catch (error) {
+    $("#billing-state").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Billing unavailable.")}</p>`;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -955,6 +988,10 @@ $("#channel-add-toggle").addEventListener("click", () => {
   if (!$("#channel-add-form").hidden) $("#channel-address").focus();
 });
 $("#channel-save").addEventListener("click", () => void saveChannel());
+$("#billing-open").addEventListener("click", () => {
+  openDialog($("#billing-dialog"));
+  void loadBilling();
+});
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),
