@@ -989,3 +989,11 @@ The public share HTML representation source state `15c4bf5` is deployed as
 `town-clear-current-123oqwe-123oqwes-projects.vercel.app`. Vercel reported no
 runtime errors; the project-level SSO policy remains enabled for direct UI
 access and no share token or credential is embedded in the static bundle.
+
+The connected-account credential rotation UI source state `132b0a9` is
+deployed as `https://town-clear-current-pzur33iyy-123oqwes-projects.vercel.app`,
+deployment `dpl_9k9JCUJTCtH7r6fxCMhZPnPUYXMf`, state `READY`, aliases
+`town-clear-current-123oqwes-projects.vercel.app` and
+`town-clear-current-123oqwe-123oqwes-projects.vercel.app`. Vercel reported no
+runtime errors; an unauthenticated HEAD request to the alias returned the
+expected `302` SSO redirect.
