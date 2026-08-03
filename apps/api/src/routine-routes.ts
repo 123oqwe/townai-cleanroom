@@ -627,6 +627,7 @@ export function registerRoutineWebhookRoutes(
       payload = { text: raw };
     }
     const delivery = await dependencies.repository.deliverWebhook(
+      asRoutineId(context.req.param("routineId")),
       secret,
       idempotencyKey,
       payload,

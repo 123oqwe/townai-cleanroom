@@ -1120,17 +1120,21 @@ export function createRoutineRepository(sql: Sql) {
       );
   }
   async function deliverWebhook(
+    routineScheduleId: Id<"routine-schedule">,
     secret: string,
     idempotencyKey: string,
     payload: Record<string, unknown>,
   ): Promise<WebhookDelivery | null> {
+    const scheduleId = asId<"routine-schedule">(routineScheduleId);
     const parsedSecret = z.string().startsWith("whsec_").min(20).parse(secret);
     const key = z.string().trim().min(1).max(500).parse(idempotencyKey);
     const body = z.record(z.string(), z.unknown()).parse(payload);
     const hash = createHash("sha256").update(parsedSecret).digest();
     return sql.begin(async (tx) => {
       const [webhook] = await tx<WebhookRow[]>`
-        select * from routine_webhooks where token_hash=${hash} and enabled=true for update
+        select * from routine_webhooks
+        where routine_schedule_id=${scheduleId} and token_hash=${hash} and enabled=true
+        for update
       `;
       if (!webhook) return null;
       const [existing] = await tx<{ run_id: string }[]>`

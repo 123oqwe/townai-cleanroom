@@ -159,10 +159,12 @@ describe("routine routes", () => {
   it("accepts authenticated webhook payloads and preserves idempotency", async () => {
     const repository = {
       deliverWebhook: async (
+        routineId: string,
         secret: string,
         key: string,
         payload: Record<string, unknown>,
       ) => {
+        expect(routineId).toBe(agentId);
         expect(secret).toBe("whsec_test_secret_123456");
         expect(key).toBe("event-1");
         expect(payload).toEqual({ event: "ping" });

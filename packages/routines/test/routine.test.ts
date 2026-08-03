@@ -342,9 +342,14 @@ describe("routine schedules", () => {
       nextRunAt: new Date("2026-08-03T01:00:00Z"),
     });
     const { secret } = await repository.createWebhook(ownerId, schedule.id);
-    const delivery = await repository.deliverWebhook(secret, "event-typed", {
-      event: "ping",
-    });
+    const delivery = await repository.deliverWebhook(
+      schedule.id,
+      secret,
+      "event-typed",
+      {
+        event: "ping",
+      },
+    );
     expect(delivery).not.toBeNull();
     if (delivery === null) throw new Error("expected webhook delivery");
     const [run] = await sql<
@@ -372,7 +377,9 @@ describe("routine schedules", () => {
       nextRunAt: new Date("2026-08-03T02:00:00Z"),
     });
     const { secret } = await repository.createWebhook(ownerId, schedule.id);
-    await repository.deliverWebhook(secret, "claim-once", { value: 1 });
+    await repository.deliverWebhook(schedule.id, secret, "claim-once", {
+      value: 1,
+    });
     const first = await repository.claimQueued(ownerId, "worker-a");
     expect(first).toHaveLength(1);
     expect(first[0]).toMatchObject({
@@ -383,6 +390,32 @@ describe("routine schedules", () => {
     await expect(repository.claimQueued(ownerId, "worker-b")).resolves.toEqual(
       [],
     );
+  });
+
+  it("does not allow a webhook secret to cross routine URLs", async () => {
+    const repository = createRoutineRepository(sql);
+    const first = await repository.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Webhook source",
+      cron: "0 12 * * *",
+      nextRunAt: new Date("2026-08-03T04:00:00Z"),
+    });
+    const second = await repository.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Webhook target",
+      cron: "0 13 * * *",
+      nextRunAt: new Date("2026-08-03T05:00:00Z"),
+    });
+    const { secret } = await repository.createWebhook(ownerId, first.id);
+    await expect(
+      repository.deliverWebhook(second.id, secret, "cross-routine", {
+        value: true,
+      }),
+    ).resolves.toBeNull();
   });
 
   it("replays a terminal run into a new queued run without duplicating the source", async () => {
