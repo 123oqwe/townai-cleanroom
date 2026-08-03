@@ -339,6 +339,13 @@ stored redirect URI, and persists the connected account through the encrypted
 account repository. An unauthenticated curl receives the Vercel SSO `302`
 protection redirect.
 
+Empty external channel credentials are rejected and isolated as retryable
+delivery failures in deployment `dpl_CfpgFCBDzkDqM4iqa2zhfxB5pKiL`, built from
+commit `e2a555b`. Its protected direct URL is
+`https://town-clear-current-dbgcxm1dg-123oqwes-projects.vercel.app`, state
+`READY`; an unauthenticated curl receives the Vercel SSO `302` protection
+redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
