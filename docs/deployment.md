@@ -534,6 +534,14 @@ visibility without rewriting or reordering server data. An unauthenticated
 request receives the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
 
+The enabled tool catalog surface is deployed in
+`dpl_FrTm5RVJo4tfENzoq9Vn2Kihchs4`, built from commit `34cdf21`. Its protected
+direct URL is
+`https://town-clear-current-7736tml0v-123oqwes-projects.vercel.app`, state
+`READY`; the Connected accounts dialog lists the owner-scoped enabled tool
+metadata. The direct URL returns the Vercel SSO `302`, and Vercel reported no
+runtime errors in the verification window.
+
 Subscribed-calendar aggregation is deployed in
 `dpl_8p27apLqpcoiJJhgzMAEMQtCNxhB`, built from commit `dd2bc62`. Its protected
 direct URL is
