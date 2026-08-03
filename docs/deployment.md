@@ -1032,3 +1032,9 @@ Node.js Lambda runtime detected. Vercel reported no runtime errors; the
 protected alias returned the expected `302` SSO redirect. The API route is
 present in this full-source artifact but requires deployment environment
 configuration before an allowlisted login can be exercised remotely.
+
+The capability-readiness source state \`7ee7b6c\` is deployed as
+\`https://town-clear-current-jegy1zkil-123oqwes-projects.vercel.app\`,
+deployment \`dpl_AFtk19biM9afG2HVjjPS4rYgVhGt\`, state \`READY\`, with Node.js
+Lambda runtime detected. Vercel reported no runtime errors; the protected alias
+returned the expected \`302\` SSO redirect.
