@@ -39,7 +39,9 @@ describe("GET /v1/health", () => {
     const response = await createApp({
       identityService: {} as never,
       accountRepository: {} as never,
-      harnessServerFactory: (() => ({ dispatch: async () => new Response() })) as never,
+      harnessServerFactory: (() => ({
+        dispatch: async () => new Response(),
+      })) as never,
       workerEnabled: true,
     }).request("/v1/health/capabilities");
 
