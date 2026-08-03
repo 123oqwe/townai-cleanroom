@@ -285,3 +285,10 @@ representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all
 user-controlled title, body, instructions, and schedule metadata; token
 expiry, revocation, and active-content checks remain in the repositories.
+
+The allowlisted administrative overview is now available at
+`GET /v1/admin/overview`. It returns deployment-database aggregate counters for
+users, connected accounts, sessions, runs, approvals, deliveries, Squares, and
+recent failed audit events, plus explicit readiness flags. It never returns
+credentials, prompts, or provider payloads; this is a clean-room operational
+surface rather than a claim about Town's private admin console.

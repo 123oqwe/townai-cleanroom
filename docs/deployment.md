@@ -1131,3 +1131,9 @@ The admin team detail source state is deployed as
 `dpl_EphwLAPUd1yCXST4Jk5gkuUWUv4a`, state `READY`. The full workspace build
 completed successfully and Vercel reported no runtime errors in the following
 hour. The direct URL remains SSO-gated.
+
+The allowlisted admin platform overview source state is deployed as
+`https://town-clear-k80fryo5k-123oqwes-projects.vercel.app`, deployment
+`dpl_4Fm5baf6PZ19T1RuHqhWiwGhkFz8`, state `READY`. The full workspace build
+completed in 34 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the following hour. The direct URL remains SSO-gated.
