@@ -160,6 +160,12 @@ built from commit `c6fdcbc`. Its protected direct URL is
 `https://town-clear-current-e2f79wif8-123oqwes-projects.vercel.app`, state
 `READY`; the unauthenticated URL check returns the Vercel SSO `302`.
 
+The durable ToolCall lifecycle is deployed in `dpl_2X8F9qVSkXxv3yUUfTUS4v6gEzef`,
+built from commit `9e9f008`. Its protected direct URL is
+`https://town-clear-current-eg68of1pn-123oqwes-projects.vercel.app`, state
+`READY`; error-only build logs contain only the Node engine warning and the
+unauthenticated URL check returns the Vercel SSO `302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
