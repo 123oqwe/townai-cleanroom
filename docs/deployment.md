@@ -1354,3 +1354,8 @@ is included in deployment `dpl_7Xe27cHrxtgWtg499Cc3UhqWi1Vk`,
 The build completed successfully and no runtime errors were reported in the
 selected hour. `WORKSPACE_ROOT` remains unset on Vercel, so the binding is not
 advertised as active in that environment.
+
+The opt-in `town_code_run` Harness binding is included in the same READY
+source state above. `CODE_RUNNER_ENABLED` remains `false` on Vercel, so no code
+execution tool is exposed by the preview; enabling it is a deliberate
+deployment policy choice and still requires Harness approval for every run.
