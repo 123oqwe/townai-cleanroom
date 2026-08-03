@@ -265,6 +265,11 @@ state `READY`; desktop and mobile Chromium smoke tests now load without page
 errors, and an unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+The durable-memory edit/retire UI is deployed as
+`https://town-clear-current-50ulg6fef-123oqwes-projects.vercel.app`, deployment
+`dpl_GttDPGeFWqZkMCDhVSiWPTUqNfV6`, state `READY`. Runtime errors are absent
+and direct unauthenticated access returns `302` to Vercel SSO.
+
 The current People relationship-graph UI is deployed as
 `https://town-clear-current-fu7kfoluh-123oqwes-projects.vercel.app`, deployment
 `dpl_H1XN5PmUEAieaBT72UKpUELwuj4w`, state `READY`. Vercel reports no runtime
