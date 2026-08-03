@@ -134,6 +134,7 @@ describe("agent, thread, and task migration", () => {
       "0039_a2a_consent.sql",
       "0040_runtime_input_response.sql",
       "0041_notification_delivery_replays.sql",
+      "0042_email_to_assistant_runs.sql",
     ]);
   });
 });
