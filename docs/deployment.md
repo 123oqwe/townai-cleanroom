@@ -386,6 +386,14 @@ event type, attempts, result, and sanitized error metadata. Audit write
 failures do not change the committed delivery state. An unauthenticated curl
 receives the Vercel SSO `302` protection redirect.
 
+The unified delivery/audit timeline is deployed in
+`dpl_2mDWP9yn5kyBgt3tc9eWwie85LYg`, built from commit `a018e16`. Its protected
+direct URL is
+`https://town-clear-current-ghe104m1w-123oqwes-projects.vercel.app`, state
+`READY`; `GET /v1/notification-timeline?limit=N` merges owner-scoped delivery
+and audit items by their persisted creation time. An unauthenticated curl
+receives the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
