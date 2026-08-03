@@ -265,6 +265,11 @@ state `READY`; desktop and mobile Chromium smoke tests now load without page
 errors, and an unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+A2A lifecycle controls are deployed as
+`https://town-clear-current-6yv5q8pkr-123oqwes-projects.vercel.app`, deployment
+`dpl_EHxkeJg2Zx31Mct5oCfcadj7Qkby`, state `READY`. Runtime errors are absent
+and direct unauthenticated access returns `302` to Vercel SSO.
+
 Connected Account lifecycle controls are deployed as
 `https://town-clear-current-e73fv9ukt-123oqwes-projects.vercel.app`, deployment
 `dpl_GgDJhHSV4wm8yzKFANEzYYN4wsMX`, state `READY`. Runtime errors are absent
