@@ -1207,3 +1207,10 @@ completed in 31 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The route remains inactive until
 `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are configured; the direct URL
 remains SSO-gated.
+
+The approval-gated `town_voice_speak` Harness binding is deployed as
+`https://town-clear-icfuphlhs-123oqwes-projects.vercel.app`, deployment
+`dpl_YV63FJFNX1hW6LJGmFdBojMkRnhT`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. The binding is exposed only when
+the ElevenLabs credentials are configured; the direct URL remains SSO-gated.
