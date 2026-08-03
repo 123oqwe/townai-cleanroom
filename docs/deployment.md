@@ -377,6 +377,15 @@ metric in deployment `dpl_6XsXjeP9F3ASaWv2ZvM7w2ckaoyp`, built from commit
 failures can drive an alert without being mistaken for active queue depth. An
 unauthenticated curl receives the Vercel SSO `302` protection redirect.
 
+Delivery outcomes are now linked to the operations audit stream in deployment
+`dpl_EPXvtSnFm9Ed5yKAQB3c24Uj7Zbf`, built from commit `520c569`. Its protected
+direct URL is
+`https://town-clear-current-k3rekbie5-123oqwes-projects.vercel.app`, state
+`READY`; each committed delivery outcome records its delivery/channel IDs,
+event type, attempts, result, and sanitized error metadata. Audit write
+failures do not change the committed delivery state. An unauthenticated curl
+receives the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
