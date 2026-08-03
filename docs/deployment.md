@@ -1037,4 +1037,11 @@ The capability-readiness source state `7ee7b6c` is deployed as
 `https://town-clear-current-jegy1zkil-123oqwes-projects.vercel.app`,
 deployment `dpl_AFtk19biM9afG2HVjjPS4rYgVhGt`, state `READY`, with Node.js
 Lambda runtime detected. Vercel reported no runtime errors; the protected alias
-returned the expected \`302\` SSO redirect.
+returned the expected `302` SSO redirect.
+
+The Harness-composer readiness source state `e1b812e` is deployed as
+`https://town-clear-current-j7z7txn05-123oqwes-projects.vercel.app`, deployment
+`dpl_EE36KgDEHWXYhiNNRVTc13bzSAn3`, state `READY`, with Node.js Lambda runtime
+detected. Vercel reported no runtime errors. The deployment keeps the existing
+protected project alias; API behavior still depends on the documented database,
+credential, allowlist, and worker configuration.
