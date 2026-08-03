@@ -826,6 +826,65 @@ async function loadBilling() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Billing unavailable.")}</p>`;
   }
 }
+function renderSuggestions(result) {
+  const target = $("#suggestion-list");
+  const suggestions = result.suggestions || [];
+  if (!suggestions.length) {
+    target.innerHTML =
+      '<p class="harness-empty">Nothing needs your attention right now.</p>';
+    return;
+  }
+  target.innerHTML = suggestions
+    .map(
+      (suggestion) =>
+        `<article class="suggestion-card" data-suggestion-id="${escapeHtml(suggestion.id)}" data-suggestion-revision="${escapeHtml(suggestion.revision)}"><div class="suggestion-copy"><span class="suggestion-kind">${escapeHtml(suggestion.kind)} · ${escapeHtml(suggestion.sourceType)}</span><strong>${escapeHtml(suggestion.title)}</strong><p>${escapeHtml(suggestion.body)}</p><small>${escapeHtml(suggestion.sourceRef)}</small></div><div class="suggestion-actions"><button class="quiet-button suggestion-dismiss" type="button">Dismiss</button><button class="primary-button suggestion-convert" type="button">Make task <span>→</span></button></div></article>`,
+    )
+    .join("");
+}
+async function loadSuggestions() {
+  if (!state.token) {
+    $("#suggestion-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load suggestions.</p>';
+    return;
+  }
+  try {
+    renderSuggestions(await api("/v1/suggestions?status=open&limit=50"));
+  } catch (error) {
+    $("#suggestion-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Suggestions unavailable.")}</p>`;
+  }
+}
+async function transitionSuggestion(card, status) {
+  const id = card.dataset.suggestionId;
+  const revision = Number(card.dataset.suggestionRevision);
+  if (!id || !Number.isInteger(revision)) return;
+  const error = $("#suggestions-error");
+  error.hidden = true;
+  card.querySelectorAll("button").forEach((button) => (button.disabled = true));
+  try {
+    const result = await api(`/v1/suggestions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ expectedRevision: revision, status }),
+    });
+    if (status === "converted") {
+      setConnection(true, "Task created");
+      await refresh();
+      await loadTasks();
+    }
+    card.remove();
+    if (!$("#suggestion-list").querySelector(".suggestion-card"))
+      $("#suggestion-list").innerHTML =
+        '<p class="harness-empty">Nothing needs your attention right now.</p>';
+    return result;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not update suggestion.";
+    error.hidden = false;
+    card
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = false));
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -991,6 +1050,20 @@ $("#channel-save").addEventListener("click", () => void saveChannel());
 $("#billing-open").addEventListener("click", () => {
   openDialog($("#billing-dialog"));
   void loadBilling();
+});
+$("#suggestions-open").addEventListener("click", () => {
+  $("#suggestions-error").hidden = true;
+  openDialog($("#suggestions-dialog"));
+  void loadSuggestions();
+});
+$("#suggestion-list").addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  const card = event.target.closest(".suggestion-card");
+  if (!button || !card) return;
+  void transitionSuggestion(
+    card,
+    button.classList.contains("suggestion-convert") ? "converted" : "dismissed",
+  );
 });
 $("#approval-approve").addEventListener(
   "click",

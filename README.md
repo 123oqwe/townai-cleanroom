@@ -123,6 +123,9 @@ control using your platform's secure secret-management workflow.
 - Usage & Billing is read from `/v1/billing`; configured workspaces show the
   plan, credit band, period, and recorded category totals, while an absent
   billing provider renders the server's `not_configured` state.
+- Need to Know is read from `/v1/suggestions`; the command center shows only
+  server-recorded, provenance-bearing candidates and supports optimistic
+  dismiss or atomic conversion into a real Task.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

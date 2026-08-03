@@ -1436,6 +1436,64 @@ dialog h2 {
   font-size: 11px;
   font-weight: 500;
 }
+.suggestions-dialog {
+  max-width: 600px;
+}
+.suggestion-list {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  margin: 18px 0;
+  overflow: auto;
+}
+.suggestion-card {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.suggestion-copy {
+  display: grid;
+  gap: 5px;
+}
+.suggestion-kind {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.suggestion-copy strong {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+.suggestion-copy p {
+  margin: 0;
+  color: var(--muted-deep);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.suggestion-copy small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+.suggestion-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.suggestion-actions .primary-button,
+.suggestion-actions .quiet-button {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 11px;
+}
 @keyframes rise {
   from {
     opacity: 0;

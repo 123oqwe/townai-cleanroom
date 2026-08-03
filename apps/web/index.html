@@ -183,6 +183,13 @@
             >
               Usage &amp; billing <span>→</span>
             </button>
+            <button
+              class="text-button panel-action"
+              id="suggestions-open"
+              type="button"
+            >
+              Need to know <span>→</span>
+            </button>
           </article>
 
           <article class="panel timeline-panel" id="library">
@@ -725,6 +732,30 @@
           <p class="harness-empty">Connect the API to load billing state.</p>
         </div>
         <div class="usage-list" id="usage-list" aria-live="polite"></div>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <dialog
+      class="suggestions-dialog"
+      id="suggestions-dialog"
+      aria-labelledby="suggestions-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Need to know</p>
+        <h2 id="suggestions-title">
+          A quieter kind<br /><em>of proactive.</em>
+        </h2>
+        <p class="dialog-copy">
+          These are server-recorded candidates with provenance. Nothing is
+          invented in the browser; dismiss or turn one into a real Task.
+        </p>
+        <div class="suggestion-list" id="suggestion-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load suggestions.</p>
+        </div>
+        <p class="dialog-error" id="suggestions-error" role="alert" hidden></p>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>
