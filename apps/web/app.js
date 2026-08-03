@@ -1610,9 +1610,13 @@ function renderChannels(result) {
   target.innerHTML = channels
     .map(
       (channel) =>
-        `<article class="channel-card"><div><strong>${escapeHtml(channel.kind)}</strong><small>${escapeHtml(channel.address)}</small></div><span class="channel-status ${channel.status === "disabled" ? "disabled" : ""}">${escapeHtml(channel.status)}</span></article>`,
+        `<article class="channel-card" data-channel-id="${escapeHtml(channel.id)}"><div><strong>${escapeHtml(channel.kind)}</strong><small>${escapeHtml(channel.address)}</small></div><div class="channel-card-actions"><span class="channel-status ${channel.status === "disabled" ? "disabled" : ""}">${escapeHtml(channel.status)}</span>${channel.status === "active" ? '<button class="quiet-button channel-disable" type="button">Disable</button>' : ""}</div></article>`,
     )
     .join("");
+}
+async function disableChannel(card) {
+  if (!card?.dataset.channelId) return;
+  try { await api(`/v1/channels/${card.dataset.channelId}`, { method: "DELETE" }); await loadChannels(); } catch (cause) { const error = $("#channel-error"); error.textContent = cause instanceof Error ? cause.message : "Could not disable channel."; error.hidden = false; }
 }
 function renderChannelTimeline(result) {
   const target = $("#channel-timeline-list");
@@ -2443,6 +2447,11 @@ $("#channel-add-toggle").addEventListener("click", () => {
   if (!$("#channel-add-form").hidden) $("#channel-address").focus();
 });
 $("#channel-save").addEventListener("click", () => void saveChannel());
+$("#channel-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".channel-disable");
+  const card = event.target.closest(".channel-card");
+  if (button && card) void disableChannel(card);
+});
 $("#channel-kind").addEventListener("change", updateChannelConfigFields);
 updateChannelConfigFields();
 $("#billing-open").addEventListener("click", () => {

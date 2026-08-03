@@ -91,3 +91,8 @@ Square policy management is now editable in the inspector: the UI loads the
 server policy revision, exposes the real `read_only`, `approval_required`, and
 `autonomous` modes plus newline-separated allowed domains/tools, and PATCHes
 with the expected revision. Stale policy writes remain server-rejected.
+
+Notification channels now expose the existing owner-scoped disable action in
+the Web surface. Active channel cards can be disabled through
+`DELETE /v1/channels/:channelId`, then reload server truth; no provider
+credentials or delivery result is fabricated.

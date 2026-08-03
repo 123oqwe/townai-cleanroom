@@ -1934,6 +1934,7 @@ dialog h2 {
   border-radius: 10px;
   background: var(--surface);
 }
+.channel-card-actions { display: flex; align-items: center; gap: .6rem; }
 .channel-card strong {
   display: block;
   font-size: 12px;
