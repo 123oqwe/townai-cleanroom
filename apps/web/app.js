@@ -885,6 +885,61 @@ async function transitionSuggestion(card, status) {
       .forEach((button) => (button.disabled = false));
   }
 }
+function renderSquares(result) {
+  const target = $("#square-list");
+  const squares = result.squares || [];
+  if (!squares.length) {
+    target.innerHTML = '<p class="harness-empty">No active Squares yet.</p>';
+    return;
+  }
+  target.innerHTML = squares
+    .map(
+      (square) =>
+        `<article class="square-card"><div><strong>${escapeHtml(square.name)}</strong><p>${escapeHtml(square.description || "No description")}</p><small>${escapeHtml(square.slug)} · ${escapeHtml(square.membership.role)} · ${escapeHtml(square.membership.status)}</small></div><span class="square-status">${escapeHtml(square.status)}</span></article>`,
+    )
+    .join("");
+}
+async function loadSquares() {
+  if (!state.token) {
+    $("#square-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load Squares.</p>';
+    return;
+  }
+  try {
+    renderSquares(await api("/v1/squares"));
+  } catch (error) {
+    $("#square-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Squares unavailable.")}</p>`;
+  }
+}
+async function saveSquare() {
+  const name = $("#square-name").value.trim();
+  const slug = $("#square-slug").value.trim();
+  const error = $("#square-error");
+  if (!name || !slug || !state.token) return;
+  error.hidden = true;
+  const button = $("#square-save");
+  button.disabled = true;
+  try {
+    await apiJson("/v1/squares", {
+      name,
+      slug,
+      description: $("#square-description").value.trim(),
+      settings: {},
+    });
+    $("#square-name").value = "";
+    $("#square-slug").value = "";
+    $("#square-description").value = "";
+    $("#square-add-form").hidden = true;
+    await loadSquares();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not create Square.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -1065,6 +1120,15 @@ $("#suggestion-list").addEventListener("click", (event) => {
     button.classList.contains("suggestion-convert") ? "converted" : "dismissed",
   );
 });
+$("#squares-open").addEventListener("click", () => {
+  openDialog($("#squares-dialog"));
+  void loadSquares();
+});
+$("#square-add-toggle").addEventListener("click", () => {
+  $("#square-add-form").hidden = !$("#square-add-form").hidden;
+  if (!$("#square-add-form").hidden) $("#square-name").focus();
+});
+$("#square-save").addEventListener("click", () => void saveSquare());
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),

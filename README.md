@@ -126,6 +126,9 @@ control using your platform's secure secret-management workflow.
 - Need to Know is read from `/v1/suggestions`; the command center shows only
   server-recorded, provenance-bearing candidates and supports optimistic
   dismiss or atomic conversion into a real Task.
+- Squares is read from `/v1/squares`; the command center shows explicit
+  memberships and can create an owner-controlled workspace without granting
+  implicit access or bypassing its policy boundary.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

@@ -190,6 +190,13 @@
             >
               Need to know <span>→</span>
             </button>
+            <button
+              class="text-button panel-action"
+              id="squares-open"
+              type="button"
+            >
+              Squares <span>→</span>
+            </button>
           </article>
 
           <article class="panel timeline-panel" id="library">
@@ -756,6 +763,66 @@
           <p class="harness-empty">Connect the API to load suggestions.</p>
         </div>
         <p class="dialog-error" id="suggestions-error" role="alert" hidden></p>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <dialog
+      class="squares-dialog"
+      id="squares-dialog"
+      aria-labelledby="squares-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Shared workspaces</p>
+        <h2 id="squares-title">
+          Keep the team<br /><em>inside the boundary.</em>
+        </h2>
+        <p class="dialog-copy">
+          A Square has an explicit owner, membership, and tool policy. This view
+          never grants access just by displaying a workspace.
+        </p>
+        <div class="square-list" id="square-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load Squares.</p>
+        </div>
+        <button
+          class="text-button square-add-toggle"
+          id="square-add-toggle"
+          type="button"
+        >
+          Create a Square <span>＋</span>
+        </button>
+        <div class="square-add-form" id="square-add-form" hidden>
+          <label for="square-name">Name</label>
+          <input
+            id="square-name"
+            maxlength="200"
+            placeholder="A calm project room"
+          />
+          <label for="square-slug">Slug</label>
+          <input
+            id="square-slug"
+            maxlength="64"
+            placeholder="project-room"
+            pattern="[a-z0-9][a-z0-9-]{1,62}"
+          />
+          <label for="square-description">Description</label>
+          <textarea
+            id="square-description"
+            maxlength="2000"
+            rows="2"
+            placeholder="What belongs here?"
+          ></textarea>
+          <button
+            class="primary-button full-button"
+            id="square-save"
+            type="button"
+          >
+            Create Square <span>→</span>
+          </button>
+          <p class="dialog-error" id="square-error" role="alert" hidden></p>
+        </div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>
