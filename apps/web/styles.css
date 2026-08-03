@@ -1479,6 +1479,8 @@ dialog h2 {
   border-radius: 10px;
   background: var(--surface);
 }
+.task-edit-form { display: grid; gap: 6px; margin-top: .6rem; }
+.task-edit-form input, .task-edit-form textarea, .task-edit-form select { width: 100%; }
 .task-card strong {
   font-size: 12px;
 }

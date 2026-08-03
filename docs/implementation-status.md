@@ -144,3 +144,8 @@ Wiki pages now support creation and inline editing in Library. Creation uses
 the real `profile`/`goal`/`project`/`page` kind contract and the protected
 `POST /v1/wiki`; edits fetch the authoritative document and use
 revision-aware `PUT /v1/wiki/:documentId`, preserving server-side citations.
+
+Task cards now support inline title/description/status edits through the
+owner-scoped revision-aware `PATCH /v1/tasks/:taskId` route. The UI fetches the
+authoritative task, preserves its scheduled time, and reloads the open-task
+view after a successful update.

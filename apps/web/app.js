@@ -990,9 +990,17 @@ function renderTasks(result) {
     .filter((task) => task.status !== "deleted")
     .map(
       (task) =>
-        `<article class="task-card"><strong>${escapeHtml(task.title)}</strong><p>${escapeHtml(task.description || "No description")}</p><small>${escapeHtml(task.status)} · ${task.unread ? "unread" : "read"}</small></article>`,
+        `<article class="task-card" data-task-id="${escapeHtml(task.id)}"><strong>${escapeHtml(task.title)}</strong><p>${escapeHtml(task.description || "No description")}</p><small>${escapeHtml(task.status)} · ${task.unread ? "unread" : "read"}</small><button class="quiet-button task-edit" type="button">Edit</button></article>`,
     )
     .join("");
+}
+async function editTask(card) {
+  if (!card || card.querySelector(".task-edit-form")) return;
+  try { const task = await api(`/v1/tasks/${card.dataset.taskId}`); card._task = task; const form = document.createElement("div"); form.className = "task-edit-form"; form.innerHTML = `<input class="task-edit-title" maxlength="500" value="${escapeHtml(task.title)}"/><textarea class="task-edit-description" rows="3" maxlength="20000">${escapeHtml(task.description || "")}</textarea><select class="task-edit-status"><option value="open">Open</option><option value="completed">Completed</option></select><button class="quiet-button task-edit-save" type="button">Save</button>`; form.querySelector(".task-edit-status").value = task.status; card.append(form); } catch (cause) { const error = document.createElement("small"); error.textContent = cause instanceof Error ? cause.message : "Could not load task."; card.append(error); }
+}
+async function saveTaskEdit(card) {
+  const task = card?._task; if (!task) return;
+  await api(`/v1/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: task.currentRevision, title: card.querySelector(".task-edit-title").value.trim(), description: card.querySelector(".task-edit-description").value, status: card.querySelector(".task-edit-status").value, scheduledFor: task.scheduledFor || null }) }); await loadTasks();
 }
 async function loadTasks() {
   if (!state.token) {
@@ -2512,6 +2520,7 @@ $("#task-add-toggle").addEventListener("click", () => {
   if (!$("#task-add-form").hidden) $("#task-title").focus();
 });
 $("#task-save").addEventListener("click", () => void saveTask());
+$("#task-list").addEventListener("click", (event) => { const card = event.target.closest(".task-card"); if (!card) return; if (event.target.closest(".task-edit")) void editTask(card); if (event.target.closest(".task-edit-save")) void saveTaskEdit(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit task."; error.hidden = false; }); });
 $("#routines-open").addEventListener("click", () => {
   selectedRoutineId = null;
   $("#routine-trigger").hidden = true;
