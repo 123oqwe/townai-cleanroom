@@ -489,6 +489,15 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+The A2A consent controls are wired into the protected web dialog in
+`dpl_59TcFZWSoPwEj97rAtba5Z8j1325`, built from commit `eff07d7`. Its direct URL
+is
+`https://town-clear-current-ptsn1e1hb-123oqwes-projects.vercel.app`, state
+`READY`; the UI grants only the displayed capability, exposes the persisted
+consent scope, and allows the recipient to revoke granted consent. An
+unauthenticated request returns the Vercel SSO `302`; Vercel reported no
+runtime errors in the verification window.
+
 The scoped A2A consent handshake is deployed in
 `dpl_E4uGsueSSuanjDjqDWPC2MHYbHng`, built from commit `b8d6f13`. Its protected
 direct URL is
