@@ -2223,7 +2223,7 @@ function renderRuntimeInputs(result) {
   target.innerHTML = runs
     .map(
       ({ sessionId, run }) =>
-        `<article class="input-inbox-card" data-session-id="${escapeHtml(sessionId)}" data-run-id="${escapeHtml(run.id)}"><strong>${escapeHtml(run.waitReason || "The Harness needs input.")}</strong><textarea class="input-inbox-response" rows="2" maxlength="50000" placeholder="Continue this run…"></textarea><button class="primary-button runtime-input-send" type="button">Continue <span>→</span></button></article>`,
+        `<article class="input-inbox-card" data-session-id="${escapeHtml(sessionId)}" data-run-id="${escapeHtml(run.id)}"><strong>${escapeHtml(run.waitReason || "The Harness needs input.")}</strong><textarea class="input-inbox-response" rows="2" maxlength="50000" placeholder="Continue this run…"></textarea><div class="runtime-input-actions"><button class="primary-button runtime-input-send" type="button">Continue <span>→</span></button><button class="quiet-button runtime-input-cancel" type="button">Cancel run</button></div></article>`,
     )
     .join("");
 }
@@ -2257,6 +2257,25 @@ async function answerRuntimeInput(card) {
     card.insertAdjacentHTML(
       "beforeend",
       `<p class="dialog-error">${escapeHtml(error instanceof Error ? error.message : "Could not continue run.")}</p>`,
+    );
+    card
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = false));
+  }
+}
+async function cancelRuntimeInput(card) {
+  const sessionId = card.dataset.sessionId;
+  const runId = card.dataset.runId;
+  if (!sessionId || !runId) return;
+  card.querySelectorAll("button").forEach((button) => (button.disabled = true));
+  try {
+    await apiJson(`/v1/sessions/${sessionId}/runs/${runId}/cancel`, {});
+    await loadRuntimeInputs();
+    await refresh();
+  } catch (error) {
+    card.insertAdjacentHTML(
+      "beforeend",
+      `<p class="dialog-error">${escapeHtml(error instanceof Error ? error.message : "Could not cancel run.")}</p>`,
     );
     card
       .querySelectorAll("button")
@@ -3476,9 +3495,14 @@ $("#input-inbox-list").addEventListener("click", (event) => {
   if (button && card) void answerInputRequest(card);
 });
 $("#runtime-input-inbox-list").addEventListener("click", (event) => {
-  const button = event.target.closest(".runtime-input-send");
+  const button = event.target.closest(
+    ".runtime-input-send, .runtime-input-cancel",
+  );
   const card = event.target.closest(".input-inbox-card");
-  if (button && card) void answerRuntimeInput(card);
+  if (button && card)
+    void (button.classList.contains("runtime-input-cancel")
+      ? cancelRuntimeInput(card)
+      : answerRuntimeInput(card));
 });
 $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
 $("#channels-open").addEventListener("click", () => {

@@ -2139,6 +2139,11 @@ dialog h2 {
 .input-inbox-send {
   justify-self: start;
 }
+.runtime-input-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
 .account-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
