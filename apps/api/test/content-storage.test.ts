@@ -37,6 +37,7 @@ describe("file content storage", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "town-content-"));
     temporaryRoots.push(root);
     const storage = createFileContentStorage(root);
+    if (storage.write === undefined) throw new Error("write unavailable");
 
     await storage.write("objects/new.txt", new TextEncoder().encode("new"));
 
@@ -62,6 +63,7 @@ describe("file content storage", () => {
     temporaryRoots.push(root, outside);
     await fs.symlink(outside, path.join(root, "escape"), "dir");
     const storage = createFileContentStorage(root);
+    if (storage.write === undefined) throw new Error("write unavailable");
 
     await expect(
       storage.write("escape/secret.txt", new TextEncoder().encode("secret")),
@@ -75,7 +77,10 @@ describe("file content storage", () => {
 
   it("signs S3-compatible reads and writes without exposing credentials", async () => {
     const requests: Request[] = [];
-    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetcher = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
       requests.push(new Request(input, init));
       const request = requests[requests.length - 1];
       if (request === undefined) throw new Error("request was not captured");
@@ -99,6 +104,7 @@ describe("file content storage", () => {
     await expect(storage.read("objects/report.txt")).resolves.toMatchObject({
       contentType: "text/plain",
     });
+    if (storage.write === undefined) throw new Error("write unavailable");
     await storage.write(
       "objects/report.txt",
       new TextEncoder().encode("new"),
@@ -106,20 +112,18 @@ describe("file content storage", () => {
     );
 
     expect(requests).toHaveLength(2);
-    expect(requests[0].url).toBe(
+    const first = requests[0];
+    const second = requests[1];
+    if (first === undefined || second === undefined)
+      throw new Error("requests were not captured");
+    expect(first.url).toBe(
       "https://objects.example.test/town-content/objects/report.txt",
     );
-    expect(requests[0].headers.get("authorization")).toMatch(
-      /^AWS4-HMAC-SHA256 /,
-    );
-    expect(requests[0].headers.get("x-amz-content-sha256")).toMatch(
-      /^[a-f0-9]{64}$/,
-    );
-    expect(requests[1].method).toBe("PUT");
-    expect(await requests[1].text()).toBe("new");
-    expect(requests[1].headers.get("content-type")).toBe("text/plain");
-    expect(requests[1].headers.get("authorization")).not.toContain(
-      "secret-test",
-    );
+    expect(first.headers.get("authorization")).toMatch(/^AWS4-HMAC-SHA256 /);
+    expect(first.headers.get("x-amz-content-sha256")).toMatch(/^[a-f0-9]{64}$/);
+    expect(second.method).toBe("PUT");
+    expect(await second.text()).toBe("new");
+    expect(second.headers.get("content-type")).toBe("text/plain");
+    expect(second.headers.get("authorization")).not.toContain("secret-test");
   });
 });

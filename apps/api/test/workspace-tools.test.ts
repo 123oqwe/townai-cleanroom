@@ -41,8 +41,10 @@ describe("town workspace harness tool", () => {
     roots.push(root);
     const binding = createTownWorkspaceHarnessBinding(root);
 
+    if (typeof binding.port.requiresApproval !== "function")
+      throw new Error("approval policy unavailable");
     expect(
-      binding.port.requiresApproval?.({
+      binding.port.requiresApproval({
         action: "write",
         path: "a.txt",
         content: "a",
@@ -86,5 +88,46 @@ describe("town workspace harness tool", () => {
     await expect(fs.stat(path.join(outside, "leak.txt"))).rejects.toMatchObject(
       { code: "ENOENT" },
     );
+  });
+
+  it("greps bounded text matches without returning binary files", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "town-workspace-"));
+    roots.push(root);
+    await fs.mkdir(path.join(root, "src"));
+    await fs.writeFile(path.join(root, "src", "one.ts"), "const needle = 1;\n");
+    await fs.writeFile(path.join(root, "src", "two.ts"), "const other = 2;\n");
+    const binding = createTownWorkspaceHarnessBinding(root);
+
+    await expect(
+      binding.port.execute({ action: "grep", path: "src", query: "needle" }),
+    ).resolves.toMatchObject({
+      output: expect.stringContaining("src/one.ts"),
+    });
+  });
+
+  it("copies files only after approval and keeps the destination inside the workspace", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "town-workspace-"));
+    roots.push(root);
+    await fs.writeFile(path.join(root, "source.txt"), "copy me");
+    const binding = createTownWorkspaceHarnessBinding(root);
+
+    if (typeof binding.port.requiresApproval !== "function")
+      throw new Error("approval policy unavailable");
+    expect(
+      binding.port.requiresApproval({
+        action: "copy",
+        source: "source.txt",
+        destination: "copy.txt",
+      }),
+    ).toBe("approval_required");
+    await expect(
+      binding.port.execute(
+        { action: "copy", source: "source.txt", destination: "copy.txt" },
+        { approvalGranted: true },
+      ),
+    ).resolves.toMatchObject({ kind: "result" });
+    await expect(
+      fs.readFile(path.join(root, "copy.txt"), "utf8"),
+    ).resolves.toBe("copy me");
   });
 });

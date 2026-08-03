@@ -33,6 +33,22 @@ const workspaceArguments = z.discriminatedUnion("action", [
       content: z.string().max(MAX_WRITE_BYTES),
     })
     .strict(),
+  z
+    .object({
+      action: z.literal("grep"),
+      path: z.string().trim().max(2_000).default(""),
+      query: z.string().min(1).max(500),
+      caseSensitive: z.boolean().default(true),
+      maxMatches: z.number().int().min(1).max(100).default(50),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("copy"),
+      source: z.string().trim().min(1).max(2_000),
+      destination: z.string().trim().min(1).max(2_000),
+    })
+    .strict(),
 ]);
 
 function validateRelativePath(value: string, allowRoot: boolean): string {
@@ -121,6 +137,61 @@ async function listEntries(
   return output;
 }
 
+async function textFiles(
+  root: string,
+  relative: string,
+  maxFiles: number,
+): Promise<Array<{ path: string; absolute: string }>> {
+  const start = await existingPath(root, relative);
+  const output: Array<{ path: string; absolute: string }> = [];
+  async function visit(directory: string, prefix: string): Promise<void> {
+    if (output.length >= maxFiles) return;
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      if (output.length >= maxFiles) return;
+      const absolute = path.join(directory, entry.name);
+      const display =
+        prefix.length === 0 ? entry.name : `${prefix}/${entry.name}`;
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) await visit(absolute, display);
+      else if (entry.isFile()) output.push({ path: display, absolute });
+    }
+  }
+  const stat = await fs.stat(start);
+  if (stat.isFile()) return [{ path: relative, absolute: start }];
+  if (!stat.isDirectory()) throw new Error("WORKSPACE_NOT_DIRECTORY");
+  await visit(start, relative);
+  return output;
+}
+
+async function grepWorkspace(
+  root: string,
+  relative: string,
+  query: string,
+  caseSensitive: boolean,
+  maxMatches: number,
+): Promise<Array<{ path: string; line: number; text: string }>> {
+  const files = await textFiles(root, relative, 500);
+  const needle = caseSensitive ? query : query.toLocaleLowerCase();
+  const matches: Array<{ path: string; line: number; text: string }> = [];
+  for (const file of files) {
+    const stat = await fs.stat(file.absolute);
+    if (stat.size > MAX_READ_BYTES) continue;
+    const text = await fs.readFile(file.absolute, "utf8");
+    if (text.includes("\u0000")) continue;
+    for (const [index, line] of text.split(/\r?\n/).entries()) {
+      const haystack = caseSensitive ? line : line.toLocaleLowerCase();
+      if (!haystack.includes(needle)) continue;
+      matches.push({
+        path: file.path,
+        line: index + 1,
+        text: line.slice(0, 1_000),
+      });
+      if (matches.length >= maxMatches) return matches;
+    }
+  }
+  return matches;
+}
+
 export function createTownWorkspaceHarnessBinding(
   root: string,
 ): HarnessToolBinding {
@@ -131,12 +202,17 @@ export function createTownWorkspaceHarnessBinding(
     parameters: {
       type: "object",
       properties: {
-        action: { enum: ["list", "read", "write"] },
+        action: { enum: ["list", "read", "write", "grep", "copy"] },
         path: { type: "string", maxLength: 2_000 },
         recursive: { type: "boolean" },
         maxEntries: { type: "integer", minimum: 1, maximum: 500 },
         maxChars: { type: "integer", minimum: 1, maximum: 50_000 },
         content: { type: "string", maxLength: MAX_WRITE_BYTES },
+        query: { type: "string", minLength: 1, maxLength: 500 },
+        caseSensitive: { type: "boolean" },
+        maxMatches: { type: "integer", minimum: 1, maximum: 100 },
+        source: { type: "string", maxLength: 2_000 },
+        destination: { type: "string", maxLength: 2_000 },
       },
       required: ["action"],
       additionalProperties: false,
@@ -147,7 +223,9 @@ export function createTownWorkspaceHarnessBinding(
     decide: (arguments_) => {
       const value = workspaceArguments.safeParse(arguments_);
       if (!value.success) return "deny";
-      return value.data.action === "write" ? "approval_required" : "allow";
+      return value.data.action === "write" || value.data.action === "copy"
+        ? "approval_required"
+        : "allow";
     },
     async execute(arguments_, context) {
       const value = workspaceArguments.parse(arguments_);
@@ -187,8 +265,55 @@ export function createTownWorkspaceHarnessBinding(
           }),
         };
       }
+      if (value.action === "grep") {
+        const relative = validateRelativePath(value.path, true);
+        return {
+          kind: "result",
+          output: JSON.stringify({
+            action: "grep",
+            path: relative,
+            query: value.query,
+            matches: await grepWorkspace(
+              root,
+              relative,
+              value.query,
+              value.caseSensitive,
+              value.maxMatches,
+            ),
+          }),
+        };
+      }
       if (!context?.approvalGranted)
         throw new Error("HARNESS_TOOL_APPROVAL_REQUIRED");
+      if (value.action === "copy") {
+        const sourceRelative = validateRelativePath(value.source, false);
+        const destinationRelative = validateRelativePath(
+          value.destination,
+          false,
+        );
+        const source = await existingPath(root, sourceRelative);
+        const sourceStat = await fs.stat(source);
+        if (!sourceStat.isFile()) throw new Error("WORKSPACE_NOT_FILE");
+        if (sourceStat.size > MAX_READ_BYTES)
+          throw new Error("WORKSPACE_FILE_TOO_LARGE");
+        const destination = await writablePath(root, destinationRelative);
+        const temporary = `${destination}.town-tmp-${randomUUID()}`;
+        try {
+          await fs.copyFile(source, temporary);
+          await fs.rename(temporary, destination);
+        } finally {
+          await fs.rm(temporary, { force: true });
+        }
+        return {
+          kind: "result",
+          output: JSON.stringify({
+            action: "copy",
+            source: sourceRelative,
+            destination: destinationRelative,
+            bytes: sourceStat.size,
+          }),
+        };
+      }
       const relative = validateRelativePath(value.path, false);
       const target = await writablePath(root, relative);
       const temporary = `${target}.town-tmp-${randomUUID()}`;
