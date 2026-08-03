@@ -641,3 +641,20 @@ direct URL is
 `https://town-clear-current-g75qxkd1j-123oqwes-projects.vercel.app`, state
 `READY`; the Connected accounts dialog can evaluate policy inputs without
 executing a tool. Vercel reported no runtime errors in the verification window.
+
+The centralized approval inbox API is deployed in
+`dpl_2gXX4Fi3XoLt9RwBfLKP6XsXkscQ`, built from commit `35d1f89`. Its protected
+direct URL is
+`https://town-clear-current-qd9csty2h-123oqwes-projects.vercel.app`, state
+`READY`; `/v1/approvals` is owner-scoped and returns active pending approvals,
+while the existing decision route preserves revision-checked resolution. The
+direct `/v1/health` request returns the Vercel SSO `302`; Vercel reported no
+runtime errors in the verification window.
+
+The approval inbox web surface is deployed in
+`dpl_DaD1FT6kW2ZvZATYJsj7ayXh7zno`, built from commit `35d1f89`. Its protected
+direct URL is
+`https://town-clear-current-r4e3wd8tu-123oqwes-projects.vercel.app`, state
+`READY`; the Connected accounts dialog can list and approve or reject pending
+requests. The direct URL returns the Vercel SSO `302`; Vercel reported no
+runtime errors in the verification window.
