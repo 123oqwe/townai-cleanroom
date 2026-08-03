@@ -1359,3 +1359,10 @@ The opt-in `town_code_run` Harness binding is included in the same READY
 source state above. `CODE_RUNNER_ENABLED` remains `false` on Vercel, so no code
 execution tool is exposed by the preview; enabling it is a deliberate
 deployment policy choice and still requires Harness approval for every run.
+
+The code-runner source is included in deployment
+`dpl_9m9KuxR4ne1VoEHvkgVHvSukNeqD`,
+`https://town-clear-4favxfe59-123oqwes-projects.vercel.app`, state `READY`.
+The build completed successfully and no runtime errors were reported in the
+selected hour. `CODE_RUNNER_ENABLED=false` remains the deployed setting, so
+the preview exposes no code execution capability by default.
