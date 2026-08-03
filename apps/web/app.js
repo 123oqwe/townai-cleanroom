@@ -22,6 +22,8 @@ const state = {
   scheduleCalendarErrors: [],
   scheduleCalendarVisibility: new Map(),
   selectedSquareId: null,
+  people: [],
+  selectedPersonId: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -603,6 +605,7 @@ async function searchLibrary() {
 function renderPeople(result) {
   const target = $("#people-list");
   const people = result.people || [];
+  state.people = people;
   if (!people.length) {
     target.innerHTML =
       '<p class="harness-empty">No people saved yet. Add the first one when you are ready.</p>';
@@ -622,9 +625,35 @@ function renderPeople(result) {
         person.organization ||
         person.role ||
         "No details yet";
-      return `<article class="person-card"><span class="person-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(person.displayName)}</strong><small>${escapeHtml(detail)}</small></div><span class="person-category">${escapeHtml(person.category)}</span></article>`;
+      return `<article class="person-card" data-person-id="${escapeHtml(person.id)}"><span class="person-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(person.displayName)}</strong><small>${escapeHtml(detail)}</small></div><span class="person-category">${escapeHtml(person.category)}</span><button class="quiet-button person-relationships" type="button">Relationships</button></article>`;
     })
     .join("");
+}
+async function loadRelationships(personId) {
+  state.selectedPersonId = personId;
+  const section = $("#people-relationships");
+  section.hidden = false;
+  const person = state.people.find((item) => item.id === personId);
+  $("#relationship-list").innerHTML = '<p class="harness-empty">Reading relationships…</p>';
+  const related = state.people.filter((item) => item.status === "active" && item.id !== personId);
+  $("#relationship-related-person").innerHTML = related.length ? related.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.displayName)}</option>`).join("") : '<option value="">Add another person first</option>';
+  try {
+    const result = await api(`/v1/people/${personId}/relationships`);
+    const relationships = result.relationships || [];
+    $("#relationship-list").innerHTML = relationships.length ? relationships.map((relationship) => { const target = state.people.find((item) => item.id === relationship.relatedPersonId); return `<div class="relationship-row"><div><strong>${escapeHtml(target?.displayName || relationship.relatedPersonId.slice(0, 8))}</strong><small>${escapeHtml(relationship.relationshipType)}${relationship.notes ? ` · ${escapeHtml(relationship.notes)}` : ""}</small></div><button class="quiet-button relationship-retire" data-relationship-id="${escapeHtml(relationship.id)}" data-revision="${relationship.revision}" type="button">Archive</button></div>`; }).join("") : '<p class="harness-empty">No relationships recorded yet.</p>';
+    if (person) $("#relationship-type").placeholder = `How is ${person.displayName} connected?`;
+  } catch (cause) { $("#relationship-list").innerHTML = `<p class="harness-empty">${escapeHtml(cause instanceof Error ? cause.message : "Relationships unavailable.")}</p>`; }
+}
+async function saveRelationship() {
+  const error = $("#relationship-error");
+  const relatedPersonId = $("#relationship-related-person").value;
+  const relationshipType = $("#relationship-type").value.trim();
+  if (!state.selectedPersonId || !relatedPersonId || !relationshipType) { error.textContent = "Choose a person and relationship type."; error.hidden = false; return; }
+  try { await apiJson(`/v1/people/${state.selectedPersonId}/relationships`, { relatedPersonId, relationshipType, notes: $("#relationship-notes").value }); $("#relationship-type").value = ""; $("#relationship-notes").value = ""; error.hidden = true; await loadRelationships(state.selectedPersonId); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not add relationship."; error.hidden = false; }
+}
+async function retireRelationship(button) {
+  if (!button || !state.selectedPersonId) return;
+  try { await api(`/v1/people/relationships/${button.dataset.relationshipId}?expectedRevision=${button.dataset.revision}`, { method: "DELETE" }); await loadRelationships(state.selectedPersonId); } catch (cause) { const error = $("#relationship-error"); error.textContent = cause instanceof Error ? cause.message : "Could not archive relationship."; error.hidden = false; }
 }
 async function loadPeople() {
   if (!state.token) {
@@ -2268,6 +2297,16 @@ $("#people-add-toggle").addEventListener("click", () => {
   if (!$("#people-add-form").hidden) $("#person-name").focus();
 });
 $("#person-save").addEventListener("click", () => void savePerson());
+$("#people-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".person-relationships");
+  const card = event.target.closest(".person-card");
+  if (button && card) void loadRelationships(card.dataset.personId);
+});
+$("#relationship-save").addEventListener("click", () => void saveRelationship());
+$("#relationship-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".relationship-retire");
+  if (button) void retireRelationship(button);
+});
 document.querySelector(".profile-chip").addEventListener("click", (event) => {
   event.preventDefault();
   $("#profile-error").hidden = true;

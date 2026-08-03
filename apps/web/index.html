@@ -549,6 +549,20 @@
         <div class="people-list" id="people-list" aria-live="polite">
           <p class="harness-empty">Connect the API to load people.</p>
         </div>
+        <section class="people-relationships" id="people-relationships" hidden>
+          <p class="eyebrow">Relationship graph</p>
+          <div id="relationship-list"><p class="harness-empty">Select a person to inspect relationships.</p></div>
+          <div class="relationship-add-form">
+            <label for="relationship-related-person">Connect to</label>
+            <select id="relationship-related-person"></select>
+            <label for="relationship-type">Relationship</label>
+            <input id="relationship-type" maxlength="100" placeholder="friend, manager, client" />
+            <label for="relationship-notes">Notes <span class="form-hint">optional</span></label>
+            <textarea id="relationship-notes" rows="2" maxlength="20000"></textarea>
+            <button class="quiet-button" id="relationship-save" type="button">Add relationship</button>
+            <p class="dialog-error" id="relationship-error" role="alert" hidden></p>
+          </div>
+        </section>
         <button
           class="text-button people-add-toggle"
           id="people-add-toggle"

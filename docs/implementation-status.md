@@ -75,3 +75,9 @@ Square membership management is now surfaced alongside the inspector: admins
 can add/reactivate a user by UUID and update the existing member role/status
 through the protected Square routes. The UI renders the server's real
 membership enum and leaves authorization to the repository policy.
+
+People relationship graph controls are now surfaced in the People dialog:
+the client selects persisted people, reads owner-scoped relationship edges,
+creates typed edges with notes, and archives them using the server-provided
+optimistic revision. No relationship or contact is fabricated. `pnpm check:web`
+and `git diff --check` pass.
