@@ -120,6 +120,33 @@ export function registerRoutineRoutes(
     });
   });
 
+  app.get("/v1/routines/:routineId/versions", async (context) => {
+    if (dependencies.agents === undefined)
+      return context.json({ error: "AGENTS_NOT_CONFIGURED" }, 503);
+    const ownerId = context.get("identity").user.id;
+    const routine = await dependencies.repository.get(
+      ownerId,
+      asId<"routine-schedule">(
+        z.uuidv7().parse(context.req.param("routineId")),
+      ),
+    );
+    const query = z
+      .object({
+        cursor: z.string().min(1).optional(),
+        limit: z.coerce.number().int().min(1).max(50).default(20),
+      })
+      .strict()
+      .parse(context.req.query());
+    return context.json(
+      await dependencies.agents.listVersions({
+        ownerId,
+        agentId: routine.agentId,
+        kind: "routine",
+        ...query,
+      }),
+    );
+  });
+
   app.get("/v1/routine-templates", (context) =>
     context.json({ templates: listRoutineTemplates() }),
   );

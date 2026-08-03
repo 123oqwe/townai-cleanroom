@@ -1773,6 +1773,10 @@ dialog h2 {
   font-size: 0.68rem;
 }
 
+.routine-version-list {
+  margin-bottom: 0.75rem;
+}
+
 .tool-catalog {
   margin: 1rem 0;
 }

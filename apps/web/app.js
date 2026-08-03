@@ -926,10 +926,32 @@ function renderRoutines(result) {
       $("#routine-history").hidden = false;
       void loadRoutineWebhook();
       void loadRoutineRuns();
+      void loadRoutineVersions();
       renderRoutines(result);
       $("#routine-input").focus();
     });
   });
+}
+async function loadRoutineVersions() {
+  if (!selectedRoutineId || !state.token) return;
+  const target = $("#routine-version-list");
+  target.innerHTML = '<p class="harness-empty">Reading immutable versions…</p>';
+  try {
+    const versions =
+      (await api(`/v1/routines/${selectedRoutineId}/versions?limit=20`))
+        .items || [];
+    target.innerHTML = versions.length
+      ? versions
+          .map(
+            (version) =>
+              `<article class="agent-history-item"><div><strong>Version ${escapeHtml(String(version.version))}</strong><small>${escapeHtml(version.createdBy)} · ${escapeHtml(new Date(version.createdAt).toLocaleString())}</small></div><span>${escapeHtml(version.snapshot.defaultApprovalMode)}</span></article>`,
+          )
+          .join("")
+      : '<p class="harness-empty">No versions returned.</p>';
+  } catch {
+    target.innerHTML =
+      '<p class="harness-empty">Routine versions unavailable.</p>';
+  }
 }
 function renderRoutineRuns(items) {
   const target = $("#routine-run-list");
