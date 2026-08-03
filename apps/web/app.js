@@ -2129,11 +2129,15 @@ async function inspectInboxApproval(card) {
     return;
   }
   try {
-    const result = await api(`/v1/tool-calls/${card.dataset.toolCallId}`);
-    const call = result.toolCall;
+    const [callResult, approvalResult] = await Promise.all([
+      api(`/v1/tool-calls/${card.dataset.toolCallId}`),
+      api(`/v1/approvals/${card.dataset.approvalId}`),
+    ]);
+    const call = callResult.toolCall;
+    const approval = approvalResult.approval;
     card.insertAdjacentHTML(
       "beforeend",
-      `<pre class="approval-inbox-detail">${escapeHtml(JSON.stringify({ name: call.name, status: call.status, sideEffect: call.sideEffect, dataSensitivity: call.dataSensitivity, accountBinding: call.accountBinding, arguments: call.arguments }, null, 2))}</pre>`,
+      `<pre class="approval-inbox-detail">${escapeHtml(JSON.stringify({ approval: { id: approval.id, status: approval.status, revision: approval.revision, expiresAt: approval.expiresAt }, toolCall: { name: call.name, status: call.status, sideEffect: call.sideEffect, dataSensitivity: call.dataSensitivity, accountBinding: call.accountBinding, arguments: call.arguments } }, null, 2))}</pre>`,
     );
   } catch (cause) {
     card.insertAdjacentHTML(
