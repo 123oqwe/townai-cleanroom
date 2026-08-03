@@ -503,6 +503,10 @@
           </select>
           <label for="content-title">Title</label>
           <input id="content-title" maxlength="500" />
+          <label for="content-file"
+            >File <span class="form-hint">optional · max 50 MiB</span></label
+          >
+          <input id="content-file" type="file" />
           <label for="content-body"
             >Body <span class="form-hint">optional</span></label
           >
@@ -531,6 +535,9 @@
             Save content <span>→</span>
           </button>
           <p class="dialog-error" id="content-error" role="alert" hidden></p>
+          <p class="form-hint" id="content-upload-note" hidden>
+            The file is uploaded through the authenticated Content blob route.
+          </p>
         </div>
         <div class="library-divider"></div>
         <div class="library-section-heading">

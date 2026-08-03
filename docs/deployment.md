@@ -1366,3 +1366,8 @@ The code-runner source is included in deployment
 The build completed successfully and no runtime errors were reported in the
 selected hour. `CODE_RUNNER_ENABLED=false` remains the deployed setting, so
 the preview exposes no code execution capability by default.
+
+The Library file-upload UI is included in the current READY source state. It
+uses the authenticated Content blob route and therefore remains visibly
+unavailable for durable upload until a storage backend is configured; no
+client-side fake upload state is introduced.

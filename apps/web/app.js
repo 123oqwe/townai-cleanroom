@@ -87,6 +87,23 @@ async function api(path, options = {}) {
 async function apiJson(path, body, headers = {}) {
   return api(path, { method: "POST", body: JSON.stringify(body), headers });
 }
+async function apiUpload(path, file) {
+  const response = await fetch(`${state.base.replace(/\/$/, "")}${path}`, {
+    method: "PUT",
+    body: file,
+    headers: {
+      Authorization: `Bearer ${state.token}`,
+      Accept: "application/json",
+      "Content-Type": file.type || "application/octet-stream",
+    },
+  });
+  if (!response.ok) {
+    const error = new Error(`API returned ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
 function renderMetrics(summary) {
   const entries = [
     ["Active work", summary.activeSessions],
@@ -715,25 +732,39 @@ async function loadContentHistory(card) {
 }
 async function saveContent() {
   const title = $("#content-title").value.trim();
+  const file = $("#content-file").files?.[0] || null;
   const error = $("#content-error");
   if (!title || !state.token) {
     error.textContent = "Title is required.";
     error.hidden = false;
     return;
   }
+  if (file && file.size > 50 * 1024 * 1024) {
+    error.textContent = "Files must be 50 MiB or smaller.";
+    error.hidden = false;
+    return;
+  }
   try {
-    await apiJson("/v1/content", {
+    const created = await apiJson("/v1/content", {
       kind: $("#content-kind").value,
       title,
-      body: $("#content-body").value || null,
-      mimeType: $("#content-mime-type").value.trim() || null,
+      body: file ? "" : $("#content-body").value || null,
+      mimeType: file
+        ? file.type || $("#content-mime-type").value.trim() || null
+        : $("#content-mime-type").value.trim() || null,
       storageKey: $("#content-storage-key").value.trim() || null,
       metadata: {},
     });
+    if (file) {
+      $("#content-upload-note").hidden = false;
+      await apiUpload(`/v1/content/${created.content.id}/blob`, file);
+    }
     $("#content-title").value = "";
+    $("#content-file").value = "";
     $("#content-body").value = "";
     $("#content-mime-type").value = "";
     $("#content-storage-key").value = "";
+    $("#content-upload-note").hidden = true;
     $("#content-add-form").hidden = true;
     error.hidden = true;
     await loadLibrary();
@@ -3623,6 +3654,13 @@ $("#library-content-list").addEventListener("click", (event) => {
 $("#content-add-toggle").addEventListener("click", () => {
   $("#content-add-form").hidden = !$("#content-add-form").hidden;
   if (!$("#content-add-form").hidden) $("#content-title").focus();
+});
+$("#content-file").addEventListener("change", () => {
+  const file = $("#content-file").files?.[0];
+  if (file && !$("#content-title").value.trim())
+    $("#content-title").value = file.name;
+  if (file && file.type && !$("#content-mime-type").value.trim())
+    $("#content-mime-type").value = file.type;
 });
 $("#content-save").addEventListener("click", () => void saveContent());
 $("#collection-add-toggle").addEventListener("click", () => {
