@@ -643,7 +643,7 @@ function renderLibraryContent(result, append = false) {
     .slice(0, 20)
     .map(
       (item) =>
-        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><div class="content-actions"><button class="quiet-button content-edit-button" type="button">Edit</button><button class="quiet-button content-history-button" type="button">History</button><button class="quiet-button content-share-button" type="button">Share</button><button class="quiet-button content-archive-button" type="button">Archive</button></div></article>`,
+        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><div class="content-actions"><button class="quiet-button content-open-button" type="button">Open</button><button class="quiet-button content-edit-button" type="button">Edit</button><button class="quiet-button content-history-button" type="button">History</button><button class="quiet-button content-share-button" type="button">Share</button><button class="quiet-button content-archive-button" type="button">Archive</button></div></article>`,
     )
     .join("");
   if (append) target.insertAdjacentHTML("beforeend", html);
@@ -808,6 +808,42 @@ async function createContentShare(contentId, card) {
     $("#library-content-list").insertAdjacentHTML(
       "afterbegin",
       `<p class="harness-empty content-share-error">${escapeHtml(cause instanceof Error ? cause.message : "Could not create share link.")}</p>`,
+    );
+  } finally {
+    button.disabled = false;
+  }
+}
+async function openContentBlob(contentId, card) {
+  if (!contentId || !state.token) return;
+  const button = card.querySelector(".content-open-button");
+  const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+  if (!popup) {
+    card.insertAdjacentHTML(
+      "beforeend",
+      '<p class="harness-empty content-open-error">Allow pop-ups to open this file.</p>',
+    );
+    return;
+  }
+  button.disabled = true;
+  try {
+    const response = await fetch(
+      `${state.base.replace(/\/$/, "")}/v1/content/${contentId}/blob`,
+      {
+        headers: {
+          Authorization: `Bearer ${state.token}`,
+          Accept: "*/*",
+        },
+      },
+    );
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    const objectUrl = URL.createObjectURL(await response.blob());
+    popup.location.href = objectUrl;
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  } catch (cause) {
+    popup.close();
+    card.insertAdjacentHTML(
+      "beforeend",
+      `<p class="harness-empty content-open-error">${escapeHtml(cause instanceof Error ? cause.message : "Could not open file.")}</p>`,
     );
   } finally {
     button.disabled = false;
@@ -3632,6 +3668,10 @@ $("#library-content-list").addEventListener("click", (event) => {
   const button = event.target.closest(".content-share-button");
   const card = event.target.closest(".library-content-item");
   if (!card) return;
+  if (event.target.closest(".content-open-button")) {
+    void openContentBlob(card.dataset.contentId, card);
+    return;
+  }
   if (event.target.closest(".content-history-button")) {
     void loadContentHistory(card);
     return;

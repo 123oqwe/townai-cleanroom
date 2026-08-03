@@ -1377,3 +1377,7 @@ The Library upload entry point is deployed in
 `https://town-clear-n99a5gswx-123oqwes-projects.vercel.app`, state `READY`.
 The full build completed successfully and no runtime errors were reported in
 the selected hour.
+
+The authenticated Library blob-open action is included in the current source
+state and remains dependent on a configured storage adapter; no local
+browser-only file URL is presented as server truth.
