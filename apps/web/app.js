@@ -1172,6 +1172,36 @@ async function loadTools() {
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Tools unavailable.")}</p>`;
   }
 }
+function renderMcpServers(result) {
+  const target = $("#mcp-catalog-list");
+  const servers = result.servers || [];
+  $("#mcp-catalog-count").textContent = `${servers.length} configured`;
+  if (!servers.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No MCP servers configured.</p>';
+    return;
+  }
+  target.innerHTML = servers
+    .map(
+      (server) =>
+        `<article class="tool-catalog-card"><div><strong>${escapeHtml(server.name)}</strong><p>${escapeHtml(server.url)}</p></div><small>${escapeHtml(server.transport)} · ${escapeHtml(server.status)} · auth ${server.authRef ? "configured" : "not configured"}</small></article>`,
+    )
+    .join("");
+}
+async function loadMcpServers() {
+  if (!state.token) {
+    $("#mcp-catalog-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load MCP servers.</p>';
+    $("#mcp-catalog-count").textContent = "—";
+    return;
+  }
+  try {
+    renderMcpServers(await api("/v1/mcp-servers"));
+  } catch (error) {
+    $("#mcp-catalog-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "MCP servers unavailable.")}</p>`;
+  }
+}
 function renderApprovals(result) {
   const target = $("#approval-inbox-list");
   const approvals = result.approvals || [];
@@ -2062,6 +2092,7 @@ $("#account-open").addEventListener("click", () => {
   openDialog($("#accounts-dialog"));
   void loadAccounts();
   void loadTools();
+  void loadMcpServers();
   void loadApprovals();
   void loadInputRequests();
   void loadRuntimeInputs();
