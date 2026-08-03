@@ -232,6 +232,11 @@ the source workspace's child Routines.
 An authenticated
 `POST /v1/routines/:routineId/run` creates a real child Task/Session Run and
 returns queued state for the worker; it never reports a fabricated completion.
+Routine trigger definitions are available under
+`/v1/routines/:routineId/triggers` for the verified Manual, Schedule, email,
+calendar, voice, Slack mention, and Webhook trigger kinds. These definitions
+are owner-scoped and revision-checked; declaring a trigger does not claim that
+an external provider is connected or that an event has fired.
 The local/serverless worker tick also claims due schedules and submits them
 through that same Session queue; trigger failures are recorded as failed sync
 runs, and each claimed sync run stores the resulting runtime `runId` for

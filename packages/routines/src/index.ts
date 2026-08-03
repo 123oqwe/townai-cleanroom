@@ -78,6 +78,31 @@ export interface RoutineWebhook {
   createdAt: Date;
   updatedAt: Date;
 }
+export const routineTriggerKindSchema = z.enum([
+  "manual",
+  "schedule",
+  "incoming_email",
+  "outgoing_email",
+  "email_to_assistant",
+  "calendar_start",
+  "calendar_end",
+  "calendar_rsvp",
+  "calendar_changed",
+  "voice_transcribed",
+  "slack_mention",
+  "webhook",
+]);
+export interface RoutineTrigger {
+  id: Id<"routine-trigger">;
+  ownerId: Id<"user">;
+  routineScheduleId: Id<"routine-schedule">;
+  kind: z.infer<typeof routineTriggerKindSchema>;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  revision: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 export interface WebhookDelivery {
   runId: Id<"integration-sync-run">;
   duplicate: boolean;
@@ -166,6 +191,17 @@ type WebhookRow = {
   created_at: Date;
   updated_at: Date;
 };
+type TriggerRow = {
+  id: string;
+  owner_id: string;
+  routine_schedule_id: string;
+  kind: z.infer<typeof routineTriggerKindSchema>;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  revision: number;
+  created_at: Date;
+  updated_at: Date;
+};
 type ShareRow = {
   id: string;
   owner_id: string;
@@ -231,6 +267,19 @@ function safeWebhook(row: WebhookRow): RoutineWebhook {
     ownerId: asId<"user">(row.owner_id),
     routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
     enabled: row.enabled,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+function safeTrigger(row: TriggerRow): RoutineTrigger {
+  return {
+    id: asId<"routine-trigger">(row.id),
+    ownerId: asId<"user">(row.owner_id),
+    routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
+    kind: routineTriggerKindSchema.parse(row.kind),
+    config: row.config,
+    enabled: row.enabled,
+    revision: row.revision,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -581,6 +630,87 @@ export function createRoutineRepository(sql: Sql) {
       throw new RoutineError("ROUTINE_NOT_FOUND", "The routine was not found.");
     return { webhook: safeWebhook(rows[0]), secret };
   }
+  async function createTrigger(input: {
+    ownerId: Id<"user">;
+    routineScheduleId: Id<"routine-schedule">;
+    kind: z.infer<typeof routineTriggerKindSchema>;
+    config?: Record<string, unknown>;
+    enabled?: boolean;
+  }): Promise<RoutineTrigger> {
+    const value = z
+      .object({
+        ownerId: z.uuidv7(),
+        routineScheduleId: z.uuidv7(),
+        kind: routineTriggerKindSchema,
+        config: z.record(z.string(), z.json()).default({}),
+        enabled: z.boolean().default(true),
+      })
+      .strict()
+      .parse(input);
+    const id = newId<"routine-trigger">();
+    const rows = await sql<TriggerRow[]>`
+      insert into routine_triggers
+        (id, owner_id, routine_schedule_id, kind, config, enabled)
+      select ${id}, ${value.ownerId}, ${value.routineScheduleId}, ${value.kind},
+        ${sql.json(value.config as never)}, ${value.enabled}
+      where exists (
+        select 1 from routine_schedules
+        where owner_id=${value.ownerId} and id=${value.routineScheduleId}
+      ) returning *
+    `;
+    const row = rows[0];
+    if (!row)
+      throw new RoutineError("ROUTINE_NOT_FOUND", "The routine was not found.");
+    return safeTrigger(row);
+  }
+  async function listTriggers(
+    ownerId: Id<"user">,
+    routineScheduleId: Id<"routine-schedule">,
+  ): Promise<RoutineTrigger[]> {
+    const rows = await sql<TriggerRow[]>`
+      select * from routine_triggers
+      where owner_id=${ownerId} and routine_schedule_id=${routineScheduleId}
+      order by created_at, id
+    `;
+    return rows.map(safeTrigger);
+  }
+  async function updateTrigger(input: {
+    ownerId: Id<"user">;
+    triggerId: Id<"routine-trigger">;
+    expectedRevision: number;
+    config: Record<string, unknown>;
+    enabled: boolean;
+  }): Promise<RoutineTrigger> {
+    const rows = await sql<TriggerRow[]>`
+      update routine_triggers
+      set config=${sql.json(input.config as never)}, enabled=${input.enabled},
+        revision=revision+1, updated_at=now()
+      where owner_id=${input.ownerId} and id=${input.triggerId}
+        and revision=${input.expectedRevision}
+      returning *
+    `;
+    if (!rows[0])
+      throw new RoutineError(
+        "ROUTINE_CONFLICT",
+        "The trigger changed since it was read or was not found.",
+      );
+    return safeTrigger(rows[0]);
+  }
+  async function removeTrigger(
+    ownerId: Id<"user">,
+    triggerId: Id<"routine-trigger">,
+    expectedRevision: number,
+  ): Promise<void> {
+    const result = await sql`
+      delete from routine_triggers
+      where owner_id=${ownerId} and id=${triggerId} and revision=${expectedRevision}
+    `;
+    if (result.count !== 1)
+      throw new RoutineError(
+        "ROUTINE_CONFLICT",
+        "The trigger changed since it was read or was not found.",
+      );
+  }
   async function getWebhook(
     ownerId: Id<"user">,
     routineScheduleId: Id<"routine-schedule">,
@@ -815,6 +945,10 @@ export function createRoutineRepository(sql: Sql) {
     attachRuntimeRun,
     reconcileRuntimeRun,
     createWebhook,
+    createTrigger,
+    listTriggers,
+    updateTrigger,
+    removeTrigger,
     getWebhook,
     setWebhookEnabled,
     deliverWebhook,

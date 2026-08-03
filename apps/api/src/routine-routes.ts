@@ -5,7 +5,10 @@ import { asId, newId } from "@town/contracts";
 import type { AgentRepository } from "@town/agents";
 import type { SessionRepository } from "@town/runtime";
 import type { ThreadRepository } from "@town/agents";
-import type { RoutineRepository } from "@town/routines";
+import {
+  routineTriggerKindSchema,
+  type RoutineRepository,
+} from "@town/routines";
 import type { AuthVariables } from "./auth.js";
 
 export interface RoutineDependencies {
@@ -40,6 +43,13 @@ const installRoutineSchema = z
     enabled: z.boolean().default(true),
   })
   .strict();
+const triggerCreateSchema = z
+  .object({
+    kind: routineTriggerKindSchema,
+    config: z.record(z.string(), z.json()).default({}),
+    enabled: z.boolean().default(true),
+  })
+  .strict();
 
 export function registerRoutineRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -68,6 +78,66 @@ export function registerRoutineRoutes(
         query.limit,
       ),
     });
+  });
+
+  app.get("/v1/routines/:routineId/triggers", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      triggers: await dependencies.repository.listTriggers(
+        ownerId,
+        asRoutineId(context.req.param("routineId")),
+      ),
+    });
+  });
+
+  app.post("/v1/routines/:routineId/triggers", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = triggerCreateSchema.parse(await context.req.json());
+    return context.json(
+      {
+        trigger: await dependencies.repository.createTrigger({
+          ownerId,
+          routineScheduleId: asRoutineId(context.req.param("routineId")),
+          ...body,
+        }),
+      },
+      201,
+    );
+  });
+
+  app.patch("/v1/routine-triggers/:triggerId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = z
+      .object({
+        expectedRevision: z.number().int().positive(),
+        config: z.record(z.string(), z.json()).default({}),
+        enabled: z.boolean(),
+      })
+      .strict()
+      .parse(await context.req.json());
+    return context.json({
+      trigger: await dependencies.repository.updateTrigger({
+        ownerId,
+        triggerId: asId<"routine-trigger">(
+          z.uuidv7().parse(context.req.param("triggerId")),
+        ),
+        ...body,
+      }),
+    });
+  });
+
+  app.delete("/v1/routine-triggers/:triggerId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const query = z
+      .object({ expectedRevision: z.coerce.number().int().positive() })
+      .strict()
+      .parse(context.req.query());
+    await dependencies.repository.removeTrigger(
+      ownerId,
+      asId<"routine-trigger">(z.uuidv7().parse(context.req.param("triggerId"))),
+      query.expectedRevision,
+    );
+    return context.body(null, 204);
   });
 
   app.post("/v1/routines", async (context) => {

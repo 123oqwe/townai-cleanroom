@@ -52,6 +52,26 @@ describe("routine schedules", () => {
       nextRunAt: new Date("2026-08-02T08:00:00Z"),
     });
     expect(schedule).toMatchObject({ ownerId, agentId, enabled: true });
+    const trigger = await repo.createTrigger({
+      ownerId,
+      routineScheduleId: schedule.id,
+      kind: "incoming_email",
+      config: { accountId: "account-1", label: "inbox" },
+    });
+    expect(await repo.listTriggers(ownerId, schedule.id)).toEqual([trigger]);
+    const updatedTrigger = await repo.updateTrigger({
+      ownerId,
+      triggerId: trigger.id,
+      expectedRevision: 1,
+      config: { accountId: "account-1", label: "important" },
+      enabled: false,
+    });
+    expect(updatedTrigger).toMatchObject({ revision: 2, enabled: false });
+    await expect(
+      repo.removeTrigger(ownerId, trigger.id, 1),
+    ).rejects.toMatchObject({ code: "ROUTINE_CONFLICT" });
+    await repo.removeTrigger(ownerId, trigger.id, 2);
+    expect(await repo.listTriggers(ownerId, schedule.id)).toEqual([]);
     const claimed = await repo.claimDue(
       ownerId,
       new Date("2026-08-02T09:00:00Z"),
