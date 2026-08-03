@@ -1340,3 +1340,10 @@ The full workspace build completed successfully and no runtime errors were
 reported in the selected hour. The five `CONTENT_STORAGE_S3_*` variables are
 not set on this preview, so the API remains explicit rather than claiming a
 cloud object store is active.
+
+The approval-gated `town_workspace` Harness binding is included in
+`dpl_6DSDCrDgWRP26VUDANnRJzFw3gk4`,
+`https://town-clear-d51cugmkc-123oqwes-projects.vercel.app`, state `READY`.
+The build completed successfully and no runtime errors were reported in the
+selected hour. `WORKSPACE_ROOT` is not configured on Vercel, so the binding is
+absent there rather than exposing an ephemeral filesystem as durable state.
