@@ -353,6 +353,14 @@ direct URL is
 `READY`; exhausted deliveries remain failed without a future retry timestamp.
 An unauthenticated curl receives the Vercel SSO `302` protection redirect.
 
+Permanent provider failures (for example HTTP 401) are now classified as
+non-retryable in deployment `dpl_BxbvFnNGqAYyPJuFrG5wx7nXUmEK`, built from
+commit `dcf3e80`. Its protected direct URL is
+`https://town-clear-current-3fsc8fhvp-123oqwes-projects.vercel.app`, state
+`READY`; transient 408/425/429/5xx responses and network errors remain
+retryable. An unauthenticated curl receives the Vercel SSO `302` protection
+redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
