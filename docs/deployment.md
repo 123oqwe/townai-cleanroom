@@ -1103,3 +1103,11 @@ The subsequent notification timeline authentication fix is deployed as
 `dpl_CTiourS9KTefTbizbw5okUpBay9r`, state `READY`. The full workspace build
 completed in 32 seconds with Node.js Lambda output, and Vercel reported no
 runtime errors in the following hour. The direct URL remains SSO-gated.
+
+The allowlisted admin Agent-health module first hit a connector source-set
+failure in `dpl_5w3h9cWoUPPSmcL7iAhCZPVsaLvG`: its uploaded Harness factory was
+stale relative to the committed provider-usage callback, so Vercel's full
+build correctly rejected the mismatch. After refreshing the Harness source
+files, `dpl_DemgSgWe39Mkh1C8x2LaUzKfoFNN` reached `READY` with a 33-second full
+workspace build and no runtime errors. The protected direct URL is
+`https://town-clear-current-1yg5kb7n4-123oqwes-projects.vercel.app`.
