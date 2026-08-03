@@ -1097,3 +1097,9 @@ Vercel reported no runtime errors in the following hour. The protected direct
 URL remains SSO-gated. This deployment includes migration
 `0041_notification_delivery_replays.sql`, the owner-authenticated replay API,
 and the Web delivery-record Replay action.
+
+The subsequent notification timeline authentication fix is deployed as
+`https://town-clear-current-n6dnsk3l8-123oqwes-projects.vercel.app`, deployment
+`dpl_CTiourS9KTefTbizbw5okUpBay9r`, state `READY`. The full workspace build
+completed in 32 seconds with Node.js Lambda output, and Vercel reported no
+runtime errors in the following hour. The direct URL remains SSO-gated.
