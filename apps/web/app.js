@@ -539,9 +539,21 @@ function renderMemories(result) {
     .slice(0, 20)
     .map(
       (memory) =>
-        `<article class="memory-card"><p>${escapeHtml(memory.content)}</p><small>${escapeHtml(memory.scope)} · ${memory.confidence === null ? "confidence not set" : `confidence ${Math.round(memory.confidence * 100)}%`}</small></article>`,
+        `<article class="memory-card" data-memory-id="${escapeHtml(memory.id)}" data-revision="${escapeHtml(memory.currentRevision)}" data-scope="${escapeHtml(memory.scope)}" data-routine-id="${escapeHtml(memory.routineId || "")}"><p class="memory-copy">${escapeHtml(memory.content)}</p><small>${escapeHtml(memory.scope)} · ${memory.confidence === null ? "confidence not set" : `confidence ${Math.round(memory.confidence * 100)}%`}</small><div class="memory-actions"><button class="quiet-button memory-edit" type="button">Edit</button><button class="quiet-button memory-retire" type="button">Retire</button></div><div class="memory-edit-form" hidden><textarea class="memory-edit-content" rows="3" maxlength="50000">${escapeHtml(memory.content)}</textarea><input class="memory-edit-confidence" type="number" min="0" max="1" step="0.05" value="${memory.confidence ?? ""}" placeholder="Confidence"/><button class="quiet-button memory-edit-save" type="button">Save</button></div></article>`,
     )
     .join("");
+}
+async function saveMemoryEdit(card) {
+  const body = { content: card.querySelector(".memory-edit-content").value.trim(), scope: card.dataset.scope, status: "active", expectedRevision: Number(card.dataset.revision) };
+  if (card.dataset.routineId) body.routineId = card.dataset.routineId;
+  const confidence = card.querySelector(".memory-edit-confidence").value.trim();
+  if (confidence) body.confidence = Number(confidence);
+  await api(`/v1/memories/${card.dataset.memoryId}`, { method: "PUT", body: JSON.stringify(body) });
+  await loadMemories();
+}
+async function retireMemory(card) {
+  await api(`/v1/memories/${card.dataset.memoryId}?expectedRevision=${card.dataset.revision}`, { method: "DELETE" });
+  await loadMemories();
 }
 function renderWiki(result) {
   const target = $("#wiki-list");
@@ -2292,6 +2304,13 @@ $("#memory-add-toggle").addEventListener("click", () => {
   if (!$("#memory-add-form").hidden) $("#memory-content").focus();
 });
 $("#memory-save").addEventListener("click", () => void saveMemory());
+$("#memory-list").addEventListener("click", (event) => {
+  const card = event.target.closest(".memory-card");
+  if (!card) return;
+  if (event.target.closest(".memory-edit")) card.querySelector(".memory-edit-form").hidden = false;
+  if (event.target.closest(".memory-edit-save")) void saveMemoryEdit(card).catch((cause) => { const error = $("#memory-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit memory."; error.hidden = false; });
+  if (event.target.closest(".memory-retire")) void retireMemory(card).catch((cause) => { const error = $("#memory-error"); error.textContent = cause instanceof Error ? cause.message : "Could not retire memory."; error.hidden = false; });
+});
 $("#people-add-toggle").addEventListener("click", () => {
   $("#people-add-form").hidden = !$("#people-add-form").hidden;
   if (!$("#people-add-form").hidden) $("#person-name").focus();

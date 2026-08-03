@@ -81,3 +81,8 @@ the client selects persisted people, reads owner-scoped relationship edges,
 creates typed edges with notes, and archives them using the server-provided
 optimistic revision. No relationship or contact is fabricated. `pnpm check:web`
 and `git diff --check` pass.
+
+Durable memory cards now support inline edit and retire actions. Updates send
+the server's current revision, preserve global/routine scope, and reload the
+owner-scoped list after success; retire uses the existing revision-checked
+delete route. No memory state is fabricated.

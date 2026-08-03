@@ -1257,6 +1257,9 @@ dialog h2 {
   border-radius: 10px;
   background: var(--surface);
 }
+.memory-actions { display: flex; gap: .5rem; margin-top: .5rem; }
+.memory-edit-form { display: grid; gap: .45rem; margin-top: .7rem; }
+.memory-edit-form textarea, .memory-edit-form input { width: 100%; }
 .memory-card p {
   margin: 0;
   color: var(--muted-deep);
