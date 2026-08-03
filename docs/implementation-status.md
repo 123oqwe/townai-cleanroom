@@ -53,3 +53,8 @@ is therefore not counted as a new full-suite pass in this ledger.
 The current repository inventory is 60 test files and 258 `it` cases. That
 inventory is descriptive only; it does not replace a completed full-suite
 run.
+
+The Personal Agent version history surface is implemented: Profile lists
+owner-scoped immutable versions from `GET /v1/agents/personal/versions`, with
+version, creator, timestamp, and approval mode. It does not claim unverified
+prompt diffs or private routing internals.

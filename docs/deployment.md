@@ -498,6 +498,14 @@ consent scope, and allows the recipient to revoke granted consent. An
 unauthenticated request returns the Vercel SSO `302`; Vercel reported no
 runtime errors in the verification window.
 
+The Personal Agent version history surface is deployed in
+`dpl_AaRwPe6NJNzRBcdWfc8xFKhkgwqS`, built from commit `9a5c7a6`. Its protected
+direct URL is
+`https://town-clear-current-p57ngfi9f-123oqwes-projects.vercel.app`, state
+`READY`; Profile now lists immutable owner-scoped Agent versions and their
+approval modes. The direct URL returns the Vercel SSO `302`; Vercel reported no
+runtime errors in the verification window.
+
 The scoped A2A consent handshake is deployed in
 `dpl_E4uGsueSSuanjDjqDWPC2MHYbHng`, built from commit `b8d6f13`. Its protected
 direct URL is
