@@ -1327,6 +1327,70 @@ dialog h2 {
 .account-status.needs-reauth {
   color: #a03e2b;
 }
+.channels-dialog {
+  max-width: 540px;
+}
+.channel-list {
+  display: grid;
+  gap: 8px;
+  max-height: 230px;
+  margin: 18px 0 12px;
+  overflow: auto;
+}
+.channel-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.channel-card strong {
+  display: block;
+  font-size: 12px;
+}
+.channel-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.channel-status {
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.channel-status.disabled {
+  color: var(--muted);
+}
+.channel-add-toggle {
+  margin: 3px 0 16px;
+}
+.channel-add-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.channel-add-form label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.channel-add-form select {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
 @keyframes rise {
   from {
     opacity: 0;

@@ -169,6 +169,13 @@
             >
               View routines <span>→</span>
             </button>
+            <button
+              class="text-button panel-action"
+              id="channels-open"
+              type="button"
+            >
+              Notification channels <span>→</span>
+            </button>
           </article>
 
           <article class="panel timeline-panel" id="library">
@@ -638,6 +645,57 @@
           Connect Google <span>→</span>
         </button>
         <p class="dialog-error" id="accounts-error" role="alert" hidden></p>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <dialog
+      class="channels-dialog"
+      id="channels-dialog"
+      aria-labelledby="channels-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Notifications</p>
+        <h2 id="channels-title">Choose how<br /><em>Town reaches you.</em></h2>
+        <p class="dialog-copy">
+          Channels are explicit delivery targets. Disabled or unconfigured
+          providers stay visible as state, never as fake success.
+        </p>
+        <div class="channel-list" id="channel-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load channels.</p>
+        </div>
+        <button
+          class="text-button channel-add-toggle"
+          id="channel-add-toggle"
+          type="button"
+        >
+          Add a channel <span>＋</span>
+        </button>
+        <div class="channel-add-form" id="channel-add-form" hidden>
+          <label for="channel-kind">Kind</label>
+          <select id="channel-kind">
+            <option value="webhook">Webhook</option>
+            <option value="email">Email</option>
+            <option value="telegram">Telegram</option>
+            <option value="whatsapp">WhatsApp</option>
+          </select>
+          <label for="channel-address">Address</label>
+          <input
+            id="channel-address"
+            maxlength="2000"
+            placeholder="https://… or address"
+          />
+          <button
+            class="primary-button full-button"
+            id="channel-save"
+            type="button"
+          >
+            Save channel <span>→</span>
+          </button>
+          <p class="dialog-error" id="channel-error" role="alert" hidden></p>
+        </div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>

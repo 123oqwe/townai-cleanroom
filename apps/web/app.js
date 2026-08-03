@@ -741,6 +741,58 @@ async function startGoogleOAuth() {
     error.hidden = false;
   }
 }
+function renderChannels(result) {
+  const target = $("#channel-list");
+  const channels = result.channels || [];
+  if (!channels.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No notification channels configured.</p>';
+    return;
+  }
+  target.innerHTML = channels
+    .map(
+      (channel) =>
+        `<article class="channel-card"><div><strong>${escapeHtml(channel.kind)}</strong><small>${escapeHtml(channel.address)}</small></div><span class="channel-status ${channel.status === "disabled" ? "disabled" : ""}">${escapeHtml(channel.status)}</span></article>`,
+    )
+    .join("");
+}
+async function loadChannels() {
+  if (!state.token) {
+    $("#channel-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load channels.</p>';
+    return;
+  }
+  try {
+    renderChannels(await api("/v1/channels"));
+  } catch (error) {
+    $("#channel-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Channels unavailable.")}</p>`;
+  }
+}
+async function saveChannel() {
+  const address = $("#channel-address").value.trim();
+  const error = $("#channel-error");
+  if (!address || !state.token) return;
+  error.hidden = true;
+  const button = $("#channel-save");
+  button.disabled = true;
+  try {
+    await apiJson("/v1/channels", {
+      kind: $("#channel-kind").value,
+      address,
+      config: {},
+    });
+    $("#channel-address").value = "";
+    $("#channel-add-form").hidden = true;
+    await loadChannels();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save channel.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -894,6 +946,15 @@ $("#account-open").addEventListener("click", () => {
   void loadAccounts();
 });
 $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
+$("#channels-open").addEventListener("click", () => {
+  openDialog($("#channels-dialog"));
+  void loadChannels();
+});
+$("#channel-add-toggle").addEventListener("click", () => {
+  $("#channel-add-form").hidden = !$("#channel-add-form").hidden;
+  if (!$("#channel-add-form").hidden) $("#channel-address").focus();
+});
+$("#channel-save").addEventListener("click", () => void saveChannel());
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),
