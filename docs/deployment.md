@@ -1420,3 +1420,11 @@ The authenticated Library blob-open action is deployed as
 `https://town-clear-p3ktvo41o-123oqwes-projects.vercel.app`, state `READY`.
 The full build completed successfully and no runtime errors were reported in
 the selected hour.
+
+The privacy-bounded public analytics ingestion source is deployed as
+`dpl_9m1Z5iPcrdCoCzFW3Mp4B4ecd8hr`,
+`https://town-clear-qiy3ov1gk-123oqwes-projects.vercel.app`, state `READY`.
+The build downloaded 200 source files and completed all workspace builds;
+Vercel reported no runtime errors in the selected hour. An unauthenticated
+`HEAD` request returned HTTP `302` to Vercel SSO with `x-frame-options: DENY`,
+`x-robots-tag: noindex`, and a secure HttpOnly nonce cookie.
