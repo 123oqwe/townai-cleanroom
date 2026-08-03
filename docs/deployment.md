@@ -273,6 +273,14 @@ response when required infrastructure secrets are absent, and the build checks
 that every workspace package `main` export exists after compilation. An
 unauthenticated curl receives the Vercel SSO `302` protection redirect.
 
+Routine email outbox delivery through the real Gmail API is deployed in
+`dpl_AHUPuHbQNAk7G62nzxKDkapMk6BT`, built from commit `e91f3f0`. Its protected
+direct URL is `https://town-clear-current-m824er7rx-123oqwes-projects.vercel.app`,
+state `READY`; email channels require an explicit connected Google account and
+the worker calls Gmail `messages/send`, while missing provider configuration is
+recorded as a retryable delivery failure. An unauthenticated curl receives the
+Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
