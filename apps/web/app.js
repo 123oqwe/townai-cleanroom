@@ -31,6 +31,9 @@ const state = {
     auth: false,
     harness: false,
     worker: false,
+    slackEvents: false,
+    twilioVoice: false,
+    voiceSynthesis: false,
     googleOAuth: false,
   },
   harnessStreamAbort: null,
@@ -275,7 +278,8 @@ function renderHarnessTurns(turns) {
     .slice(-12)
     .map((turn, index) => {
       const assistant = turn.role !== "user";
-      return `<div class="harness-message ${assistant ? "assistant" : "user"}"><span>${escapeHtml(turn.text)}</span>${assistant ? `<button class="speech-button" type="button" data-speak-index="${index}" aria-label="Play assistant response">▶</button>` : ""}</div>`;
+      const speak = assistant && state.capabilities.voiceSynthesis;
+      return `<div class="harness-message ${assistant ? "assistant" : "user"}"><span>${escapeHtml(turn.text)}</span>${speak ? `<button class="speech-button" type="button" data-speak-index="${index}" aria-label="Play assistant response">▶</button>` : ""}</div>`;
     })
     .join("");
   transcript.querySelectorAll("[data-speak-index]").forEach((button) => {
