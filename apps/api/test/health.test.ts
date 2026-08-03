@@ -34,4 +34,22 @@ describe("GET /v1/health", () => {
       googleOAuth: false,
     });
   });
+
+  it("reports injected Harness and worker readiness independently", async () => {
+    const response = await createApp({
+      identityService: {} as never,
+      accountRepository: {} as never,
+      harnessServerFactory: (() => ({ dispatch: async () => new Response() })) as never,
+      workerEnabled: true,
+    }).request("/v1/health/capabilities");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      api: true,
+      auth: true,
+      harness: true,
+      worker: true,
+      googleOAuth: false,
+    });
+  });
 });
