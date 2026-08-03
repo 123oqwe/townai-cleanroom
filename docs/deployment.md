@@ -489,6 +489,15 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+Per-calendar Schedule filters are deployed in
+`dpl_A2EuGBMmievqcjXojZZruhYYPfAo`, built from commit `52afd39`. Its protected
+direct URL is
+`https://town-clear-current-djg17pi1l-123oqwes-projects.vercel.app`, state
+`READY`; the browser groups server-returned events by calendar and toggles
+visibility without rewriting or reordering server data. An unauthenticated
+request receives the Vercel SSO `302`; Vercel reported no runtime errors in
+the verification window.
+
 Subscribed-calendar aggregation is deployed in
 `dpl_8p27apLqpcoiJJhgzMAEMQtCNxhB`, built from commit `dd2bc62`. Its protected
 direct URL is
