@@ -149,3 +149,8 @@ Task cards now support inline title/description/status edits through the
 owner-scoped revision-aware `PATCH /v1/tasks/:taskId` route. The UI fetches the
 authoritative task, preserves its scheduled time, and reloads the open-task
 view after a successful update.
+
+Task cards now expose the existing owner-scoped mark-read and revision-checked
+delete actions. `POST /v1/tasks/:taskId/mark-read` and
+`DELETE /v1/tasks/:taskId` are followed by a server-truth reload; no client-only
+read or removal state is claimed.

@@ -1481,6 +1481,7 @@ dialog h2 {
 }
 .task-edit-form { display: grid; gap: 6px; margin-top: .6rem; }
 .task-edit-form input, .task-edit-form textarea, .task-edit-form select { width: 100%; }
+.task-card-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .45rem; }
 .task-card strong {
   font-size: 12px;
 }

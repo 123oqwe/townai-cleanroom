@@ -990,7 +990,7 @@ function renderTasks(result) {
     .filter((task) => task.status !== "deleted")
     .map(
       (task) =>
-        `<article class="task-card" data-task-id="${escapeHtml(task.id)}"><strong>${escapeHtml(task.title)}</strong><p>${escapeHtml(task.description || "No description")}</p><small>${escapeHtml(task.status)} · ${task.unread ? "unread" : "read"}</small><button class="quiet-button task-edit" type="button">Edit</button></article>`,
+        `<article class="task-card" data-task-id="${escapeHtml(task.id)}" data-revision="${escapeHtml(task.currentRevision)}"><strong>${escapeHtml(task.title)}</strong><p>${escapeHtml(task.description || "No description")}</p><small>${escapeHtml(task.status)} · ${task.unread ? "unread" : "read"}</small><div class="task-card-actions"><button class="quiet-button task-edit" type="button">Edit</button>${task.unread ? '<button class="quiet-button task-mark-read" type="button">Mark read</button>' : ""}<button class="quiet-button task-delete" type="button">Delete</button></div></article>`,
     )
     .join("");
 }
@@ -1002,6 +1002,8 @@ async function saveTaskEdit(card) {
   const task = card?._task; if (!task) return;
   await api(`/v1/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: task.currentRevision, title: card.querySelector(".task-edit-title").value.trim(), description: card.querySelector(".task-edit-description").value, status: card.querySelector(".task-edit-status").value, scheduledFor: task.scheduledFor || null }) }); await loadTasks();
 }
+async function markTaskRead(card) { await apiJson(`/v1/tasks/${card.dataset.taskId}/mark-read`, {}); await loadTasks(); }
+async function deleteTask(card) { await api(`/v1/tasks/${card.dataset.taskId}?expectedRevision=${card.dataset.revision}`, { method: "DELETE" }); await loadTasks(); }
 async function loadTasks() {
   if (!state.token) {
     $("#task-list").innerHTML =
@@ -2520,7 +2522,7 @@ $("#task-add-toggle").addEventListener("click", () => {
   if (!$("#task-add-form").hidden) $("#task-title").focus();
 });
 $("#task-save").addEventListener("click", () => void saveTask());
-$("#task-list").addEventListener("click", (event) => { const card = event.target.closest(".task-card"); if (!card) return; if (event.target.closest(".task-edit")) void editTask(card); if (event.target.closest(".task-edit-save")) void saveTaskEdit(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit task."; error.hidden = false; }); });
+$("#task-list").addEventListener("click", (event) => { const card = event.target.closest(".task-card"); if (!card) return; if (event.target.closest(".task-edit")) void editTask(card); if (event.target.closest(".task-edit-save")) void saveTaskEdit(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not edit task."; error.hidden = false; }); if (event.target.closest(".task-mark-read")) void markTaskRead(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not mark task read."; error.hidden = false; }); if (event.target.closest(".task-delete")) void deleteTask(card).catch((cause) => { const error = $("#task-error"); error.textContent = cause instanceof Error ? cause.message : "Could not delete task."; error.hidden = false; }); });
 $("#routines-open").addEventListener("click", () => {
   selectedRoutineId = null;
   $("#routine-trigger").hidden = true;
