@@ -155,6 +155,11 @@ built from commit `9abdd90`. Its protected direct URL is
 `READY`; error-only build logs contain no diagnostics beyond the Node engine
 warning and the unauthenticated URL check returns the Vercel SSO `302`.
 
+The Harness policy integration is deployed in `dpl_7AT7hu75FTqSzdrFfqie8Sm6wHcR`,
+built from commit `c6fdcbc`. Its protected direct URL is
+`https://town-clear-current-e2f79wif8-123oqwes-projects.vercel.app`, state
+`READY`; the unauthenticated URL check returns the Vercel SSO `302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
