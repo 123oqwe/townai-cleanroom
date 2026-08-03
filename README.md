@@ -81,7 +81,10 @@ empty to preserve the database's existing allowlist state.
 - Discovered MCP tools are normalized into immutable, versioned internal
   `ToolDefinition` records and idempotently bound to the active AgentVersion;
   durable ToolCalls therefore have a real policy foreign key instead of only
-  a transient provider name.
+  a transient provider name. During a leased runtime execution, approved MCP
+  calls now create, start, and complete/fail the same durable ToolCall record;
+  read-only calls use the allow path and write-capable calls require the
+  persisted Harness approval before the remote call.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

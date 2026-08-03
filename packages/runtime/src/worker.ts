@@ -79,6 +79,7 @@ export function createRuntimeWorker(
       for await (const event of dependencies.adapter.execute({
         session: currentSession,
         run: currentRun,
+        leaseToken: lease.leaseToken,
         signal: AbortSignal.timeout(leaseMs),
       })) {
         if (event.type === "phase") {

@@ -219,6 +219,7 @@ export function createToolExecutionRepository(sql: Sql) {
     arguments: Record<string, unknown>;
     policy: PolicyInput;
     approvalExpiresAt?: Date | null;
+    approvalGranted?: boolean;
   }): Promise<{
     toolCall: ToolCall;
     approval: ApprovalRequest | null;
@@ -248,6 +249,7 @@ export function createToolExecutionRepository(sql: Sql) {
           accountBound: z.boolean(),
         }),
         approvalExpiresAt: z.date().nullable().optional(),
+        approvalGranted: z.boolean().default(false),
       })
       .strict()
       .parse(input);
@@ -387,7 +389,16 @@ export function createToolExecutionRepository(sql: Sql) {
         targetIsTrusted: value.policy.targetIsTrusted,
         accountBound: accountId !== null,
       };
-      const policyResult = evaluatePolicy(derivedPolicy);
+      const evaluatedPolicy = evaluatePolicy(derivedPolicy);
+      const policyResult =
+        value.approvalGranted &&
+        evaluatedPolicy.decision === "approval_required"
+          ? {
+              ...evaluatedPolicy,
+              decision: "allow" as const,
+              rationale: `${evaluatedPolicy.rationale} Explicit durable Harness approval was granted.`,
+            }
+          : evaluatedPolicy;
       const requestFingerprint = hash(
         canonicalJson({
           agentVersionId: value.agentVersionId,
@@ -396,6 +407,7 @@ export function createToolExecutionRepository(sql: Sql) {
           accountId: value.accountId ?? null,
           policy: derivedPolicy,
           approvalExpiresAt: value.approvalExpiresAt?.toISOString() ?? null,
+          approvalGranted: value.approvalGranted,
           arguments: value.arguments,
         }),
       );

@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { asId } from "@town/contracts";
+import { asId, type Id } from "@town/contracts";
 import { createChannelRepository } from "@town/channels";
 import { createBillingRepository } from "@town/billing";
 import { createOperationsRepository } from "@town/operations";
@@ -66,7 +66,10 @@ import {
   createGoogleCalendarFreeBusyHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
 } from "./harness-tools.js";
-import { createHarnessRuntimeAdapter } from "./harness-runtime-adapter.js";
+import {
+  createHarnessRuntimeAdapter,
+  type HarnessExecutionContext,
+} from "./harness-runtime-adapter.js";
 import { createRoutineScheduler } from "./routine-scheduler.js";
 import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
@@ -169,7 +172,7 @@ const mcpRepository = createMcpRepository(sql);
 const harnessServerFactory =
   environment.RESPONSES_API_KEY === undefined
     ? undefined
-    : async (ownerId: string) => {
+    : async (ownerId: string, executionContext?: HarnessExecutionContext) => {
         const typedOwnerId = asId<"user">(ownerId);
         const personalAgent = await agentRepository
           .getPersonal(typedOwnerId)
@@ -233,6 +236,10 @@ const harnessServerFactory =
                       if (result.nextCursor === null) break;
                       cursor = result.nextCursor;
                     }
+                    const definitionIds = new Map<
+                      string,
+                      Id<"tool-definition">
+                    >();
                     for (const tool of tools) {
                       const definition = await toolRegistryRepository.ensure({
                         ownerId: typedOwnerId,
@@ -263,12 +270,24 @@ const harnessServerFactory =
                         modeOverride: entry.binding.modeOverride,
                         accountScope: entry.binding.accountScope,
                       });
+                      definitionIds.set(
+                        mcpHarnessToolName(entry.name, tool.name),
+                        definition.id,
+                      );
                     }
                     return createMcpHarnessBindings({
                       client,
                       serverName: entry.name,
                       tools,
                       modeOverride: entry.binding.modeOverride,
+                      ...(executionContext === undefined
+                        ? {}
+                        : {
+                            durable: {
+                              ...executionContext,
+                              toolDefinitionIds: definitionIds,
+                            },
+                          }),
                     });
                   } catch {
                     return [];
@@ -422,6 +441,7 @@ const runtimeWorker =
             createStore: (ownerId) =>
               createHarnessThreadStore(database.db, ownerId),
             turns: turnRepository,
+            toolExecution: toolExecutionRepository,
             approvalDecisions,
           }),
         },

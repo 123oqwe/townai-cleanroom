@@ -66,6 +66,59 @@ describe("Town Harness built-in tools", () => {
       ),
     ).resolves.toMatchObject({ kind: "result" });
   });
+
+  it("records an approved MCP call through durable ToolCall transitions", async () => {
+    const ownerId = newId<"user">();
+    const toolDefinitionId = newId<"tool-definition">();
+    const callId = newId<"tool-call">();
+    const execution = {
+      propose: vi.fn().mockResolvedValue({
+        toolCall: { id: callId, status: "approved" },
+      }),
+      start: vi.fn().mockResolvedValue(undefined),
+      succeed: vi.fn().mockResolvedValue(undefined),
+      fail: vi.fn().mockResolvedValue(undefined),
+    };
+    const callTool = vi.fn().mockResolvedValue({ ok: true });
+    const [binding] = createMcpHarnessBindings({
+      client: { callTool },
+      serverName: "Writer",
+      modeOverride: null,
+      tools: [{ name: "write", inputSchema: { type: "object" } }],
+      durable: {
+        execution: execution as never,
+        ownerId,
+        sessionId: newId<"runtime-session">(),
+        runId: newId<"session-run">(),
+        leaseToken: "lease-token",
+        agentVersionId: newId<"agent-version">(),
+        toolDefinitionIds: new Map([["mcp_Writer_write", toolDefinitionId]]),
+      },
+    });
+    if (binding === undefined) throw new Error("Expected MCP binding.");
+    await binding.port.execute(
+      { value: "x" },
+      {
+        approvalGranted: true,
+        policyDecision: "approval_required",
+        callId: "model-call-1",
+      },
+    );
+    expect(execution.propose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolDefinitionId,
+        approvalGranted: true,
+        idempotencyKey: "harness:model-call-1",
+      }),
+    );
+    expect(execution.start).toHaveBeenCalledWith(
+      expect.objectContaining({ toolCallId: callId }),
+    );
+    expect(execution.succeed).toHaveBeenCalledWith(
+      expect.objectContaining({ toolCallId: callId }),
+    );
+    expect(execution.fail).not.toHaveBeenCalled();
+  });
   it("binds owner-scoped knowledge search with a typed JSON result", async () => {
     const ownerId = newId<"user">();
     const search = {

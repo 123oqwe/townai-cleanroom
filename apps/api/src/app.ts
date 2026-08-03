@@ -96,6 +96,7 @@ import { SuggestionError } from "@town/suggestions";
 import { registerA2ARoutes } from "./a2a-routes.js";
 import type { A2ARepository } from "@town/a2a";
 import { A2AError } from "@town/a2a";
+import type { HarnessExecutionContext } from "./harness-runtime-adapter.js";
 
 export interface AppDependencies {
   identityService: IdentityService;
@@ -131,7 +132,10 @@ export interface AppDependencies {
   googleTokenRefresher?: GoogleTokenRefresher;
   webOrigin?: string;
   harnessServer?: AppServer;
-  harnessServerFactory?: (ownerId: string) => AppServer | Promise<AppServer>;
+  harnessServerFactory?: (
+    ownerId: string,
+    executionContext?: HarnessExecutionContext,
+  ) => AppServer | Promise<AppServer>;
 }
 
 function runtimeDependencies(

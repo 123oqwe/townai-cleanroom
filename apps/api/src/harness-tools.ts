@@ -20,6 +20,7 @@ import {
   type McpRemoteTool,
   type ToolDefinition,
 } from "@town/tools";
+import type { ToolExecutionRepository } from "@town/tools";
 import type { GoogleApiClient } from "@town/google";
 
 const memoryArguments = z.discriminatedUnion("scope", [
@@ -702,6 +703,15 @@ export function createMcpHarnessBindings(input: {
   serverName: string;
   tools: readonly McpRemoteTool[];
   modeOverride: "read_only" | "approval_required" | "autonomous" | null;
+  durable?: {
+    execution: ToolExecutionRepository;
+    ownerId: Id<"user">;
+    sessionId: Id<"runtime-session">;
+    runId: Id<"session-run">;
+    leaseToken: string;
+    agentVersionId: Id<"agent-version">;
+    toolDefinitionIds: ReadonlyMap<string, Id<"tool-definition">>;
+  };
 }): HarnessToolBinding[] {
   return input.tools.map((tool) => {
     const name = mcpToolName(input.serverName, tool.name);
@@ -722,14 +732,81 @@ export function createMcpHarnessBindings(input: {
         parameters: tool.inputSchema,
       },
       decide: decision,
-      execute: async (arguments_) => {
-        const result = await input.client.callTool(tool.name, arguments_);
-        const output = JSON.stringify(result);
-        if (output === undefined)
-          throw new Error("MCP_TOOL_RESULT_INVALID: result was not JSON.");
-        if (output.length > 100_000)
-          throw new Error("MCP_TOOL_RESULT_TOO_LARGE: result exceeded 100KB.");
-        return { kind: "result", output };
+      execute: async (arguments_, context) => {
+        const durable = input.durable;
+        const callId =
+          context?.callId ?? `${name}:${JSON.stringify(arguments_)}`;
+        const toolDefinitionId = durable?.toolDefinitionIds.get(name);
+        if (durable !== undefined && toolDefinitionId === undefined)
+          throw new Error(
+            "MCP_TOOL_DEFINITION_NOT_FOUND: discovered definition is missing.",
+          );
+        const proposed = durable
+          ? await durable.execution.propose({
+              ownerId: durable.ownerId,
+              sessionId: durable.sessionId,
+              runId: durable.runId,
+              leaseToken: durable.leaseToken,
+              agentVersionId: durable.agentVersionId,
+              toolDefinitionId: toolDefinitionId as Id<"tool-definition">,
+              stepKey: `mcp:${name}`,
+              idempotencyKey: `harness:${callId}`,
+              arguments: arguments_,
+              approvalGranted: context?.approvalGranted ?? false,
+              policy: {
+                sessionMode: "allow_all",
+                routineMode: "autonomous",
+                perToolOverride: null,
+                sideEffect: readOnly ? "read" : "external_write",
+                dataSensitivity: "private",
+                inputTrust: "untrusted_data",
+                targetIsSelf: false,
+                targetIsTrusted: false,
+                accountBound: false,
+              },
+            })
+          : null;
+        if (proposed?.toolCall.status === "waiting_approval")
+          throw new Error(
+            "HARNESS_TOOL_APPROVAL_REQUIRED: durable approval is required.",
+          );
+        if (durable && proposed !== null) {
+          await durable.execution.start({
+            ownerId: durable.ownerId,
+            toolCallId: proposed.toolCall.id,
+            leaseToken: durable.leaseToken,
+          });
+        }
+        try {
+          const result = await input.client.callTool(tool.name, arguments_);
+          const output = JSON.stringify(result);
+          if (output === undefined)
+            throw new Error("MCP_TOOL_RESULT_INVALID: result was not JSON.");
+          if (output.length > 100_000)
+            throw new Error(
+              "MCP_TOOL_RESULT_TOO_LARGE: result exceeded 100KB.",
+            );
+          if (durable && proposed !== null)
+            await durable.execution.succeed({
+              ownerId: durable.ownerId,
+              toolCallId: proposed.toolCall.id,
+              leaseToken: durable.leaseToken,
+              result: { output },
+            });
+          return { kind: "result", output };
+        } catch (error) {
+          if (durable && proposed !== null)
+            await durable.execution
+              .fail({
+                ownerId: durable.ownerId,
+                toolCallId: proposed.toolCall.id,
+                leaseToken: durable.leaseToken,
+                errorCode:
+                  error instanceof Error ? error.name : "MCP_TOOL_FAILURE",
+              })
+              .catch(() => undefined);
+          throw error;
+        }
       },
     });
   });

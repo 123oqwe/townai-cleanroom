@@ -29,6 +29,7 @@ export type RuntimeAdapterEvent =
 export interface RuntimeAdapterContext {
   session: RuntimeSession;
   run: SessionRun;
+  leaseToken: string;
   signal: AbortSignal;
 }
 

@@ -54,6 +54,7 @@ export interface ToolPort {
     context?: {
       approvalGranted: boolean;
       policyDecision?: "allow" | "approval_required" | "deny";
+      callId?: string;
     },
   ): Promise<{ kind: "result"; output: string }>;
 }
@@ -239,6 +240,7 @@ export function createHarness(input: {
     context: {
       approvalGranted: boolean;
       policyDecision?: "allow" | "approval_required" | "deny";
+      callId?: string;
     } = { approvalGranted: false },
   ): Promise<void> {
     await add({
@@ -250,7 +252,7 @@ export function createHarness(input: {
     let output: string;
     try {
       const result = toolResultSchema.parse(
-        await tool.execute(arguments_, context),
+        await tool.execute(arguments_, { ...context, callId }),
       );
       output = result.output;
     } catch (error) {

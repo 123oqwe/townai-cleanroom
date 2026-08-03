@@ -1,4 +1,6 @@
 import type { TurnRepository } from "@town/agents";
+import type { Id } from "@town/contracts";
+import type { ToolExecutionRepository } from "@town/tools";
 import type {
   AppServer,
   AppServerResponse,
@@ -12,10 +14,23 @@ import type {
   RuntimeAdapterEvent,
 } from "@town/runtime";
 
+export interface HarnessExecutionContext {
+  ownerId: Id<"user">;
+  sessionId: Id<"runtime-session">;
+  runId: Id<"session-run">;
+  leaseToken: string;
+  agentVersionId: Id<"agent-version">;
+  execution: ToolExecutionRepository;
+}
+
 export function createHarnessRuntimeAdapter(input: {
-  createServer: (ownerId: string) => Promise<AppServer>;
+  createServer: (
+    ownerId: string,
+    executionContext?: HarnessExecutionContext,
+  ) => Promise<AppServer>;
   createStore: (ownerId: string) => PersistentThreadStore;
   turns: TurnRepository;
+  toolExecution?: ToolExecutionRepository;
   approvalDecisions?: ApprovalDecisionRepository;
 }): RuntimeAdapter {
   return {
@@ -62,7 +77,19 @@ export function createHarnessRuntimeAdapter(input: {
         };
         return;
       }
-      const server = await input.createServer(ownerId);
+      const server = await input.createServer(
+        ownerId,
+        input.toolExecution === undefined
+          ? undefined
+          : {
+              ownerId,
+              sessionId: context.session.id,
+              runId: context.run.id,
+              leaseToken: context.leaseToken,
+              agentVersionId: context.session.agentVersion.id,
+              execution: input.toolExecution,
+            },
+      );
       const initialized = await server.dispatch({
         jsonrpc: "2.0",
         id: "runtime-initialize",
