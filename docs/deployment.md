@@ -204,6 +204,12 @@ direct URL is `https://town-clear-current-isikp0w1h-123oqwes-projects.vercel.app
 state `READY`; `0035_routine_run_claims.sql` adds lease-checked trigger claims,
 and the unauthenticated URL check returns the Vercel SSO `302`.
 
+Idempotent terminal-run replay is deployed in
+`dpl_2ff7iD5FukjHyuEg3n4LTvouYfAN`, built from commit `3133531`. Its protected
+direct URL is `https://town-clear-current-6orqnhp0q-123oqwes-projects.vercel.app`,
+state `READY`; `0036_routine_run_replays.sql` creates new queued runs linked to
+their source, and the unauthenticated URL check returns the Vercel SSO `302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
