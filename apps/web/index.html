@@ -385,6 +385,61 @@
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>
+    <dialog
+      class="people-dialog"
+      id="people-dialog"
+      aria-labelledby="people-title"
+    >
+      <form method="dialog" id="people-form">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">People</p>
+        <h2 id="people-title">
+          Keep the people<br /><em>you care about close.</em>
+        </h2>
+        <p class="dialog-copy">
+          These are your persisted relationship records. Town never invents a
+          contact.
+        </p>
+        <div class="people-list" id="people-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load people.</p>
+        </div>
+        <button
+          class="text-button people-add-toggle"
+          id="people-add-toggle"
+          type="button"
+        >
+          Add a person <span>＋</span>
+        </button>
+        <div class="people-add-form" id="people-add-form" hidden>
+          <label for="person-name">Name</label>
+          <input id="person-name" maxlength="200" required />
+          <label for="person-email"
+            >Email <span class="form-hint">optional</span></label
+          >
+          <input id="person-email" type="email" maxlength="320" />
+          <label for="person-category">Category</label>
+          <select id="person-category">
+            <option value="uncategorized">Uncategorized</option>
+            <option value="coworker">Coworker</option>
+            <option value="family">Family</option>
+            <option value="personal">Personal</option>
+          </select>
+          <label for="person-notes">Notes</label>
+          <textarea id="person-notes" rows="3" maxlength="10000"></textarea>
+          <button
+            class="primary-button full-button"
+            id="person-save"
+            type="button"
+          >
+            Save person <span>→</span>
+          </button>
+          <p class="dialog-error" id="people-error" role="alert" hidden></p>
+        </div>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

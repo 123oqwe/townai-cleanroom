@@ -979,6 +979,82 @@ dialog h2 {
   font-family: var(--mono);
   font-size: 10px;
 }
+.people-dialog {
+  max-width: 540px;
+}
+.people-list {
+  display: grid;
+  gap: 8px;
+  max-height: 250px;
+  margin: 18px 0 12px;
+  overflow: auto;
+}
+.person-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.person-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.person-card strong {
+  display: block;
+  font-size: 12px;
+}
+.person-card small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.person-category {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.people-add-toggle {
+  margin: 3px 0 16px;
+}
+.people-add-form {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.people-add-form label {
+  margin-top: 4px;
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.people-add-form select,
+.people-add-form textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+.people-add-form textarea {
+  resize: vertical;
+}
 @keyframes rise {
   from {
     opacity: 0;

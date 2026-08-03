@@ -360,6 +360,72 @@ async function searchLibrary() {
     button.disabled = false;
   }
 }
+function renderPeople(result) {
+  const target = $("#people-list");
+  const people = result.people || [];
+  if (!people.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No people saved yet. Add the first one when you are ready.</p>';
+    return;
+  }
+  target.innerHTML = people
+    .filter((person) => person.status === "active")
+    .map((person) => {
+      const initials = person.displayName
+        .split(/\s+/)
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+      const detail =
+        person.primaryEmail ||
+        person.organization ||
+        person.role ||
+        "No details yet";
+      return `<article class="person-card"><span class="person-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(person.displayName)}</strong><small>${escapeHtml(detail)}</small></div><span class="person-category">${escapeHtml(person.category)}</span></article>`;
+    })
+    .join("");
+}
+async function loadPeople() {
+  if (!state.token) {
+    $("#people-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load people.</p>';
+    return;
+  }
+  try {
+    renderPeople(await api("/v1/people"));
+  } catch (error) {
+    $("#people-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "People unavailable.")}</p>`;
+  }
+}
+async function savePerson() {
+  const name = $("#person-name").value.trim();
+  if (!name || !state.token) return;
+  const button = $("#person-save");
+  const error = $("#people-error");
+  button.disabled = true;
+  error.hidden = true;
+  try {
+    await apiJson("/v1/people", {
+      displayName: name,
+      primaryEmail: $("#person-email").value.trim() || undefined,
+      category: $("#person-category").value,
+      notes: $("#person-notes").value,
+    });
+    $("#person-name").value = "";
+    $("#person-email").value = "";
+    $("#person-notes").value = "";
+    $("#people-add-form").hidden = true;
+    await loadPeople();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save person.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -433,8 +499,8 @@ $("#command-open").addEventListener("click", () => {
   void loadHarness();
 });
 $("#people-button").addEventListener("click", () => {
-  openDialog($("#harness-dialog"));
-  void loadHarness();
+  openDialog($("#people-dialog"));
+  void loadPeople();
 });
 $("#harness-send").addEventListener("click", () => void sendHarnessMessage());
 $("#thread-select").addEventListener("change", (event) => {
@@ -474,6 +540,11 @@ $("#library-query").addEventListener("keydown", (event) => {
     void searchLibrary();
   }
 });
+$("#people-add-toggle").addEventListener("click", () => {
+  $("#people-add-form").hidden = !$("#people-add-form").hidden;
+  if (!$("#people-add-form").hidden) $("#person-name").focus();
+});
+$("#person-save").addEventListener("click", () => void savePerson());
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),

@@ -90,6 +90,9 @@ control using your platform's secure secret-management workflow.
   Library view. Search results identify their resource type and local search
   algorithm; empty or unavailable stores remain explicit instead of being
   replaced with sample cards.
+- The People surface reads active relationship records from `/v1/people` and
+  can create a user-authored person with category, email, and notes. It does
+  not infer or fabricate contacts.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm
