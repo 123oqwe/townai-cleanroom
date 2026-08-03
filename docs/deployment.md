@@ -1318,3 +1318,10 @@ is deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The endpoint remains inactive
 until `VAPI_WEBHOOK_SECRET` is configured; the direct URL remains SSO-gated.
+
+The bounded local filesystem Content storage adapter is deployed as
+`https://town-clear-8xgt6gdmt-123oqwes-projects.vercel.app`, deployment
+`dpl_EyfN1zFWug5vHW1hCPVooExvEmZV`, state `READY`. The full workspace build
+completed successfully and no runtime errors were reported in the selected
+hour. Vercel does not set `CONTENT_STORAGE_ROOT`, so blob routes continue to
+return an explicit 503 until durable storage is configured.
