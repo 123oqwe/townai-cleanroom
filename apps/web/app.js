@@ -1010,6 +1010,9 @@ async function loadChannels() {
   if (!state.token) {
     $("#channel-list").innerHTML =
       '<p class="harness-empty">Connect the API to load channels.</p>';
+    $("#channel-timeline-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load delivery history.</p>';
+    $("#channel-timeline-more").hidden = true;
     return;
   }
   channelTimelineCursor = "";
@@ -1027,6 +1030,7 @@ async function loadChannels() {
   if (timelineResult.status === "rejected") {
     $("#channel-timeline-list").innerHTML =
       '<p class="harness-empty">Delivery timeline unavailable.</p>';
+    $("#channel-timeline-more").hidden = true;
   }
 }
 async function saveChannel() {
