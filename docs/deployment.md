@@ -534,6 +534,23 @@ visibility without rewriting or reordering server data. An unauthenticated
 request receives the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
 
+The task input-request inbox API is deployed in
+`dpl_FqX58rCpDn4GA1F3pS2PKWbwGnPa`, built from commit `bf7cb2b`. Its protected
+direct URL is
+`https://town-clear-current-h28k2rwi5-123oqwes-projects.vercel.app`, state
+`READY`; `/v1/input-requests` lists pending questions across active owner tasks
+and preserves task-scoped answering. The direct `/v1/health` request returns
+the Vercel SSO `302`; Vercel reported no runtime errors in the verification
+window.
+
+The task input-request inbox web surface is deployed in
+`dpl_CPW9TRHGuqdhD8QG2n33PRFRCMJB`, built from commit `bf7cb2b`. Its protected
+direct URL is
+`https://town-clear-current-1659t1ico-123oqwes-projects.vercel.app`, state
+`READY`; the Connected accounts dialog can display and answer pending task
+questions. The direct URL returns the Vercel SSO `302`; Vercel reported no
+runtime errors in the verification window.
+
 The enabled tool catalog surface is deployed in
 `dpl_FrTm5RVJo4tfENzoq9Vn2Kihchs4`, built from commit `34cdf21`. Its protected
 direct URL is
