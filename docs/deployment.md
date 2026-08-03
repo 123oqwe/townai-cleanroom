@@ -765,3 +765,9 @@ runtime-error query reports no errors, and an unauthenticated direct `HEAD`
 request returns `302` to Vercel SSO. The generated alias is therefore recorded
 as protected in this environment, while project-level protection remains an
 explicit infrastructure boundary.
+
+The subsequent Square member-management UI is deployed as
+`https://town-clear-current-ikdzlc63u-123oqwes-projects.vercel.app`, deployment
+`dpl_eRfnHnRRPoJuMB1f4m4RQk69afAJ`, state `READY`. The Vercel runtime-error
+query reports no errors; direct unauthenticated access remains a `302` SSO
+redirect.

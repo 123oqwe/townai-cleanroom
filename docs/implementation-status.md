@@ -70,3 +70,8 @@ derives selectable capabilities from the user's real active account metadata,
 and grants or revokes access through the existing protected routes. The UI
 keeps capability selection explicit and does not expose credentials or invoke
 external providers. `pnpm check:web` and `git diff --check` pass.
+
+Square membership management is now surfaced alongside the inspector: admins
+can add/reactivate a user by UUID and update the existing member role/status
+through the protected Square routes. The UI renders the server's real
+membership enum and leaves authorization to the repository policy.
