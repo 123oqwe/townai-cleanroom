@@ -479,3 +479,12 @@ direct URL is
 database transaction and requires an explicit cron, timezone, and first-run
 time. An unauthenticated curl receives the Vercel SSO `302` protection
 redirect. Vercel reported no runtime errors in the verification window.
+
+Need to Know suggestion pagination is deployed in
+`dpl_FmjuDZueCScGv5qvL4DhSti4QdaE`, built from commit `aa5027a`. Its protected
+direct URL is
+`https://town-clear-current-2nof84fdm-123oqwes-projects.vercel.app`, state
+`READY`; `GET /v1/suggestions` now returns a stable owner/status-scoped
+`nextCursor` while retaining the legacy `suggestions` array. An
+unauthenticated curl receives the Vercel SSO `302` protection redirect, and
+Vercel reported no runtime errors in the verification window.
