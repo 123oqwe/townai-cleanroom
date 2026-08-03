@@ -1119,3 +1119,9 @@ completed successfully and Vercel reported no runtime errors in the following
 hour. The direct URL remains SSO-gated. External billing reconciliation is
 still deliberately reported as `not_configured` until a provider adapter is
 actually supplied.
+
+The admin user detail source state is deployed as
+`https://town-clear-current-dohyfk6qn-123oqwes-projects.vercel.app`, deployment
+`dpl_64mRSnFZ5m9vSCJRsDdChpDEbTSQ`, state `READY`. The full workspace build
+completed successfully and Vercel reported no runtime errors in the following
+hour. The direct URL remains SSO-gated.
