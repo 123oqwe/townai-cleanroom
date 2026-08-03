@@ -65,10 +65,14 @@ empty to preserve the database's existing allowlist state.
 - Owner-scoped Squares with active memberships, owner/admin/member roles,
   canonical-owner invariants, team policy revisions, and authenticated API
   boundaries for member administration.
-- Owner-scoped notification Channels (email/webhook/Telegram/WhatsApp metadata)
+- Owner-scoped notification Channels (email/webhook/Telegram/WhatsApp/Slack metadata)
   with strict public configuration, disabled-channel controls, idempotent
   delivery outbox records, worker leases, claim-token completion, retry state,
   and no worker capability token in public delivery DTOs.
+  Email delivery uses a selected Google account; Telegram, WhatsApp Cloud API,
+  and Slack use provider HTTP requests with `credentialRef` values resolved
+  from the deployment-only `CHANNEL_CREDENTIALS_JSON` secret map. Credentials
+  are never persisted in channel rows.
 - Owner-scoped MCP server metadata under `/v1/mcp-servers` with HTTPS URL,
   `streamable_http`/`sse` transport, optional credential reference, and
   revision-checked disable. Servers can be explicitly enabled per immutable
