@@ -461,3 +461,12 @@ deployment URL and its owner preview alias returned the Vercel SSO `302`.
 Vercel reported no runtime error clusters in the preceding 24 hours. This is
 an observation of the current deployment, not proof that project-level
 protection is configured for every generated alias.
+
+The documented routine-template catalog is deployed in
+`dpl_BzXUD11S7zhT6vasgSqPKDjzGbss`, built from commit `95d241e`. Its protected
+direct URL is
+`https://town-clear-current-ge5e7oy82-123oqwes-projects.vercel.app`, state
+`READY`; `GET /v1/routine-templates` exposes only public catalog names,
+summaries, setup prompts, and default approval posture. It does not claim
+Town's private prompts, model routing, or stock-routine tool graph. An
+unauthenticated curl receives the Vercel SSO `302` protection redirect.
