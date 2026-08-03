@@ -1461,7 +1461,9 @@ function renderA2A(result) {
         ? `expires ${new Date(request.expiresAt).toLocaleString()}`
         : "no expiry";
       const actionable = request.status === "pending";
-      return `<article class="a2a-card" data-a2a-id="${escapeHtml(request.id)}" data-a2a-revision="${escapeHtml(request.revision)}"><div class="a2a-copy"><span class="a2a-meta">${escapeHtml(request.status)} · revision ${escapeHtml(request.revision)}</span><strong>${escapeHtml(request.capability)}</strong><p>${escapeHtml(JSON.stringify(request.request))}</p><small>${escapeHtml(request.requesterId.slice(0, 8))} → ${escapeHtml(request.recipientId.slice(0, 8))} · ${escapeHtml(expiry)}</small></div>${actionable ? '<div class="a2a-actions"><button class="quiet-button a2a-decline" type="button">Decline</button><button class="primary-button a2a-accept" type="button">Accept <span>→</span></button></div>' : ""}</article>`;
+      const revocable = request.consentStatus === "granted";
+      const consent = `${request.consentStatus || "pending"}${request.consentScope?.length ? ` · ${request.consentScope.join(", ")}` : ""}`;
+      return `<article class="a2a-card" data-a2a-id="${escapeHtml(request.id)}" data-a2a-revision="${escapeHtml(request.revision)}"><div class="a2a-copy"><span class="a2a-meta">${escapeHtml(request.status)} · ${escapeHtml(consent)} · revision ${escapeHtml(request.revision)}</span><strong>${escapeHtml(request.capability)}</strong><p>${escapeHtml(JSON.stringify(request.request))}</p><small>${escapeHtml(request.requesterId.slice(0, 8))} → ${escapeHtml(request.recipientId.slice(0, 8))} · ${escapeHtml(expiry)}</small></div>${actionable ? '<div class="a2a-actions"><button class="quiet-button a2a-decline" type="button">Decline</button><button class="primary-button a2a-accept" type="button">Grant this capability <span>→</span></button></div>' : revocable ? '<div class="a2a-actions"><button class="quiet-button a2a-revoke" type="button">Revoke consent</button></div>' : ""}</article>`;
     })
     .join("");
 }
@@ -1518,7 +1520,7 @@ async function saveA2A() {
     button.disabled = false;
   }
 }
-async function transitionA2A(card, status) {
+async function transitionA2A(card, decision) {
   const id = card.dataset.a2aId;
   const revision = Number(card.dataset.a2aRevision);
   if (!id || !Number.isInteger(revision)) return;
@@ -1526,9 +1528,16 @@ async function transitionA2A(card, status) {
   error.hidden = true;
   card.querySelectorAll("button").forEach((button) => (button.disabled = true));
   try {
-    await api(`/v1/a2a/requests/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status, expectedRevision: revision }),
+    await api(`/v1/a2a/requests/${id}/consent`, {
+      method: "POST",
+      body: JSON.stringify({
+        decision,
+        expectedRevision: revision,
+        scope:
+          decision === "grant"
+            ? [card.querySelector(".a2a-copy strong").textContent]
+            : [],
+      }),
     });
     await loadA2A();
   } catch (cause) {
@@ -1868,7 +1877,11 @@ $("#a2a-list").addEventListener("click", (event) => {
   if (!button || !card) return;
   void transitionA2A(
     card,
-    button.classList.contains("a2a-accept") ? "accepted" : "declined",
+    button.classList.contains("a2a-accept")
+      ? "grant"
+      : button.classList.contains("a2a-revoke")
+        ? "revoke"
+        : "deny",
   );
 });
 $("#approval-approve").addEventListener(
