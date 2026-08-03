@@ -68,6 +68,18 @@ describe("allowlist-gated identity service", () => {
     } satisfies Partial<IdentityError>);
   });
 
+  it("syncs configured allowlist entries idempotently without deleting others", async () => {
+    await allow("existing@example.test", false);
+    await service().syncAllowlist([identityInput.email, identityInput.email]);
+    const rows = await sql<{ email: string; enabled: boolean }[]>`
+      select email::text, enabled from access_allowlist order by email
+    `;
+    expect(rows).toEqual([
+      { email: "existing@example.test", enabled: false },
+      { email: identityInput.email, enabled: true },
+    ]);
+  });
+
   it("matches allowlist email case-insensitively and reuses one user", async () => {
     await allow("OWNER@EXAMPLE.TEST");
 

@@ -73,6 +73,7 @@ import { createGoogleApiClient } from "@town/google";
 const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
   CREDENTIAL_MASTER_KEY_BASE64URL: z.string().min(1),
+  ACCESS_ALLOWLIST_EMAILS: z.string().default(""),
   RESPONSES_API_ENDPOINT: z
     .string()
     .url()
@@ -101,6 +102,11 @@ const credentialCipher = createCredentialCipher(
   environment.CREDENTIAL_MASTER_KEY_BASE64URL,
 );
 const identityService = createIdentityService(sql);
+const configuredAllowlist = environment.ACCESS_ALLOWLIST_EMAILS.split(",")
+  .map((email) => email.trim())
+  .filter(Boolean);
+if (configuredAllowlist.length > 0)
+  await identityService.syncAllowlist(configuredAllowlist);
 const accountRepository = createAccountRepository(sql, credentialCipher);
 const profileRepository = createProfileRepository(sql);
 const memoryRepository = createMemoryRepository(sql);

@@ -34,6 +34,11 @@ fallback credentials or a fake database.
 Generate a development encryption key without printing or storing it in source
 control using your platform's secure secret-management workflow.
 
+For an allowlisted deployment, set `ACCESS_ALLOWLIST_EMAILS` to a comma-separated
+list of approved email addresses. Startup idempotently enables those rows in
+the server-side allowlist; it never disables or deletes unlisted rows. Leave it
+empty to preserve the database's existing allowlist state.
+
 ## Implemented backend modules
 
 - Foundation contracts, source-only policy, health API, and CI.

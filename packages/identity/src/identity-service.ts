@@ -39,6 +39,10 @@ export function createIdentityService(
   const sessionTtlMs = options.sessionTtlMs ?? 30 * 24 * 60 * 60 * 1_000;
 
   return {
+    async syncAllowlist(emails: string[]): Promise<void> {
+      const values = z.array(z.email()).max(1_000).parse(emails);
+      await repository.syncAllowlist(values);
+    },
     async establishIdentity(
       input: z.input<typeof identityInputSchema>,
     ): Promise<EstablishedIdentity> {
