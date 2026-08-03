@@ -534,6 +534,15 @@ visibility without rewriting or reordering server data. An unauthenticated
 request receives the Vercel SSO `302`; Vercel reported no runtime errors in
 the verification window.
 
+The MCP server catalog surface is deployed in
+`dpl_EB3pCcju5HncbkkkiBtSDkYrmUYi`, built from commit `acce79c`. Its protected
+direct URL is
+`https://town-clear-current-ravj508y3-123oqwes-projects.vercel.app`, state
+`READY`; the Connected accounts dialog lists owner-scoped server metadata and
+only an auth-configured boolean, never the auth reference itself. The direct
+URL returns the Vercel SSO `302`; Vercel reported no runtime errors in the
+verification window.
+
 The task input-request inbox API is deployed in
 `dpl_FqX58rCpDn4GA1F3pS2PKWbwGnPa`, built from commit `bf7cb2b`. Its protected
 direct URL is
