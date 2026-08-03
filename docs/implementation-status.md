@@ -246,6 +246,11 @@ uses its own idempotency key, and the replay is recorded in the operations audit
 timeline. Non-terminal failures, disabled channels, and cross-owner requests
 remain rejected.
 
+The notification timeline now has its own wildcard-free authentication mount;
+unauthenticated requests are rejected before the route can read an owner-scoped
+operations repository. This closes the same nested-route class of boundary bug
+previously fixed for connected-account mutations and delivery replay.
+
 The Harness dialog now consumes the same readiness contract before creating a
 thread or queuing a turn. When the worker is not configured, the composer and
 thread controls are disabled and the UI explains that data/settings remain

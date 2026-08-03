@@ -241,6 +241,13 @@ describe("protected identity API", () => {
     expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED" });
   });
 
+  it("protects the notification timeline route", async () => {
+    const { app } = await fixture();
+    const response = await app.request("/v1/notification-timeline");
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
   it("lets the authenticated user revoke the current session", async () => {
     const { app, owner } = await fixture();
     const response = await app.request("/v1/me/session", {
