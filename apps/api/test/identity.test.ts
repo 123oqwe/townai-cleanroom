@@ -271,6 +271,30 @@ describe("protected identity API", () => {
 
   it("exposes safe agent health only to the deployment admin allowlist", async () => {
     const { app, owner, other } = await fixture();
+    const overviewResponse = await app.request("/v1/admin/overview", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    expect(overviewResponse.status).toBe(200);
+    expect(await overviewResponse.json()).toMatchObject({
+      readiness: {
+        api: true,
+        harness: false,
+        worker: false,
+        googleOAuth: false,
+      },
+      counts: {
+        users: { total: 2, active: 2 },
+        connectedAccounts: 2,
+        activeSessions: 0,
+        queuedRuns: 0,
+        failedRuns: 0,
+        pendingApprovals: 0,
+        queuedDeliveries: 0,
+        failedDeliveries: 0,
+        activeSquares: 0,
+        failedAuditEvents24h: 0,
+      },
+    });
     const response = await app.request(
       `/v1/admin/agent-health/${other.user.id}`,
       { headers: { Authorization: `Bearer ${owner.token}` } },
