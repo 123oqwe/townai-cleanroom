@@ -1264,6 +1264,13 @@ completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The provider and assistant address
 remain deployment configuration boundaries.
 
+The aligned database schema/type definition for `email_to_assistant` is
+deployed as
+`https://town-clear-q54ojl2to-123oqwes-projects.vercel.app`, deployment
+`dpl_7dy4HH4cx44664bDKswH1DHSEV2Y`, state `READY`. The full workspace build
+completed successfully, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour.
+
 The routine-scoped webhook secret isolation fix is deployed as
 `https://town-clear-47o0y79fo-123oqwes-projects.vercel.app`, deployment
 `dpl_J7HkDdYzjBtRrW7Hi3KJ7hX57pNU`, state `READY`. The full workspace build
