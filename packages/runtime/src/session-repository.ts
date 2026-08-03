@@ -32,6 +32,7 @@ import {
   type MessageSubmission,
   type SessionRun,
   type SessionRunPage,
+  type WaitingInputRun,
 } from "./types.js";
 
 const submitMessageSchema = z
@@ -104,6 +105,7 @@ interface RunRow {
   state: string;
   attempt: number;
   wait_reason: string | null;
+  input_response: string | null;
   outcome: unknown | null;
   error_code: string | null;
   created_at: Date;
@@ -153,6 +155,7 @@ function safeRun(row: RunRow): SessionRun {
     state: sessionRunStateSchema.parse(row.state),
     attempt: row.attempt,
     waitReason: row.wait_reason,
+    inputResponse: row.input_response,
     outcome:
       row.outcome === null ? null : runtimePayloadSchema.parse(row.outcome),
     errorCode: row.error_code,
@@ -264,6 +267,7 @@ export function createSessionRepository(sql: Sql) {
     const rows = await sql<RunRow[]>`
       select
         id, session_id, triggering_turn_id, state, attempt, wait_reason,
+        input_response,
         outcome, error_code, created_at, started_at, finished_at, updated_at
       from session_runs
       where owner_id = ${ownerId} and session_id = ${sessionId}
@@ -302,6 +306,7 @@ export function createSessionRepository(sql: Sql) {
     const [row] = await sql<RunRow[]>`
       select
         id, session_id, triggering_turn_id, state, attempt, wait_reason,
+        input_response,
         outcome, error_code, created_at, started_at, finished_at, updated_at
       from session_runs
       where owner_id = ${parsedOwnerId} and session_id = ${parsedSessionId}
@@ -355,6 +360,25 @@ export function createSessionRepository(sql: Sql) {
             id: asId(last.id),
           });
     return { items, nextCursor };
+  }
+
+  async function listWaitingInput(
+    ownerId: Id<"user">,
+  ): Promise<WaitingInputRun[]> {
+    const parsedOwnerId = asId<"user">(ownerId);
+    const rows = await sql<RunRow[]>`
+      select id, session_id, triggering_turn_id, state, attempt, wait_reason,
+        input_response, outcome, error_code, created_at, started_at, finished_at,
+        updated_at
+      from session_runs
+      where owner_id = ${parsedOwnerId} and state = 'waiting_user_input'
+      order by updated_at desc, id desc
+      limit 100
+    `;
+    return rows.map((row) => ({
+      sessionId: asId<"runtime-session">(row.session_id),
+      run: safeRun(row),
+    }));
   }
 
   async function submitMessage(
@@ -537,7 +561,15 @@ export function createSessionRepository(sql: Sql) {
     return { session, run, turn, replayed: result.replayed };
   }
 
-  return { get, getByThread, getRun, listEvents, listRuns, submitMessage };
+  return {
+    get,
+    getByThread,
+    getRun,
+    listEvents,
+    listRuns,
+    listWaitingInput,
+    submitMessage,
+  };
 }
 
 export type SessionRepository = ReturnType<typeof createSessionRepository>;

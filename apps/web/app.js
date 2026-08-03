@@ -1252,6 +1252,58 @@ async function answerInputRequest(card) {
       .forEach((button) => (button.disabled = false));
   }
 }
+function renderRuntimeInputs(result) {
+  const target = $("#runtime-input-inbox-list");
+  const runs = result.runs || [];
+  $("#runtime-input-inbox-count").textContent = `${runs.length} waiting`;
+  if (!runs.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No Harness runs are waiting.</p>';
+    return;
+  }
+  target.innerHTML = runs
+    .map(
+      ({ sessionId, run }) =>
+        `<article class="input-inbox-card" data-session-id="${escapeHtml(sessionId)}" data-run-id="${escapeHtml(run.id)}"><strong>${escapeHtml(run.waitReason || "The Harness needs input.")}</strong><textarea class="input-inbox-response" rows="2" maxlength="50000" placeholder="Continue this run…"></textarea><button class="primary-button runtime-input-send" type="button">Continue <span>→</span></button></article>`,
+    )
+    .join("");
+}
+async function loadRuntimeInputs() {
+  if (!state.token) {
+    $("#runtime-input-inbox-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load waiting runs.</p>';
+    $("#runtime-input-inbox-count").textContent = "—";
+    return;
+  }
+  try {
+    renderRuntimeInputs(await api("/v1/runtime-input-requests"));
+  } catch (error) {
+    $("#runtime-input-inbox-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Waiting runs unavailable.")}</p>`;
+  }
+}
+async function answerRuntimeInput(card) {
+  const sessionId = card.dataset.sessionId;
+  const runId = card.dataset.runId;
+  const response = card.querySelector(".input-inbox-response").value.trim();
+  if (!sessionId || !runId || !response) return;
+  card.querySelectorAll("button").forEach((button) => (button.disabled = true));
+  try {
+    await apiJson(`/v1/sessions/${sessionId}/runs/${runId}/input`, {
+      response,
+    });
+    await loadRuntimeInputs();
+    await refresh();
+  } catch (error) {
+    card.insertAdjacentHTML(
+      "beforeend",
+      `<p class="dialog-error">${escapeHtml(error instanceof Error ? error.message : "Could not continue run.")}</p>`,
+    );
+    card
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = false));
+  }
+}
 async function decideInboxApproval(card, decision) {
   const approvalId = card.dataset.approvalId;
   const expectedRevision = Number(card.dataset.approvalRevision);
@@ -2012,6 +2064,7 @@ $("#account-open").addEventListener("click", () => {
   void loadTools();
   void loadApprovals();
   void loadInputRequests();
+  void loadRuntimeInputs();
 });
 $("#policy-preview-run").addEventListener("click", () => void previewPolicy());
 $("#approval-inbox-list").addEventListener("click", (event) => {
@@ -2027,6 +2080,11 @@ $("#input-inbox-list").addEventListener("click", (event) => {
   const button = event.target.closest(".input-inbox-send");
   const card = event.target.closest(".input-inbox-card");
   if (button && card) void answerInputRequest(card);
+});
+$("#runtime-input-inbox-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".runtime-input-send");
+  const card = event.target.closest(".input-inbox-card");
+  if (button && card) void answerRuntimeInput(card);
 });
 $("#google-connect").addEventListener("click", () => void startGoogleOAuth());
 $("#channels-open").addEventListener("click", () => {

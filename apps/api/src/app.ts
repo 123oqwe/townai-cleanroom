@@ -671,6 +671,8 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/threads/*", authenticate);
       app.use("/v1/sessions", authenticate);
       app.use("/v1/sessions/*", authenticate);
+      app.use("/v1/runtime-input-requests", authenticate);
+      app.use("/v1/runtime-input-requests/*", authenticate);
       registerRuntimeRoutes(app, runtime);
     }
 

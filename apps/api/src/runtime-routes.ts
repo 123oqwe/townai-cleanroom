@@ -53,6 +53,9 @@ const approvalDecisionSchema = z
     decision: z.enum(["approve", "reject"]),
   })
   .strict();
+const inputResponseSchema = z
+  .object({ response: z.string().trim().min(1).max(50_000) })
+  .strict();
 
 export function registerRuntimeRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -111,11 +114,32 @@ export function registerRuntimeRoutes(
     return context.json({ decision, run }, 202);
   });
 
+  app.post("/v1/sessions/:sessionId/runs/:runId/input", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const sessionId = asId<"runtime-session">(context.req.param("sessionId"));
+    const runId = asId<"session-run">(context.req.param("runId"));
+    const body = inputResponseSchema.parse(await context.req.json());
+    const run = await dependencies.runtimeTransitionService.answerInput({
+      ownerId,
+      sessionId,
+      runId,
+      response: body.response,
+    });
+    return context.json({ run }, 202);
+  });
+
   app.get("/v1/sessions/:sessionId", async (context) => {
     const ownerId = context.get("identity").user.id;
     const sessionId = asId<"runtime-session">(context.req.param("sessionId"));
     return context.json({
       session: await dependencies.sessionRepository.get(ownerId, sessionId),
+    });
+  });
+
+  app.get("/v1/runtime-input-requests", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      runs: await dependencies.sessionRepository.listWaitingInput(ownerId),
     });
   });
 

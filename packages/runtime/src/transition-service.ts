@@ -70,6 +70,14 @@ const resumeSchema = z
     expectedState: z.enum(["waiting_approval", "waiting_user_input"]),
   })
   .strict();
+const answerInputSchema = z
+  .object({
+    ownerId: idSchema,
+    sessionId: idSchema,
+    runId: idSchema,
+    response: z.string().trim().min(1).max(50_000),
+  })
+  .strict();
 const cancelSchema = z
   .object({
     ownerId: idSchema,
@@ -361,6 +369,7 @@ export function createRuntimeTransitionService(sql: Sql) {
       await transaction`
         update session_runs
         set state = ${value.state}, wait_reason = ${value.reason},
+            input_response = null,
             updated_at = clock_timestamp()
         where id = ${runId}
       `;
@@ -405,7 +414,8 @@ export function createRuntimeTransitionService(sql: Sql) {
       requireState(run, value.expectedState);
       await transaction`
         update session_runs
-        set state = 'queued', wait_reason = null, started_at = null,
+        set state = 'queued', wait_reason = null, input_response = null,
+            started_at = null,
             finished_at = null, outcome = null, error_code = null,
             updated_at = clock_timestamp()
         where id = ${runId}
@@ -425,6 +435,44 @@ export function createRuntimeTransitionService(sql: Sql) {
         runId,
         kind: "run_resumed",
         payload: { previousState: value.expectedState },
+        sessionState: await deriveRuntimeSessionStateInTransaction(
+          transaction,
+          ownerId,
+          sessionId,
+        ),
+      });
+    });
+    return sessions.getRun(ownerId, sessionId, runId);
+  }
+
+  async function answerInput(
+    input: z.input<typeof answerInputSchema>,
+  ): Promise<SessionRun> {
+    const value = answerInputSchema.parse(input);
+    const ownerId = asId<"user">(value.ownerId);
+    const sessionId = asId<"runtime-session">(value.sessionId);
+    const runId = asId<"session-run">(value.runId);
+    await sql.begin(async (transaction) => {
+      await lockRuntimeSessionInTransaction(transaction, ownerId, sessionId);
+      const run = await lockRun(transaction, { ownerId, sessionId, runId });
+      requireState(run, "waiting_user_input");
+      await transaction`
+        update session_runs
+        set state = 'queued', wait_reason = null, input_response = ${value.response},
+            started_at = null, finished_at = null, outcome = null,
+            error_code = null, updated_at = clock_timestamp()
+        where id = ${runId}
+      `;
+      await transaction`
+        insert into runtime_jobs (run_id, owner_id, session_id)
+        values (${runId}, ${ownerId}, ${sessionId})
+      `;
+      await appendEvent(transaction, {
+        ownerId,
+        sessionId,
+        runId,
+        kind: "run_resumed",
+        payload: { previousState: "waiting_user_input" },
         sessionState: await deriveRuntimeSessionStateInTransaction(
           transaction,
           ownerId,
@@ -478,6 +526,7 @@ export function createRuntimeTransitionService(sql: Sql) {
   }
 
   return {
+    answerInput,
     cancel,
     complete,
     fail,

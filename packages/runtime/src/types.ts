@@ -69,12 +69,18 @@ export interface SessionRun {
   state: SessionRunState;
   attempt: number;
   waitReason: string | null;
+  inputResponse: string | null;
   outcome: RuntimePayload | null;
   errorCode: string | null;
   createdAt: Date;
   startedAt: Date | null;
   finishedAt: Date | null;
   updatedAt: Date;
+}
+
+export interface WaitingInputRun {
+  sessionId: Id<"runtime-session">;
+  run: SessionRun;
 }
 
 export interface SessionRunPage {

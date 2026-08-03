@@ -767,6 +767,7 @@ export const sessionRuns = pgTable(
     state: text("state").notNull().default("queued"),
     attempt: integer("attempt").notNull().default(0),
     waitReason: text("wait_reason"),
+    inputResponse: text("input_response"),
     outcome: jsonb("outcome"),
     errorCode: text("error_code"),
     ...timestamps,

@@ -193,6 +193,38 @@ describe("runtime transitions", () => {
     ]);
   });
 
+  it("stores a user answer and queues a waiting-user-input run", async () => {
+    const submitted = await queuedRun("waiting-input-run");
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const lease = await queue.claim({
+      workerId: "worker-input-wait",
+      leaseMs: 60_000,
+    });
+    if (lease === null) throw new Error("Expected a lease.");
+    await transitions.start({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+    });
+    await transitions.wait({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      state: "waiting_user_input",
+      reason: "Need a missing detail",
+    });
+    const answered = await transitions.answerInput({
+      ownerId,
+      sessionId: submitted.session.id,
+      runId: lease.runId,
+      response: "The missing detail is confirmed.",
+    });
+    expect(answered).toMatchObject({
+      state: "queued",
+      inputResponse: "The missing detail is confirmed.",
+      waitReason: null,
+    });
+  });
+
   it("cancellation invalidates the worker lease and blocks late output", async () => {
     const submitted = await queuedRun("cancel-run");
     const queue = createRuntimeQueueRepository(sql);

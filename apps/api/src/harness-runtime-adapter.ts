@@ -115,13 +115,15 @@ export function createHarnessRuntimeAdapter(input: {
               method: "turn/start",
               params: {
                 threadId,
-                text: (
-                  await input.turns.get({
-                    ownerId,
-                    threadId,
-                    turnId: context.run.triggeringTurnId,
-                  })
-                ).text,
+                text:
+                  context.run.inputResponse ??
+                  (
+                    await input.turns.get({
+                      ownerId,
+                      threadId,
+                      turnId: context.run.triggeringTurnId,
+                    })
+                  ).text,
               },
             });
       assertResponse(response, "Harness turn failed.");
