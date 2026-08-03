@@ -1277,6 +1277,56 @@ dialog h2 {
   font-size: 12px;
   resize: vertical;
 }
+.accounts-dialog {
+  max-width: 520px;
+}
+.account-list {
+  display: grid;
+  gap: 8px;
+  max-height: 230px;
+  margin: 18px 0;
+  overflow: auto;
+}
+.account-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.account-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.account-card strong {
+  display: block;
+  font-size: 12px;
+}
+.account-card small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.account-status {
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.account-status.needs-reauth {
+  color: #a03e2b;
+}
 @keyframes rise {
   from {
     opacity: 0;

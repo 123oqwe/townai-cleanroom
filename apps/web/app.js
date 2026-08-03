@@ -680,6 +680,67 @@ async function runSelectedRoutine() {
     button.disabled = false;
   }
 }
+function renderAccounts(result) {
+  const target = $("#account-list");
+  const accounts = result.accounts || [];
+  if (!accounts.length) {
+    target.innerHTML =
+      '<p class="harness-empty">No connected accounts yet.</p>';
+    return;
+  }
+  target.innerHTML = accounts
+    .map(
+      (account) =>
+        `<article class="account-card"><span class="account-mark">${escapeHtml(account.provider)}</span><div><strong>${escapeHtml(account.email)}</strong><small>${
+          Object.keys(account.capabilities || {})
+            .filter((key) => account.capabilities[key])
+            .map(escapeHtml)
+            .join(" · ") || "No capabilities reported"
+        }</small></div><span class="account-status ${account.needsReauth ? "needs-reauth" : ""}">${account.needsReauth ? "reauth" : account.isActive ? "active" : "inactive"}</span></article>`,
+    )
+    .join("");
+}
+async function loadAccounts() {
+  if (!state.token) {
+    $("#account-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load accounts.</p>';
+    return;
+  }
+  try {
+    renderAccounts(await api("/v1/accounts"));
+  } catch (error) {
+    $("#account-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Accounts unavailable.")}</p>`;
+  }
+}
+async function startGoogleOAuth() {
+  const error = $("#accounts-error");
+  error.hidden = true;
+  if (!state.token) return;
+  try {
+    const response = await fetch(
+      `${state.base.replace(/\/$/, "")}/v1/accounts/google/oauth/start`,
+      {
+        headers: {
+          Authorization: `Bearer ${state.token}`,
+          Accept: "application/json",
+        },
+        redirect: "manual",
+      },
+    );
+    if (response.status === 302) {
+      const locationHeader = response.headers.get("Location");
+      if (locationHeader) window.location.assign(locationHeader);
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.code || `OAuth unavailable (${response.status}).`);
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Google OAuth unavailable.";
+    error.hidden = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -827,6 +888,12 @@ $("#routines-open").addEventListener("click", () => {
   void loadRoutines();
 });
 $("#routine-run").addEventListener("click", () => void runSelectedRoutine());
+$("#account-open").addEventListener("click", () => {
+  $("#accounts-error").hidden = true;
+  openDialog($("#accounts-dialog"));
+  void loadAccounts();
+});
+$("#google-connect").addEventListener("click", () => void startGoogleOAuth());
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),

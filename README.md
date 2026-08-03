@@ -106,6 +106,10 @@ control using your platform's secure secret-management workflow.
 - The system signal also exposes configured Routines from `/v1/routines` and
   can trigger a selected routine through its idempotent `/run` endpoint. The
   UI reports the returned queued Run; it does not claim provider completion.
+- The top account control reads safe connected-account projections from
+  `/v1/accounts` and starts the authenticated Google OAuth flow. OAuth and
+  provider credentials remain server-side; an unconfigured deployment reports
+  the API's explicit error instead of showing a fake connected account.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm
