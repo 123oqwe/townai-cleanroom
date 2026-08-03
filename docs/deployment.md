@@ -289,6 +289,14 @@ Its protected direct URL is
 `CHANNEL_CREDENTIALS_JSON` map and are never stored in channel rows. An
 unauthenticated curl receives the Vercel SSO `302` protection redirect.
 
+The reconnectable runtime event stream is deployed in
+`dpl_gTd62K77pNWSwdsSNwigqj8nThsS`, built from commit `0cc7920`. Its protected
+direct URL is
+`https://town-clear-current-ohr4l9gsh-123oqwes-projects.vercel.app`, state
+`READY`; authenticated clients can consume bounded owner-scoped SSE windows
+with cursor replay and heartbeats, while an unauthenticated curl receives the
+Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:

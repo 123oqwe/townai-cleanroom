@@ -312,6 +312,9 @@ Authenticated message submission is available at
 available under `/v1/sessions`. Submission requires an idempotency key and
 returns queued state without inventing assistant content. Queue claims, leases,
 event writes, runtime roles, and assistant-output writes are internal only.
+For live clients, `/v1/sessions/:sessionId/events/stream` exposes the same
+owner-scoped events as bounded SSE windows with cursor replay and heartbeats;
+clients reconnect instead of treating a disconnected stream as lost state.
 
 Module 4 defines the durable execution boundary and a provider-neutral runtime
 adapter port. The Responses/Codex-compatible harness adapter is wired only when
