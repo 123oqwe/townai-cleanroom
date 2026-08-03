@@ -1149,3 +1149,9 @@ The bounded knowledge context source state is deployed as
 `dpl_94egX4UEwbKQxq5sCCMAKXagykPU`, state `READY`. The full workspace build
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the following hour. The direct URL remains SSO-gated.
+
+The durable Routine Step Executor source state is deployed as
+`https://town-clear-dnjv5mjnv-123oqwes-projects.vercel.app`, deployment
+`dpl_5UgqWDrqm5C8djMkwenBgCVoKGER`, state `READY`. The full workspace build
+completed in 34 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the following hour. The direct URL remains SSO-gated.
