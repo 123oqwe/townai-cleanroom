@@ -489,6 +489,16 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+The unified Home schedule API is deployed in
+`dpl_A9Kej5mmktqR6vfRi5Bq4RsqFkXP`, built from commit `b29bf21`. Its protected
+direct URL is
+`https://town-clear-current-8hmyrphx6-123oqwes-projects.vercel.app`, state
+`READY`; `GET /v1/schedule` aggregates owner-scoped local tasks, enabled
+routines, and Google primary-calendar events, while returning independent
+calendar error entries instead of hiding local schedule items. An
+unauthenticated request receives the Vercel SSO `302`; Vercel reported no
+runtime errors in the verification window.
+
 Need to Know pagination is now wired into the browser card list in deployment
 `dpl_Gf1ujYy7Ty59LNUjG6ruU1QWyCvV`, built from commit `3c8a7e4`. Its protected
 direct URL is
