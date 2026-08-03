@@ -28,3 +28,8 @@ builds. The current protected UI deployment is recorded in
 [`deployment.md`](./deployment.md). This ledger intentionally does not mark
 the overall product goal complete while the production API and project-level
 deployment protection remain unverified.
+
+The latest local rerun also passes the database-backed routine suite (10/10).
+The full Vitest suite was started with Testcontainers PostgreSQL and produced
+continuous progress, but exceeded the local 300-second observation window; it
+is therefore not counted as a new full-suite pass in this ledger.
