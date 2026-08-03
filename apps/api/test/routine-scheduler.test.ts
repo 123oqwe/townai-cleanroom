@@ -59,4 +59,68 @@ describe("routine scheduler", () => {
       }),
     );
   });
+
+  it("claims queued webhook runs and passes untrusted trigger data into the session", async () => {
+    const ownerId = asId<"user">("01900000-0000-7000-8000-000000000011");
+    const routineId = asId<"routine-schedule">(
+      "01900000-0000-7000-8000-000000000012",
+    );
+    const claimToken = "01900000-0000-7000-8000-000000000013";
+    const run = {
+      id: asId<"integration-sync-run">("01900000-0000-7000-8000-000000000014"),
+      ownerId,
+      routineScheduleId: routineId,
+      triggerType: "webhook",
+      triggerData: { event: "ping" },
+      claimToken,
+    };
+    const routine = {
+      id: routineId,
+      ownerId,
+      agentId: asId<"agent">("01900000-0000-7000-8000-000000000015"),
+      name: "Webhook briefing",
+    };
+    const sql = vi.fn().mockResolvedValue([{ owner_id: ownerId }]);
+    const routines = {
+      claimDue: vi.fn().mockResolvedValue([]),
+      claimQueued: vi.fn().mockResolvedValue([run]),
+      get: vi.fn().mockResolvedValue(routine),
+      attachRuntimeRun: vi.fn(),
+      failQueuedRun: vi.fn(),
+    } as unknown as RoutineRepository;
+    const agents = {
+      getRoutine: vi.fn().mockResolvedValue({
+        id: routine.agentId,
+        activeVersion: { snapshot: { defaultApprovalMode: "autonomous" } },
+      }),
+    } as unknown as AgentRepository;
+    const threads = {
+      createTask: vi
+        .fn()
+        .mockResolvedValue({ id: "01900000-0000-7000-8000-000000000016" }),
+    } as unknown as ThreadRepository;
+    const submitMessage = vi.fn().mockResolvedValue({
+      run: { id: asId<"session-run">("01900000-0000-7000-8000-000000000017") },
+    });
+
+    await createRoutineScheduler({
+      sql: sql as never,
+      routines,
+      agents,
+      threads,
+      sessions: { submitMessage } as unknown as SessionRepository,
+    })(new Date("2026-08-03T00:00:00Z"));
+
+    expect(submitMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('"event":"ping"'),
+      }),
+    );
+    expect(routines.attachRuntimeRun).toHaveBeenCalledWith(
+      ownerId,
+      run.id,
+      expect.anything(),
+      claimToken,
+    );
+  });
 });

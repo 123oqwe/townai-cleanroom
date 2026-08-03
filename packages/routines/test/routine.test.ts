@@ -354,4 +354,28 @@ describe("routine schedules", () => {
       idempotency_key: "event-typed",
     });
   });
+
+  it("claims a queued webhook run once with a lease token", async () => {
+    const repository = createRoutineRepository(sql);
+    const schedule = await repository.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Claimed webhook",
+      cron: "0 10 * * *",
+      nextRunAt: new Date("2026-08-03T02:00:00Z"),
+    });
+    const { secret } = await repository.createWebhook(ownerId, schedule.id);
+    await repository.deliverWebhook(secret, "claim-once", { value: 1 });
+    const first = await repository.claimQueued(ownerId, "worker-a");
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({
+      triggerType: "webhook",
+      triggerData: { value: 1 },
+      claimToken: expect.any(String),
+    });
+    await expect(repository.claimQueued(ownerId, "worker-b")).resolves.toEqual(
+      [],
+    );
+  });
 });

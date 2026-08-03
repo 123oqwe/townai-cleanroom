@@ -75,6 +75,9 @@ export interface IntegrationSyncRun {
   createdAt: Date;
   updatedAt: Date;
 }
+export interface QueuedRoutineRun extends IntegrationSyncRun {
+  claimToken: string;
+}
 export interface RoutineWebhook {
   id: Id<"routine-webhook">;
   ownerId: Id<"user">;
@@ -189,6 +192,9 @@ type SyncRunRow = {
   started_at: Date | null;
   finished_at: Date | null;
   runtime_run_id: string | null;
+  claim_token: string | null;
+  claimed_by: string | null;
+  claim_expires_at: Date | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -581,12 +587,18 @@ export function createRoutineRepository(sql: Sql) {
     ownerId: Id<"user">,
     id: Id<"integration-sync-run">,
     runtimeRunId: Id<"session-run">,
+    claimToken?: string,
   ): Promise<IntegrationSyncRun> {
     const rows = await sql<SyncRunRow[]>`
       update integration_sync_runs
-      set runtime_run_id=${runtimeRunId}, status='running', started_at=coalesce(started_at, now()), updated_at=now()
+      set runtime_run_id=${runtimeRunId}, status='running', started_at=coalesce(started_at, now()),
+          claim_token=null, claimed_by=null, claim_expires_at=null, updated_at=now()
       where owner_id=${ownerId} and id=${id}
         and status='queued' and runtime_run_id is null
+        and (
+          (${claimToken ?? null} is null and claim_token is null)
+          or (claim_token=${claimToken ?? null} and claim_expires_at > now())
+        )
       returning *
     `;
     if (!rows[0]) {
@@ -594,6 +606,61 @@ export function createRoutineRepository(sql: Sql) {
       throw new RoutineError(
         "SYNC_RUN_CONFLICT",
         "The sync run is already linked or not queued.",
+      );
+    }
+    return safeRun(rows[0]);
+  }
+  async function claimQueued(
+    ownerId: Id<"user">,
+    workerId: string,
+    leaseMs = 30_000,
+  ): Promise<QueuedRoutineRun[]> {
+    const worker = z.string().trim().min(1).max(200).parse(workerId);
+    const lease = z.number().int().min(1_000).max(300_000).parse(leaseMs);
+    return sql.begin(async (tx) => {
+      const rows = await tx<SyncRunRow[]>`
+        select * from integration_sync_runs
+        where owner_id=${ownerId} and status='queued' and routine_schedule_id is not null
+          and (claim_expires_at is null or claim_expires_at <= now())
+        order by created_at, id
+        for update skip locked limit 50
+      `;
+      const claimed: QueuedRoutineRun[] = [];
+      for (const row of rows) {
+        const token = newId<"routine-claim">();
+        const updated = await tx<SyncRunRow[]>`
+          update integration_sync_runs
+          set claim_token=${token}, claimed_by=${worker},
+              claim_expires_at=now()+(${lease} * interval '1 millisecond'), updated_at=now()
+          where owner_id=${ownerId} and id=${row.id} and status='queued'
+          returning *
+        `;
+        if (updated[0])
+          claimed.push({ ...safeRun(updated[0]), claimToken: token });
+      }
+      return claimed;
+    });
+  }
+  async function failQueuedRun(
+    ownerId: Id<"user">,
+    id: Id<"integration-sync-run">,
+    claimToken: string,
+    errorCode: string,
+  ): Promise<IntegrationSyncRun> {
+    const code = z.string().trim().min(1).max(120).parse(errorCode);
+    const rows = await sql<SyncRunRow[]>`
+      update integration_sync_runs
+      set status='failed', error_code=${code}, finished_at=now(),
+          claim_token=null, claimed_by=null, claim_expires_at=null, updated_at=now()
+      where owner_id=${ownerId} and id=${id} and status='queued'
+        and claim_token=${claimToken} and claim_expires_at > now()
+      returning *
+    `;
+    if (!rows[0]) {
+      await getRun(ownerId, id);
+      throw new RoutineError(
+        "SYNC_RUN_CONFLICT",
+        "The queued run claim is stale.",
       );
     }
     return safeRun(rows[0]);
@@ -956,6 +1023,8 @@ export function createRoutineRepository(sql: Sql) {
     failRun,
     attachRuntimeRun,
     reconcileRuntimeRun,
+    claimQueued,
+    failQueuedRun,
     createWebhook,
     createTrigger,
     listTriggers,

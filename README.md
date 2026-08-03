@@ -92,6 +92,9 @@ empty to preserve the database's existing allowlist state.
 - Schedule and webhook runs now carry explicit `triggerType`, `triggerData`,
   and `idempotencyKey` fields; webhook payloads are no longer overloaded into
   the integration cursor.
+- Queued webhook runs are claimed with a lease token by the scheduler, passed
+  to the same durable runtime/session path as schedules, and include the
+  payload as explicitly untrusted trigger text.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.
