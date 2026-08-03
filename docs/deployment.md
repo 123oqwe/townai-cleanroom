@@ -454,3 +454,10 @@ VERCEL_PROJECT_ID="$YOUR_PROJECT_ID" \
 VERCEL_TEAM_ID="$YOUR_TEAM_ID" \
 pnpm vercel:protect
 ```
+
+On 2026-08-03, the latest deployment `dpl_CpPGi5FQ5xVTuPiqt7AC9DBmTHNw`
+was rechecked as `READY`; unauthenticated requests to both the protected
+deployment URL and its owner preview alias returned the Vercel SSO `302`.
+Vercel reported no runtime error clusters in the preceding 24 hours. This is
+an observation of the current deployment, not proof that project-level
+protection is configured for every generated alias.
