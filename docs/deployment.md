@@ -489,6 +489,15 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+The scoped A2A consent handshake is deployed in
+`dpl_E4uGsueSSuanjDjqDWPC2MHYbHng`, built from commit `b8d6f13`. Its protected
+direct URL is
+`https://town-clear-current-1hc1jz2f7-123oqwes-projects.vercel.app`, state
+`READY`; the API persists recipient-only grant/deny/revoke decisions, an
+explicit capability scope, optimistic revision, and consent timestamps. An
+unauthenticated request to `/v1/health` returns the Vercel SSO `302`; Vercel
+reported no runtime errors in the verification window.
+
 The Content Library cursor-pagination module is deployed in
 `dpl_D59mve1jRdtixjgvEE6zdhCUhAQT`, built from commit `8571100`. Its protected
 direct URL is
