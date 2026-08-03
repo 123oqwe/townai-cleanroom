@@ -330,6 +330,24 @@ function renderLibraryContent(result) {
     )
     .join("");
 }
+function renderMemories(result) {
+  const target = $("#memory-list");
+  const memories = (result.memories || []).filter(
+    (memory) => memory.status === "active",
+  );
+  $("#memory-count").textContent = `${memories.length} active`;
+  if (!memories.length) {
+    target.innerHTML = '<p class="harness-empty">No active memories yet.</p>';
+    return;
+  }
+  target.innerHTML = memories
+    .slice(0, 20)
+    .map(
+      (memory) =>
+        `<article class="memory-card"><p>${escapeHtml(memory.content)}</p><small>${escapeHtml(memory.scope)} · ${memory.confidence === null ? "confidence not set" : `confidence ${Math.round(memory.confidence * 100)}%`}</small></article>`,
+    )
+    .join("");
+}
 async function loadLibrary() {
   if (!state.token) {
     $("#library-results").innerHTML =
@@ -337,11 +355,17 @@ async function loadLibrary() {
     return;
   }
   try {
-    const content = await api("/v1/content?status=active&limit=20");
+    const [content, memories] = await Promise.all([
+      api("/v1/content?status=active&limit=20"),
+      api("/v1/memories"),
+    ]);
     renderLibraryContent(content);
+    renderMemories(memories);
   } catch (error) {
     $("#library-content-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Library unavailable.")}</p>`;
+    $("#memory-list").innerHTML =
+      '<p class="harness-empty">Memory unavailable.</p>';
   }
 }
 async function searchLibrary() {
@@ -501,6 +525,41 @@ async function saveProfile() {
     button.disabled = false;
   }
 }
+async function saveMemory() {
+  const content = $("#memory-content").value.trim();
+  const error = $("#memory-error");
+  if (!content || !state.token) return;
+  error.hidden = true;
+  const confidenceText = $("#memory-confidence").value.trim();
+  const confidence = confidenceText === "" ? undefined : Number(confidenceText);
+  if (
+    confidence !== undefined &&
+    (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)
+  ) {
+    error.textContent = "Confidence must be between 0 and 1.";
+    error.hidden = false;
+    return;
+  }
+  const button = $("#memory-save");
+  button.disabled = true;
+  try {
+    await apiJson("/v1/memories", {
+      scope: "global",
+      content,
+      ...(confidence === undefined ? {} : { confidence }),
+    });
+    $("#memory-content").value = "";
+    $("#memory-confidence").value = "";
+    $("#memory-add-form").hidden = true;
+    await loadLibrary();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not save memory.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -615,6 +674,11 @@ $("#library-query").addEventListener("keydown", (event) => {
     void searchLibrary();
   }
 });
+$("#memory-add-toggle").addEventListener("click", () => {
+  $("#memory-add-form").hidden = !$("#memory-add-form").hidden;
+  if (!$("#memory-add-form").hidden) $("#memory-content").focus();
+});
+$("#memory-save").addEventListener("click", () => void saveMemory());
 $("#people-add-toggle").addEventListener("click", () => {
   $("#people-add-form").hidden = !$("#people-add-form").hidden;
   if (!$("#people-add-form").hidden) $("#person-name").focus();

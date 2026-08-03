@@ -960,6 +960,61 @@ dialog h2 {
   font-family: var(--mono);
   font-size: 9px;
 }
+.memory-list {
+  display: grid;
+  gap: 8px;
+  max-height: 190px;
+  overflow: auto;
+}
+.memory-card {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.memory-card p {
+  margin: 0;
+  color: var(--muted-deep);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.memory-card small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.memory-add-toggle {
+  margin: 12px 0 15px;
+}
+.memory-add-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.memory-add-form textarea,
+.memory-add-form input {
+  min-height: 42px;
+}
+.memory-add-form textarea {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+.memory-add-form label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
 .library-divider {
   height: 1px;
   margin: 20px 0 15px;

@@ -96,6 +96,9 @@ control using your platform's secure secret-management workflow.
 - The workspace profile chip opens a versioned JSON editor backed by
   `/v1/profile`. New profiles use the real create path; existing saves carry
   `expectedRevision` and surface conflicts instead of overwriting newer data.
+- Library also reads active `/v1/memories` and supports creating a global,
+  user-authored memory with optional confidence. Routine-scoped memories stay
+  out of this simple surface until a real routine selector is present.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm
