@@ -489,6 +489,15 @@ direct URL is
 unauthenticated curl receives the Vercel SSO `302` protection redirect, and
 Vercel reported no runtime errors in the verification window.
 
+The expanded documented stock-routine catalog is deployed in
+`dpl_3HCtqbYfbgotbn8kLd7dqq7mxBBP`, built from commit `0940973`. Its protected
+direct URL is
+`https://town-clear-current-ghwsm6khs-123oqwes-projects.vercel.app`, state
+`READY`; the catalog now includes the additional publicly named routines while
+remaining explicit that private prompts, model routing, and tool graphs are
+not reproduced. An unauthenticated request receives the Vercel SSO `302`;
+Vercel reported no runtime errors in the verification window.
+
 Per-calendar Schedule filters are deployed in
 `dpl_A2EuGBMmievqcjXojZZruhYYPfAo`, built from commit `52afd39`. Its protected
 direct URL is
