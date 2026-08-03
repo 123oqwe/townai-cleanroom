@@ -26,6 +26,7 @@ const state = {
   selectedPersonId: null,
   squarePolicyRevision: null,
   libraryContent: [],
+  harnessStreamAbort: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -311,6 +312,7 @@ async function loadHarnessThreads(
   return selected.id;
 }
 async function selectHarnessThread(threadId) {
+  state.harnessStreamAbort?.abort();
   sessionStorage.setItem(storageKeys.thread, threadId);
   sessionStorage.removeItem(storageKeys.session);
   clearHarnessApproval();
@@ -370,6 +372,50 @@ async function refreshHarnessRun(sessionId) {
     );
   }
 }
+async function streamHarnessEvents(sessionId) {
+  state.harnessStreamAbort?.abort();
+  const controller = new window.AbortController();
+  state.harnessStreamAbort = controller;
+  try {
+    const response = await fetch(
+      `${state.base.replace(/\/$/, "")}/v1/sessions/${sessionId}/events/stream?intervalMs=1000&windowMs=20000`,
+      {
+        headers: {
+          Authorization: `Bearer ${state.token}`,
+          Accept: "text/event-stream",
+        },
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok || !response.body) return;
+    const reader = response.body.getReader();
+    const decoder = new window.TextDecoder();
+    let buffer = "";
+    while (!controller.signal.aborted) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() || "";
+      for (const frame of frames) {
+        if (frame.includes("event: heartbeat") || frame.includes("event: end"))
+          continue;
+        if (frame.includes("event:")) void refreshHarnessRun(sessionId);
+      }
+    }
+  } catch (error) {
+    if (!controller.signal.aborted)
+      setHarnessState(
+        error instanceof Error
+          ? error.message
+          : "Harness event stream unavailable.",
+        "error",
+      );
+  } finally {
+    if (state.harnessStreamAbort === controller)
+      state.harnessStreamAbort = null;
+  }
+}
 async function sendHarnessMessage() {
   const input = $("#harness-input");
   const text = input.value.trim();
@@ -392,6 +438,7 @@ async function sendHarnessMessage() {
       (await api(`/v1/threads/${threadId}/turns?limit=50`)).items,
     );
     setHarnessState(`Run ${submission.run.state}.`);
+    void streamHarnessEvents(submission.session.id);
     await refreshHarnessRun(submission.session.id);
     await refresh();
   } catch (error) {

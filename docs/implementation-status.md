@@ -192,3 +192,4 @@ Routine Agent publishing now also exposes the server-validated callableRoutineId
 MCP management now exposes owner-scoped server creation (name, URL, transport, optional auth reference) and revision-checked disable actions through POST/DELETE /v1/mcp-servers, alongside existing Agent binding controls.
 MCP binding creation now exposes the real modeOverride and accountScope policy fields; the client submits explicit mode and account IDs instead of silently defaulting to null/empty policy.
 Routine details now expose the generic owner-scoped external trigger queue via POST /v1/routines/:routineId/trigger, with explicit trigger kind, JSON data validation, and generated Idempotency-Key.
+Harness now consumes the authenticated session event SSE endpoint for live run updates, aborting the stream when the user switches threads; existing polling remains as the reconnect fallback.
