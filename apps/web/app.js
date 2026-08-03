@@ -2220,7 +2220,8 @@ function renderA2A(result) {
       const actionable = request.status === "pending";
       const revocable = request.consentStatus === "granted";
       const consent = `${request.consentStatus || "pending"}${request.consentScope?.length ? ` · ${request.consentScope.join(", ")}` : ""}`;
-      return `<article class="a2a-card" data-a2a-id="${escapeHtml(request.id)}" data-a2a-revision="${escapeHtml(request.revision)}"><div class="a2a-copy"><span class="a2a-meta">${escapeHtml(request.status)} · ${escapeHtml(consent)} · revision ${escapeHtml(request.revision)}</span><strong>${escapeHtml(request.capability)}</strong><p>${escapeHtml(JSON.stringify(request.request))}</p><small>${escapeHtml(request.requesterId.slice(0, 8))} → ${escapeHtml(request.recipientId.slice(0, 8))} · ${escapeHtml(expiry)}</small></div>${actionable ? '<div class="a2a-actions"><button class="quiet-button a2a-decline" type="button">Decline</button><button class="primary-button a2a-accept" type="button">Grant this capability <span>→</span></button></div>' : revocable ? '<div class="a2a-actions"><button class="quiet-button a2a-revoke" type="button">Revoke consent</button></div>' : ""}</article>`;
+      const lifecycle = request.status === "accepted" ? '<button class="primary-button a2a-complete" type="button">Mark completed</button>' : request.status === "pending" ? '<button class="quiet-button a2a-cancel" type="button">Cancel request</button>' : "";
+      return `<article class="a2a-card" data-a2a-id="${escapeHtml(request.id)}" data-a2a-revision="${escapeHtml(request.revision)}"><div class="a2a-copy"><span class="a2a-meta">${escapeHtml(request.status)} · ${escapeHtml(consent)} · revision ${escapeHtml(request.revision)}</span><strong>${escapeHtml(request.capability)}</strong><p>${escapeHtml(JSON.stringify(request.request))}</p><small>${escapeHtml(request.requesterId.slice(0, 8))} → ${escapeHtml(request.recipientId.slice(0, 8))} · ${escapeHtml(expiry)}</small></div>${actionable ? `<div class="a2a-actions"><button class="quiet-button a2a-decline" type="button">Decline</button><button class="primary-button a2a-accept" type="button">Grant this capability <span>→</span></button>${lifecycle}</div>` : revocable ? `<div class="a2a-actions"><button class="quiet-button a2a-revoke" type="button">Revoke consent</button>${lifecycle}</div>` : lifecycle ? `<div class="a2a-actions">${lifecycle}</div>` : ""}</article>`;
     })
     .join("");
 }
@@ -2305,6 +2306,11 @@ async function transitionA2A(card, decision) {
       .querySelectorAll("button")
       .forEach((button) => (button.disabled = false));
   }
+}
+async function transitionA2ALifecycle(card, status) {
+  if (!card) return;
+  const error = $("#a2a-transition-error");
+  try { await api(`/v1/a2a/requests/${card.dataset.a2aId}`, { method: "PATCH", body: JSON.stringify({ status, expectedRevision: Number(card.dataset.a2aRevision) }) }); await loadA2A(); } catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not transition request."; error.hidden = false; }
 }
 async function refresh() {
   if (!state.token) {
@@ -2738,6 +2744,8 @@ $("#a2a-list").addEventListener("click", (event) => {
   const button = event.target.closest("button");
   const card = event.target.closest(".a2a-card");
   if (!button || !card) return;
+  if (button.classList.contains("a2a-complete")) { void transitionA2ALifecycle(card, "completed"); return; }
+  if (button.classList.contains("a2a-cancel")) { void transitionA2ALifecycle(card, "cancelled"); return; }
   void transitionA2A(
     card,
     button.classList.contains("a2a-accept")

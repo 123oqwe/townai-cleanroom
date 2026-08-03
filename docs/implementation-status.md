@@ -174,3 +174,8 @@ Connected Account cards now expose the existing provider refresh (Google only)
 and owner-scoped remove actions. Credentials remain server-side; each action
 reloads `/v1/accounts` and reports provider/configuration errors without
 fabricating account state.
+
+A2A request cards now expose lifecycle transitions after consent: accepted
+requests can be marked completed and pending requests can be cancelled via the
+existing revision-aware `PATCH /v1/a2a/requests/:requestId` route. Server-side
+role and revision checks remain authoritative.
