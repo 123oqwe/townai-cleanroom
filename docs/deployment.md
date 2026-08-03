@@ -198,6 +198,12 @@ state `READY`; `0034_routine_trigger_data.sql` records trigger type, payload,
 and idempotency key, while the unauthenticated URL check returns the Vercel SSO
 `302`.
 
+Queued webhook trigger claiming is deployed in
+`dpl_3Vn8YLN5zEsi5ngwH2nSSd6TA194`, built from commit `e880983`. Its protected
+direct URL is `https://town-clear-current-isikp0w1h-123oqwes-projects.vercel.app`,
+state `READY`; `0035_routine_run_claims.sql` adds lease-checked trigger claims,
+and the unauthenticated URL check returns the Vercel SSO `302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
