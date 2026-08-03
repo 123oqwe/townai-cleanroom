@@ -82,13 +82,42 @@ export interface WebhookDelivery {
   runId: Id<"integration-sync-run">;
   duplicate: boolean;
 }
+export interface RoutineShare {
+  id: Id<"routine-share">;
+  ownerId: Id<"user">;
+  routineScheduleId: Id<"routine-schedule">;
+  expiresAt: Date | null;
+  revokedAt: Date | null;
+  createdAt: Date;
+}
+export interface PublicRoutineShare {
+  shareId: Id<"routine-share">;
+  routine: Pick<
+    RoutineSchedule,
+    "id" | "name" | "cron" | "timezone" | "enabled"
+  >;
+  version: {
+    id: Id<"agent-version">;
+    version: number;
+    snapshot: {
+      displayName: string;
+      instructions: string;
+      defaultApprovalMode:
+        "respect_tool_setting" | "require_approval" | "autonomous";
+      callableRoutineIds: string[];
+    };
+  };
+  expiresAt: Date | null;
+}
 export class RoutineError extends Error {
   constructor(
     readonly code:
       | "ROUTINE_NOT_FOUND"
       | "ROUTINE_CONFLICT"
       | "SYNC_RUN_NOT_FOUND"
-      | "SYNC_RUN_CONFLICT",
+      | "SYNC_RUN_CONFLICT"
+      | "SHARE_NOT_FOUND"
+      | "SHARE_CONFLICT",
     message: string,
   ) {
     super(message);
@@ -133,6 +162,35 @@ type WebhookRow = {
   created_at: Date;
   updated_at: Date;
 };
+type ShareRow = {
+  id: string;
+  owner_id: string;
+  routine_schedule_id: string;
+  expires_at: Date | null;
+  revoked_at: Date | null;
+  created_at: Date;
+};
+type PublicShareRow = ShareRow & {
+  name: string;
+  cron: string;
+  timezone: string;
+  enabled: boolean;
+  version_id: string;
+  version: number;
+  snapshot: unknown;
+};
+const routineSnapshotSchema = z
+  .object({
+    displayName: z.string(),
+    instructions: z.string(),
+    defaultApprovalMode: z.enum([
+      "respect_tool_setting",
+      "require_approval",
+      "autonomous",
+    ]),
+    callableRoutineIds: z.array(z.string()),
+  })
+  .strict();
 function safeRun(row: SyncRunRow): IntegrationSyncRun {
   return {
     id: asId<"integration-sync-run">(row.id),
@@ -162,6 +220,34 @@ function safeWebhook(row: WebhookRow): RoutineWebhook {
     enabled: row.enabled,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+function safeShare(row: ShareRow): RoutineShare {
+  return {
+    id: asId<"routine-share">(row.id),
+    ownerId: asId<"user">(row.owner_id),
+    routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
+    expiresAt: row.expires_at,
+    revokedAt: row.revoked_at,
+    createdAt: row.created_at,
+  };
+}
+function safePublicShare(row: PublicShareRow): PublicRoutineShare {
+  return {
+    shareId: asId<"routine-share">(row.id),
+    routine: {
+      id: asId<"routine-schedule">(row.routine_schedule_id),
+      name: row.name,
+      cron: row.cron,
+      timezone: row.timezone,
+      enabled: row.enabled,
+    },
+    version: {
+      id: asId<"agent-version">(row.version_id),
+      version: row.version,
+      snapshot: routineSnapshotSchema.parse(row.snapshot),
+    },
+    expiresAt: row.expires_at,
   };
 }
 function safe(row: Row): RoutineSchedule {
@@ -499,6 +585,73 @@ export function createRoutineRepository(sql: Sql) {
       );
     return safeWebhook(rows[0]);
   }
+  async function createShare(input: {
+    ownerId: Id<"user">;
+    routineScheduleId: Id<"routine-schedule">;
+    expiresAt?: Date | null;
+  }): Promise<{ share: RoutineShare; token: string }> {
+    const ownerId = asId<"user">(input.ownerId);
+    const routineScheduleId = asId<"routine-schedule">(input.routineScheduleId);
+    const expiresAt =
+      input.expiresAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (expiresAt <= new Date())
+      throw new RoutineError(
+        "SHARE_CONFLICT",
+        "Share expiry must be in the future.",
+      );
+    const token = `rtnshare_${randomBytes(32).toString("base64url")}`;
+    const hash = createHash("sha256").update(token).digest();
+    const id = newId<"routine-share">();
+    const rows = await sql<ShareRow[]>`
+      insert into routine_share_grants
+        (id, owner_id, routine_schedule_id, token_hash, expires_at)
+      select ${id}, ${ownerId}, ${routineScheduleId}, ${hash}, ${expiresAt}
+      where exists (
+        select 1 from routine_schedules
+        where owner_id=${ownerId} and id=${routineScheduleId}
+      )
+      returning id, owner_id, routine_schedule_id, expires_at, revoked_at, created_at
+    `;
+    if (!rows[0])
+      throw new RoutineError("ROUTINE_NOT_FOUND", "The routine was not found.");
+    return { share: safeShare(rows[0]), token };
+  }
+  async function getPublicShare(
+    token: string,
+  ): Promise<PublicRoutineShare | null> {
+    const parsed = z.string().startsWith("rtnshare_").min(20).parse(token);
+    const hash = createHash("sha256").update(parsed).digest();
+    const [row] = await sql<PublicShareRow[]>`
+      select share.id, share.owner_id, share.routine_schedule_id,
+        share.expires_at, share.revoked_at, share.created_at,
+        routine.name, routine.cron, routine.timezone, routine.enabled,
+        version.id as version_id, version.version, version.snapshot
+      from routine_share_grants share
+      join routine_schedules routine
+        on routine.owner_id=share.owner_id and routine.id=share.routine_schedule_id
+      join agent_versions version
+        on version.owner_id=routine.owner_id and version.agent_id=routine.agent_id
+        and version.id=routine.agent_version_id
+      where share.token_hash=${hash} and share.revoked_at is null
+        and (share.expires_at is null or share.expires_at > now())
+    `;
+    return row ? safePublicShare(row) : null;
+  }
+  async function revokeShare(
+    ownerId: Id<"user">,
+    shareId: Id<"routine-share">,
+  ): Promise<void> {
+    const rows = await sql<ShareRow[]>`
+      update routine_share_grants set revoked_at=coalesce(revoked_at, now())
+      where owner_id=${ownerId} and id=${shareId} and revoked_at is null
+      returning id, owner_id, routine_schedule_id, expires_at, revoked_at, created_at
+    `;
+    if (!rows[0])
+      throw new RoutineError(
+        "SHARE_NOT_FOUND",
+        "The routine share was not found.",
+      );
+  }
   async function deliverWebhook(
     secret: string,
     idempotencyKey: string,
@@ -559,6 +712,9 @@ export function createRoutineRepository(sql: Sql) {
     getWebhook,
     setWebhookEnabled,
     deliverWebhook,
+    createShare,
+    getPublicShare,
+    revokeShare,
   };
 }
 export type RoutineRepository = ReturnType<typeof createRoutineRepository>;

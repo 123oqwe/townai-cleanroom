@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import type { AuthVariables } from "../src/auth.js";
 import {
   registerRoutineRoutes,
+  registerRoutineShareRoutes,
   registerRoutineWebhookRoutes,
 } from "../src/routine-routes.js";
 import type { RoutineRepository, RoutineSchedule } from "@town/routines";
@@ -32,6 +33,7 @@ function appWith(
   });
   registerRoutineRoutes(app, { repository, ...extras });
   registerRoutineWebhookRoutes(app, { repository });
+  registerRoutineShareRoutes(app, { repository });
   return app;
 }
 
@@ -120,6 +122,43 @@ describe("routine routes", () => {
     );
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ duplicate: true });
+  });
+
+  it("returns a public routine share and hides revoked tokens", async () => {
+    const repository = {
+      getPublicShare: vi.fn().mockResolvedValue({
+        shareId: asId<"routine-share">(agentVersionId),
+        routine: {
+          id: asId<"routine-schedule">(agentId),
+          name: "Shared briefing",
+          cron: "0 9 * * 1-5",
+          timezone: "UTC",
+          enabled: true,
+        },
+        version: {
+          id: asId<"agent-version">(agentVersionId),
+          version: 1,
+          snapshot: {
+            displayName: "Briefing",
+            instructions: "test",
+            defaultApprovalMode: "require_approval",
+            callableRoutineIds: [],
+          },
+        },
+        expiresAt: new Date("2099-01-01T00:00:00Z"),
+      }),
+    } as unknown as RoutineRepository;
+    const app = appWith(repository);
+    const response = await app.request(
+      "http://town.test/v1/routine-shares/rtnshare_test_token",
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      share: { routine: { name: "Shared briefing" } },
+    });
+    expect(repository.getPublicShare).toHaveBeenCalledWith(
+      "rtnshare_test_token",
+    );
   });
 
   it("turns a manual routine trigger into a durable session submission", async () => {

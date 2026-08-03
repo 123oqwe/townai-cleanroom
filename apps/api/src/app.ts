@@ -77,6 +77,7 @@ import { registerBillingRoutes } from "./billing-routes.js";
 import { registerOperationsRoutes } from "./operations-routes.js";
 import {
   registerRoutineRoutes,
+  registerRoutineShareRoutes,
   registerRoutineWebhookRoutes,
 } from "./routine-routes.js";
 import type { RoutineRepository } from "@town/routines";
@@ -559,6 +560,10 @@ export function createApp(dependencies?: AppDependencies) {
     const authenticate = createAuthMiddleware(dependencies.identityService);
     if (dependencies.routineRepository !== undefined)
       registerRoutineWebhookRoutes(app, {
+        repository: dependencies.routineRepository,
+      });
+    if (dependencies.routineRepository !== undefined)
+      registerRoutineShareRoutes(app, {
         repository: dependencies.routineRepository,
       });
     app.use("/v1/me", authenticate);

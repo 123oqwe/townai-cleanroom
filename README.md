@@ -211,6 +211,12 @@ under `/v1/agents/routines`; their immutable active versions are then
 referenced by `/v1/routines` schedules. An authenticated
 `GET /v1/agents/routines/:agentId/versions` exposes the owner-scoped immutable
 history used to audit which Routine configuration a schedule can execute.
+Routine schedules can also create a one-time `rtnshare_…` token through
+`POST /v1/routines/:routineId/shares`; the public
+`GET /v1/routine-shares/:token` response contains only the shared schedule and
+version snapshot, and the owner can revoke it through
+`DELETE /v1/routines/shares/:shareId`. Tokens are hashed at rest and expire by
+default after 24 hours.
 An authenticated
 `POST /v1/routines/:routineId/run` creates a real child Task/Session Run and
 returns queued state for the worker; it never reports a fabricated completion.

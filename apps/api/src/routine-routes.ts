@@ -171,6 +171,47 @@ export function registerRoutineRoutes(
       ),
     });
   });
+
+  app.post("/v1/routines/:routineId/shares", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const body = z
+      .object({ expiresAt: z.iso.datetime().nullable().optional() })
+      .strict()
+      .parse(await context.req.json());
+    const result = await dependencies.repository.createShare({
+      ownerId,
+      routineScheduleId: asRoutineId(context.req.param("routineId")),
+      ...(body.expiresAt === undefined
+        ? {}
+        : {
+            expiresAt:
+              body.expiresAt === null ? null : new Date(body.expiresAt),
+          }),
+    });
+    return context.json(result, 201);
+  });
+
+  app.delete("/v1/routines/shares/:shareId", async (context) => {
+    await dependencies.repository.revokeShare(
+      context.get("identity").user.id,
+      asId<"routine-share">(z.uuidv7().parse(context.req.param("shareId"))),
+    );
+    return context.body(null, 204);
+  });
+}
+
+export function registerRoutineShareRoutes(
+  app: Hono<{ Variables: AuthVariables }>,
+  dependencies: Pick<RoutineDependencies, "repository">,
+): void {
+  app.get("/v1/routine-shares/:token", async (context) => {
+    const share = await dependencies.repository.getPublicShare(
+      context.req.param("token"),
+    );
+    return share
+      ? context.json({ share })
+      : context.json({ error: "SHARE_NOT_FOUND" }, 404);
+  });
 }
 
 export function registerRoutineWebhookRoutes(

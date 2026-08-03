@@ -32,7 +32,7 @@ beforeEach(async () => {
   accountId = newId<"connected-account">();
   await sql`insert into users (id,email,timezone) values (${ownerId},'routine@example.invalid','UTC')`;
   await sql`insert into agents (id,owner_id,kind,status) values (${agentId},${ownerId},'routine','active')`;
-  await sql`insert into agent_versions (id,owner_id,agent_id,version,snapshot,created_by) values (${versionId},${ownerId},${agentId},1,${sql.json({ displayName: "Routine", instructions: "test", defaultApprovalMode: "require_approval" })},'user')`;
+  await sql`insert into agent_versions (id,owner_id,agent_id,version,snapshot,created_by) values (${versionId},${ownerId},${agentId},1,${sql.json({ displayName: "Routine", instructions: "test", defaultApprovalMode: "require_approval", callableRoutineIds: [] })},'user')`;
   await sql`update agents set active_version_id=${versionId} where id=${agentId}`;
   await sql`insert into connected_accounts (id,owner_id,provider,provider_user_id,email) values (${accountId},${ownerId},'google','routine-user','routine@example.invalid')`;
 });
@@ -105,6 +105,41 @@ describe("routine schedules", () => {
     expect((await repo.list(ownerId)).map(({ id }) => id)).toEqual([
       schedule.id,
     ]);
+  });
+
+  it("creates expiring public shares without exposing the token hash", async () => {
+    const repo = createRoutineRepository(sql);
+    const schedule = await repo.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Shared briefing",
+      cron: "0 9 * * 1-5",
+      nextRunAt: new Date("2026-08-03T01:00:00Z"),
+    });
+    const result = await repo.createShare({
+      ownerId,
+      routineScheduleId: schedule.id,
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+    });
+    expect(result.token).toMatch(/^rtnshare_/);
+    expect(result.share).toMatchObject({
+      ownerId,
+      routineScheduleId: schedule.id,
+      revokedAt: null,
+    });
+    const publicShare = await repo.getPublicShare(result.token);
+    expect(publicShare).toMatchObject({
+      shareId: result.share.id,
+      routine: { id: schedule.id, name: "Shared briefing" },
+      version: { snapshot: { instructions: "test", callableRoutineIds: [] } },
+    });
+    const raw = await sql<{ token_hash: Buffer }[]>`
+      select token_hash from routine_share_grants where id=${result.share.id}
+    `;
+    expect(raw[0]?.token_hash.toString()).not.toContain(result.token);
+    await repo.revokeShare(ownerId, result.share.id);
+    expect(await repo.getPublicShare(result.token)).toBeNull();
   });
 
   it("caches a step per owner/run/key and never reruns a completed step", async () => {
