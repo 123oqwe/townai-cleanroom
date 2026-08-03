@@ -470,3 +470,12 @@ direct URL is
 summaries, setup prompts, and default approval posture. It does not claim
 Town's private prompts, model routing, or stock-routine tool graph. An
 unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
+Atomic stock-routine installation is deployed in
+`dpl_BxMGGYe6dtcAejQfnshLbtA9MPVj`, built from commit `4a4347b`. Its protected
+direct URL is
+`https://town-clear-current-2l2m0ul46-123oqwes-projects.vercel.app`, state
+`READY`; installation writes the routine agent, version, and schedule in one
+database transaction and requires an explicit cron, timezone, and first-run
+time. An unauthenticated curl receives the Vercel SSO `302` protection
+redirect. Vercel reported no runtime errors in the verification window.
