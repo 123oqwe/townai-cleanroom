@@ -185,6 +185,12 @@ state `READY`; the deployment includes `0033_routine_results.sql`, the
 owner-scoped `/v1/routine-results?sessionId=...` read API, and an unauthenticated
 curl still receives the Vercel SSO `302` protection redirect.
 
+Runtime-to-routine result finalization is deployed in
+`dpl_DeLojFea4rTcEzrUK4tAjqazZYCF`, built from commit `3b8509f`. Its protected
+direct URL is `https://town-clear-current-gjrsrjw6g-123oqwes-projects.vercel.app`,
+state `READY`; only runtime runs linked to a routine schedule produce a
+RoutineResult, and the unauthenticated URL check returns the Vercel SSO `302`.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
