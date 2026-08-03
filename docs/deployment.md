@@ -369,6 +369,14 @@ direct URL is
 retry time, and sent time with optional status/limit filters. An unauthenticated
 curl receives the Vercel SSO `302` protection redirect.
 
+The operations summary now includes an owner-scoped `failedDeliveries` backlog
+metric in deployment `dpl_6XsXjeP9F3ASaWv2ZvM7w2ckaoyp`, built from commit
+`e9f291a`. Its protected direct URL is
+`https://town-clear-current-nvdoyqbxo-123oqwes-projects.vercel.app`, state
+`READY`; this metric is separate from queued work so permanent provider
+failures can drive an alert without being mistaken for active queue depth. An
+unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
