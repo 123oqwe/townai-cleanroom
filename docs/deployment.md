@@ -265,6 +265,11 @@ state `READY`; desktop and mobile Chromium smoke tests now load without page
 errors, and an unauthenticated curl receives the Vercel SSO `302` protection
 redirect.
 
+The notification-channel disable control is deployed as
+`https://town-clear-current-arh96lmfr-123oqwes-projects.vercel.app`, deployment
+`dpl_wWNfgF45r96S5qC97gJHXR7voM4n`, state `READY`. Runtime errors are absent
+and direct unauthenticated access returns `302` to Vercel SSO.
+
 The Square policy editor is deployed as
 `https://town-clear-current-12y74lkta-123oqwes-projects.vercel.app`, deployment
 `dpl_GoyaiCkj7A8YPAN8pVuEUgFfK1fF`, state `READY`. Runtime errors are absent
