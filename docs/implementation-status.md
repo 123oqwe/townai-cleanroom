@@ -39,15 +39,16 @@ source row does not imply that an external provider is configured.
 ## Verification snapshot
 
 At the latest full verification on 2026-08-04 (after allowlisted admin Agent
-health), the repository passed source-only policy, formatting, lint, typecheck,
-all 67 test files (311 tests),
+health and Billing reconciliation), the repository passed source-only policy,
+formatting, lint, typecheck,
+all 67 test files (312 tests),
 and all workspace builds. The current protected UI deployment is recorded in
 [`deployment.md`](./deployment.md). This ledger intentionally does not mark
 the overall product goal complete while the production API and project-level
 deployment protection remain unverified.
 
-The full Vitest run used Testcontainers PostgreSQL and completed in about 245
-seconds with 67/67 files and 311/311 tests passing. The repository inventory
+The full Vitest run used Testcontainers PostgreSQL and completed in about 242
+seconds with 67/67 files and 312/312 tests passing. The repository inventory
 therefore now has a completed full-suite evidence point rather than only a
 descriptive test count.
 
