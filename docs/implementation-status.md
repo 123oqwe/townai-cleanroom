@@ -63,3 +63,10 @@ The Personal Agent version history surface is implemented: Profile lists
 owner-scoped immutable versions from `GET /v1/agents/personal/versions`, with
 version, creator, timestamp, and approval mode. It does not claim unverified
 prompt diffs or private routing internals.
+
+Square shared Connected Accounts are now surfaced in the Square inspector:
+the Web client lists active shared references from `GET /v1/squares/:squareId/accounts`,
+derives selectable capabilities from the user's real active account metadata,
+and grants or revokes access through the existing protected routes. The UI
+keeps capability selection explicit and does not expose credentials or invoke
+external providers. `pnpm check:web` and `git diff --check` pass.

@@ -2310,6 +2310,25 @@ dialog h2 {
   margin: 0;
   line-height: 1.45;
 }
+.square-shared-accounts {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.square-shared-accounts h4 { margin: 0; }
+.square-account-share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  padding: .7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.square-account-share small { display: block; color: var(--muted); margin-top: .2rem; }
+.square-account-grant { margin-top: 1rem; display: grid; gap: .55rem; }
+.square-account-grant select { width: 100%; }
+.square-account-capabilities { display: flex; flex-wrap: wrap; gap: .5rem .8rem; }
+.square-account-capabilities label { color: var(--muted); font-size: .82rem; }
 .a2a-dialog {
   max-width: 620px;
 }

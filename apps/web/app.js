@@ -21,6 +21,7 @@ const state = {
   scheduleCalendars: new Map(),
   scheduleCalendarErrors: [],
   scheduleCalendarVisibility: new Map(),
+  selectedSquareId: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -1806,9 +1807,76 @@ function renderSquares(result) {
     )
     .join("");
 }
+function renderSquareAccounts(result, accounts) {
+  const shares = result.accounts || [];
+  const target = $("#square-account-shares");
+  target.innerHTML = shares.length
+    ? shares.map((share) => `<div class="square-account-share"><div><strong>${escapeHtml(share.provider)} · ${escapeHtml(share.email)}</strong><small>${escapeHtml(share.capabilities.join(", ") || "No capabilities")}</small></div><button class="quiet-button square-account-revoke" data-share-id="${escapeHtml(share.id)}" type="button">Revoke</button></div>`).join("")
+    : '<p class="harness-empty">No connected accounts are shared with this Square.</p>';
+  const select = $("#square-account-select");
+  const activeAccounts = (accounts.accounts || []).filter((account) => account.isActive);
+  select.innerHTML = activeAccounts.length
+    ? activeAccounts.map((account) => `<option value="${escapeHtml(account.id)}" data-owner-id="${escapeHtml(account.ownerId)}">${escapeHtml(account.provider)} · ${escapeHtml(account.email)}</option>`).join("")
+    : '<option value="">No active accounts available</option>';
+  $("#square-account-grant").hidden = !activeAccounts.length;
+  renderSquareCapabilities(activeAccounts[0]);
+}
+function renderSquareCapabilities(account) {
+  const target = $("#square-account-capabilities");
+  const capabilities = account ? Object.entries(account.capabilities || {}).filter(([, value]) => value === true).map(([key]) => key) : [];
+  target.innerHTML = capabilities.length
+    ? capabilities.map((capability) => `<label><input type="checkbox" value="${escapeHtml(capability)}" checked /> ${escapeHtml(capability)}</label>`).join("")
+    : '<small class="form-hint">This account has no enabled capabilities to share.</small>';
+}
+async function loadSquareAccounts(squareId) {
+  const target = $("#square-account-shares");
+  target.innerHTML = '<p class="harness-empty">Reading shared accounts…</p>';
+  try {
+    const [shares, accounts] = await Promise.all([api(`/v1/squares/${squareId}/accounts`), api("/v1/accounts")]);
+    renderSquareAccounts(shares, accounts);
+  } catch (error) {
+    target.innerHTML = `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Shared accounts unavailable.")}</p>`;
+    $("#square-account-grant").hidden = true;
+  }
+}
+async function grantSquareAccount() {
+  const squareId = state.selectedSquareId;
+  const select = $("#square-account-select");
+  const option = select.selectedOptions[0];
+  const accountId = select.value;
+  const capabilities = [...document.querySelectorAll("#square-account-capabilities input:checked")].map((input) => input.value);
+  const error = $("#square-account-error");
+  if (!squareId || !accountId || !option || !capabilities.length) {
+    error.textContent = "Choose an account and at least one capability.";
+    error.hidden = false;
+    return;
+  }
+  error.hidden = true;
+  const button = $("#square-account-grant-button");
+  button.disabled = true;
+  try {
+    await apiJson(`/v1/squares/${squareId}/accounts`, { accountId, accountOwnerId: option.dataset.ownerId, capabilities });
+    await loadSquareAccounts(squareId);
+  } catch (cause) {
+    error.textContent = cause instanceof Error ? cause.message : "Could not share account.";
+    error.hidden = false;
+  } finally { button.disabled = false; }
+}
+async function revokeSquareAccount(shareId) {
+  if (!state.selectedSquareId || !shareId) return;
+  try {
+    await api(`/v1/square-account-shares/${shareId}`, { method: "DELETE" });
+    await loadSquareAccounts(state.selectedSquareId);
+  } catch (cause) {
+    const error = $("#square-account-error");
+    error.textContent = cause instanceof Error ? cause.message : "Could not revoke account.";
+    error.hidden = false;
+  }
+}
 async function inspectSquare(squareId, card) {
   if (!squareId || !state.token) return;
   const detail = $("#square-detail");
+  state.selectedSquareId = squareId;
   detail.hidden = false;
   $("#square-detail-name").textContent = "Loading…";
   $("#square-detail-mode").textContent = "—";
@@ -1833,6 +1901,7 @@ async function inspectSquare(squareId, card) {
       : '<p class="harness-empty">No active members returned.</p>';
     $("#square-policy").textContent =
       `Tools: ${policy.policy.allowedToolNames.length || "none"} allowed · Domains: ${policy.policy.allowedDomains.length || "none"} allowed · policy revision ${policy.policy.revision}`;
+    await loadSquareAccounts(squareId);
     document.querySelectorAll(".square-card").forEach((item) => {
       item.classList.toggle("is-selected", item === card);
     });
@@ -2330,6 +2399,15 @@ $("#square-list").addEventListener("click", (event) => {
   const card = event.target.closest(".square-card");
   if (!button || !card) return;
   void inspectSquare(card.dataset.squareId, card);
+});
+$("#square-account-select").addEventListener("change", () => {
+  const accountId = $("#square-account-select").value;
+  void api("/v1/accounts").then((result) => renderSquareCapabilities((result.accounts || []).find((account) => account.id === accountId)));
+});
+$("#square-account-grant-button").addEventListener("click", () => void grantSquareAccount());
+$("#square-account-shares").addEventListener("click", (event) => {
+  const button = event.target.closest(".square-account-revoke");
+  if (button) void revokeSquareAccount(button.dataset.shareId);
 });
 $("#a2a-open").addEventListener("click", () => {
   $("#a2a-transition-error").hidden = true;
