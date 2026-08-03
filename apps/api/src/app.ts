@@ -69,6 +69,8 @@ import {
   type RuntimeDependencies,
 } from "./runtime-routes.js";
 import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
+import { registerMcpRoutes } from "./mcp-routes.js";
+import type { McpRepository } from "@town/tools";
 import { registerContentRoutes } from "./content-routes.js";
 import { registerSquareRoutes } from "./square-routes.js";
 import { registerSharedAccountRoutes } from "./shared-account-routes.js";
@@ -114,6 +116,7 @@ export interface AppDependencies {
   approvalDecisions?: ApprovalDecisionRepository;
   toolRegistryRepository?: ToolRegistryRepository;
   toolExecutionRepository?: ToolExecutionRepository;
+  mcpRepository?: McpRepository;
   contentRepository?: ContentRepository;
   squareRepository?: SquareRepository;
   sharedAccountRepository?: SharedAccountRepository;
@@ -632,6 +635,11 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/approvals", authenticate);
       app.use("/v1/approvals/*", authenticate);
       registerToolRoutes(app, tools);
+    }
+    if (dependencies.mcpRepository !== undefined) {
+      app.use("/v1/mcp-servers", authenticate);
+      app.use("/v1/mcp-servers/*", authenticate);
+      registerMcpRoutes(app, dependencies.mcpRepository);
     }
     if (dependencies.contentRepository !== undefined) {
       app.use("/v1/content", authenticate);

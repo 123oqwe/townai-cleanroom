@@ -50,6 +50,7 @@ import { createRoutineRepository } from "@town/routines";
 import {
   createToolExecutionRepository,
   createToolRegistryRepository,
+  createMcpRepository,
 } from "@town/tools";
 
 import { createApp } from "./app.js";
@@ -147,6 +148,7 @@ const sharedAccountRepository = createSharedAccountRepository(sql);
 const channelRepository = createChannelRepository(sql);
 const billingRepository = createBillingRepository(sql);
 const operationsRepository = createOperationsRepository(sql);
+const mcpRepository = createMcpRepository(sql);
 
 const harnessServerFactory =
   environment.RESPONSES_API_KEY === undefined
@@ -281,6 +283,7 @@ const app = createApp({
   channelRepository,
   billingRepository,
   operationsRepository,
+  mcpRepository,
   routineRepository,
   suggestionRepository,
   a2aRepository,
