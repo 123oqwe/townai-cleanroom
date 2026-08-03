@@ -84,6 +84,7 @@ import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
 import { createMcpClient, type McpRemoteTool } from "@town/tools";
+import { createElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
 
 function mcpToolDefinitionVersion(tool: McpRemoteTool): number {
   const fingerprint = createHash("sha256")
@@ -122,6 +123,9 @@ const environmentSchema = z.object({
   CRON_SECRET: z.string().min(1).optional(),
   SLACK_SIGNING_SECRET: z.string().min(1).optional(),
   TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
+  ELEVENLABS_API_KEY: z.string().min(1).optional(),
+  ELEVENLABS_VOICE_ID: z.string().min(1).optional(),
+  ELEVENLABS_MODEL_ID: z.string().min(1).default("eleven_multilingual_v2"),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
@@ -131,6 +135,15 @@ const environment = environmentSchema.parse(process.env);
 const channelCredentials = z
   .record(z.string().trim().min(1), z.string().min(1))
   .parse(JSON.parse(environment.CHANNEL_CREDENTIALS_JSON));
+const voiceProvider =
+  environment.ELEVENLABS_API_KEY === undefined ||
+  environment.ELEVENLABS_VOICE_ID === undefined
+    ? undefined
+    : createElevenLabsVoiceProvider({
+        apiKey: environment.ELEVENLABS_API_KEY,
+        voiceId: environment.ELEVENLABS_VOICE_ID,
+        modelId: environment.ELEVENLABS_MODEL_ID,
+      });
 const database = createDatabase(environment.DATABASE_URL);
 const { sql } = database;
 await runMigrations(sql);
@@ -598,6 +611,7 @@ const app = createApp({
   ...(environment.TWILIO_AUTH_TOKEN === undefined
     ? {}
     : { twilioAuthToken: environment.TWILIO_AUTH_TOKEN }),
+  ...(voiceProvider === undefined ? {} : { voiceProvider }),
   workerEnabled:
     harnessServerFactory !== undefined &&
     (environment.WORKER_ENABLED ||

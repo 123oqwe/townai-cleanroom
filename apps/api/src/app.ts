@@ -104,6 +104,8 @@ import { SuggestionError } from "@town/suggestions";
 import { registerA2ARoutes } from "./a2a-routes.js";
 import { registerSlackEventsRoute } from "./slack-events.js";
 import { registerTwilioVoiceEventsRoute } from "./twilio-voice-events.js";
+import { registerVoiceRoutes } from "./voice-routes.js";
+import type { VoiceSynthesisProvider } from "./elevenlabs-voice.js";
 import type { A2ARepository } from "@town/a2a";
 import { A2AError } from "@town/a2a";
 import type { HarnessExecutionContext } from "./harness-runtime-adapter.js";
@@ -149,6 +151,7 @@ export interface AppDependencies {
   workerEnabled?: boolean;
   slackSigningSecret?: string;
   twilioAuthToken?: string;
+  voiceProvider?: VoiceSynthesisProvider;
   harnessServer?: AppServer;
   harnessServerFactory?: (
     ownerId: string,
@@ -700,6 +703,11 @@ export function createApp(dependencies?: AppDependencies) {
         repository: dependencies.routineRepository,
         authToken: dependencies.twilioAuthToken,
       });
+    if (dependencies.voiceProvider !== undefined) {
+      app.use("/v1/voice", authenticate);
+      app.use("/v1/voice/*", authenticate);
+      registerVoiceRoutes(app, dependencies.voiceProvider);
+    }
     if (dependencies.routineRepository !== undefined)
       registerRoutineShareRoutes(app, {
         repository: dependencies.routineRepository,
