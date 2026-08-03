@@ -1027,11 +1027,52 @@ dialog h2 {
   min-width: 0;
 }
 .library-results,
-.library-content-list {
+.library-content-list,
+.wiki-list {
   display: grid;
   gap: 8px;
   max-height: 190px;
   overflow: auto;
+}
+.wiki-list {
+  max-height: 230px;
+}
+.wiki-card {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.wiki-card strong,
+.wiki-card p,
+.wiki-card small {
+  display: block;
+}
+.wiki-card strong {
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.wiki-card p {
+  max-height: 3.8em;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--muted-deep);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.wiki-card small {
+  margin-top: 7px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.wiki-kind {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .library-result,
 .library-content-item {

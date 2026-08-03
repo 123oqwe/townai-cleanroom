@@ -537,6 +537,22 @@ function renderMemories(result) {
     )
     .join("");
 }
+function renderWiki(result) {
+  const target = $("#wiki-list");
+  const documents = result.documents || [];
+  $("#wiki-count").textContent = `${documents.length} pages`;
+  if (!documents.length) {
+    target.innerHTML = '<p class="harness-empty">No Wiki pages yet.</p>';
+    return;
+  }
+  target.innerHTML = documents
+    .slice(0, 20)
+    .map(
+      (document) =>
+        `<article class="wiki-card"><div><span class="wiki-kind">${escapeHtml(document.kind)}</span><strong>${escapeHtml(document.title)}</strong><p>${escapeHtml(document.body)}</p><small>${escapeHtml(document.slug)} · revision ${escapeHtml(document.currentRevision)}</small></div></article>`,
+    )
+    .join("");
+}
 async function loadLibrary() {
   if (!state.token) {
     $("#library-results").innerHTML =
@@ -544,19 +560,23 @@ async function loadLibrary() {
     return;
   }
   try {
-    const [content, memories] = await Promise.all([
+    const [content, memories, wiki] = await Promise.all([
       api("/v1/content?status=active&limit=20"),
       api("/v1/memories"),
+      api("/v1/wiki"),
     ]);
     renderLibraryContent(content);
     libraryContentCursor = content.nextCursor;
     $("#library-content-more").hidden = !libraryContentCursor;
     renderMemories(memories);
+    renderWiki(wiki);
   } catch (error) {
     $("#library-content-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Library unavailable.")}</p>`;
     $("#memory-list").innerHTML =
       '<p class="harness-empty">Memory unavailable.</p>';
+    $("#wiki-list").innerHTML =
+      '<p class="harness-empty">Wiki unavailable.</p>';
   }
 }
 async function searchLibrary() {
