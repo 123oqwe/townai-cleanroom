@@ -137,13 +137,14 @@
                 <p class="eyebrow">System signal</p>
                 <h2>At a glance</h2>
               </div>
-              <button
-                class="signal-state signal-action"
-                id="tasks-open"
-                type="button"
-              >
-                Tasks
-              </button>
+              <div class="signal-tools">
+                <span class="signal-state" id="signal-state"
+                  >Not connected</span
+                >
+                <button class="signal-action" id="tasks-open" type="button">
+                  Tasks
+                </button>
+              </div>
             </div>
             <div class="metric-list" id="metrics" aria-live="polite">
               <div class="metric-row">

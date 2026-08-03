@@ -575,9 +575,20 @@ input:focus {
   background: #deebe1;
   color: var(--green);
 }
+.signal-tools {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 .signal-action {
   border: 0;
   cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 100px;
+  background: var(--paper-deep);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
 }
 .signal-action:hover,
 .signal-action:focus-visible {

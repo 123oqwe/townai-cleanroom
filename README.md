@@ -341,3 +341,7 @@ The command center's Routines surface now reads each selected routine's durable
 run history and linked `RoutineResult` detail from the API. Terminal runs expose
 an explicit Replay action that calls the idempotent replay endpoint; the UI
 never invents a result for a queued or unlinked run.
+
+Desktop and 390px mobile Chromium smoke tests cover the initial command center,
+Routines dialog, Harness dialog, and horizontal-overflow boundary. Authenticated
+workflows remain dependent on a configured API token and connected account.
