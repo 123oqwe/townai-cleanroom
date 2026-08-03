@@ -1372,6 +1372,12 @@ The runtime now supports explicit Responses fallback routes through
 the primary configured provider is active. No model output is fabricated when
 the provider is unavailable.
 
+The model-router wiring is deployed as
+`dpl_6DbMPP6tGiKFvuiUNvVZjJdiW7Kd`,
+`https://town-clear-3cel2m2ta-123oqwes-projects.vercel.app`, state `READY`.
+The full build completed successfully and no runtime errors were reported in
+the selected hour.
+
 The Library file-upload UI is included in the current READY source state. It
 uses the authenticated Content blob route and therefore remains visibly
 unavailable for durable upload until a storage backend is configured; no
