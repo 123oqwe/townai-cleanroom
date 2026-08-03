@@ -1214,3 +1214,11 @@ The approval-gated `town_voice_speak` Harness binding is deployed as
 completed successfully, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the selected hour. The binding is exposed only when
 the ElevenLabs credentials are configured; the direct URL remains SSO-gated.
+
+The Harness transcript voice-playback UI source state is deployed as
+`https://town-clear-q9w9mwej8-123oqwes-projects.vercel.app`, deployment
+`dpl_Bani2fVz9phBbLCoNuBaEaKbHwLd`, state `READY`. The full workspace build
+completed in 32 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the selected hour. Browser playback remains inactive
+until the authenticated API has ElevenLabs credentials; the direct URL
+remains SSO-gated.
