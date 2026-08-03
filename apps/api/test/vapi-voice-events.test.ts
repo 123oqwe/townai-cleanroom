@@ -44,7 +44,7 @@ describe("Vapi voice events adapter", () => {
         body: payload,
       },
     );
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(200);
     expect(queueTrigger).toHaveBeenCalledWith(
       ownerId,
       asId<"routine-schedule">(routineId),

@@ -73,6 +73,8 @@ export function registerVapiVoiceEventsRoute(
       { text: transcript, callId, eventType: message.type },
       `vapi:${callId}:${message.type}`,
     );
-    return context.json({ accepted: true, run }, 202);
+    // Vapi treats informational server events as acknowledged once the
+    // request returns successfully; durable execution continues off-request.
+    return context.json({ accepted: true, run });
   });
 }
