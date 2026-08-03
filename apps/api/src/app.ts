@@ -87,6 +87,7 @@ import type {
   RoutineRepository,
   RoutineResultRepository,
 } from "@town/routines";
+import type { GoogleApiClient } from "@town/google";
 import { RoutineError } from "@town/routines";
 import { registerAccountRoutes } from "./account-routes.js";
 import {
@@ -134,6 +135,7 @@ export interface AppDependencies {
   a2aRepository?: A2ARepository;
   googleOAuth?: GoogleOAuthDependencies;
   googleTokenRefresher?: GoogleTokenRefresher;
+  googleApi?: GoogleApiClient;
   webOrigin?: string;
   harnessServer?: AppServer;
   harnessServerFactory?: (
@@ -733,6 +735,9 @@ export function createApp(dependencies?: AppDependencies) {
         ...(dependencies.sessionRepository === undefined
           ? {}
           : { sessions: dependencies.sessionRepository }),
+        ...(dependencies.googleApi === undefined
+          ? {}
+          : { google: dependencies.googleApi }),
       });
     }
     if (dependencies.suggestionRepository !== undefined) {

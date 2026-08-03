@@ -413,6 +413,7 @@ const app = createApp({
   mcpRepository,
   routineRepository,
   routineResultRepository,
+  googleApi,
   suggestionRepository,
   a2aRepository,
   googleOAuth: {

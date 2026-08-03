@@ -15,6 +15,7 @@ import type {
 import { asId } from "@town/contracts";
 import type { AgentRepository, ThreadRepository } from "@town/agents";
 import type { SessionRepository } from "@town/runtime";
+import type { GoogleApiClient } from "@town/google";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const agentId = "01900000-0000-7000-8000-000000000002";
@@ -27,6 +28,7 @@ function appWith(
     threads?: ThreadRepository;
     sessions?: SessionRepository;
     results?: RoutineResultRepository;
+    google?: GoogleApiClient;
   } = {},
 ): Hono<{ Variables: AuthVariables }> {
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -179,6 +181,66 @@ describe("routine routes", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ run, result });
     expect(results.getForRun).toHaveBeenCalledWith(ownerId, runtimeRunId);
+  });
+
+  it("ingests real Gmail messages into the configured incoming-email trigger", async () => {
+    const accountId = asId<"connected-account">(agentVersionId);
+    const routineId = asId<"routine-schedule">(agentId);
+    const queued = {
+      id: asId<"integration-sync-run">("01900000-0000-7000-8000-000000000022"),
+      triggerType: "incoming_email",
+    };
+    const repository = {
+      listTriggers: vi.fn().mockResolvedValue([
+        {
+          enabled: true,
+          kind: "incoming_email",
+          config: { query: "from:alerts@example.com" },
+        },
+      ]),
+      queueTrigger: vi.fn().mockResolvedValue(queued),
+    } as unknown as RoutineRepository;
+    const google = {
+      gmailSearch: vi.fn().mockResolvedValue({
+        messages: [{ id: "msg-1", threadId: "thread-1", labelIds: ["INBOX"] }],
+        nextPageToken: "next-1",
+      }),
+      gmailGetMessage: vi.fn().mockResolvedValue({
+        id: "msg-1",
+        threadId: "thread-1",
+        labelIds: ["INBOX", "UNREAD"],
+        payload: { headers: [{ name: "Subject", value: "Alert" }] },
+      }),
+    } as unknown as GoogleApiClient;
+    const app = appWith(repository, { google });
+    const response = await app.request(
+      `http://town.test/v1/routines/${routineId}/ingest/email`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({
+      query: "from:alerts@example.com",
+      nextPageToken: "next-1",
+      runs: [queued],
+    });
+    expect(google.gmailSearch).toHaveBeenCalledWith({
+      ownerId,
+      accountId,
+      query: "from:alerts@example.com",
+      maxResults: 10,
+    });
+    expect(repository.queueTrigger).toHaveBeenCalledWith(
+      ownerId,
+      routineId,
+      "incoming_email",
+      expect.objectContaining({ messageId: "msg-1", accountId }),
+      `gmail:${accountId}:msg-1`,
+      accountId,
+    );
   });
 
   it("queues manual runs through the unified trigger repository", async () => {

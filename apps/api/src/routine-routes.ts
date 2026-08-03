@@ -5,6 +5,7 @@ import { asId, newId } from "@town/contracts";
 import type { AgentRepository } from "@town/agents";
 import type { SessionRepository } from "@town/runtime";
 import type { ThreadRepository } from "@town/agents";
+import type { GoogleApiClient } from "@town/google";
 import {
   routineTriggerKindSchema,
   type RoutineRepository,
@@ -15,6 +16,7 @@ import type { AuthVariables } from "./auth.js";
 export interface RoutineDependencies {
   repository: RoutineRepository;
   results?: RoutineResultRepository;
+  google?: GoogleApiClient;
   agents?: AgentRepository;
   threads?: ThreadRepository;
   sessions?: SessionRepository;
@@ -56,6 +58,13 @@ const triggerCreateSchema = z
     kind: routineTriggerKindSchema,
     config: z.record(z.string(), z.json()).default({}),
     enabled: z.boolean().default(true),
+  })
+  .strict();
+const gmailIngestSchema = z
+  .object({
+    accountId: z.uuidv7(),
+    query: z.string().trim().min(1).max(500).optional(),
+    maxResults: z.number().int().min(1).max(100).default(10),
   })
   .strict();
 
@@ -151,6 +160,67 @@ export function registerRoutineRoutes(
         asRoutineId(context.req.param("routineId")),
       ),
     });
+  });
+
+  app.post("/v1/routines/:routineId/ingest/email", async (context) => {
+    if (dependencies.google === undefined)
+      return context.json({ error: "GOOGLE_CONNECTOR_NOT_CONFIGURED" }, 503);
+    const ownerId = context.get("identity").user.id;
+    const routineId = asRoutineId(context.req.param("routineId"));
+    const body = gmailIngestSchema.parse(await context.req.json());
+    const trigger = (
+      await dependencies.repository.listTriggers(ownerId, routineId)
+    ).find(
+      (candidate) =>
+        candidate.enabled &&
+        (candidate.kind === "incoming_email" ||
+          candidate.kind === "email_to_assistant"),
+    );
+    if (trigger === undefined)
+      return context.json({ error: "EMAIL_TRIGGER_NOT_CONFIGURED" }, 409);
+    const configuredQuery = trigger.config["query"];
+    const query =
+      body.query ??
+      (typeof configuredQuery === "string"
+        ? configuredQuery
+        : "in:anywhere newer_than:1d");
+    const accountId = asId<"connected-account">(body.accountId);
+    const found = await dependencies.google.gmailSearch({
+      ownerId,
+      accountId,
+      query,
+      maxResults: body.maxResults,
+    });
+    const runs = [];
+    for (const message of found.messages) {
+      const detail = await dependencies.google.gmailGetMessage({
+        ownerId,
+        accountId,
+        messageId: message.id,
+      });
+      const detailLabels = detail["labelIds"] ?? message.labelIds ?? [];
+      runs.push(
+        await dependencies.repository.queueTrigger(
+          ownerId,
+          routineId,
+          "incoming_email",
+          {
+            provider: "google_gmail",
+            accountId,
+            messageId: message.id,
+            threadId: message.threadId,
+            labels: detailLabels,
+            payload: detail.payload ?? null,
+          },
+          `gmail:${accountId}:${message.id}`,
+          accountId,
+        ),
+      );
+    }
+    return context.json(
+      { query, runs, nextPageToken: found.nextPageToken },
+      202,
+    );
   });
 
   app.post("/v1/routines/:routineId/triggers", async (context) => {

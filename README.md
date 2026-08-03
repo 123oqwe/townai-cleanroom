@@ -102,6 +102,12 @@ empty to preserve the database's existing allowlist state.
   use one `queueTrigger` contract and the same scheduler/runtime path. These
   endpoints record submitted events; they do not claim an external provider
   event occurred without a configured connector.
+- A configured `incoming_email`/`email_to_assistant` trigger can now ingest real
+  Gmail messages through `POST /v1/routines/:routineId/ingest/email`. The route
+  searches and fetches messages with the owner-selected Google account, queues
+  each message by stable Gmail message ID, and preserves the provider payload as
+  untrusted trigger data. It returns `503` when the connector is not wired and
+  never reports a message as ingested without a successful Gmail response.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

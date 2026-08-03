@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Sql } from "postgres";
 import { z } from "zod";
-import { asId, newId, type Id } from "@town/contracts";
+import { asId, idSchema, newId, type Id } from "@town/contracts";
 
 export * from "./step-repository.js";
 export * from "./result-repository.js";
@@ -600,12 +600,17 @@ export function createRoutineRepository(sql: Sql) {
     triggerType: "manual" | "incoming_email" | "calendar",
     triggerData: Record<string, unknown>,
     idempotencyKey: string,
+    connectedAccountId?: Id<"connected-account">,
   ): Promise<IntegrationSyncRun> {
     const kind = z
       .enum(["manual", "incoming_email", "calendar"])
       .parse(triggerType);
     const data = z.record(z.string(), z.json()).parse(triggerData);
     const key = z.string().trim().min(1).max(500).parse(idempotencyKey);
+    const accountId =
+      connectedAccountId === undefined
+        ? undefined
+        : (idSchema.parse(connectedAccountId) as Id<"connected-account">);
     return sql.begin(async (tx) => {
       const [existing] = await tx<SyncRunRow[]>`
         select * from integration_sync_runs
@@ -622,11 +627,18 @@ export function createRoutineRepository(sql: Sql) {
           "ROUTINE_NOT_FOUND",
           "The routine was not found or is disabled.",
         );
-      const [account] = await tx<{ id: string; provider: string }[]>`
-        select id, provider from connected_accounts
-        where owner_id=${ownerId} and is_active=true
-        order by is_primary desc, created_at, id limit 1
-      `;
+      const [account] =
+        accountId === undefined
+          ? await tx<{ id: string; provider: string }[]>`
+              select id, provider from connected_accounts
+              where owner_id=${ownerId} and is_active=true
+              order by is_primary desc, created_at, id limit 1
+            `
+          : await tx<{ id: string; provider: string }[]>`
+              select id, provider from connected_accounts
+              where owner_id=${ownerId} and id=${accountId} and is_active=true
+              limit 1
+            `;
       if (!account)
         throw new RoutineError(
           "SYNC_RUN_CONFLICT",
