@@ -14,6 +14,10 @@ const state = {
   profileRevision: null,
   operationsCursor: null,
   suggestionsCursor: null,
+  scheduleItems: [],
+  scheduleCalendars: new Map(),
+  scheduleCalendarErrors: [],
+  scheduleCalendarVisibility: new Map(),
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -95,20 +99,52 @@ function renderTimeline(items) {
     .join("")}`;
 }
 function renderSchedule(result) {
-  const target = $("#schedule-list");
-  const items = result.items || [];
-  if (!items.length) {
-    target.innerHTML =
-      '<p class="harness-empty">Nothing scheduled in the next seven days.</p>';
-    return;
+  state.scheduleItems = result.items || [];
+  const calendars = new Map(
+    state.scheduleItems
+      .filter((item) => item.kind === "calendar" && item.calendarId)
+      .map((item) => [item.calendarId, item.calendarName || item.calendarId]),
+  );
+  for (const calendarId of calendars.keys()) {
+    if (!state.scheduleCalendarVisibility.has(calendarId))
+      state.scheduleCalendarVisibility.set(calendarId, true);
   }
-  target.innerHTML = items
-    .map(
-      (item) =>
-        `<div class="schedule-row"><div><span class="schedule-kind">${escapeHtml(item.kind)}</span><strong>${escapeHtml(item.title)}</strong></div><time>${escapeHtml(formatDate(new Date(item.startAt)))} · ${escapeHtml(formatTime(new Date(item.startAt)))}</time></div>`,
-    )
-    .join("");
-  if ((result.calendarErrors || []).length > 0) {
+  state.scheduleCalendars = calendars;
+  state.scheduleCalendarErrors = result.calendarErrors || [];
+  renderScheduleItems();
+}
+function renderScheduleItems(
+  calendarErrors = state.scheduleCalendarErrors,
+  calendars = state.scheduleCalendars,
+) {
+  const target = $("#schedule-list");
+  const items = state.scheduleItems.filter(
+    (item) =>
+      item.kind !== "calendar" ||
+      item.calendarId === undefined ||
+      state.scheduleCalendarVisibility.get(item.calendarId) !== false,
+  );
+  const filters = calendars.size
+    ? `<div class="schedule-filters" role="group" aria-label="Calendars">${[
+        ...calendars,
+      ]
+        .map(
+          ([id, name]) =>
+            `<button class="schedule-filter ${state.scheduleCalendarVisibility.get(id) ? "is-active" : ""}" data-calendar-id="${escapeHtml(id)}" type="button" aria-pressed="${state.scheduleCalendarVisibility.get(id) ? "true" : "false"}">${escapeHtml(name)}</button>`,
+        )
+        .join("")}</div>`
+    : "";
+  target.innerHTML =
+    filters +
+    (items.length
+      ? items
+          .map(
+            (item) =>
+              `<div class="schedule-row"><div><span class="schedule-kind">${escapeHtml(item.kind)}</span><strong>${escapeHtml(item.title)}</strong></div><time>${escapeHtml(formatDate(new Date(item.startAt)))} · ${escapeHtml(formatTime(new Date(item.startAt)))}</time></div>`,
+          )
+          .join("")
+      : '<p class="harness-empty">Nothing scheduled for the selected calendars.</p>');
+  if (calendarErrors.length > 0) {
     target.insertAdjacentHTML(
       "beforeend",
       '<p class="schedule-note">Some connected calendars could not be read.</p>',
@@ -117,6 +153,10 @@ function renderSchedule(result) {
 }
 async function loadSchedule() {
   if (!state.token) {
+    state.scheduleItems = [];
+    state.scheduleCalendars = new Map();
+    state.scheduleCalendarErrors = [];
+    state.scheduleCalendarVisibility.clear();
     $("#schedule-list").innerHTML =
       '<p class="harness-empty">Connect the API to see your schedule.</p>';
     return;
@@ -124,6 +164,10 @@ async function loadSchedule() {
   try {
     renderSchedule(await api("/v1/schedule?limit=12"));
   } catch (error) {
+    state.scheduleItems = [];
+    state.scheduleCalendars = new Map();
+    state.scheduleCalendarErrors = [];
+    state.scheduleCalendarVisibility.clear();
     $("#schedule-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Schedule unavailable.")}</p>`;
   }
@@ -1674,6 +1718,17 @@ $("#suggestions-open").addEventListener("click", () => {
 });
 $("#suggestions-more").addEventListener("click", () => {
   void loadSuggestions(true).catch(() => undefined);
+});
+$("#schedule-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".schedule-filter");
+  if (!button) return;
+  const calendarId = button.dataset.calendarId;
+  if (!calendarId) return;
+  state.scheduleCalendarVisibility.set(
+    calendarId,
+    state.scheduleCalendarVisibility.get(calendarId) === false,
+  );
+  renderScheduleItems();
 });
 $("#suggestion-list").addEventListener("click", (event) => {
   const button = event.target.closest("button");
