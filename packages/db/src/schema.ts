@@ -1281,6 +1281,8 @@ export const integrationSyncRuns = pgTable(
     triggerType: text("trigger_type").notNull().default("schedule"),
     triggerData: jsonb("trigger_data").notNull().default({}),
     idempotencyKey: text("idempotency_key"),
+    replayOfRunId: uuid("replay_of_run_id"),
+    replayKey: text("replay_key"),
     cursor: jsonb("cursor").notNull().default({}),
     errorCode: text("error_code"),
     startedAt: timestamp("started_at", { withTimezone: true }),

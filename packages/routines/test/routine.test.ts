@@ -378,4 +378,40 @@ describe("routine schedules", () => {
       [],
     );
   });
+
+  it("replays a terminal run into a new queued run without duplicating the source", async () => {
+    const repository = createRoutineRepository(sql);
+    const schedule = await repository.create({
+      ownerId,
+      agentId,
+      agentVersionId: versionId,
+      name: "Replayable routine",
+      cron: "0 11 * * *",
+      nextRunAt: new Date("2026-08-03T03:00:00Z"),
+    });
+    const [source] = await repository.claimDue(
+      ownerId,
+      new Date("2026-08-03T03:00:00Z"),
+    );
+    if (source === undefined) throw new Error("expected source run");
+    await repository.startRun(ownerId, source.claimId);
+    await repository.failRun(ownerId, source.claimId, "SOURCE_FAILED");
+
+    const replay = await repository.replayRun(
+      ownerId,
+      source.claimId,
+      "replay-request-1",
+    );
+    expect(replay).toMatchObject({
+      status: "queued",
+      routineScheduleId: schedule.id,
+      triggerType: "schedule",
+      triggerData: { scheduleId: schedule.id },
+      idempotencyKey: "replay-request-1",
+    });
+    expect(replay.id).not.toBe(source.claimId);
+    await expect(
+      repository.replayRun(ownerId, source.claimId, "replay-request-1"),
+    ).resolves.toMatchObject({ id: replay.id });
+  });
 });

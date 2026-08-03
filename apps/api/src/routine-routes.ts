@@ -85,6 +85,24 @@ export function registerRoutineRoutes(
     });
   });
 
+  app.post("/v1/routine-runs/:runId/replay", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const idempotencyKey = z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .parse(context.req.header("Idempotency-Key"));
+    const run = await dependencies.repository.replayRun(
+      ownerId,
+      asId<"integration-sync-run">(
+        z.uuidv7().parse(context.req.param("runId")),
+      ),
+      idempotencyKey,
+    );
+    return context.json({ run }, 202);
+  });
+
   app.get("/v1/routines/:routineId/runs", async (context) => {
     const ownerId = context.get("identity").user.id;
     const routineId = asRoutineId(context.req.param("routineId"));

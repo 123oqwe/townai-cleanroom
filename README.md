@@ -95,6 +95,9 @@ empty to preserve the database's existing allowlist state.
 - Queued webhook runs are claimed with a lease token by the scheduler, passed
   to the same durable runtime/session path as schedules, and include the
   payload as explicitly untrusted trigger text.
+- Terminal routine runs can be replayed with `POST /v1/routine-runs/:runId/replay`;
+  replay creates a new queued run, preserves trigger data, and is idempotent by
+  `(sourceRunId, Idempotency-Key)`.
 - Explicit Billing state with `not_configured` behavior, optimistic revisions,
   owner-scoped usage ledger entries, idempotent usage recording, and period
   summaries; no external payment state is invented when no provider is wired.

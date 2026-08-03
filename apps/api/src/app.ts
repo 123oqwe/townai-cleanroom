@@ -717,6 +717,8 @@ export function createApp(dependencies?: AppDependencies) {
       app.use("/v1/routines", authenticate);
       app.use("/v1/routines/*", authenticate);
       app.use("/v1/routine-results", authenticate);
+      app.use("/v1/routine-runs", authenticate);
+      app.use("/v1/routine-runs/*", authenticate);
       registerRoutineRoutes(app, {
         repository: dependencies.routineRepository,
         ...(dependencies.routineResultRepository === undefined

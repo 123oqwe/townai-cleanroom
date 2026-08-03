@@ -67,6 +67,8 @@ export interface IntegrationSyncRun {
     "schedule" | "manual" | "webhook" | "incoming_email" | "calendar";
   triggerData: Record<string, unknown>;
   idempotencyKey: string | null;
+  replayOfRunId: Id<"integration-sync-run"> | null;
+  replayKey: string | null;
   cursor: Record<string, unknown>;
   errorCode: string | null;
   startedAt: Date | null;
@@ -187,6 +189,8 @@ type SyncRunRow = {
     "schedule" | "manual" | "webhook" | "incoming_email" | "calendar";
   trigger_data: Record<string, unknown>;
   idempotency_key: string | null;
+  replay_of_run_id: string | null;
+  replay_key: string | null;
   cursor: Record<string, unknown>;
   error_code: string | null;
   started_at: Date | null;
@@ -268,6 +272,10 @@ function safeRun(row: SyncRunRow): IntegrationSyncRun {
     triggerType: row.trigger_type,
     triggerData: row.trigger_data,
     idempotencyKey: row.idempotency_key,
+    replayOfRunId: row.replay_of_run_id
+      ? asId<"integration-sync-run">(row.replay_of_run_id)
+      : null,
+    replayKey: row.replay_key,
     cursor: row.cursor,
     errorCode: row.error_code,
     startedAt: row.started_at,
@@ -530,6 +538,61 @@ export function createRoutineRepository(sql: Sql) {
         "The sync run was not found.",
       );
     return safeRun(row);
+  }
+  async function replayRun(
+    ownerId: Id<"user">,
+    sourceRunId: Id<"integration-sync-run">,
+    replayKey: string,
+  ): Promise<IntegrationSyncRun> {
+    const key = z.string().trim().min(1).max(500).parse(replayKey);
+    return sql.begin(async (tx) => {
+      const [existing] = await tx<SyncRunRow[]>`
+        select * from integration_sync_runs
+        where owner_id=${ownerId} and replay_of_run_id=${sourceRunId} and replay_key=${key}
+      `;
+      if (existing) return safeRun(existing);
+      const [source] = await tx<SyncRunRow[]>`
+        select * from integration_sync_runs
+        where owner_id=${ownerId} and id=${sourceRunId}
+        for update
+      `;
+      if (!source)
+        throw new RoutineError(
+          "SYNC_RUN_NOT_FOUND",
+          "The sync run was not found.",
+        );
+      if (!["succeeded", "failed", "blocked"].includes(source.status))
+        throw new RoutineError(
+          "SYNC_RUN_CONFLICT",
+          "Only a terminal routine run can be replayed.",
+        );
+      const [account] = await tx<{ id: string; provider: string }[]>`
+        select id, provider from connected_accounts
+        where owner_id=${ownerId} and id=${source.account_id} and is_active=true
+      `;
+      if (!account)
+        throw new RoutineError(
+          "SYNC_RUN_CONFLICT",
+          "The connected account for this run is no longer active.",
+        );
+      const id = newId<"integration-sync-run">();
+      const [created] = await tx<SyncRunRow[]>`
+        insert into integration_sync_runs
+          (id, owner_id, account_id, routine_schedule_id, provider, status,
+           trigger_type, trigger_data, idempotency_key, replay_of_run_id, replay_key)
+        values
+          (${id}, ${ownerId}, ${account.id}, ${source.routine_schedule_id},
+           ${account.provider}, 'queued', ${source.trigger_type},
+           ${tx.json(source.trigger_data as never)}, ${key}, ${sourceRunId}, ${key})
+        returning *
+      `;
+      if (!created)
+        throw new RoutineError(
+          "SYNC_RUN_CONFLICT",
+          "The routine replay could not be created.",
+        );
+      return safeRun(created);
+    });
   }
   async function startRun(
     ownerId: Id<"user">,
@@ -1018,6 +1081,7 @@ export function createRoutineRepository(sql: Sql) {
     claimDue,
     listRuns,
     getRun,
+    replayRun,
     startRun,
     completeRun,
     failRun,

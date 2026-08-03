@@ -124,6 +124,32 @@ describe("routine routes", () => {
     expect(await response.json()).toMatchObject({ duplicate: true });
   });
 
+  it("replays a terminal routine run through an idempotent endpoint", async () => {
+    const replayed = {
+      id: asId<"integration-sync-run">("01900000-0000-7000-8000-000000000018"),
+      status: "queued",
+    };
+    const repository = {
+      replayRun: async (
+        requestedOwner: typeof ownerId,
+        runId: string,
+        key: string,
+      ) => {
+        expect(requestedOwner).toBe(ownerId);
+        expect(runId).toBe(agentVersionId);
+        expect(key).toBe("replay-1");
+        return replayed;
+      },
+    } as unknown as RoutineRepository;
+    const app = appWith(repository);
+    const response = await app.request(
+      `http://town.test/v1/routine-runs/${agentVersionId}/replay`,
+      { method: "POST", headers: { "idempotency-key": "replay-1" } },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ run: replayed });
+  });
+
   it("returns a public routine share and hides revoked tokens", async () => {
     const repository = {
       getPublicShare: vi.fn().mockResolvedValue({
