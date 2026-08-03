@@ -3304,14 +3304,20 @@ async function refresh() {
   }
   $("#signal-foot").textContent = "Reading live state…";
   try {
-    const [summary, audit] = await Promise.all([
+    const [summary, audit, capabilities] = await Promise.all([
       api("/v1/operations/summary"),
       api("/v1/operations/audit?limit=5"),
+      api("/v1/health/capabilities").catch(() => ({ harness: false })),
     ]);
     renderMetrics(summary.summary);
     renderTimeline(audit.audit.items);
     await loadSchedule();
-    setConnection(true);
+    setConnection(
+      true,
+      capabilities.harness
+        ? "Connected · Harness ready"
+        : "Connected · data only",
+    );
   } catch (error) {
     setConnection(false, "Connection error");
     $("#signal-state").textContent = "Unavailable";

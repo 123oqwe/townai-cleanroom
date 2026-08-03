@@ -613,6 +613,16 @@ export function createApp(dependencies?: AppDependencies) {
       time: new Date().toISOString(),
     }),
   );
+  app.get("/v1/health/capabilities", (context) =>
+    context.json({
+      api: dependencies !== undefined,
+      auth: dependencies !== undefined,
+      harness:
+        dependencies?.harnessServer !== undefined ||
+        dependencies?.harnessServerFactory !== undefined,
+      googleOAuth: dependencies?.googleOAuth !== undefined,
+    }),
+  );
 
   if (dependencies !== undefined) {
     const establishSessionSchema = z

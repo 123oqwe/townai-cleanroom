@@ -228,11 +228,17 @@ same graph; npm-based hosts can now link every internal package instead of
 installing only the root devDependencies.
 
 Allowlisted identity now has a first-class API/UI entry point:
-`POST /v1/auth/session` validates email and timezone, delegates authorization to
+The `POST /v1/auth/session` endpoint validates email and timezone, delegates authorization to
 the database-backed allowlist, and returns a bearer session only after the
 server accepts the identity. The connection dialog can establish that session
 without asking users to manually paste a token; existing token-based connection
 remains available.
+
+The public `GET /v1/health/capabilities` contract now distinguishes API/auth
+availability from Harness and Google OAuth readiness without exposing keys or
+environment values. The command center reads this capability response and shows
+“Harness ready” versus “data only”, so a connected database is not presented as
+an executable AI runtime when the Responses provider is unconfigured.
 
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients

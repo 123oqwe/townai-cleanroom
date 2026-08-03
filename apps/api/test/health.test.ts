@@ -22,4 +22,15 @@ describe("GET /v1/health", () => {
       service: "town-api",
     });
   });
+
+  it("reports capability readiness without exposing configuration values", async () => {
+    const response = await createApp().request("/v1/health/capabilities");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      api: false,
+      auth: false,
+      harness: false,
+      googleOAuth: false,
+    });
+  });
 });
