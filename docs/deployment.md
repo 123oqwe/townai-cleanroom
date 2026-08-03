@@ -297,6 +297,15 @@ direct URL is
 with cursor replay and heartbeats, while an unauthenticated curl receives the
 Vercel SSO `302` protection redirect.
 
+Extended durable Routine trigger types are deployed in
+`dpl_3R11qvELidkMSFHAqwVU5m2ZV1Mk`, built from commit `4c9e2df`. Its protected
+direct URL is
+`https://town-clear-current-ll4yxoo98-123oqwes-projects.vercel.app`, state
+`READY`; `voice_transcribed`, `slack_mention`, and `webhook` now pass the same
+owner-scoped idempotent queue and database constraint path as manual, email,
+and calendar triggers. An unauthenticated curl receives the Vercel SSO `302`
+protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
