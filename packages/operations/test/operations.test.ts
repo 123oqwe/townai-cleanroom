@@ -99,14 +99,42 @@ describe("operations audit and summary", () => {
 
   it("reports owner-scoped operational backlog", async () => {
     const repository = createOperationsRepository(sql);
+    await repository.append({
+      ownerId,
+      action: "notification.delivery.failed",
+      resourceType: "notification-delivery",
+      resourceId: "audit-before-timeline",
+      outcome: "failed",
+      dedupeKey: "audit-before-timeline",
+      metadata: { attempts: 1 },
+    });
+    const channelId = newId<"notification-channel">();
+    await sql`
+      insert into notification_channels (id, owner_id, kind, address, config)
+      values (${channelId}, ${ownerId}, 'webhook', 'https://example.invalid/timeline', ${sql.json({ headers: {} })})
+    `;
+    await sql`
+      insert into notification_deliveries (id, owner_id, channel_id, event_type, idempotency_key, payload, fingerprint)
+      values (${newId<"notification-delivery">()}, ${ownerId}, ${channelId}, 'routine.failed', 'timeline-delivery', ${sql.json({ runId: "timeline" })}, 'timeline-fingerprint')
+    `;
     const summary = await repository.summary(ownerId);
     expect(summary).toEqual({
       activeSessions: 0,
       queuedRuns: 0,
       failedRuns: 0,
       pendingApprovals: 0,
-      queuedDeliveries: 0,
+      queuedDeliveries: 1,
       failedDeliveries: 0,
     });
+    const first = await repository.timeline({ ownerId, limit: 1 });
+    expect(first.items).toHaveLength(1);
+    expect(first.items[0]?.kind).toBe("delivery");
+    expect(first.nextCursor).not.toBeNull();
+    const second = await repository.timeline({
+      ownerId,
+      limit: 10,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(second.items.some((item) => item.kind === "audit")).toBe(true);
   });
 });

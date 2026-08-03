@@ -22,6 +22,16 @@ export interface AuditPage {
   items: AuditEvent[];
   nextCursor: string | null;
 }
+export interface TimelineItem {
+  kind: "delivery" | "audit";
+  id: string;
+  createdAt: Date;
+  data: Record<string, unknown>;
+}
+export interface TimelinePage {
+  items: TimelineItem[];
+  nextCursor: string | null;
+}
 export interface OperationSummary {
   activeSessions: number;
   queuedRuns: number;
@@ -254,7 +264,67 @@ export function createOperationsRepository(sql: Sql) {
       failedDeliveries: row?.failed_deliveries ?? 0,
     };
   }
-  return { append, list, summary };
+  async function timeline(input: {
+    ownerId: Id<"user">;
+    cursor?: string;
+    limit?: number;
+  }): Promise<TimelinePage> {
+    const ownerId = idSchema.parse(input.ownerId);
+    const limit = z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(50)
+      .parse(input.limit);
+    const cursor =
+      input.cursor === undefined ? null : decodeCursor(input.cursor);
+    const cursorFilter =
+      cursor === null
+        ? sql``
+        : sql`and (created_at,id) < (${cursor.createdAt},${cursor.id})`;
+    const rows = await sql<
+      {
+        kind: "delivery" | "audit";
+        id: string;
+        created_at: Date;
+        data: Record<string, unknown>;
+      }[]
+    >`
+      select 'delivery'::text as kind, id, created_at,
+        jsonb_build_object(
+          'ownerId', owner_id, 'channelId', channel_id, 'eventType', event_type,
+          'status', status, 'attempts', attempts, 'lastError', last_error,
+          'nextAttemptAt', next_attempt_at, 'sentAt', sent_at
+        ) as data
+      from notification_deliveries
+      where owner_id=${ownerId} ${cursorFilter}
+      union all
+      select 'audit'::text as kind, id, created_at,
+        jsonb_build_object(
+          'action', action, 'resourceType', resource_type, 'resourceId', resource_id,
+          'outcome', outcome, 'requestId', request_id, 'metadata', metadata
+        ) as data
+      from operation_audit_events
+      where owner_id=${ownerId} ${cursorFilter}
+      order by created_at desc, id desc
+      limit ${limit + 1}`;
+    const items = rows.slice(0, limit).map((row) => ({
+      kind: row.kind,
+      id: row.id,
+      createdAt: row.created_at,
+      data: row.data,
+    }));
+    const last = items.at(-1);
+    return {
+      items,
+      nextCursor:
+        rows.length > limit && last
+          ? encodeCursor({ createdAt: last.createdAt, id: last.id })
+          : null,
+    };
+  }
+  return { append, list, summary, timeline };
 }
 export type OperationsRepository = ReturnType<
   typeof createOperationsRepository

@@ -104,24 +104,13 @@ export function registerChannelRoutes(
       .min(1)
       .max(100)
       .parse(context.req.query("limit") ?? "50");
-    const [deliveries, audit] = await Promise.all([
-      dependencies.repository.listDeliveries(ownerId, { limit }),
-      dependencies.audit.list({ ownerId, limit }),
-    ]);
-    const items = [
-      ...deliveries.map((delivery) => ({
-        kind: "delivery" as const,
-        at: delivery.createdAt,
-        delivery,
-      })),
-      ...audit.items.map((event) => ({
-        kind: "audit" as const,
-        at: event.createdAt,
-        audit: event,
-      })),
-    ]
-      .sort((left, right) => right.at.getTime() - left.at.getTime())
-      .slice(0, limit);
-    return context.json({ items });
+    const cursor = context.req.query("cursor");
+    return context.json(
+      await dependencies.audit.timeline({
+        ownerId,
+        limit,
+        ...(cursor === undefined ? {} : { cursor }),
+      }),
+    );
   });
 }
