@@ -1161,3 +1161,9 @@ The Wiki upkeep scanner source state is deployed as
 `dpl_BfDjm2hbPFoZTgUP3fQjdpvXWUBw`, state `READY`. The full workspace build
 completed in 26 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the following hour. The direct URL remains SSO-gated.
+
+The semantic serverless runtime-readiness source state is deployed as
+`https://town-clear-nqmp7sq05-123oqwes-projects.vercel.app`, deployment
+`dpl_A4qxU6jM9fPXM1diptPy62EWbnP8`, state `READY`. The full workspace build
+completed in 33 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the following hour. The direct URL remains SSO-gated.
