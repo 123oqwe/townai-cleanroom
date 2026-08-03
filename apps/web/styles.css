@@ -1020,6 +1020,65 @@ dialog h2 {
   color: var(--muted-deep);
   font-size: 10px;
 }
+.operations-dialog {
+  max-width: 620px;
+}
+.operations-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 10px;
+}
+.operations-filter label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.operations-filter select {
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+}
+.operations-list {
+  display: grid;
+  gap: 5px;
+  max-height: 360px;
+  margin-bottom: 12px;
+  overflow: auto;
+}
+.operations-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.operations-event strong {
+  display: block;
+  color: var(--ink);
+  font-size: 12px;
+}
+.operations-event small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.operations-outcome {
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.operations-outcome.is-failed {
+  color: #a03e2b;
+}
 .memory-list {
   display: grid;
   gap: 8px;

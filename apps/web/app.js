@@ -12,6 +12,7 @@ const state = {
   token: sessionStorage.getItem(storageKeys.token) || "",
   connected: false,
   profileRevision: null,
+  operationsCursor: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -91,6 +92,44 @@ function renderTimeline(items) {
         `<div class="timeline-event"><strong>${escapeHtml(item.action)}</strong><small>${escapeHtml(item.outcome)} · ${formatTime(new Date(item.createdAt))}</small></div>`,
     )
     .join("")}`;
+}
+function renderOperations(items, append = false) {
+  const target = $("#operations-list");
+  const html = (items || [])
+    .map(
+      (item) =>
+        `<article class="operations-event"><div><strong>${escapeHtml(item.action)}</strong><small>${escapeHtml(item.resourceType)}${item.resourceId ? ` · ${escapeHtml(item.resourceId.slice(0, 8))}` : ""} · ${formatTime(new Date(item.createdAt))}</small></div><span class="operations-outcome ${item.outcome === "failed" ? "is-failed" : ""}">${escapeHtml(item.outcome)}</span></article>`,
+    )
+    .join("");
+  if (!append) target.innerHTML = "";
+  if (html) target.insertAdjacentHTML("beforeend", html);
+  if (!items?.length && !append)
+    target.innerHTML =
+      '<p class="harness-empty">No audit events recorded yet.</p>';
+}
+async function loadOperations(append = false) {
+  if (!state.token) {
+    $("#operations-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load the audit trail.</p>';
+    return;
+  }
+  const error = $("#operations-error");
+  error.hidden = true;
+  const params = new URLSearchParams({ limit: "30" });
+  const outcome = $("#operations-outcome").value;
+  if (outcome) params.set("outcome", outcome);
+  if (append && state.operationsCursor)
+    params.set("cursor", state.operationsCursor);
+  try {
+    const result = await api(`/v1/operations/audit?${params.toString()}`);
+    renderOperations(result.audit.items, append);
+    state.operationsCursor = result.audit.nextCursor;
+    $("#operations-more").hidden = !state.operationsCursor;
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Audit trail unavailable.";
+    error.hidden = false;
+  }
 }
 function escapeHtml(value) {
   return String(value).replace(
@@ -1144,6 +1183,20 @@ $("#connect-form").addEventListener("submit", async (event) => {
   }
 });
 $("#refresh").addEventListener("click", refresh);
+$("#operations-open").addEventListener("click", () => {
+  state.operationsCursor = null;
+  $("#operations-error").hidden = true;
+  openDialog($("#operations-dialog"));
+  void loadOperations();
+});
+$("#operations-outcome").addEventListener("change", () => {
+  state.operationsCursor = null;
+  void loadOperations();
+});
+$("#operations-more").addEventListener(
+  "click",
+  () => void loadOperations(true),
+);
 $("#intention-button").addEventListener("click", () => {
   $("#focus-empty").hidden = true;
   $("#intention-form").hidden = false;

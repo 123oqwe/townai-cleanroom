@@ -212,7 +212,9 @@
                 <p class="eyebrow">Today</p>
                 <h2>Run trail</h2>
               </div>
-              <a class="panel-link" href="#runs">See all <span>↗</span></a>
+              <button class="panel-link" id="operations-open" type="button">
+                See all <span>↗</span>
+              </button>
             </div>
             <div class="timeline" id="timeline" aria-live="polite">
               <div class="empty-timeline">
@@ -918,6 +920,46 @@
           role="alert"
           hidden
         ></p>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <dialog
+      class="operations-dialog"
+      id="operations-dialog"
+      aria-labelledby="operations-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Operations</p>
+        <h2 id="operations-title">
+          See the work<br /><em>behind the calm.</em>
+        </h2>
+        <p class="dialog-copy">
+          This is an owner-scoped, read-only audit trail. It shows what the
+          server recorded without exposing credentials or mutable internals.
+        </p>
+        <div class="operations-filter">
+          <label for="operations-outcome">Outcome</label>
+          <select id="operations-outcome">
+            <option value="">All outcomes</option>
+            <option value="succeeded">Succeeded</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+        <div class="operations-list" id="operations-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load the audit trail.</p>
+        </div>
+        <button
+          class="quiet-button full-button"
+          id="operations-more"
+          type="button"
+          hidden
+        >
+          Load older events
+        </button>
+        <p class="dialog-error" id="operations-error" role="alert" hidden></p>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>

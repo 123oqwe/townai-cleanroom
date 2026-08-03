@@ -123,6 +123,9 @@ control using your platform's secure secret-management workflow.
   `/v1/channels` and supports creating channel metadata for email, webhook,
   Telegram, and WhatsApp. Delivery remains asynchronous and server-owned;
   saving a channel never claims a message was sent.
+- The Run trail opens a read-only Operations audit view backed by
+  `/v1/operations/audit`, with outcome filtering and opaque cursor pagination;
+  audit records cannot be edited from the UI.
 - Usage & Billing is read from `/v1/billing`; configured workspaces show the
   plan, credit band, period, and recorded category totals, while an absent
   billing provider renders the server's `not_configured` state.
