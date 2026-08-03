@@ -454,11 +454,17 @@ function renderLibraryContent(result, append = false) {
     .slice(0, 20)
     .map(
       (item) =>
-        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><div class="content-actions"><button class="quiet-button content-history-button" type="button">History</button><button class="quiet-button content-share-button" type="button">Share</button></div></article>`,
+        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><div class="content-actions"><button class="quiet-button content-history-button" type="button">History</button><button class="quiet-button content-share-button" type="button">Share</button><button class="quiet-button content-archive-button" type="button">Archive</button></div></article>`,
     )
     .join("");
   if (append) target.insertAdjacentHTML("beforeend", html);
   else target.innerHTML = html;
+}
+async function archiveContent(card) {
+  if (!card?.dataset.contentId) return;
+  const button = card.querySelector(".content-archive-button");
+  button.disabled = true;
+  try { await api(`/v1/content/${card.dataset.contentId}/archive`, { method: "POST" }); await loadLibrary(); } catch (cause) { const error = document.createElement("p"); error.className = "harness-empty content-archive-error"; error.textContent = cause instanceof Error ? cause.message : "Could not archive content."; card.append(error); button.disabled = false; }
 }
 async function loadContentHistory(card) {
   const contentId = card.dataset.contentId;
@@ -2315,6 +2321,10 @@ $("#library-content-list").addEventListener("click", (event) => {
   if (!card) return;
   if (event.target.closest(".content-history-button")) {
     void loadContentHistory(card);
+    return;
+  }
+  if (event.target.closest(".content-archive-button")) {
+    void archiveContent(card);
     return;
   }
   if (!button) return;
