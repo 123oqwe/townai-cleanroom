@@ -23,6 +23,20 @@ const functionCallSchema = z
   })
   .passthrough();
 const responseSchema = z.object({ output: z.array(z.unknown()) }).passthrough();
+const usageSchema = z
+  .object({
+    input_tokens: z.number().int().nonnegative(),
+    output_tokens: z.number().int().nonnegative(),
+    total_tokens: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export interface ResponsesUsage {
+  responseId: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
 
 export interface ResponsesToolDefinition {
   name: string;
@@ -67,6 +81,7 @@ export function createResponsesModel(input: {
   tools?: readonly ResponsesToolDefinition[];
   headers?: Record<string, string>;
   apiKey?: () => Promise<string>;
+  onUsage?: (usage: ResponsesUsage) => Promise<void> | void;
   fetch?: typeof globalThis.fetch;
 }): ModelPort {
   const request = input.fetch ?? globalThis.fetch;
@@ -117,6 +132,27 @@ export function createResponsesModel(input: {
         throw new Error(
           "HARNESS_MODEL_RESPONSE_INVALID: missing output items.",
         );
+      const responseId = z
+        .string()
+        .min(1)
+        .optional()
+        .safeParse((parsed.data as { id?: unknown }).id);
+      const usage = usageSchema.safeParse(
+        (parsed.data as { usage?: unknown }).usage,
+      );
+      if (
+        input.onUsage !== undefined &&
+        responseId.success &&
+        responseId.data !== undefined &&
+        usage.success
+      ) {
+        await input.onUsage({
+          responseId: responseId.data,
+          inputTokens: usage.data.input_tokens,
+          outputTokens: usage.data.output_tokens,
+          totalTokens: usage.data.total_tokens,
+        });
+      }
       const functionCalls = parsed.data.output.filter(
         (item) => functionCallSchema.safeParse(item).success,
       );

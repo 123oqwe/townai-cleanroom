@@ -1,5 +1,6 @@
 import {
   createResponsesModel,
+  type ResponsesUsage,
   type ResponsesToolDefinition,
 } from "./responses.js";
 import type { ModelPort, ToolPort } from "./index.js";
@@ -16,6 +17,7 @@ export function createResponsesAgentFactory(input: {
   instructions?: string;
   headers?: Record<string, string>;
   apiKey?: () => Promise<string>;
+  onUsage?: (usage: ResponsesUsage) => Promise<void> | void;
   fetch?: typeof globalThis.fetch;
   tools?: (
     threadId: string,
@@ -61,6 +63,7 @@ export function createResponsesAgentFactory(input: {
           : { instructions: selected?.instructions ?? input.instructions }),
         ...(input.headers === undefined ? {} : { headers: input.headers }),
         ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
+        ...(input.onUsage === undefined ? {} : { onUsage: input.onUsage }),
         ...(input.fetch === undefined ? {} : { fetch: input.fetch }),
         tools: bindings.map(({ definition }) => definition),
       }),

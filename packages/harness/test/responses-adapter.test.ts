@@ -8,13 +8,19 @@ import {
 describe("Responses API adapter", () => {
   it("maps a Responses message into a final harness response", async () => {
     let request: RequestInit | undefined;
+    const usages: unknown[] = [];
     const model = createResponsesModel({
       endpoint: "https://model.example.invalid/v1/responses",
       model: "test-model",
+      onUsage: (usage) => {
+        usages.push(usage);
+      },
       fetch: async (_url, init) => {
         request = init;
         return new Response(
           JSON.stringify({
+            id: "resp_1",
+            usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 },
             output: [
               {
                 type: "message",
@@ -33,6 +39,14 @@ describe("Responses API adapter", () => {
       model: "test-model",
       input: [{ role: "user", content: "hi" }],
     });
+    expect(usages).toEqual([
+      {
+        responseId: "resp_1",
+        inputTokens: 3,
+        outputTokens: 2,
+        totalTokens: 5,
+      },
+    ]);
   });
 
   it("maps a function_call item and never invents a tool result", async () => {

@@ -437,6 +437,21 @@ const harnessServerFactory =
                 ? undefined
                 : versions.get(agentVersionId),
             apiKey: async () => environment.RESPONSES_API_KEY as string,
+            onUsage: async (usage) => {
+              await billingRepository.recordUsage({
+                ownerId: typedOwnerId,
+                idempotencyKey: `responses:${usage.responseId}`,
+                category: "model",
+                quantity: usage.totalTokens,
+                unit: "tokens",
+                metadata: {
+                  model: environment.RESPONSES_MODEL,
+                  responseId: usage.responseId,
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                },
+              });
+            },
             tools: (threadId, agentVersionId) => {
               const builtIns = [
                 createTownSearchHarnessBinding(
