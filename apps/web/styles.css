@@ -1733,6 +1733,20 @@ dialog h2 {
   margin-bottom: 0.65rem;
 }
 
+.agent-routine-options {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.agent-routine-option {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .tool-catalog {
   margin: 1rem 0;
 }

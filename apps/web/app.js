@@ -705,6 +705,15 @@ async function loadAgentSettings() {
       agent.activeVersion.snapshot.defaultApprovalMode;
     $("#agent-revision").textContent =
       `Revision ${state.agentRevision} · version ${agent.activeVersion.version}`;
+    const routines = (await api("/v1/routines")).routines || [];
+    $("#agent-routine-options").innerHTML = routines.length
+      ? routines
+          .map(
+            (routine) =>
+              `<label class="agent-routine-option"><input type="checkbox" value="${escapeHtml(routine.id)}" ${state.agentCallableRoutineIds.includes(routine.id) ? "checked" : ""} /> ${escapeHtml(routine.activeVersion.snapshot.displayName)}</label>`,
+          )
+          .join("")
+      : '<p class="harness-empty">No routine agents available.</p>';
   } catch (error) {
     $("#agent-error").textContent =
       error instanceof Error ? error.message : "Agent unavailable.";
@@ -718,6 +727,9 @@ async function saveAgentSettings() {
   const button = $("#agent-save");
   button.disabled = true;
   try {
+    state.agentCallableRoutineIds = Array.from(
+      document.querySelectorAll("#agent-routine-options input:checked"),
+    ).map((input) => input.value);
     const result = await api("/v1/agents/personal", {
       method: "PUT",
       body: JSON.stringify({
