@@ -295,8 +295,8 @@
           Bring your workspace<br /><em>into view.</em>
         </h2>
         <p class="dialog-copy">
-          Paste a bearer token for your Town API. It stays in this browser and
-          is never written into the source.
+          Sign in with an allowlisted email, or paste an existing bearer token.
+          Tokens stay in this browser and are never written into the source.
         </p>
         <label for="api-base">API base URL</label
         ><input
@@ -305,7 +305,27 @@
           type="url"
           value="http://localhost:3000"
           required
-        /><label for="api-token">Bearer token</label
+        /><label for="api-email">Allowlisted email</label
+        ><input
+          id="api-email"
+          name="api-email"
+          type="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+        /><label for="api-timezone">Timezone</label
+        ><input
+          id="api-timezone"
+          name="api-timezone"
+          type="text"
+          value="UTC"
+          autocomplete="off"
+        /><button
+          class="quiet-button full-button"
+          id="api-sign-in"
+          type="button"
+        >
+          Sign in with email <span>→</span></button
+        ><label for="api-token">Existing bearer token</label
         ><input
           id="api-token"
           name="api-token"

@@ -82,6 +82,60 @@ async function fixture() {
 }
 
 describe("protected identity API", () => {
+  it("establishes a bearer session only for an allowlisted email", async () => {
+    await sql`
+      insert into access_allowlist (email, enabled)
+      values ('signin@example.test', true)
+    `;
+    const identityService = createIdentityService(sql);
+    const app = createApp({
+      identityService,
+      accountRepository: createAccountRepository(
+        sql,
+        createCredentialCipher(randomBytes(32).toString("base64url")),
+      ),
+    });
+    const response = await app.request("/v1/auth/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "signin@example.test",
+        firstName: "Sign",
+        timezone: "Asia/Shanghai",
+      }),
+    });
+    const body = (await response.json()) as {
+      token: string;
+      user: { email: string; firstName?: string };
+      session: { expiresAt: string };
+    };
+    expect(response.status).toBe(201);
+    expect(body).toMatchObject({
+      user: { email: "signin@example.test", firstName: "Sign" },
+      session: { expiresAt: expect.any(String) },
+    });
+    expect(body.token).toMatch(/^town_session_/);
+    expect(JSON.stringify(body)).not.toContain("accessToken");
+  });
+
+  it("does not establish a session for an unallowlisted email", async () => {
+    const identityService = createIdentityService(sql);
+    const app = createApp({
+      identityService,
+      accountRepository: createAccountRepository(
+        sql,
+        createCredentialCipher(randomBytes(32).toString("base64url")),
+      ),
+    });
+    const response = await app.request("/v1/auth/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "not-allowed@example.test" }),
+    });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "ACCESS_DENIED" });
+  });
+
   it.each([undefined, "Basic value", "Bearer malformed"])(
     "rejects missing or invalid authorization %s",
     async (authorization) => {

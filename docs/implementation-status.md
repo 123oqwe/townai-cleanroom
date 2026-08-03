@@ -227,6 +227,13 @@ local file references for internal @town packages. pnpm continues to build the
 same graph; npm-based hosts can now link every internal package instead of
 installing only the root devDependencies.
 
+Allowlisted identity now has a first-class API/UI entry point:
+`POST /v1/auth/session` validates email and timezone, delegates authorization to
+the database-backed allowlist, and returns a bearer session only after the
+server accepts the identity. The connection dialog can establish that session
+without asking users to manually paste a token; existing token-based connection
+remains available.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all

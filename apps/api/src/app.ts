@@ -20,7 +20,7 @@ import type {
   IdentityService,
   GoogleTokenRefresher,
 } from "@town/identity";
-import { AccountError, GoogleTokenError } from "@town/identity";
+import { AccountError, GoogleTokenError, IdentityError } from "@town/identity";
 import {
   KnowledgeSearchError,
   MemoryError,
@@ -287,6 +287,25 @@ export function createApp(dependencies?: AppDependencies) {
           code: "INVALID_REQUEST",
         },
         400,
+      );
+    }
+    if (error instanceof IdentityError) {
+      const status = error.code === "ACCESS_DENIED" ? 403 : 401;
+      return context.json(
+        {
+          type:
+            status === 403
+              ? "https://town.local/problems/forbidden"
+              : "https://town.local/problems/unauthenticated",
+          title: status === 403 ? "Forbidden" : "Authentication required",
+          status,
+          detail:
+            status === 403
+              ? "This identity is not allowed."
+              : "The session is invalid.",
+          code: error.code,
+        },
+        status,
       );
     }
     if (
@@ -596,6 +615,30 @@ export function createApp(dependencies?: AppDependencies) {
   );
 
   if (dependencies !== undefined) {
+    const establishSessionSchema = z
+      .object({
+        email: z.email(),
+        firstName: z.string().trim().min(1).max(100).optional(),
+        lastName: z.string().trim().min(1).max(100).optional(),
+        timezone: z.string().trim().min(1).max(100).default("UTC"),
+      })
+      .strict();
+    app.post("/v1/auth/session", async (context) => {
+      const established = await dependencies.identityService.establishIdentity(
+        establishSessionSchema.parse(await context.req.json()),
+      );
+      return context.json(
+        {
+          token: established.token,
+          user: established.user,
+          session: {
+            id: established.session.id,
+            expiresAt: established.session.expiresAt,
+          },
+        },
+        201,
+      );
+    });
     const authenticate = createAuthMiddleware(dependencies.identityService);
     if (dependencies.routineRepository !== undefined)
       registerRoutineWebhookRoutes(app, {

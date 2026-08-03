@@ -3331,9 +3331,45 @@ $("#today-date").textContent = formatDate(new Date());
 $("#connect-open").addEventListener("click", () => {
   $("#api-base").value = state.base;
   $("#api-token").value = state.token;
+  $("#api-email").value = "";
+  $("#api-timezone").value =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   $("#api-revoke").hidden = !state.token;
   $("#connect-error").hidden = true;
   openDialog($("#connect-dialog"));
+});
+$("#api-sign-in").addEventListener("click", async () => {
+  const email = $("#api-email").value.trim();
+  const button = $("#api-sign-in");
+  const error = $("#connect-error");
+  if (!email) {
+    error.textContent = "Allowlisted email is required.";
+    error.hidden = false;
+    return;
+  }
+  state.base = $("#api-base").value.trim().replace(/\/$/, "");
+  button.disabled = true;
+  error.hidden = true;
+  try {
+    const result = await apiJson("/v1/auth/session", {
+      email,
+      timezone:
+        $("#api-timezone").value.trim() ||
+        Intl.DateTimeFormat().resolvedOptions().timeZone ||
+        "UTC",
+    });
+    state.token = result.token;
+    localStorage.setItem(storageKeys.base, state.base);
+    sessionStorage.setItem(storageKeys.token, state.token);
+    closeDialog($("#connect-dialog"));
+    await refresh();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not establish a session.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
 });
 $("#api-revoke").addEventListener("click", async () => {
   if (!state.token) return;
