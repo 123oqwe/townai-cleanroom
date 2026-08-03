@@ -891,6 +891,13 @@ The Gmail-to-Routine ingestion UI is deployed as
 no runtime errors; direct unauthenticated access returns the expected `302`
 SSO redirect.
 
+The approval state inspector refresh is deployed as
+`https://town-clear-current-8vzqh9q68-123oqwes-projects.vercel.app`, deployment
+`dpl_2Gqmcw6WDFYNDiQmDd6TRLASL22M`, state `READY`, alias
+`town-clear-current-ui-123oqwe-123oqwes-projects.vercel.app`. Vercel reported
+no runtime errors; direct unauthenticated access returns the expected `302`
+SSO redirect.
+
 The notification delivery records panel is deployed as
 `https://town-clear-current-1ls98040w-123oqwes-projects.vercel.app`, deployment
 `dpl_4JKmwfFdUSnKTzMPcNJrg6fCxYoJ`, state `READY`, alias
