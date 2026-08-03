@@ -178,6 +178,13 @@ state `READY`; approved leased MCP calls now create, start, and complete/fail a
 durable ToolCall, and the unauthenticated URL check returns the Vercel SSO
 `302`.
 
+Routine result persistence is deployed in
+`dpl_4o14wgFQNC8n531qMPk9wwvUZRmw`, built from commit `06661d3`. Its protected
+direct URL is `https://town-clear-current-3ohxxsy50-123oqwes-projects.vercel.app`,
+state `READY`; the deployment includes `0033_routine_results.sql`, the
+owner-scoped `/v1/routine-results?sessionId=...` read API, and an unauthenticated
+curl still receives the Vercel SSO `302` protection redirect.
+
 Once the owner-visible Vercel project ID is available, protection is applied
 with the source-controlled command below. It sends only the documented project
 settings patch and reads credentials from the shell environment:
