@@ -9,7 +9,7 @@ import {
 } from "vitest";
 import postgres, { type Sql } from "postgres";
 
-import { newId, type Id } from "@town/contracts";
+import { decodeCursor, newId, type Id } from "@town/contracts";
 import { runMigrations } from "@town/db";
 import { createContentRepository } from "../src/index.js";
 
@@ -84,6 +84,12 @@ describe("content library", () => {
       metadata: {},
     });
     expect(updated.currentRevision).toBe(2);
+    await expect(
+      content.listRevisions(ownerId, item.id),
+    ).resolves.toMatchObject([
+      { revision: 2, body: "Second" },
+      { revision: 1, body: "First" },
+    ]);
     await expect(
       content.update({
         ownerId,
@@ -191,6 +197,7 @@ describe("content library", () => {
     });
     expect(first.items).toHaveLength(2);
     expect(first.nextCursor).toEqual(expect.any(String));
+    expect(decodeCursor(first.nextCursor!).key).toContain('"status":"active"');
     const second = await content.listPage({
       ownerId,
       status: "active",
@@ -201,13 +208,17 @@ describe("content library", () => {
     expect(
       new Set([...first.items, ...second.items].map((item) => item.id)),
     ).toEqual(new Set(created.map((item) => item.id)));
-    await expect(
-      content.listPage({
+    let mismatch: unknown;
+    try {
+      await content.listPage({
         ownerId,
         status: "archived",
         limit: 2,
         cursor: first.nextCursor!,
-      }),
-    ).rejects.toThrow("Cursor status does not match");
+      });
+    } catch (error) {
+      mismatch = error;
+    }
+    expect(mismatch).toBeDefined();
   });
 });

@@ -1052,6 +1052,39 @@ dialog h2 {
   border-color: var(--line);
   font-size: 10px;
 }
+.content-actions {
+  display: flex;
+  gap: 6px;
+}
+.content-history-button {
+  min-height: 31px;
+  padding: 0 9px;
+  border-color: var(--line);
+  font-size: 10px;
+}
+.content-history {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.content-history > div {
+  padding: 8px 9px;
+  border-radius: 7px;
+  background: var(--paper-deep);
+}
+.content-history strong,
+.content-history small {
+  display: inline;
+  margin: 0;
+}
+.content-history small {
+  margin-left: 8px;
+}
+.content-history p {
+  margin-top: 5px;
+}
 .library-result strong,
 .library-content-item strong {
   display: block;

@@ -132,6 +132,15 @@ export function registerContentRoutes(
       ),
     });
   });
+  app.get("/v1/content/:contentId/revisions", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    return context.json({
+      revisions: await dependencies.repository.listRevisions(
+        ownerId,
+        asId<"content">(context.req.param("contentId")),
+      ),
+    });
+  });
   app.patch("/v1/content/:contentId", async (context) => {
     const ownerId = context.get("identity").user.id;
     return context.json({

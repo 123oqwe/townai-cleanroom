@@ -93,6 +93,17 @@ export interface ContentPage {
   items: ContentItem[];
   nextCursor: string | null;
 }
+export interface ContentRevision {
+  id: Id<"content-revision">;
+  contentId: Id<"content">;
+  revision: number;
+  title: string;
+  mimeType: string | null;
+  storageKey: string | null;
+  body: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: Date;
+}
 export interface PublicContent {
   id: Id<"content">;
   kind: ContentItem["kind"];
@@ -296,7 +307,7 @@ export function createContentRepository(sql: Sql) {
             })
             .strict()
             .parse(JSON.parse(decoded.key));
-    if (cursorKey?.status !== value.status)
+    if (cursorKey !== null && cursorKey.status !== value.status)
       throw new z.ZodError([
         {
           code: "custom",
@@ -348,6 +359,40 @@ export function createContentRepository(sql: Sql) {
         "The content item was not found.",
       );
     return safe(rows[0]);
+  }
+  async function listRevisions(
+    ownerId: Id<"user">,
+    contentId: Id<"content">,
+  ): Promise<ContentRevision[]> {
+    const value = z
+      .object({ ownerId: idSchema, contentId: idSchema })
+      .parse({ ownerId, contentId });
+    const rows = await sql<
+      {
+        id: string;
+        content_id: string;
+        revision: number;
+        title: string;
+        mime_type: string | null;
+        storage_key: string | null;
+        body: string | null;
+        metadata: Record<string, unknown>;
+        created_at: Date;
+      }[]
+    >`select r.* from content_revisions r where r.owner_id=${value.ownerId} and r.content_id=${value.contentId} order by r.revision desc`;
+    if (rows.length === 0)
+      await get(asId<"user">(value.ownerId), asId<"content">(value.contentId));
+    return rows.map((row) => ({
+      id: asId<"content-revision">(row.id),
+      contentId: asId<"content">(row.content_id),
+      revision: row.revision,
+      title: row.title,
+      mimeType: row.mime_type,
+      storageKey: row.storage_key,
+      body: row.body,
+      metadata: row.metadata,
+      createdAt: row.created_at,
+    }));
   }
   async function createCollection(input: {
     ownerId: Id<"user">;
@@ -523,6 +568,7 @@ export function createContentRepository(sql: Sql) {
     update,
     list,
     listPage,
+    listRevisions,
     archive,
     createCollection,
     addToCollection,

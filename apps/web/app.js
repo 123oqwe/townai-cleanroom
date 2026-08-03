@@ -447,11 +447,38 @@ function renderLibraryContent(result, append = false) {
     .slice(0, 20)
     .map(
       (item) =>
-        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><button class="quiet-button content-share-button" type="button">Share</button></article>`,
+        `<article class="library-content-item" data-content-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || `Stored ${item.kind} content`)}</p><small>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</small></div><div class="content-actions"><button class="quiet-button content-history-button" type="button">History</button><button class="quiet-button content-share-button" type="button">Share</button></div></article>`,
     )
     .join("");
   if (append) target.insertAdjacentHTML("beforeend", html);
   else target.innerHTML = html;
+}
+async function loadContentHistory(card) {
+  const contentId = card.dataset.contentId;
+  if (!contentId || !state.token) return;
+  const existing = card.querySelector(".content-history");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  try {
+    const result = await api(`/v1/content/${contentId}/revisions`);
+    const history = document.createElement("div");
+    history.className = "content-history";
+    history.innerHTML = (result.revisions || [])
+      .map(
+        (revision) =>
+          `<div><strong>Revision ${escapeHtml(revision.revision)}</strong><small>${escapeHtml(new Date(revision.createdAt).toLocaleString())}</small><p>${escapeHtml(revision.body || revision.storageKey || "No inline body")}</p></div>`,
+      )
+      .join("");
+    card.append(history);
+  } catch (cause) {
+    const error = document.createElement("p");
+    error.className = "harness-empty content-history-error";
+    error.textContent =
+      cause instanceof Error ? cause.message : "History unavailable.";
+    card.append(error);
+  }
 }
 let libraryContentCursor = null;
 async function loadMoreLibraryContent() {
@@ -1698,7 +1725,12 @@ $("#library-query").addEventListener("keydown", (event) => {
 $("#library-content-list").addEventListener("click", (event) => {
   const button = event.target.closest(".content-share-button");
   const card = event.target.closest(".library-content-item");
-  if (!button || !card) return;
+  if (!card) return;
+  if (event.target.closest(".content-history-button")) {
+    void loadContentHistory(card);
+    return;
+  }
+  if (!button) return;
   void createContentShare(card.dataset.contentId, card);
 });
 $("#library-content-more").addEventListener(
