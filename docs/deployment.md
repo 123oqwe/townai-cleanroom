@@ -434,6 +434,13 @@ protected direct URL is
 failed server session. An unauthenticated curl receives the Vercel SSO `302`
 protection redirect.
 
+The timeline HTTP cursor is now bounded to 500 characters before repository
+decoding in deployment `dpl_CpPGi5FQ5xVTuPiqt7AC9DBmTHNw`, built from commit
+`c012e0f`. Its protected direct URL is
+`https://town-clear-current-7ls2xuqe3-123oqwes-projects.vercel.app`, state
+`READY`; malformed or oversized cursor input is rejected at the API boundary.
+An unauthenticated curl receives the Vercel SSO `302` protection redirect.
+
 The Vercel project ID and team are now known. The two owner preview aliases
 return `302` to Vercel SSO, while the default project alias currently returns
 `404`; the source-controlled project-settings patch was attempted with the
