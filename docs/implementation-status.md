@@ -222,6 +222,11 @@ file no longer relies on pnpm catalog syntax. This keeps dependency resolution
 identical locally while allowing standard Vercel dependency detection to parse
 the workspace lock file.
 
+Workspace manifests now also expose standard npm workspaces and use equivalent
+local file references for internal @town packages. pnpm continues to build the
+same graph; npm-based hosts can now link every internal package instead of
+installing only the root devDependencies.
+
 Public content and Routine share tokens now support a browser-readable HTML
 representation when the request advertises `Accept: text/html`. API clients
 continue to receive the existing JSON envelopes. The renderer escapes all

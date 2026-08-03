@@ -20,8 +20,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@town/agents": "workspace:*",
-    "@town/contracts": "workspace:*",
+    "@town/agents": "file:../agents",
+    "@town/contracts": "file:../contracts",
     "zod": "4.4.3"
   },
   "devDependencies": {

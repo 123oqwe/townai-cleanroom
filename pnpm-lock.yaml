@@ -42,55 +42,55 @@ importers:
         specifier: 2.0.8
         version: 2.0.8(hono@4.12.29)
       '@town/a2a':
-        specifier: workspace:*
+        specifier: file:../../packages/a2a
         version: link:../../packages/a2a
       '@town/agents':
-        specifier: workspace:*
+        specifier: file:../../packages/agents
         version: link:../../packages/agents
       '@town/billing':
-        specifier: workspace:*
+        specifier: file:../../packages/billing
         version: link:../../packages/billing
       '@town/channels':
-        specifier: workspace:*
+        specifier: file:../../packages/channels
         version: link:../../packages/channels
       '@town/content':
-        specifier: workspace:*
+        specifier: file:../../packages/content
         version: link:../../packages/content
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../../packages/contracts
         version: link:../../packages/contracts
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../../packages/db
         version: link:../../packages/db
       '@town/google':
-        specifier: workspace:*
+        specifier: file:../../packages/google
         version: link:../../packages/google
       '@town/harness':
-        specifier: workspace:*
+        specifier: file:../../packages/harness
         version: link:../../packages/harness
       '@town/identity':
-        specifier: workspace:*
+        specifier: file:../../packages/identity
         version: link:../../packages/identity
       '@town/knowledge':
-        specifier: workspace:*
+        specifier: file:../../packages/knowledge
         version: link:../../packages/knowledge
       '@town/operations':
-        specifier: workspace:*
+        specifier: file:../../packages/operations
         version: link:../../packages/operations
       '@town/routines':
-        specifier: workspace:*
+        specifier: file:../../packages/routines
         version: link:../../packages/routines
       '@town/runtime':
-        specifier: workspace:*
+        specifier: file:../../packages/runtime
         version: link:../../packages/runtime
       '@town/suggestions':
-        specifier: workspace:*
+        specifier: file:../../packages/suggestions
         version: link:../../packages/suggestions
       '@town/teams':
-        specifier: workspace:*
+        specifier: file:../../packages/teams
         version: link:../../packages/teams
       '@town/tools':
-        specifier: workspace:*
+        specifier: file:../../packages/tools
         version: link:../../packages/tools
       hono:
         specifier: 4.12.29
@@ -107,14 +107,14 @@ importers:
   packages/a2a:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       '@types/node':
         specifier: 24.13.3
@@ -126,10 +126,10 @@ importers:
   packages/agents:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       zod:
         specifier: 4.4.3
@@ -142,14 +142,14 @@ importers:
   packages/billing:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       '@types/node':
         specifier: 24.13.3
@@ -161,14 +161,14 @@ importers:
   packages/channels:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       '@types/node':
         specifier: 24.13.3
@@ -180,14 +180,14 @@ importers:
   packages/content:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       '@types/node':
         specifier: 24.13.3
@@ -208,7 +208,7 @@ importers:
   packages/db:
     dependencies:
       '@town/harness':
-        specifier: workspace:*
+        specifier: file:../harness
         version: link:../harness
       drizzle-orm:
         specifier: 0.45.2
@@ -224,10 +224,10 @@ importers:
   packages/google:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       '@town/identity':
-        specifier: workspace:*
+        specifier: file:../identity
         version: link:../identity
       zod:
         specifier: 4.4.3
@@ -240,7 +240,7 @@ importers:
   packages/harness:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
@@ -249,10 +249,10 @@ importers:
   packages/identity:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       zod:
         specifier: 4.4.3
@@ -268,10 +268,10 @@ importers:
   packages/knowledge:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       zod:
         specifier: 4.4.3
@@ -284,14 +284,14 @@ importers:
   packages/operations:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       '@types/node':
         specifier: 24.13.3
@@ -303,14 +303,14 @@ importers:
   packages/routines:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       postgres:
         specifier: 3.4.9
@@ -319,13 +319,13 @@ importers:
   packages/runtime:
     dependencies:
       '@town/agents':
-        specifier: workspace:*
+        specifier: file:../agents
         version: link:../agents
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       zod:
         specifier: 4.4.3
@@ -338,10 +338,10 @@ importers:
   packages/suggestions:
     dependencies:
       '@town/agents':
-        specifier: workspace:*
+        specifier: file:../agents
         version: link:../agents
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
@@ -357,14 +357,14 @@ importers:
   packages/teams:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       '@types/node':
         specifier: 24.13.3
@@ -376,20 +376,20 @@ importers:
   packages/tools:
     dependencies:
       '@town/contracts':
-        specifier: workspace:*
+        specifier: file:../contracts
         version: link:../contracts
       '@town/runtime':
-        specifier: workspace:*
+        specifier: file:../runtime
         version: link:../runtime
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@town/agents':
-        specifier: workspace:*
+        specifier: file:../agents
         version: link:../agents
       '@town/db':
-        specifier: workspace:*
+        specifier: file:../db
         version: link:../db
       postgres:
         specifier: 3.4.9

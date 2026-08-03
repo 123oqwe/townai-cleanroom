@@ -17,8 +17,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@town/contracts": "workspace:*",
-    "@town/identity": "workspace:*",
+    "@town/contracts": "file:../contracts",
+    "@town/identity": "file:../identity",
     "zod": "4.4.3"
   },
   "devDependencies": {

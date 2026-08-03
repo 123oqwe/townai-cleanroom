@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Evidence-driven clean-room implementation of a durable personal AI operating system.",
   "packageManager": "pnpm@10.30.3",
+  "workspaces": ["apps/*", "packages/*"],
   "engines": {
     "node": ">=20.0.0"
   },

@@ -20,13 +20,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@town/contracts": "workspace:*",
-    "@town/runtime": "workspace:*",
+    "@town/contracts": "file:../contracts",
+    "@town/runtime": "file:../runtime",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@town/agents": "workspace:*",
-    "@town/db": "workspace:*",
+    "@town/agents": "file:../agents",
+    "@town/db": "file:../db",
     "postgres": "3.4.9"
   }
 }
