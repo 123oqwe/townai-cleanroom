@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
+import type { Sql } from "postgres";
 
 import {
   AgentError,
@@ -103,6 +104,7 @@ import { A2AError } from "@town/a2a";
 import type { HarnessExecutionContext } from "./harness-runtime-adapter.js";
 
 export interface AppDependencies {
+  sql?: Sql;
   identityService: IdentityService;
   accountRepository: AccountRepository;
   profileRepository?: ProfileRepository;
@@ -731,11 +733,14 @@ export function createApp(dependencies?: AppDependencies) {
     if (dependencies.routineRepository !== undefined) {
       app.use("/v1/routines", authenticate);
       app.use("/v1/routines/*", authenticate);
+      app.use("/v1/routine-templates", authenticate);
+      app.use("/v1/routine-templates/*", authenticate);
       app.use("/v1/routine-results", authenticate);
       app.use("/v1/routine-runs", authenticate);
       app.use("/v1/routine-runs/*", authenticate);
       registerRoutineRoutes(app, {
         repository: dependencies.routineRepository,
+        ...(dependencies.sql === undefined ? {} : { sql: dependencies.sql }),
         ...(dependencies.routineResultRepository === undefined
           ? {}
           : { results: dependencies.routineResultRepository }),

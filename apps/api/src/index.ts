@@ -509,6 +509,7 @@ const harnessServerFactory =
       };
 
 const app = createApp({
+  sql,
   identityService,
   accountRepository,
   profileRepository,

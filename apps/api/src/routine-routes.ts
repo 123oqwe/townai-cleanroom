@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import type { Sql } from "postgres";
 import { z } from "zod";
 
 import { asId, newId } from "@town/contracts";
@@ -7,7 +8,9 @@ import type { SessionRepository } from "@town/runtime";
 import type { ThreadRepository } from "@town/agents";
 import type { GoogleApiClient } from "@town/google";
 import {
+  getRoutineTemplate,
   listRoutineTemplates,
+  RoutineError,
   routineTriggerKindSchema,
   type RoutineRepository,
   type RoutineResultRepository,
@@ -16,6 +19,7 @@ import type { AuthVariables } from "./auth.js";
 
 export interface RoutineDependencies {
   repository: RoutineRepository;
+  sql?: Sql;
   results?: RoutineResultRepository;
   google?: GoogleApiClient;
   agents?: AgentRepository;
@@ -56,6 +60,15 @@ const installRoutineSchema = z
   .object({
     token: z.string().startsWith("rtnshare_").min(20),
     name: z.string().trim().min(1).max(120).optional(),
+    nextRunAt: z.iso.datetime(),
+    enabled: z.boolean().default(true),
+  })
+  .strict();
+const installTemplateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    cron: z.string().trim().min(1).max(200),
+    timezone: z.string().trim().min(1).max(100).default("UTC"),
     nextRunAt: z.iso.datetime(),
     enabled: z.boolean().default(true),
   })
@@ -110,6 +123,70 @@ export function registerRoutineRoutes(
   app.get("/v1/routine-templates", (context) =>
     context.json({ templates: listRoutineTemplates() }),
   );
+
+  app.post("/v1/routine-templates/:templateId/install", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    const template = getRoutineTemplate(context.req.param("templateId"));
+    if (template === undefined)
+      return context.json({ error: "ROUTINE_TEMPLATE_NOT_FOUND" }, 404);
+    if (dependencies.sql === undefined || dependencies.agents === undefined)
+      return context.json({ error: "ROUTINE_INSTALL_NOT_CONFIGURED" }, 503);
+    const input = installTemplateSchema.parse(await context.req.json());
+    const name = input.name ?? template.name;
+    const agentId = newId<"agent">();
+    const versionId = newId<"agent-version">();
+    const scheduleId = newId<"routine-schedule">();
+    const snapshot = {
+      displayName: template.name,
+      instructions: template.setupPrompt,
+      defaultApprovalMode: template.defaultApprovalMode,
+      callableRoutineIds: [],
+    } as const;
+    await dependencies.sql.begin(async (transaction) => {
+      const [duplicate] = await transaction<{ id: string }[]>`
+        select id from routine_schedules
+        where owner_id=${ownerId} and lower(name)=lower(${name})
+        limit 1
+      `;
+      if (duplicate !== undefined)
+        throw new RoutineError(
+          "ROUTINE_CONFLICT",
+          "A routine with this name already exists.",
+        );
+      await transaction`
+        insert into agents (id, owner_id, kind, revision, status)
+        values (${agentId}, ${ownerId}, 'routine', 1, 'active')
+      `;
+      await transaction`
+        insert into agent_versions
+          (id, owner_id, agent_id, version, snapshot, created_by)
+        values
+          (${versionId}, ${ownerId}, ${agentId}, 1,
+           ${transaction.json(snapshot)}, 'system')
+      `;
+      await transaction`
+        update agents set active_version_id=${versionId}
+        where owner_id=${ownerId} and id=${agentId}
+      `;
+      await transaction`
+        insert into routine_schedules
+          (id, owner_id, agent_id, agent_version_id, name, cron, timezone,
+           next_run_at, enabled)
+        values
+          (${scheduleId}, ${ownerId}, ${agentId}, ${versionId}, ${name},
+           ${input.cron}, ${input.timezone}, ${new Date(input.nextRunAt)},
+           ${input.enabled})
+      `;
+    });
+    return context.json(
+      {
+        template,
+        agent: await dependencies.agents.getRoutine(ownerId, agentId),
+        routine: await dependencies.repository.get(ownerId, scheduleId),
+      },
+      201,
+    );
+  });
 
   app.post("/v1/routine-runs/:runId/replay", async (context) => {
     const ownerId = context.get("identity").user.id;
