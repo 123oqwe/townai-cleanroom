@@ -136,7 +136,13 @@
                 <p class="eyebrow">System signal</p>
                 <h2>At a glance</h2>
               </div>
-              <span class="signal-state" id="signal-state">Not connected</span>
+              <button
+                class="signal-state signal-action"
+                id="tasks-open"
+                type="button"
+              >
+                Tasks
+              </button>
             </div>
             <div class="metric-list" id="metrics" aria-live="polite">
               <div class="metric-row">
@@ -513,6 +519,50 @@
           </button>
         </div>
         <p class="dialog-error" id="profile-error" role="alert" hidden></p>
+        <button class="quiet-button full-button" value="cancel">Close</button>
+      </form>
+    </dialog>
+    <dialog
+      class="tasks-dialog"
+      id="tasks-dialog"
+      aria-labelledby="tasks-title"
+    >
+      <form method="dialog">
+        <button class="dialog-close" value="cancel" aria-label="Close">
+          ×
+        </button>
+        <p class="eyebrow">Tasks</p>
+        <h2 id="tasks-title">
+          Turn intentions<br /><em>into durable work.</em>
+        </h2>
+        <p class="dialog-copy">
+          Tasks stay attached to a real Town thread and can be picked up by the
+          runtime.
+        </p>
+        <div class="task-list" id="task-list" aria-live="polite">
+          <p class="harness-empty">Connect the API to load tasks.</p>
+        </div>
+        <button
+          class="text-button task-add-toggle"
+          id="task-add-toggle"
+          type="button"
+        >
+          Create a task <span>＋</span>
+        </button>
+        <div class="task-add-form" id="task-add-form" hidden>
+          <label for="task-title">Title</label>
+          <input id="task-title" maxlength="500" required />
+          <label for="task-description">Description</label>
+          <textarea id="task-description" rows="4" maxlength="20000"></textarea>
+          <button
+            class="primary-button full-button"
+            id="task-save"
+            type="button"
+          >
+            Create task <span>→</span>
+          </button>
+          <p class="dialog-error" id="task-error" role="alert" hidden></p>
+        </div>
         <button class="quiet-button full-button" value="cancel">Close</button>
       </form>
     </dialog>

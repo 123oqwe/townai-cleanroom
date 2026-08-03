@@ -99,6 +99,10 @@ control using your platform's secure secret-management workflow.
 - Library also reads active `/v1/memories` and supports creating a global,
   user-authored memory with optional confidence. Routine-scoped memories stay
   out of this simple surface until a real routine selector is present.
+- The Runs signal now opens a real Task surface backed by `/v1/tasks`, with
+  owner-scoped open-task reads and task creation that creates the linked Task
+  Thread on the server. No task is marked complete by the UI without server
+  state.
 
 Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
 responses identify the source as `local_postgresql` with algorithm

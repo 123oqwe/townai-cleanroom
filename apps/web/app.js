@@ -560,6 +560,61 @@ async function saveMemory() {
     button.disabled = false;
   }
 }
+function renderTasks(result) {
+  const target = $("#task-list");
+  const tasks = result.tasks || [];
+  if (!tasks.length) {
+    target.innerHTML = '<p class="harness-empty">No open tasks yet.</p>';
+    return;
+  }
+  target.innerHTML = tasks
+    .filter((task) => task.status !== "deleted")
+    .map(
+      (task) =>
+        `<article class="task-card"><strong>${escapeHtml(task.title)}</strong><p>${escapeHtml(task.description || "No description")}</p><small>${escapeHtml(task.status)} · ${task.unread ? "unread" : "read"}</small></article>`,
+    )
+    .join("");
+}
+async function loadTasks() {
+  if (!state.token) {
+    $("#task-list").innerHTML =
+      '<p class="harness-empty">Connect the API to load tasks.</p>';
+    return;
+  }
+  try {
+    renderTasks(await api("/v1/tasks?status=open&limit=50"));
+  } catch (error) {
+    $("#task-list").innerHTML =
+      `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "Tasks unavailable.")}</p>`;
+  }
+}
+async function saveTask() {
+  const title = $("#task-title").value.trim();
+  const error = $("#task-error");
+  if (!title || !state.token) return;
+  error.hidden = true;
+  const button = $("#task-save");
+  button.disabled = true;
+  try {
+    await apiJson("/v1/tasks", {
+      title,
+      description: $("#task-description").value,
+      approvalMode: "respect_tool_setting",
+      sourceThreads: [],
+    });
+    $("#task-title").value = "";
+    $("#task-description").value = "";
+    $("#task-add-form").hidden = true;
+    await loadTasks();
+    await refresh();
+  } catch (cause) {
+    error.textContent =
+      cause instanceof Error ? cause.message : "Could not create task.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function refresh() {
   if (!state.token) {
     setConnection(false);
@@ -691,6 +746,15 @@ document.querySelector(".profile-chip").addEventListener("click", (event) => {
   void loadProfile();
 });
 $("#profile-save").addEventListener("click", () => void saveProfile());
+$("#tasks-open").addEventListener("click", () => {
+  openDialog($("#tasks-dialog"));
+  void loadTasks();
+});
+$("#task-add-toggle").addEventListener("click", () => {
+  $("#task-add-form").hidden = !$("#task-add-form").hidden;
+  if (!$("#task-add-form").hidden) $("#task-title").focus();
+});
+$("#task-save").addEventListener("click", () => void saveTask());
 $("#approval-approve").addEventListener(
   "click",
   () => void resolveHarnessApproval("approve"),

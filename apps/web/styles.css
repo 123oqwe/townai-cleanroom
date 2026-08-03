@@ -494,6 +494,16 @@ input:focus {
   background: #deebe1;
   color: var(--green);
 }
+.signal-action {
+  border: 0;
+  cursor: pointer;
+}
+.signal-action:hover,
+.signal-action:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+  outline: none;
+}
 .metric-list {
   display: grid;
   gap: 0;
@@ -1143,6 +1153,64 @@ dialog h2 {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 10px;
+}
+.tasks-dialog {
+  max-width: 560px;
+}
+.task-list {
+  display: grid;
+  gap: 8px;
+  max-height: 250px;
+  margin: 18px 0 12px;
+  overflow: auto;
+}
+.task-card {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.task-card strong {
+  font-size: 12px;
+}
+.task-card p {
+  margin: 0;
+  color: var(--muted-deep);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.task-card small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.task-add-toggle {
+  margin: 3px 0 16px;
+}
+.task-add-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.task-add-form label {
+  color: var(--muted-deep);
+  font-size: 11px;
+}
+.task-add-form textarea {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
 }
 @keyframes rise {
   from {
