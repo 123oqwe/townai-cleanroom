@@ -876,3 +876,10 @@ The subsequent Square member-management UI is deployed as
 `dpl_eRfnHnRRPoJuMB1f4m4RQk69afAJ`, state `READY`. The Vercel runtime-error
 query reports no errors; direct unauthenticated access remains a `302` SSO
 redirect.
+
+The Knowledge Conflicts Library UI is deployed as
+`https://town-clear-current-jgfnim4pn-123oqwes-projects.vercel.app`, deployment
+`dpl_BWuGUQyB6XA5JwrVuDVEL3k7ryzP`, state `READY`, alias
+`town-clear-current-ui-123oqwe-123oqwes-projects.vercel.app`. Vercel reported
+no runtime errors; direct unauthenticated `HEAD` access returns the expected
+`302` SSO redirect under the project protection policy.
