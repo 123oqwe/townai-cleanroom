@@ -1783,6 +1783,10 @@ dialog h2 {
   font-size: 0.7rem;
 }
 
+.mcp-binding-action {
+  margin-top: 0.55rem;
+}
+
 .approval-inbox {
   margin: 1rem 0;
 }

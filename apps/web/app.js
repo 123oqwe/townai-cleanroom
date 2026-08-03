@@ -13,6 +13,7 @@ const state = {
   connected: false,
   profileRevision: null,
   agentRevision: null,
+  agentVersionId: null,
   agentCallableRoutineIds: [],
   operationsCursor: null,
   suggestionsCursor: null,
@@ -697,6 +698,7 @@ async function loadAgentSettings() {
     const result = await api("/v1/agents/personal");
     const agent = result.agent;
     state.agentRevision = agent.revision;
+    state.agentVersionId = agent.activeVersion.id;
     state.agentCallableRoutineIds =
       agent.activeVersion.snapshot.callableRoutineIds || [];
     $("#agent-display-name").value = agent.activeVersion.snapshot.displayName;
@@ -1254,7 +1256,7 @@ function renderMcpServers(result, bindingResult = { bindings: [] }) {
   target.innerHTML = servers
     .map(
       (server) =>
-        `<article class="tool-catalog-card"><div><strong>${escapeHtml(server.name)}</strong><p>${escapeHtml(server.url)}</p></div><small>${escapeHtml(server.transport)} · ${escapeHtml(server.status)} · auth ${server.authRef ? "configured" : "not configured"} · ${bindings.has(server.id) ? `bound (${escapeHtml(bindings.get(server.id).modeOverride || "default")})` : "not bound to Personal Agent"}</small></article>`,
+        `<article class="tool-catalog-card" data-mcp-server-id="${escapeHtml(server.id)}"><div><strong>${escapeHtml(server.name)}</strong><p>${escapeHtml(server.url)}</p></div><small>${escapeHtml(server.transport)} · ${escapeHtml(server.status)} · auth ${server.authRef ? "configured" : "not configured"} · ${bindings.has(server.id) ? `bound (${escapeHtml(bindings.get(server.id).modeOverride || "default")})` : "not bound to Personal Agent"}</small>${server.status === "active" && state.agentVersionId ? `<button class="quiet-button mcp-binding-action" data-binding-id="${escapeHtml(bindings.get(server.id)?.id || "")}" data-binding-revision="${escapeHtml(String(bindings.get(server.id)?.revision || ""))}" type="button">${bindings.has(server.id) ? "Unbind" : "Bind to Personal Agent"}</button>` : ""}</article>`,
     )
     .join("");
 }
@@ -1270,6 +1272,7 @@ async function loadMcpServers() {
     let bindingResult = { bindings: [] };
     try {
       const personal = await api("/v1/agents/personal");
+      state.agentVersionId = personal.agent.activeVersion.id;
       bindingResult = await api(
         `/v1/mcp-servers/bindings?agentVersionId=${encodeURIComponent(personal.agent.activeVersion.id)}`,
       );
@@ -1280,6 +1283,35 @@ async function loadMcpServers() {
   } catch (error) {
     $("#mcp-catalog-list").innerHTML =
       `<p class="harness-empty">${escapeHtml(error instanceof Error ? error.message : "MCP servers unavailable.")}</p>`;
+  }
+}
+async function toggleMcpBinding(button) {
+  if (!state.agentVersionId) return;
+  const card = button.closest(".tool-catalog-card");
+  const serverId = card?.dataset.mcpServerId;
+  if (!serverId) return;
+  button.disabled = true;
+  try {
+    if (button.dataset.bindingId) {
+      await api(
+        `/v1/mcp-server-bindings/${button.dataset.bindingId}?expectedRevision=${encodeURIComponent(button.dataset.bindingRevision)}`,
+        { method: "DELETE" },
+      );
+    } else {
+      await apiJson(`/v1/mcp-servers/${serverId}/bindings`, {
+        agentVersionId: state.agentVersionId,
+        modeOverride: null,
+        accountScope: [],
+      });
+    }
+    await loadMcpServers();
+    setConnection(true, "MCP binding saved");
+  } catch (error) {
+    button.disabled = false;
+    setConnection(
+      false,
+      error instanceof Error ? error.message : "MCP binding failed",
+    );
   }
 }
 function renderApprovals(result) {
@@ -2126,6 +2158,10 @@ document.querySelector(".profile-chip").addEventListener("click", (event) => {
 });
 $("#profile-save").addEventListener("click", () => void saveProfile());
 $("#agent-save").addEventListener("click", () => void saveAgentSettings());
+$("#mcp-catalog-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".mcp-binding-action");
+  if (button) void toggleMcpBinding(button);
+});
 $("#tasks-open").addEventListener("click", () => {
   openDialog($("#tasks-dialog"));
   void loadTasks();
