@@ -1137,3 +1137,9 @@ The allowlisted admin platform overview source state is deployed as
 `dpl_4Fm5baf6PZ19T1RuHqhWiwGhkFz8`, state `READY`. The full workspace build
 completed in 34 seconds, Vercel detected a Node.js Lambda, and no runtime
 errors were reported in the following hour. The direct URL remains SSO-gated.
+
+The Harness model-routing source state is deployed as
+`https://town-clear-ouqszdss4-123oqwes-projects.vercel.app`, deployment
+`dpl_Fvpr6wMir2efNjGTd5QxbbkbE7E7`, state `READY`. The full workspace build
+completed in 31 seconds, Vercel detected a Node.js Lambda, and no runtime
+errors were reported in the following hour. The direct URL remains SSO-gated.
