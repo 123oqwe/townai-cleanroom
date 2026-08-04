@@ -745,4 +745,78 @@ describe("admin routes", () => {
     });
     expect(empty.status).toBe(400);
   });
+
+  it("supports legacy admin routes without the v1 prefix", async () => {
+    const billing: BillingRepository = {
+      get: vi.fn().mockResolvedValue({
+        status: "healthy",
+        creditBand: "healthy",
+        isBlocked: false,
+      }),
+      summarize: vi
+        .fn()
+        .mockResolvedValue([
+          { category: "model", quantity: 12, occurredAt: new Date() },
+        ]),
+    } as unknown as BillingRepository;
+    const app = buildAdminApp({
+      sql: mockSql() as unknown as Sql,
+      operations: baseOperations,
+      billing,
+      harnessReady: false,
+      workerEnabled: true,
+    });
+
+    const overview = await app.request("/admin/overview");
+    const report = await app.request("/admin/reports/overview");
+    const runtime = await app.request("/admin/reports/runtime");
+    const routines = await app.request("/admin/routines/overview");
+    const agentHealth = await app.request(
+      `/admin/agent-health/${routineOwnerId}`,
+    );
+    const users = await app.request(`/admin/users/${ownerId}`);
+    const teams = await app.request(`/admin/teams/${squareId}`);
+    const reconciliation = await app.request(
+      `/admin/billing-reconciliation/${otherUserId}`,
+    );
+
+    expect(overview.status).toBe(200);
+    expect(await overview.json()).toMatchObject({
+      counts: { users: { total: 12, active: 9 } },
+    });
+    expect(await report.json()).toMatchObject({
+      slug: "overview",
+      counts: { users: { total: 12, active: 9 } },
+    });
+    expect(runtime.status).toBe(200);
+    expect(await runtime.json()).toMatchObject({
+      slug: "runtime",
+      readiness: {
+        worker: true,
+        harness: false,
+      },
+    });
+    expect(routines.status).toBe(200);
+    expect(await routines.json()).toMatchObject({
+      slug: "overview",
+      counts: { routines: { total: 5, enabled: 3, disabled: 2 } },
+    });
+    expect(agentHealth.status).toBe(200);
+    expect(await agentHealth.json()).toMatchObject({
+      user: { id: ownerId },
+    });
+    expect(users.status).toBe(200);
+    expect(await users.json()).toMatchObject({
+      user: { id: ownerId, firstName: "Town" },
+    });
+    expect(teams.status).toBe(200);
+    expect(await teams.json()).toMatchObject({
+      square: { id: squareId, name: "Demo Square" },
+    });
+    expect(reconciliation.status).toBe(200);
+    expect(await reconciliation.json()).toMatchObject({
+      status: "configured",
+      user: { id: otherUserId },
+    });
+  });
 });

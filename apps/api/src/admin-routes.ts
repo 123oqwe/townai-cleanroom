@@ -174,10 +174,16 @@ export function registerAdminRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: AdminDependencies,
 ): void {
-  app.get("/v1/admin/overview", async (context) => {
+  const getAdminOverview = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     return context.json(await collectOverviewReport(dependencies));
-  });
-  app.get("/v1/admin/reports/:slug", async (context) => {
+  };
+  app.get("/v1/admin/overview", getAdminOverview);
+  app.get("/admin/overview", getAdminOverview);
+  const getAdminReport = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const slug = parseReportSlug(context.req.param("slug"));
     if (slug === null) return reportNotFound(context);
     if (slug === "overview")
@@ -451,8 +457,12 @@ export function registerAdminRoutes(
       default:
         return reportNotFound(context);
     }
-  });
-  app.get("/v1/admin/routines/:slug", async (context) => {
+  };
+  app.get("/v1/admin/reports/:slug", getAdminReport);
+  app.get("/admin/reports/:slug", getAdminReport);
+  const getRoutineReport = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const slug = parseRoutineReportSlug(context.req.param("slug"));
     if (slug === null) return reportNotFound(context);
     const query = context.req.query();
@@ -786,8 +796,12 @@ export function registerAdminRoutes(
       default:
         return reportNotFound(context);
     }
-  });
-  app.get("/v1/admin/agent-health/:userId", async (context) => {
+  };
+  app.get("/v1/admin/routines/:slug", getRoutineReport);
+  app.get("/admin/routines/:slug", getRoutineReport);
+  const getAdminAgentHealth = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const userId = userIdSchema.parse(context.req.param("userId"));
     const [user] = await dependencies.sql<
       { id: string; email: string; status: string; created_at: Date }[]
@@ -808,8 +822,12 @@ export function registerAdminRoutes(
       readiness: reportReadiness(dependencies),
       summary,
     });
-  });
-  app.get("/v1/admin/users/:userId", async (context) => {
+  };
+  app.get("/v1/admin/agent-health/:userId", getAdminAgentHealth);
+  app.get("/admin/agent-health/:userId", getAdminAgentHealth);
+  const getAdminUser = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const userId = userIdSchema.parse(context.req.param("userId"));
     const [user] = await dependencies.sql<
       {
@@ -876,8 +894,12 @@ export function registerAdminRoutes(
         credentialPresent: account.credential_present,
       })),
     });
-  });
-  app.get("/v1/admin/teams/:squareId", async (context) => {
+  };
+  app.get("/v1/admin/users/:userId", getAdminUser);
+  app.get("/admin/users/:userId", getAdminUser);
+  const getAdminTeam = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const squareId = userIdSchema.parse(context.req.param("squareId"));
     const [square] = await dependencies.sql<
       {
@@ -933,8 +955,12 @@ export function registerAdminRoutes(
               revision: square.policy_revision,
             },
     });
-  });
-  app.get("/v1/admin/billing-reconciliation/:userId", async (context) => {
+  };
+  app.get("/v1/admin/teams/:squareId", getAdminTeam);
+  app.get("/admin/teams/:squareId", getAdminTeam);
+  const getAdminBillingReconciliation = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const userId = userIdSchema.parse(context.req.param("userId"));
     const [user] = await dependencies.sql<
       { id: string; email: string; status: string }[]
@@ -965,5 +991,13 @@ export function registerAdminRoutes(
         discrepancy: null,
       },
     });
-  });
+  };
+  app.get(
+    "/v1/admin/billing-reconciliation/:userId",
+    getAdminBillingReconciliation,
+  );
+  app.get(
+    "/admin/billing-reconciliation/:userId",
+    getAdminBillingReconciliation,
+  );
 }

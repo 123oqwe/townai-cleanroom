@@ -927,6 +927,10 @@ export function createApp(dependencies?: AppDependencies) {
       dependencies.sql !== undefined &&
       dependencies.operationsRepository !== undefined
     ) {
+      app.use("/admin", authenticate);
+      app.use("/admin/*", authenticate);
+      app.use("/admin", requireAdmin);
+      app.use("/admin/*", requireAdmin);
       app.use("/v1/admin", authenticate);
       app.use("/v1/admin/*", authenticate);
       app.use("/v1/admin", requireAdmin);
