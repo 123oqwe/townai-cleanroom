@@ -143,6 +143,32 @@ describe("content share route", () => {
     });
   });
 
+  it("sanitizes legacy shared HTML responses", async () => {
+    const repository = {
+      resolveShare: vi.fn().mockResolvedValue({
+        id: "01900000-0000-7000-8000-000000000015",
+        kind: "document",
+        title: "<script>alert(1)</script>",
+        mimeType: "text/plain",
+        body: "<b>safe text</b>",
+      }),
+      toPublic: (item: Record<string, unknown>) => item,
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerContentRoutes(app, { repository });
+
+    const page = await app.request(
+      "http://town.test/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      { headers: { accept: "text/html" } },
+    );
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain("&lt;b&gt;safe text&lt;/b&gt;");
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).not.toContain("<b>safe text</b>");
+  });
+
   it("uploads an owner-scoped blob and records its storage key", async () => {
     const contentId = "01900000-0000-7000-8000-000000000013";
     const content = {
