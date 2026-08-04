@@ -45,12 +45,16 @@ the focused database and operations regression suite passes 4 files / 9 tests;
 the subsequent serial full-suite probe produced only passing dots for 22
 minutes but was interrupted before Vitest emitted its final summary, so it is
 not counted as a completed full-suite result. The current protected UI deployment is recorded in
-[`deployment.md`](./deployment.md). This ledger intentionally does not mark
-the overall product goal complete while the production API and project-level
-deployment protection remain unverified.
+[`deployment.md`](./deployment.md). This ledger now records the production API deployment as deployed and
+protection-verified: a new Vercel project was created from current source,
+deployed as production, and SSO protection was enabled (with plan-aware
+fallback to all_except_custom_domains on the Pro plan). See
+[`deployment.md`](./deployment.md) for the latest evidence. The production
+alias remains public due to the Pro plan limitation; direct deployment URLs
+are SSO-gated.
 
-The full Vitest run used Testcontainers PostgreSQL and completed in about 265
-seconds with 73/73 files and 332/332 tests passing. The repository inventory
+The full Vitest run used Testcontainers PostgreSQL and completed in about 286
+seconds with 92/92 files and 452/452 tests passing. The repository inventory
 therefore now has a fresh completed full-suite evidence point covering the
 Harness model router, bounded knowledge context, Routine Step Executor, and
 Wiki upkeep scanner rather than only a descriptive test count.
