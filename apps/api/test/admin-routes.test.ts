@@ -51,6 +51,8 @@ function buildAdminApp(input: {
   twilioVoice?: boolean;
   vapiVoice?: boolean;
   voiceSynthesis?: boolean;
+  workspaceTools?: boolean;
+  codeRunner?: boolean;
   contentStorage?: false | true | "read-only";
   billing?: BillingRepository;
 }) {
@@ -68,7 +70,9 @@ function buildAdminApp(input: {
     twilioVoice: input.twilioVoice ?? false,
     vapiVoice: input.vapiVoice ?? false,
     voiceSynthesis: input.voiceSynthesis ?? false,
-      contentStorage: input.contentStorage ?? false,
+    workspaceTools: input.workspaceTools ?? false,
+    codeRunner: input.codeRunner ?? false,
+    contentStorage: input.contentStorage ?? false,
     ...input,
   });
   return app;
@@ -462,6 +466,8 @@ describe("admin routes", () => {
         api: true,
         harness: true,
         worker: true,
+        workspaceTools: false,
+        codeRunner: false,
         googleOAuth: true,
         slackEvents: false,
         twilioVoice: false,
@@ -477,6 +483,8 @@ describe("admin routes", () => {
         api: true,
         harness: true,
         worker: true,
+        workspaceTools: false,
+        codeRunner: false,
         slackEvents: false,
         twilioVoice: false,
         vapiVoice: false,
@@ -528,6 +536,8 @@ describe("admin routes", () => {
       twilioVoice: true,
       vapiVoice: true,
       voiceSynthesis: true,
+      workspaceTools: true,
+      codeRunner: true,
       contentStorage: true,
     });
 
@@ -542,6 +552,8 @@ describe("admin routes", () => {
         api: true,
         harness: true,
         worker: true,
+        workspaceTools: true,
+        codeRunner: true,
         googleOAuth: true,
         slackEvents: true,
         twilioVoice: true,
@@ -557,6 +569,8 @@ describe("admin routes", () => {
         api: true,
         harness: true,
         worker: true,
+        workspaceTools: true,
+        codeRunner: true,
         googleOAuth: true,
         slackEvents: true,
         twilioVoice: true,
@@ -593,6 +607,8 @@ describe("admin routes", () => {
       readiness: {
         worker: true,
         harness: false,
+        workspaceTools: false,
+        codeRunner: false,
         googleOAuth: false,
         slackEvents: false,
         twilioVoice: false,
@@ -687,6 +703,8 @@ describe("admin routes", () => {
         api: true,
         harness: false,
         worker: true,
+        workspaceTools: false,
+        codeRunner: false,
         googleOAuth: false,
         slackEvents: false,
         twilioVoice: false,

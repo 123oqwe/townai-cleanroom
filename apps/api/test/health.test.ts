@@ -31,6 +31,8 @@ describe("GET /v1/health", () => {
       auth: false,
       harness: false,
       worker: false,
+      workspaceTools: false,
+      codeRunner: false,
       slackEvents: false,
       twilioVoice: false,
       vapiVoice: false,
@@ -56,6 +58,8 @@ describe("GET /v1/health", () => {
       auth: true,
       harness: true,
       worker: true,
+      workspaceTools: false,
+      codeRunner: false,
       slackEvents: false,
       twilioVoice: false,
       vapiVoice: false,
@@ -82,6 +86,23 @@ describe("GET /v1/health", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       contentStorage: "read-only",
+      workspaceTools: false,
+      codeRunner: false,
+    });
+  });
+
+  it("reflects injected workspace tool and code runner readiness", async () => {
+    const response = await createApp({
+      identityService: {} as never,
+      accountRepository: {} as never,
+      workspaceTools: true,
+      codeRunner: true,
+    }).request("/v1/health/capabilities");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      workspaceTools: true,
+      codeRunner: true,
     });
   });
 
@@ -103,6 +124,8 @@ describe("GET /v1/health", () => {
       auth: true,
       harness: true,
       worker: false,
+      workspaceTools: false,
+      codeRunner: false,
       slackEvents: true,
       twilioVoice: true,
       vapiVoice: true,

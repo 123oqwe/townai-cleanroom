@@ -20,6 +20,8 @@ export interface AdminDependencies {
   vapiVoice: boolean;
   voiceSynthesis: boolean;
   contentStorage: ContentStorageReadiness;
+  workspaceTools: boolean;
+  codeRunner: boolean;
   billing?: BillingRepository;
 }
 
@@ -95,6 +97,8 @@ function reportReadiness(dependencies: AdminDependencies) {
     vapiVoice: dependencies.vapiVoice,
     voiceSynthesis: dependencies.voiceSynthesis,
     contentStorage: dependencies.contentStorage,
+    workspaceTools: dependencies.workspaceTools,
+    codeRunner: dependencies.codeRunner,
   };
 }
 

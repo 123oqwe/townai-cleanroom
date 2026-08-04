@@ -157,6 +157,8 @@ export interface AppDependencies {
   googleApi?: GoogleApiClient;
   webOrigin?: string;
   workerEnabled?: boolean;
+  workspaceTools?: boolean;
+  codeRunner?: boolean;
   slackSigningSecret?: string;
   twilioAuthToken?: string;
   voiceProvider?: VoiceSynthesisProvider;
@@ -683,6 +685,8 @@ export function createApp(dependencies?: AppDependencies) {
       slackEvents: dependencies?.slackSigningSecret !== undefined,
       twilioVoice: dependencies?.twilioAuthToken !== undefined,
       vapiVoice: dependencies?.vapiWebhookSecret !== undefined,
+      workspaceTools: dependencies?.workspaceTools === true,
+      codeRunner: dependencies?.codeRunner === true,
       voiceSynthesis: dependencies?.voiceProvider !== undefined,
       googleOAuth: dependencies?.googleOAuth !== undefined,
       contentStorage:
@@ -931,6 +935,8 @@ export function createApp(dependencies?: AppDependencies) {
           dependencies.harnessServer !== undefined ||
           dependencies.harnessServerFactory !== undefined,
         workerEnabled: dependencies.workerEnabled === true,
+        workspaceTools: dependencies.workspaceTools === true,
+        codeRunner: dependencies.codeRunner === true,
         googleOAuthReady: dependencies.googleOAuth !== undefined,
         slackEvents: dependencies.slackSigningSecret !== undefined,
         twilioVoice: dependencies.twilioAuthToken !== undefined,

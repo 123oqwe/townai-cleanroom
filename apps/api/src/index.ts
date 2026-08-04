@@ -768,6 +768,8 @@ const app = createApp({
       (process.env["VERCEL"] === "1" &&
         (environment.WORKER_SECRET !== undefined ||
           environment.CRON_SECRET !== undefined))),
+  workspaceTools: environment.WORKSPACE_ROOT !== undefined,
+  codeRunner: environment.CODE_RUNNER_ENABLED,
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });
 
