@@ -38,6 +38,31 @@ function isValidCredentialKey(value) {
   }
 }
 
+function isValidContentStorageConfig() {
+  const hasRoot = process.env.CONTENT_STORAGE_ROOT !== undefined;
+  const s3Endpoint = process.env.CONTENT_STORAGE_S3_ENDPOINT;
+  const s3Bucket = process.env.CONTENT_STORAGE_S3_BUCKET;
+  const s3Region = process.env.CONTENT_STORAGE_S3_REGION;
+  const s3AccessKeyId = process.env.CONTENT_STORAGE_S3_ACCESS_KEY_ID;
+  const s3SecretAccessKey = process.env.CONTENT_STORAGE_S3_SECRET_ACCESS_KEY;
+  const hasAnyS3 = [
+    s3Endpoint,
+    s3Bucket,
+    s3Region,
+    s3AccessKeyId,
+    s3SecretAccessKey,
+  ].some((value) => value !== undefined);
+  const hasAllS3 = [
+    s3Endpoint,
+    s3Bucket,
+    s3Region,
+    s3AccessKeyId,
+    s3SecretAccessKey,
+  ].every((value) => value !== undefined);
+  if (hasRoot) return !hasAnyS3;
+  return hasAllS3;
+}
+
 const app = new Hono();
 let runtimePromise;
 let runtimeError;
@@ -77,6 +102,7 @@ app.get("/v1/health/capabilities", (context) =>
       process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
       process.env.GOOGLE_OAUTH_REDIRECT_URI,
     ),
+    contentStorage: isValidContentStorageConfig(),
   }),
 );
 

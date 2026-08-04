@@ -36,6 +36,7 @@ describe("GET /v1/health", () => {
       vapiVoice: false,
       voiceSynthesis: false,
       googleOAuth: false,
+      contentStorage: false,
     });
   });
 
@@ -60,6 +61,27 @@ describe("GET /v1/health", () => {
       vapiVoice: false,
       voiceSynthesis: false,
       googleOAuth: false,
+      contentStorage: false,
+    });
+  });
+
+  it("reflects read-only content storage in capabilities", async () => {
+    const response = await createApp({
+      identityService: {} as never,
+      accountRepository: {} as never,
+      contentStorage: {
+        read: async () => null,
+      },
+      slackSigningSecret: "slack-signing-secret",
+      twilioAuthToken: "twilio-token",
+      vapiWebhookSecret: "vapi-secret",
+      voiceProvider: {} as never,
+      googleOAuth: {} as never,
+    }).request("/v1/health/capabilities");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      contentStorage: "read-only",
     });
   });
 
@@ -86,6 +108,7 @@ describe("GET /v1/health", () => {
       vapiVoice: true,
       voiceSynthesis: true,
       googleOAuth: true,
+      contentStorage: false,
     });
   });
 });

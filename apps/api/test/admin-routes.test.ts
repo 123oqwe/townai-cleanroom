@@ -51,6 +51,7 @@ function buildAdminApp(input: {
   twilioVoice?: boolean;
   vapiVoice?: boolean;
   voiceSynthesis?: boolean;
+  contentStorage?: boolean;
   billing?: BillingRepository;
 }) {
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -67,6 +68,7 @@ function buildAdminApp(input: {
     twilioVoice: input.twilioVoice ?? false,
     vapiVoice: input.vapiVoice ?? false,
     voiceSynthesis: input.voiceSynthesis ?? false,
+    contentStorage: input.contentStorage ?? false,
     ...input,
   });
   return app;
@@ -465,6 +467,7 @@ describe("admin routes", () => {
         twilioVoice: false,
         vapiVoice: false,
         voiceSynthesis: false,
+        contentStorage: false,
       },
     });
     expect(await report.json()).toMatchObject({
@@ -478,6 +481,7 @@ describe("admin routes", () => {
         twilioVoice: false,
         vapiVoice: false,
         voiceSynthesis: false,
+        contentStorage: false,
       },
     });
   });
@@ -493,6 +497,7 @@ describe("admin routes", () => {
       twilioVoice: true,
       vapiVoice: true,
       voiceSynthesis: true,
+      contentStorage: true,
     });
 
     const report = await app.request("/v1/admin/reports/overview");
@@ -511,6 +516,7 @@ describe("admin routes", () => {
         twilioVoice: true,
         vapiVoice: true,
         voiceSynthesis: true,
+        contentStorage: true,
       },
     });
 
@@ -525,6 +531,7 @@ describe("admin routes", () => {
         twilioVoice: true,
         vapiVoice: true,
         voiceSynthesis: true,
+        contentStorage: true,
       },
     });
   });
@@ -560,6 +567,7 @@ describe("admin routes", () => {
         twilioVoice: false,
         vapiVoice: false,
         voiceSynthesis: false,
+        contentStorage: false,
       },
     });
     expect(bad.status).toBe(400);
@@ -653,6 +661,7 @@ describe("admin routes", () => {
         twilioVoice: false,
         vapiVoice: false,
         voiceSynthesis: false,
+        contentStorage: false,
       },
       summary: operationsSummary(),
     });

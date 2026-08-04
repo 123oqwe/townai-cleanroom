@@ -17,6 +17,7 @@ export interface AdminDependencies {
   twilioVoice: boolean;
   vapiVoice: boolean;
   voiceSynthesis: boolean;
+  contentStorage: boolean;
   billing?: BillingRepository;
 }
 
@@ -91,6 +92,7 @@ function reportReadiness(dependencies: AdminDependencies) {
     twilioVoice: dependencies.twilioVoice,
     vapiVoice: dependencies.vapiVoice,
     voiceSynthesis: dependencies.voiceSynthesis,
+    contentStorage: dependencies.contentStorage,
   };
 }
 

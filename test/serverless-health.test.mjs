@@ -38,6 +38,7 @@ describe("serverless health probes", () => {
         vapiVoice: false,
         voiceSynthesis: false,
         googleOAuth: false,
+        contentStorage: false,
       });
     } finally {
       for (const [name, value] of previous) {
