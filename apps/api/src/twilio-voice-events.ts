@@ -42,7 +42,7 @@ export function registerTwilioVoiceEventsRoute(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: TwilioVoiceEventsDependencies,
 ): void {
-  app.post("/v1/integrations/twilio/voice/:routineId", async (context) => {
+  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
     const rawBody = await context.req.raw.text();
     if (Buffer.byteLength(rawBody, "utf8") > 256 * 1024)
       return context.json({ code: "PAYLOAD_TOO_LARGE" }, 413);
@@ -86,5 +86,8 @@ export function registerTwilioVoiceEventsRoute(
       idempotencyKey,
     );
     return context.json({ accepted: true, run }, 202);
-  });
+  };
+
+  app.post("/v1/integrations/twilio/voice/:routineId", route);
+  app.post("/integrations/twilio/voice/:routineId", route);
 }

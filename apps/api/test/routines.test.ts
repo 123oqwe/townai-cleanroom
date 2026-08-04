@@ -191,6 +191,41 @@ describe("routine routes", () => {
     expect(await response.json()).toMatchObject({ duplicate: true });
   });
 
+  it("accepts legacy routine webhook callback path without v1", async () => {
+    const repository = {
+      deliverWebhook: async (
+        routineId: string,
+        secret: string,
+        key: string,
+        payload: Record<string, unknown>,
+      ) => {
+        expect(routineId).toBe(agentId);
+        expect(secret).toBe("whsec_test_secret_123456");
+        expect(key).toBe("event-legacy");
+        expect(payload).toEqual({ status: "legacy" });
+        return {
+          runId: asId<"integration-sync-run">(agentVersionId),
+          duplicate: false,
+        };
+      },
+    } as unknown as RoutineRepository;
+    const app = appWith(repository);
+    const response = await app.request(
+      `http://town.test/routine-webhooks/${agentId}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer whsec_test_secret_123456",
+          "content-type": "application/json",
+          "x-town-idempotency-key": "event-legacy",
+        },
+        body: JSON.stringify({ status: "legacy" }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ duplicate: false });
+  });
+
   it("rejects malformed or oversized webhook payloads before repository access", async () => {
     const deliverWebhook = vi.fn();
     const app = appWith({ deliverWebhook } as unknown as RoutineRepository);

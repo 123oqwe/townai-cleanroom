@@ -613,7 +613,7 @@ export function registerRoutineWebhookRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: RoutineDependencies,
 ): void {
-  app.post("/v1/routine-webhooks/:routineId", async (context) => {
+  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
     const contentType = context.req.header("content-type")?.split(";", 1)[0];
     if (contentType !== "application/json" && contentType !== "text/plain")
       return context.json({ error: "UNSUPPORTED_CONTENT_TYPE" }, 415);
@@ -647,7 +647,10 @@ export function registerRoutineWebhookRoutes(
       { runId: delivery.runId, duplicate: delivery.duplicate },
       202,
     );
-  });
+  };
+
+  app.post("/v1/routine-webhooks/:routineId", route);
+  app.post("/routine-webhooks/:routineId", route);
 }
 
 function asRoutineId(value: string) {

@@ -87,4 +87,47 @@ describe("Vapi voice events adapter", () => {
     expect(response.status).toBe(200);
     expect(queueTrigger).toHaveBeenCalledOnce();
   });
+
+  it("accepts legacy Vapi callback path without v1", async () => {
+    const sql = (async () => [{ owner_id: ownerId }]) as unknown as Sql;
+    const queueTrigger = vi.fn(async () => ({ id: "run-legacy-path" }));
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerVapiVoiceEventsRoute(app, {
+      sql,
+      repository: { queueTrigger } as unknown as RoutineRepository,
+      webhookSecret: secret,
+    });
+
+    const response = await app.request(
+      `http://town.test/integrations/vapi/voice/${routineId}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            type: "transcript",
+            role: "user",
+            transcript: "legacy vapi path",
+            call: { id: "call_legacy_path" },
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(queueTrigger).toHaveBeenCalledWith(
+      ownerId,
+      asId<"routine-schedule">(routineId),
+      "voice_transcribed",
+      {
+        text: "legacy vapi path",
+        callId: "call_legacy_path",
+        eventType: "transcript",
+      },
+      "vapi:call_legacy_path:transcript",
+    );
+  });
 });

@@ -63,7 +63,7 @@ export function registerSlackEventsRoute(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: SlackEventsDependencies,
 ): void {
-  app.post("/v1/integrations/slack/events/:routineId", async (context) => {
+  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
     const rawBody = await context.req.raw.text();
     if (Buffer.byteLength(rawBody, "utf8") > 256 * 1024)
       return context.json({ code: "PAYLOAD_TOO_LARGE" }, 413);
@@ -104,5 +104,8 @@ export function registerSlackEventsRoute(
       `slack:${body.event_id}`,
     );
     return context.json({ accepted: true, run }, 202);
-  });
+  };
+
+  app.post("/v1/integrations/slack/events/:routineId", route);
+  app.post("/integrations/slack/events/:routineId", route);
 }

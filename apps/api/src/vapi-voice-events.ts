@@ -33,7 +33,7 @@ export function registerVapiVoiceEventsRoute(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: VapiVoiceEventsDependencies,
 ): void {
-  app.post("/v1/integrations/vapi/voice/:routineId", async (context) => {
+  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
     const rawBody = await context.req.raw.text();
     if (Buffer.byteLength(rawBody, "utf8") > 512 * 1024)
       return context.json({ code: "PAYLOAD_TOO_LARGE" }, 413);
@@ -76,5 +76,8 @@ export function registerVapiVoiceEventsRoute(
     // Vapi treats informational server events as acknowledged once the
     // request returns successfully; durable execution continues off-request.
     return context.json({ accepted: true, run });
-  });
+  };
+
+  app.post("/v1/integrations/vapi/voice/:routineId", route);
+  app.post("/integrations/vapi/voice/:routineId", route);
 }

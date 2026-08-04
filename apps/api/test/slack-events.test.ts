@@ -100,4 +100,37 @@ describe("Slack Events API adapter", () => {
       "slack:Ev123",
     );
   });
+
+  it("accepts legacy Slack callback path without v1", async () => {
+    const sql = (async () => [{ owner_id: ownerId }]) as unknown as Sql;
+    const queueTrigger = vi.fn(async (...args: unknown[]) => ({
+      id: "run-legacy",
+      args,
+    }));
+    const repository = { queueTrigger } as unknown as RoutineRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerSlackEventsRoute(app, { sql, repository, signingSecret: secret });
+
+    const event = JSON.stringify({
+      type: "event_callback",
+      event_id: "EvLegacy",
+      event: { type: "app_mention", text: "legacy", channel: "C2" },
+    });
+    const response = await app.request(
+      `http://town.test/integrations/slack/events/${routineId}`,
+      { method: "POST", headers: signedHeaders(event), body: event },
+    );
+    expect(response.status).toBe(202);
+    expect(queueTrigger).toHaveBeenCalledWith(
+      ownerId,
+      asId<"routine-schedule">(routineId),
+      "slack_mention",
+      {
+        event: { type: "app_mention", text: "legacy", channel: "C2" },
+        eventId: "EvLegacy",
+        envelopeType: "event_callback",
+      },
+      "slack:EvLegacy",
+    );
+  });
 });
