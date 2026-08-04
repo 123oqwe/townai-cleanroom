@@ -328,7 +328,7 @@ const googleRoutinePoller = createGoogleRoutinePoller({
       const query = row.config["query"];
       const maxResults = row.config["maxResults"];
       return {
-        ownerId: asId<"user">(row['owner_id']),
+        ownerId: asId<"user">(row["owner_id"]),
         routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
         accountId: asId<"connected-account">(row.account_id),
         triggerType: row.kind,
@@ -391,7 +391,7 @@ const googleCalendarPoller = createGoogleCalendarPoller({
       const lookaheadMinutes = numberValue("lookaheadMinutes");
       const maxResults = numberValue("maxResults");
       return {
-        ownerId: asId<"user">(row['owner_id']),
+        ownerId: asId<"user">(row["owner_id"]),
         routineScheduleId: asId<"routine-schedule">(row.routine_schedule_id),
         routineTriggerId: asId<"routine-trigger">(row.routine_trigger_id),
         accountId: asId<"connected-account">(row.account_id),
@@ -613,26 +613,33 @@ const harnessServerFactory =
                       knowledgeContextBuilder,
                     ),
                     createTownWebFetchHarnessBinding(),
-                ...(environment.WEB_SEARCH_ENDPOINT === undefined
-                  ? []
-                  : [
-                      createTownWebSearchHarnessBinding(
-                        environment.WEB_SEARCH_ENDPOINT,
-                        ...(environment.WEB_SEARCH_API_KEY === undefined
-                          ? []
-                          : [async () => environment.WEB_SEARCH_API_KEY as string]),
-                      ),
-                    ]),
-                ...(environment.BROWSER_AUTOMATION_ENDPOINT === undefined
-                  ? []
-                  : [
-                      createTownBrowserInteractHarnessBinding(
-                        environment.BROWSER_AUTOMATION_ENDPOINT,
-                        ...(environment.BROWSER_AUTOMATION_API_KEY === undefined
-                          ? []
-                          : [async () => environment.BROWSER_AUTOMATION_API_KEY as string]),
-                      ),
-                    ]),
+                    ...(environment.WEB_SEARCH_ENDPOINT === undefined
+                      ? []
+                      : [
+                          createTownWebSearchHarnessBinding(
+                            environment.WEB_SEARCH_ENDPOINT,
+                            ...(environment.WEB_SEARCH_API_KEY === undefined
+                              ? []
+                              : [
+                                  async () =>
+                                    environment.WEB_SEARCH_API_KEY as string,
+                                ]),
+                          ),
+                        ]),
+                    ...(environment.BROWSER_AUTOMATION_ENDPOINT === undefined
+                      ? []
+                      : [
+                          createTownBrowserInteractHarnessBinding(
+                            environment.BROWSER_AUTOMATION_ENDPOINT,
+                            ...(environment.BROWSER_AUTOMATION_API_KEY ===
+                            undefined
+                              ? []
+                              : [
+                                  async () =>
+                                    environment.BROWSER_AUTOMATION_API_KEY as string,
+                                ]),
+                          ),
+                        ]),
                     ...(environment.WORKSPACE_ROOT === undefined
                       ? []
                       : [
@@ -775,26 +782,33 @@ const harnessServerFactory =
                       knowledgeContextBuilder,
                     ),
                     createTownWebFetchHarnessBinding(),
-                ...(environment.WEB_SEARCH_ENDPOINT === undefined
-                  ? []
-                  : [
-                      createTownWebSearchHarnessBinding(
-                        environment.WEB_SEARCH_ENDPOINT,
-                        ...(environment.WEB_SEARCH_API_KEY === undefined
-                          ? []
-                          : [async () => environment.WEB_SEARCH_API_KEY as string]),
-                      ),
-                    ]),
-                ...(environment.BROWSER_AUTOMATION_ENDPOINT === undefined
-                  ? []
-                  : [
-                      createTownBrowserInteractHarnessBinding(
-                        environment.BROWSER_AUTOMATION_ENDPOINT,
-                        ...(environment.BROWSER_AUTOMATION_API_KEY === undefined
-                          ? []
-                          : [async () => environment.BROWSER_AUTOMATION_API_KEY as string]),
-                      ),
-                    ]),
+                    ...(environment.WEB_SEARCH_ENDPOINT === undefined
+                      ? []
+                      : [
+                          createTownWebSearchHarnessBinding(
+                            environment.WEB_SEARCH_ENDPOINT,
+                            ...(environment.WEB_SEARCH_API_KEY === undefined
+                              ? []
+                              : [
+                                  async () =>
+                                    environment.WEB_SEARCH_API_KEY as string,
+                                ]),
+                          ),
+                        ]),
+                    ...(environment.BROWSER_AUTOMATION_ENDPOINT === undefined
+                      ? []
+                      : [
+                          createTownBrowserInteractHarnessBinding(
+                            environment.BROWSER_AUTOMATION_ENDPOINT,
+                            ...(environment.BROWSER_AUTOMATION_API_KEY ===
+                            undefined
+                              ? []
+                              : [
+                                  async () =>
+                                    environment.BROWSER_AUTOMATION_API_KEY as string,
+                                ]),
+                          ),
+                        ]),
                     ...(environment.WORKSPACE_ROOT === undefined
                       ? []
                       : [
@@ -1066,11 +1080,12 @@ if (process.env["VERCEL"] !== "1") {
     const today = new Date().toISOString().slice(0, 10);
     if (today !== lastWikiUpkeepDate) {
       lastWikiUpkeepDate = today;
-      const ownerRows = await sql`select distinct owner_id from memories where status='active' union select distinct owner_id from wiki_documents where status='active' limit 500`;
+      const ownerRows =
+        await sql`select distinct owner_id from memories where status='active' union select distinct owner_id from wiki_documents where status='active' limit 500`;
       for (const row of ownerRows) {
         try {
           await knowledgeUpkeepScanner.scan({
-            ownerId: asId<"user">(row['owner_id']),
+            ownerId: asId<"user">(row["owner_id"]),
             staleAfterDays: 30,
           });
         } catch {

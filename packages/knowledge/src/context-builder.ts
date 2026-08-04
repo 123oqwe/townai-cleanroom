@@ -63,11 +63,7 @@ export interface KnowledgeContext {
 /** External search provider interface for federated retrieval. */
 export interface ExternalSearchProvider {
   name: string;
-  search(input: {
-    ownerId: Id<"user">;
-    query: string;
-    limit: number;
-  }): Promise<
+  search(input: { ownerId: Id<"user">; query: string; limit: number }): Promise<
     Array<{
       resourceType: ResourceType;
       resourceId: string;
@@ -99,7 +95,8 @@ function planRetrieval(query: string, types?: ResourceType[]): RetrievalPlan {
   branches.push({
     source: "local_postgresql",
     ...(types === undefined ? {} : { types }),
-    rationale: "Search structured knowledge: Profile, Memory, People, Wiki, Goals, Projects",
+    rationale:
+      "Search structured knowledge: Profile, Memory, People, Wiki, Goals, Projects",
   });
 
   // If the query mentions email, add Gmail as a retrieval branch
@@ -111,7 +108,8 @@ function planRetrieval(query: string, types?: ResourceType[]): RetrievalPlan {
   ) {
     branches.push({
       source: "external_gmail",
-      rationale: "Query references email content; search connected Gmail accounts",
+      rationale:
+        "Query references email content; search connected Gmail accounts",
     });
   }
 
@@ -150,9 +148,10 @@ function planRetrieval(query: string, types?: ResourceType[]): RetrievalPlan {
  * Deduplicates context items by resource identity and removes near-duplicate
  * text. Real Town.ai deduplicates across sources before compression.
  */
-function deduplicateItems(
-  items: KnowledgeContextItem[],
-): { items: KnowledgeContextItem[]; removed: number } {
+function deduplicateItems(items: KnowledgeContextItem[]): {
+  items: KnowledgeContextItem[];
+  removed: number;
+} {
   const seen = new Set<string>();
   const seenTextHashes = new Set<string>();
   const deduped: KnowledgeContextItem[] = [];
@@ -294,10 +293,11 @@ export function createKnowledgeContextBuilder(
         deduplicateItems(allItems);
 
       // Compress and rank
-      const { items: compressedItems, text, truncated } = compressContext(
-        dedupedItems,
-        value.maxChars,
-      );
+      const {
+        items: compressedItems,
+        text,
+        truncated,
+      } = compressContext(dedupedItems, value.maxChars);
 
       return {
         query: value.query,

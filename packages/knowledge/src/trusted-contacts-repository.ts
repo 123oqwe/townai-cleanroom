@@ -68,7 +68,9 @@ function mapRow(row: TrustedContactRow): TrustedContact {
  */
 export function createTrustedContactsRepository(sql: Sql) {
   return {
-    async add(input: z.infer<typeof trustInputSchema>): Promise<TrustedContact> {
+    async add(
+      input: z.infer<typeof trustInputSchema>,
+    ): Promise<TrustedContact> {
       const value = trustInputSchema.parse(input);
       const id = newId<"trusted-contact">();
       try {
@@ -77,7 +79,12 @@ export function createTrustedContactsRepository(sql: Sql) {
           values (${id}, ${value.ownerId}, ${value.scope}, ${value.value.toLowerCase()},
                   ${value.label ?? null})
           returning *`;
-        return mapRow(rows[0]!);
+        return mapRow(
+          rows[0] ??
+            (() => {
+              throw new Error("CONTACT_INSERT_RETURNED_NO_ROWS");
+            })(),
+        );
       } catch (error: unknown) {
         if (
           typeof error === "object" &&
@@ -101,7 +108,10 @@ export function createTrustedContactsRepository(sql: Sql) {
       return rows.map(mapRow);
     },
 
-    async remove(ownerId: Id<"user">, id: Id<"trusted-contact">): Promise<void> {
+    async remove(
+      ownerId: Id<"user">,
+      id: Id<"trusted-contact">,
+    ): Promise<void> {
       const rows = await sql`
         delete from trusted_contacts where id = ${id} and owner_id = ${ownerId}`;
       if (rows.count === 0)
@@ -137,10 +147,7 @@ export function createTrustedContactsRepository(sql: Sql) {
      * Checks if an email address is trusted, either as an exact email
      * match or via its domain.
      */
-    async isEmailTrusted(
-      ownerId: Id<"user">,
-      email: string,
-    ): Promise<boolean> {
+    async isEmailTrusted(ownerId: Id<"user">, email: string): Promise<boolean> {
       const normalized = email.toLowerCase().trim();
       const domain = normalized.split("@")[1] ?? "";
       const rows = await sql<{ id: string }[]>`

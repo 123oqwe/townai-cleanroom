@@ -146,10 +146,7 @@ function mapProjectRow(row: ProjectRow): Project {
 export class GoalError extends Error {
   constructor(
     readonly code:
-      | "GOAL_NOT_FOUND"
-      | "GOAL_CONFLICT"
-      | "GOAL_FORBIDDEN"
-      | "GOAL_INVALID",
+      "GOAL_NOT_FOUND" | "GOAL_CONFLICT" | "GOAL_FORBIDDEN" | "GOAL_INVALID",
     message: string,
   ) {
     super(message);
@@ -185,7 +182,12 @@ export function createGoalsProjectsRepository(sql: Sql) {
         values (${id}, ${value.ownerId}, ${value.title}, ${value.description},
                 ${value.status}, ${sql.json(value.metadata)}, 1)
         returning *`;
-      const goal = mapGoalRow(rows[0]!);
+      const goal = mapGoalRow(
+        rows[0] ??
+          (() => {
+            throw new Error("GOAL_INSERT_RETURNED_NO_ROWS");
+          })(),
+      );
       await revisions.createInitial({
         ownerId: asId<"user">(value.ownerId),
         resourceType: "goal",
@@ -206,8 +208,14 @@ export function createGoalsProjectsRepository(sql: Sql) {
     async getGoal(ownerId: Id<"user">, id: Id<"goal">): Promise<Goal> {
       const rows = await sql<GoalRow[]>`
         select * from goals where id = ${id} and owner_id = ${ownerId}`;
-      if (rows.length === 0 || rows[0] === undefined) throw new GoalError("GOAL_NOT_FOUND", "Goal not found.");
-      return mapGoalRow(rows[0]!);
+      if (rows.length === 0 || rows[0] === undefined)
+        throw new GoalError("GOAL_NOT_FOUND", "Goal not found.");
+      return mapGoalRow(
+        rows[0] ??
+          (() => {
+            throw new Error("GOAL_INSERT_RETURNED_NO_ROWS");
+          })(),
+      );
     },
 
     async listGoals(ownerId: Id<"user">): Promise<Goal[]> {
@@ -226,8 +234,14 @@ export function createGoalsProjectsRepository(sql: Sql) {
         where id = ${value.id} and owner_id = ${value.ownerId}
           and current_revision = ${value.expectedRevision}
         returning *`;
-      if (rows.length === 0 || rows[0] === undefined) throw new GoalError("GOAL_CONFLICT", "Goal revision conflict.");
-      const goal = mapGoalRow(rows[0]!);
+      if (rows.length === 0 || rows[0] === undefined)
+        throw new GoalError("GOAL_CONFLICT", "Goal revision conflict.");
+      const goal = mapGoalRow(
+        rows[0] ??
+          (() => {
+            throw new Error("GOAL_INSERT_RETURNED_NO_ROWS");
+          })(),
+      );
       await revisions.append({
         ownerId: asId<"user">(value.ownerId),
         resourceType: "goal",
@@ -258,7 +272,12 @@ export function createGoalsProjectsRepository(sql: Sql) {
         values (${id}, ${value.ownerId}, ${value.title}, ${value.description},
                 ${value.status}, ${value.goalId ?? null}, ${sql.json(value.metadata)}, 1)
         returning *`;
-      const project = mapProjectRow(rows[0]!);
+      const project = mapProjectRow(
+        rows[0] ??
+          (() => {
+            throw new Error("PROJECT_INSERT_RETURNED_NO_ROWS");
+          })(),
+      );
       await revisions.createInitial({
         ownerId: asId<"user">(value.ownerId),
         resourceType: "project",
@@ -277,15 +296,17 @@ export function createGoalsProjectsRepository(sql: Sql) {
       return project;
     },
 
-    async getProject(
-      ownerId: Id<"user">,
-      id: Id<"project">,
-    ): Promise<Project> {
+    async getProject(ownerId: Id<"user">, id: Id<"project">): Promise<Project> {
       const rows = await sql<ProjectRow[]>`
         select * from projects where id = ${id} and owner_id = ${ownerId}`;
       if (rows.length === 0)
         throw new ProjectError("PROJECT_NOT_FOUND", "Project not found.");
-      return mapProjectRow(rows[0]!);
+      return mapProjectRow(
+        rows[0] ??
+          (() => {
+            throw new Error("PROJECT_INSERT_RETURNED_NO_ROWS");
+          })(),
+      );
     },
 
     async listProjects(ownerId: Id<"user">): Promise<Project[]> {
@@ -318,8 +339,16 @@ export function createGoalsProjectsRepository(sql: Sql) {
           and current_revision = ${value.expectedRevision}
         returning *`;
       if (rows.length === 0)
-        throw new ProjectError("PROJECT_CONFLICT", "Project revision conflict.");
-      const project = mapProjectRow(rows[0]!);
+        throw new ProjectError(
+          "PROJECT_CONFLICT",
+          "Project revision conflict.",
+        );
+      const project = mapProjectRow(
+        rows[0] ??
+          (() => {
+            throw new Error("PROJECT_INSERT_RETURNED_NO_ROWS");
+          })(),
+      );
       await revisions.append({
         ownerId: asId<"user">(value.ownerId),
         resourceType: "project",

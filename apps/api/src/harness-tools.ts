@@ -1062,7 +1062,9 @@ export function createTownWebSearchHarnessBinding(
       async execute(arguments_) {
         const value = webSearchArguments.parse(arguments_);
         if (searchEndpoint === undefined)
-          throw new Error("WEB_SEARCH_NOT_CONFIGURED: no search endpoint configured.");
+          throw new Error(
+            "WEB_SEARCH_NOT_CONFIGURED: no search endpoint configured.",
+          );
         const headers: Record<string, string> = {
           "content-type": "application/json",
         };
@@ -1071,11 +1073,14 @@ export function createTownWebSearchHarnessBinding(
         const response = await fetcher(searchEndpoint, {
           method: "POST",
           headers,
-          body: JSON.stringify({ query: value.query, max_results: value.maxResults }),
+          body: JSON.stringify({
+            query: value.query,
+            max_results: value.maxResults,
+          }),
           signal: AbortSignal.timeout(15_000),
         });
         if (!response.ok) throw new Error(`WEB_SEARCH_HTTP_${response.status}`);
-        const body = await response.json() as unknown;
+        const body = (await response.json()) as unknown;
         const results = z
           .array(
             z
@@ -1104,7 +1109,14 @@ export function createTownWebSearchHarnessBinding(
 const browserInteractArguments = z
   .object({
     url: z.url().max(2_000),
-    action: z.enum(["navigate", "click", "type", "screenshot", "extract_text", "extract_links"]),
+    action: z.enum([
+      "navigate",
+      "click",
+      "type",
+      "screenshot",
+      "extract_text",
+      "extract_links",
+    ]),
     selector: z.string().max(500).optional(),
     text: z.string().max(10_000).optional(),
     maxChars: z.number().int().min(100).max(50_000).default(10_000),
@@ -1151,7 +1163,14 @@ export function createTownBrowserInteractHarnessBinding(
           url: { type: "string", format: "uri", maxLength: 2_000 },
           action: {
             type: "string",
-            enum: ["navigate", "click", "type", "screenshot", "extract_text", "extract_links"],
+            enum: [
+              "navigate",
+              "click",
+              "type",
+              "screenshot",
+              "extract_text",
+              "extract_links",
+            ],
           },
           selector: { type: "string", maxLength: 500 },
           text: { type: "string", maxLength: 10_000 },
@@ -1165,12 +1184,16 @@ export function createTownBrowserInteractHarnessBinding(
       name: "town_browser_interact",
       requiresApproval: (arguments_) => {
         const action = arguments_["action"];
-        return action === "click" || action === "type" ? "approval_required" : false;
+        return action === "click" || action === "type"
+          ? "approval_required"
+          : false;
       },
       async execute(arguments_) {
         const value = browserInteractArguments.parse(arguments_);
         if (browserEndpoint === undefined)
-          throw new Error("BROWSER_NOT_CONFIGURED: no browser automation endpoint configured.");
+          throw new Error(
+            "BROWSER_NOT_CONFIGURED: no browser automation endpoint configured.",
+          );
         const headers: Record<string, string> = {
           "content-type": "application/json",
         };

@@ -2109,7 +2109,11 @@ export const knowledgeGraphEdges = pgTable(
       table.edgeType,
     ),
     index("graph_edges_owner_idx").on(table.ownerId),
-    index("graph_edges_from_idx").on(table.fromType, table.fromId, table.status),
+    index("graph_edges_from_idx").on(
+      table.fromType,
+      table.fromId,
+      table.status,
+    ),
     index("graph_edges_to_idx").on(table.toType, table.toId, table.status),
     check(
       "graph_edges_status_allowed",

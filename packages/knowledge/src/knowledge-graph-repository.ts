@@ -51,11 +51,6 @@ const edgeInputSchema = z
   })
   .strict();
 
-const edgeUpdateSchema = edgeInputSchema.extend({
-  id: idSchema,
-  expectedRevision: z.number().int().positive(),
-});
-
 interface GraphEdgeRow {
   id: string;
   owner_id: string;
@@ -153,7 +148,12 @@ export function createKnowledgeGraphRepository(sql: Sql) {
                   ${value.toType}, ${value.toId}, ${value.edgeType},
                   ${value.notes ?? null}, ${sql.json(value.metadata)}, 1, 'active')
           returning *`;
-        return mapRow(rows[0]!);
+        return mapRow(
+          rows[0] ??
+            (() => {
+              throw new Error("EDGE_INSERT_RETURNED_NO_ROWS");
+            })(),
+        );
       } catch (error: unknown) {
         if (
           typeof error === "object" &&

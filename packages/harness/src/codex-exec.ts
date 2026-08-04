@@ -17,7 +17,12 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { HarnessItem, ModelPort, ModelProgressEvent, ToolPort } from "./index.js";
+import type {
+  HarnessItem,
+  ModelPort,
+  ModelProgressEvent,
+  ToolPort,
+} from "./index.js";
 import type { ResponsesToolDefinition, ResponsesUsage } from "./responses.js";
 
 import {
@@ -170,11 +175,15 @@ export function createCodexModel(input: {
           items.push(event.item);
           const itemType = event.item["type"] as string | undefined;
           if (itemType === "agent_message") {
-            finalResponse = (event.item as Record<string, unknown>)["text"] as string;
+            finalResponse = (event.item as Record<string, unknown>)[
+              "text"
+            ] as string;
           }
           if (input.onProgress !== undefined) {
             if (itemType === "reasoning") {
-              const reasoningText = (event.item as Record<string, unknown>)["text"] as string | undefined;
+              const reasoningText = (event.item as Record<string, unknown>)[
+                "text"
+              ] as string | undefined;
               input.onProgress({
                 type: "reasoning",
                 ...(reasoningText === undefined ? {} : { text: reasoningText }),
@@ -190,7 +199,9 @@ export function createCodexModel(input: {
                 toolName: "shell",
               });
             } else if (itemType === "mcp_tool_call") {
-              const mcpToolName = (event.item as Record<string, unknown>)["tool"] as string | undefined;
+              const mcpToolName = (event.item as Record<string, unknown>)[
+                "tool"
+              ] as string | undefined;
               input.onProgress({
                 type: "tool_started",
                 ...(mcpToolName === undefined ? {} : { toolName: mcpToolName }),
@@ -242,10 +253,8 @@ export function createCodexModel(input: {
         const itemType = item["type"] as string | undefined;
         if (itemType === "agent_message") {
           const text = (item as Record<string, unknown>)["text"] as
-            | string
-            | undefined;
-          if (text !== undefined)
-            return { kind: "final" as const, text };
+            string | undefined;
+          if (text !== undefined) return { kind: "final" as const, text };
         }
       }
       // If there's a finalResponse string, use it
