@@ -75,6 +75,8 @@ import {
   createMcpHarnessBindings,
   createTownContextHarnessBinding,
   createTownWebFetchHarnessBinding,
+  createTownWebSearchHarnessBinding,
+  createTownBrowserInteractHarnessBinding,
   createTownVoiceSpeakHarnessBinding,
   createTownSearchHarnessBinding,
   createGoogleGmailSearchHarnessBinding,
@@ -172,6 +174,10 @@ const environmentSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  WEB_SEARCH_ENDPOINT: z.string().url().optional(),
+  WEB_SEARCH_API_KEY: z.string().min(1).optional(),
+  BROWSER_AUTOMATION_ENDPOINT: z.string().url().optional(),
+  BROWSER_AUTOMATION_API_KEY: z.string().min(1).optional(),
 });
 
 const environment = environmentSchema.parse(process.env);
@@ -607,6 +613,26 @@ const harnessServerFactory =
                       knowledgeContextBuilder,
                     ),
                     createTownWebFetchHarnessBinding(),
+                ...(environment.WEB_SEARCH_ENDPOINT === undefined
+                  ? []
+                  : [
+                      createTownWebSearchHarnessBinding(
+                        environment.WEB_SEARCH_ENDPOINT,
+                        ...(environment.WEB_SEARCH_API_KEY === undefined
+                          ? []
+                          : [async () => environment.WEB_SEARCH_API_KEY as string]),
+                      ),
+                    ]),
+                ...(environment.BROWSER_AUTOMATION_ENDPOINT === undefined
+                  ? []
+                  : [
+                      createTownBrowserInteractHarnessBinding(
+                        environment.BROWSER_AUTOMATION_ENDPOINT,
+                        ...(environment.BROWSER_AUTOMATION_API_KEY === undefined
+                          ? []
+                          : [async () => environment.BROWSER_AUTOMATION_API_KEY as string]),
+                      ),
+                    ]),
                     ...(environment.WORKSPACE_ROOT === undefined
                       ? []
                       : [
@@ -749,6 +775,26 @@ const harnessServerFactory =
                       knowledgeContextBuilder,
                     ),
                     createTownWebFetchHarnessBinding(),
+                ...(environment.WEB_SEARCH_ENDPOINT === undefined
+                  ? []
+                  : [
+                      createTownWebSearchHarnessBinding(
+                        environment.WEB_SEARCH_ENDPOINT,
+                        ...(environment.WEB_SEARCH_API_KEY === undefined
+                          ? []
+                          : [async () => environment.WEB_SEARCH_API_KEY as string]),
+                      ),
+                    ]),
+                ...(environment.BROWSER_AUTOMATION_ENDPOINT === undefined
+                  ? []
+                  : [
+                      createTownBrowserInteractHarnessBinding(
+                        environment.BROWSER_AUTOMATION_ENDPOINT,
+                        ...(environment.BROWSER_AUTOMATION_API_KEY === undefined
+                          ? []
+                          : [async () => environment.BROWSER_AUTOMATION_API_KEY as string]),
+                      ),
+                    ]),
                     ...(environment.WORKSPACE_ROOT === undefined
                       ? []
                       : [
