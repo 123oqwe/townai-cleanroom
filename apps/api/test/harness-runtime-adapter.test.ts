@@ -133,6 +133,35 @@ describe("harness runtime adapter", () => {
           notifications: [
             {
               jsonrpc: "2.0",
+              method: "approval/resolved",
+              params: { threadId, approvalId: "approval-1", decision: "approve" },
+            },
+            {
+              jsonrpc: "2.0",
+              method: "item/started",
+              params: {
+                item: {
+                  type: "tool_started",
+                  callId: "approval-1",
+                  toolName: "google_gmail_send",
+                  arguments: {},
+                },
+              },
+            },
+            {
+              jsonrpc: "2.0",
+              method: "item/completed",
+              params: {
+                item: {
+                  type: "tool_succeeded",
+                  callId: "approval-1",
+                  toolName: "google_gmail_send",
+                  output: "queued",
+                },
+              },
+            },
+            {
+              jsonrpc: "2.0",
               method: "item/completed",
               params: { item: { type: "assistant_message", text: "Sent." } },
             },
@@ -167,12 +196,207 @@ describe("harness runtime adapter", () => {
         params: { threadId, approvalId: "approval-1", decision: "approve" },
       }),
     );
+    expect(events).toEqual([
+      { type: "phase", phase: "context_building" },
+      { type: "phase", phase: "model_running" },
+      { type: "policy_decided", callId: "approval-1", decision: "approval_required" },
+      {
+        type: "approval_resolved",
+        approvalId: "approval-1",
+        toolName: "google_gmail_send",
+        decision: "approve",
+      },
+      {
+        type: "tool_started",
+        callId: "approval-1",
+        toolName: "google_gmail_send",
+        arguments: {},
+      },
+      {
+        type: "tool_succeeded",
+        callId: "approval-1",
+        toolName: "google_gmail_send",
+        output: "queued",
+      },
+      { type: "assistant_output", text: "Sent.", mentions: [] },
+      { type: "phase", phase: "observation_recorded" },
+    ]);
     expect(decisions.consume).toHaveBeenCalledOnce();
-    expect(events).toContainEqual({
-      type: "assistant_output",
-      text: "Sent.",
-      mentions: [],
+  });
+
+  it("emits harness tool lifecycle notifications as runtime tool events", async () => {
+    const store = {
+      get: vi.fn(async () => ({
+        threadId,
+        items: [],
+        stepCount: 0,
+        revision: 0,
+      })),
+      set: vi.fn(async () => undefined),
+    } as unknown as PersistentThreadStore;
+    const server = {
+      dispatch: vi
+        .fn()
+        .mockResolvedValueOnce({ jsonrpc: "2.0", id: "runtime-initialize" })
+        .mockResolvedValueOnce({
+          jsonrpc: "2.0",
+          id: runId,
+          notifications: [
+            {
+              jsonrpc: "2.0",
+              method: "item/started",
+              params: {
+                item: {
+                  type: "assistant_tool_call",
+                  callId: "call-1",
+                  toolName: "search",
+                  arguments: { q: "town ai" },
+                },
+              },
+            },
+            {
+              jsonrpc: "2.0",
+              method: "item/started",
+              params: {
+                item: {
+                  type: "tool_started",
+                  callId: "call-1",
+                  toolName: "search",
+                  arguments: { q: "town ai" },
+                },
+              },
+            },
+            {
+              jsonrpc: "2.0",
+              method: "item/completed",
+              params: {
+                item: {
+                  type: "tool_succeeded",
+                  callId: "call-1",
+                  toolName: "search",
+                  output: "search ok",
+                },
+              },
+            },
+            {
+              jsonrpc: "2.0",
+              method: "item/completed",
+              params: { item: { type: "assistant_message", text: "Done." } },
+            },
+          ],
+        }),
+    } as unknown as AppServer;
+    const adapter = createHarnessRuntimeAdapter({
+      createServer: async () => server,
+      createStore: () => store,
+      turns: {
+        get: vi.fn(async () => ({ text: "Run this" })),
+      } as never,
     });
+    const events: unknown[] = [];
+    for await (const event of adapter.execute({
+      session: { ownerId, threadId, agentVersion: { id: agentVersionId } },
+      run: { id: runId, triggeringTurnId: turnId },
+      signal: new AbortController().signal,
+    } as unknown as RuntimeAdapterContext))
+      events.push(event);
+    expect(events).toEqual([
+      { type: "phase", phase: "context_building" },
+      { type: "phase", phase: "model_running" },
+      {
+        type: "tool_call_proposed",
+        callId: "call-1",
+        toolName: "search",
+        arguments: { q: "town ai" },
+        stepKey: "tool-call:call-1",
+      },
+      { type: "policy_decided", callId: "call-1", decision: "allow" },
+      {
+        type: "tool_started",
+        callId: "call-1",
+        toolName: "search",
+        arguments: { q: "town ai" },
+      },
+      {
+        type: "tool_succeeded",
+        callId: "call-1",
+        toolName: "search",
+        output: "search ok",
+      },
+      { type: "assistant_output", text: "Done.", mentions: [] },
+      { type: "phase", phase: "observation_recorded" },
+    ]);
+  });
+
+  it("maps approval request notifications to waiting_approval", async () => {
+    const store = {
+      get: vi.fn(async () => ({
+        threadId,
+        items: [],
+        stepCount: 0,
+        revision: 0,
+      })),
+      set: vi.fn(async () => undefined),
+    } as unknown as PersistentThreadStore;
+    const server = {
+      dispatch: vi
+        .fn()
+        .mockResolvedValueOnce({ jsonrpc: "2.0", id: "runtime-initialize" })
+        .mockResolvedValueOnce({
+          jsonrpc: "2.0",
+          id: runId,
+          notifications: [
+            {
+              jsonrpc: "2.0",
+              method: "item/started",
+              params: {
+                item: {
+                  type: "assistant_tool_call",
+                  callId: "call-2",
+                  toolName: "google_gmail_send",
+                  arguments: { to: "a@b.com" },
+                },
+              },
+            },
+            {
+              jsonrpc: "2.0",
+              method: "approval/requested",
+              params: { approvalId: "call-2", toolName: "google_gmail_send" },
+            },
+          ],
+        }),
+    } as unknown as AppServer;
+    const adapter = createHarnessRuntimeAdapter({
+      createServer: async () => server,
+      createStore: () => store,
+      turns: {
+        get: vi.fn(async () => ({ text: "Run this" })),
+      } as never,
+    });
+    const events: unknown[] = [];
+    for await (const event of adapter.execute({
+      session: { ownerId, threadId, agentVersion: { id: agentVersionId } },
+      run: { id: runId, triggeringTurnId: turnId },
+      signal: new AbortController().signal,
+    } as unknown as RuntimeAdapterContext))
+      events.push(event);
+    expect(events).toEqual([
+      { type: "phase", phase: "context_building" },
+      { type: "phase", phase: "model_running" },
+      {
+        type: "tool_call_proposed",
+        callId: "call-2",
+        toolName: "google_gmail_send",
+        arguments: { to: "a@b.com" },
+        stepKey: "tool-call:call-2",
+      },
+      { type: "policy_decided", callId: "call-2", decision: "approval_required" },
+      {
+        type: "waiting_approval",
+        reason: "Approval required for google_gmail_send.",
+        approvalId: "call-2",
+      },
+    ]);
   });
 
   it("maps retryable transport failures into the runtime retry classifier", async () => {
@@ -188,11 +412,13 @@ describe("harness runtime adapter", () => {
     const adapter = createHarnessRuntimeAdapter({
       createServer: async () =>
         ({
-          dispatch: vi.fn().mockRejectedValue(() => {
-            const error = new Error("dial tcp") as Error & { code: string };
-            error.code = "ECONNREFUSED";
-            return error;
-          }()),
+          dispatch: vi.fn().mockRejectedValue(
+            (() => {
+              const error = new Error("dial tcp") as Error & { code: string };
+              error.code = "ECONNREFUSED";
+              return error;
+            })(),
+          ),
         }) as unknown as AppServer,
       createStore: () => store,
       turns: {
