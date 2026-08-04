@@ -8,7 +8,7 @@ import {
 } from "@town/channels";
 import { asId } from "@town/contracts";
 import type { OperationsRepository } from "@town/operations";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface ChannelDependencies {
   repository: ChannelRepository;

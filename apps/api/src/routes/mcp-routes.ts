@@ -6,7 +6,7 @@ import {
   mcpTransportSchema,
   type McpRepository,
 } from "@town/tools";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 export function registerMcpRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   repository: McpRepository,

@@ -69,8 +69,8 @@ import {
 } from "@town/tools";
 
 import { createApp } from "./app.js";
-import { createGoogleRoutinePoller } from "./google-routine-poller.js";
-import { createGoogleCalendarPoller } from "./google-calendar-poller.js";
+import { createGoogleRoutinePoller } from "./pollers/google-routine-poller.js";
+import { createGoogleCalendarPoller } from "./pollers/google-calendar-poller.js";
 import {
   createTownMemoryAddHarnessBinding,
   createInvokeRoutineHarnessBinding,
@@ -87,24 +87,24 @@ import {
   createGoogleGmailSendHarnessBinding,
   createGoogleCalendarFreeBusyHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
-} from "./harness-tools.js";
+} from "./tools/harness-tools.js";
 import {
   createHarnessRuntimeAdapter,
   type HarnessExecutionContext,
-} from "./harness-runtime-adapter.js";
-import { createRoutineScheduler } from "./routine-scheduler.js";
-import { finalizeRoutineRun } from "./routine-finalizer.js";
+} from "./lib/harness-runtime-adapter.js";
+import { createRoutineScheduler } from "./lib/routine-scheduler.js";
+import { finalizeRoutineRun } from "./lib/routine-finalizer.js";
 import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
 import { createMcpClient, type McpRemoteTool } from "@town/tools";
-import { createElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
+import { createElevenLabsVoiceProvider } from "./lib/elevenlabs-voice.js";
 import {
   createFileContentStorage,
   createS3ContentStorage,
-} from "./content-storage.js";
-import { createTownWorkspaceHarnessBinding } from "./workspace-tools.js";
-import { createTownCodeRunHarnessBinding } from "./code-runner.js";
+} from "./lib/content-storage.js";
+import { createTownWorkspaceHarnessBinding } from "./tools/workspace-tools.js";
+import { createTownCodeRunHarnessBinding } from "./tools/code-runner.js";
 
 function mcpToolDefinitionVersion(tool: McpRemoteTool): number {
   const fingerprint = createHash("sha256")

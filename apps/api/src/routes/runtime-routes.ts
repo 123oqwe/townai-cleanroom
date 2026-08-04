@@ -11,7 +11,7 @@ import {
   type SessionRepository,
 } from "@town/runtime";
 
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface RuntimeDependencies {
   sessionRepository: SessionRepository;

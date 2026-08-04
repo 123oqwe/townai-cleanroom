@@ -9,8 +9,8 @@ import type {
   ToolRegistryRepository,
   ToolExecutionRepository,
 } from "@town/tools";
-import type { AuthVariables } from "../src/auth.js";
-import { registerToolRoutes } from "../src/tool-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerToolRoutes } from "../src/routes/tool-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");

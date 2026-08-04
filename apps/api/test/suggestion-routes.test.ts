@@ -3,8 +3,8 @@ import { Hono } from "hono";
 
 import { asId } from "@town/contracts";
 import type { SuggestionRepository } from "@town/suggestions";
-import type { AuthVariables } from "../src/auth.js";
-import { registerSuggestionRoutes } from "../src/suggestion-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerSuggestionRoutes } from "../src/routes/suggestion-routes.js";
 
 describe("suggestion routes", () => {
   it("lists and transitions owner-scoped suggestions", async () => {

@@ -20,7 +20,7 @@ import {
   type GraphEdgeType,
 } from "@town/knowledge";
 
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface KnowledgeDependencies {
   profileRepository: ProfileRepository;

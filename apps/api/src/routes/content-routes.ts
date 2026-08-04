@@ -9,8 +9,8 @@ import {
   contentStatusSchema,
   type ContentRepository,
 } from "@town/content";
-import type { AuthVariables } from "./auth.js";
-import { acceptsHtml, contentShareHtml } from "./public-share-html.js";
+import type { AuthVariables } from "../lib/auth.js";
+import { acceptsHtml, contentShareHtml } from "../lib/public-share-html.js";
 
 export interface ContentDependencies {
   repository: ContentRepository;

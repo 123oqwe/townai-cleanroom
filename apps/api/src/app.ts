@@ -64,71 +64,77 @@ import {
   type SharedAccountRepository,
 } from "@town/teams";
 
-import { createAuthMiddleware, type AuthVariables } from "./auth.js";
-import { registerAgentRoutes, type AgentDependencies } from "./agent-routes.js";
+import { createAuthMiddleware, type AuthVariables } from "./lib/auth.js";
+import {
+  registerAgentRoutes,
+  type AgentDependencies,
+} from "./routes/agent-routes.js";
 import {
   registerKnowledgeRoutes,
   type KnowledgeDependencies,
-} from "./knowledge-routes.js";
+} from "./routes/knowledge-routes.js";
 import {
   registerRuntimeRoutes,
   type RuntimeDependencies,
-} from "./runtime-routes.js";
-import { registerToolRoutes, type ToolDependencies } from "./tool-routes.js";
-import { registerMcpRoutes } from "./mcp-routes.js";
+} from "./routes/runtime-routes.js";
+import {
+  registerToolRoutes,
+  type ToolDependencies,
+} from "./routes/tool-routes.js";
+import { registerMcpRoutes } from "./routes/mcp-routes.js";
 import type { McpRepository } from "@town/tools";
 import {
   registerContentRoutes,
   type ContentStorage,
-} from "./content-routes.js";
-import { registerSquareRoutes } from "./square-routes.js";
-import { registerSharedAccountRoutes } from "./shared-account-routes.js";
-import { registerChannelRoutes } from "./channel-routes.js";
-import { registerBillingRoutes } from "./billing-routes.js";
+} from "./routes/content-routes.js";
+import { registerSquareRoutes } from "./routes/square-routes.js";
+import { registerSharedAccountRoutes } from "./routes/shared-account-routes.js";
+import { registerChannelRoutes } from "./routes/channel-routes.js";
+import { registerBillingRoutes } from "./routes/billing-routes.js";
 import {
   registerOperationsRoutes,
   registerPublicAnalyticsRoutes,
-} from "./operations-routes.js";
-import { registerAdminRoutes } from "./admin-routes.js";
+} from "./routes/operations-routes.js";
+import { registerAdminRoutes } from "./routes/admin-routes.js";
 import {
   registerRoutineRoutes,
   registerRoutineShareRoutes,
   registerRoutineWebhookRoutes,
-} from "./routine-routes.js";
+} from "./routes/routine-routes.js";
 import type {
   RoutineRepository,
   RoutineResultRepository,
 } from "@town/routines";
 import type { GoogleApiClient } from "@town/google";
 import { RoutineError } from "@town/routines";
-import { registerAccountRoutes } from "./account-routes.js";
+import { registerAccountRoutes } from "./routes/account-routes.js";
 import {
   registerGoogleOAuthRoutes,
   type GoogleOAuthDependencies,
-} from "./google-oauth-routes.js";
+} from "./oauth/google-oauth-routes.js";
 import {
   registerMicrosoftOAuthRoutes,
   type MicrosoftOAuthDependencies,
-} from "./microsoft-oauth-routes.js";
-import { registerSuggestionRoutes } from "./suggestion-routes.js";
-import { registerScheduleRoutes } from "./schedule-routes.js";
+} from "./oauth/microsoft-oauth-routes.js";
+import { registerSuggestionRoutes } from "./routes/suggestion-routes.js";
+import { registerScheduleRoutes } from "./routes/schedule-routes.js";
 import type { SuggestionRepository } from "@town/suggestions";
 import { SuggestionError } from "@town/suggestions";
-import { registerA2ARoutes } from "./a2a-routes.js";
-import { registerSlackEventsRoute } from "./slack-events.js";
-import { registerTelegramEventsRoute } from "./telegram-events.js";
+import { registerA2ARoutes } from "./routes/a2a-routes.js";
+import { registerSlackEventsRoute } from "./webhooks/slack-events.js";
+import { registerTelegramEventsRoute } from "./webhooks/telegram-events.js";
 import {
   registerPipedreamRoutes,
   type PipedreamDependencies,
-} from "./pipedream-routes.js";
-import { registerWhatsAppEventsRoute } from "./whatsapp-events.js";
-import { registerTwilioVoiceEventsRoute } from "./twilio-voice-events.js";
-import { registerVoiceRoutes } from "./voice-routes.js";
-import { registerVapiVoiceEventsRoute } from "./vapi-voice-events.js";
-import type { VoiceSynthesisProvider } from "./elevenlabs-voice.js";
+} from "./routes/pipedream-routes.js";
+import { registerWhatsAppEventsRoute } from "./webhooks/whatsapp-events.js";
+import { registerTwilioVoiceEventsRoute } from "./webhooks/twilio-voice-events.js";
+import { registerVoiceRoutes } from "./lib/voice-routes.js";
+import { registerVapiVoiceEventsRoute } from "./webhooks/vapi-voice-events.js";
+import type { VoiceSynthesisProvider } from "./lib/elevenlabs-voice.js";
 import type { A2ARepository } from "@town/a2a";
 import { A2AError } from "@town/a2a";
-import type { HarnessExecutionContext } from "./harness-runtime-adapter.js";
+import type { HarnessExecutionContext } from "./lib/harness-runtime-adapter.js";
 
 export interface AppDependencies {
   sql?: Sql;

@@ -7,7 +7,7 @@ import type {
   CredentialSecret,
   SafeConnectedAccount,
 } from "@town/identity";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface AccountDependencies {
   repository: AccountRepository;

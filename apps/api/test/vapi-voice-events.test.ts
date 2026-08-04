@@ -3,8 +3,8 @@ import { Hono } from "hono";
 import type { Sql } from "postgres";
 import { asId } from "@town/contracts";
 import type { RoutineRepository } from "@town/routines";
-import type { AuthVariables } from "../src/auth.js";
-import { registerVapiVoiceEventsRoute } from "../src/vapi-voice-events.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerVapiVoiceEventsRoute } from "../src/webhooks/vapi-voice-events.js";
 
 const routineId = "01900000-0000-7000-8000-000000000004";
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");

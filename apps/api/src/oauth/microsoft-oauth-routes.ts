@@ -5,7 +5,7 @@ import type { Hono } from "hono";
 
 import { asId, newId } from "@town/contracts";
 import type { AccountRepository } from "@town/identity";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 const tenant = "common";
 const authorizeUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`;

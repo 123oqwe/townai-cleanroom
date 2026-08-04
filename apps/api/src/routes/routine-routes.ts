@@ -15,8 +15,8 @@ import {
   type RoutineRepository,
   type RoutineResultRepository,
 } from "@town/routines";
-import type { AuthVariables } from "./auth.js";
-import { acceptsHtml, routineShareHtml } from "./public-share-html.js";
+import type { AuthVariables } from "../lib/auth.js";
+import { acceptsHtml, routineShareHtml } from "../lib/public-share-html.js";
 
 export interface RoutineDependencies {
   repository: RoutineRepository;

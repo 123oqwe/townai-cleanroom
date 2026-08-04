@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Sql } from "postgres";
 import { asId } from "@town/contracts";
 import type { RoutineRepository } from "@town/routines";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 const telegramUpdateSchema = z
   .object({

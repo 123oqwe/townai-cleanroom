@@ -11,8 +11,8 @@ import type {
   ThreadRepository,
   TurnRepository,
 } from "@town/agents";
-import type { AuthVariables } from "../src/auth.js";
-import { registerAgentRoutes } from "../src/agent-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerAgentRoutes } from "../src/routes/agent-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");

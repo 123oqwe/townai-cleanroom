@@ -6,7 +6,7 @@ import type {
   RoutineResultRepository,
 } from "@town/routines";
 import type { ChannelRepository } from "@town/channels";
-import { finalizeRoutineRun } from "../src/routine-finalizer.js";
+import { finalizeRoutineRun } from "../src/lib/routine-finalizer.js";
 
 describe("routine run finalizer", () => {
   it("reconciles the integration run and records a completed result", async () => {

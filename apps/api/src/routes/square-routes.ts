@@ -8,7 +8,7 @@ import {
   membershipStatusSchema,
   type SquareRepository,
 } from "@town/teams";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface SquareDependencies {
   repository: SquareRepository;

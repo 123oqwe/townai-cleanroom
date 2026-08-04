@@ -3,8 +3,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
-import type { AuthVariables } from "../src/auth.js";
-import { registerChannelRoutes } from "../src/channel-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerChannelRoutes } from "../src/routes/channel-routes.js";
 import { ChannelError, type ChannelRepository } from "@town/channels";
 import type { OperationsRepository } from "@town/operations";
 

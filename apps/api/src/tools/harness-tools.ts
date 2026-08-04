@@ -23,7 +23,7 @@ import {
 } from "@town/tools";
 import type { ToolExecutionRepository } from "@town/tools";
 import type { GoogleApiClient } from "@town/google";
-import type { VoiceSynthesisProvider } from "./elevenlabs-voice.js";
+import type { VoiceSynthesisProvider } from "../lib/elevenlabs-voice.js";
 
 const memoryArguments = z.discriminatedUnion("scope", [
   z

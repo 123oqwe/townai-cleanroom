@@ -5,8 +5,8 @@ import { z } from "zod";
 import { asId } from "@town/contracts";
 import type { AuthenticatedIdentity } from "@town/identity";
 import type { SharedAccountRepository } from "@town/teams";
-import type { AuthVariables } from "../src/auth.js";
-import { registerSharedAccountRoutes } from "../src/shared-account-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerSharedAccountRoutes } from "../src/routes/shared-account-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");

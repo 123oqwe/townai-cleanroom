@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createFileContentStorage,
   createS3ContentStorage,
-} from "../src/content-storage.js";
+} from "../src/lib/content-storage.js";
 
 const temporaryRoots: string[] = [];
 

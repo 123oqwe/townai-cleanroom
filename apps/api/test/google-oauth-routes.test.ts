@@ -3,8 +3,8 @@ import { Hono } from "hono";
 
 import { asId } from "@town/contracts";
 import type { AccountRepository } from "@town/identity";
-import type { AuthVariables } from "../src/auth.js";
-import { registerGoogleOAuthRoutes } from "../src/google-oauth-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerGoogleOAuthRoutes } from "../src/oauth/google-oauth-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 

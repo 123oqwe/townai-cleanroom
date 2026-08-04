@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createTownCodeRunHarnessBinding,
   runNodeCode,
-} from "../src/code-runner.js";
+} from "../src/tools/code-runner.js";
 
 describe("town code runner harness tool", () => {
   it("requires approval and returns bounded runner output", async () => {

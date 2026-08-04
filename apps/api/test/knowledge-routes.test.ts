@@ -15,8 +15,8 @@ import type {
   WikiUpkeepScanner,
 } from "@town/knowledge";
 import * as knowledge from "@town/knowledge";
-import type { AuthVariables } from "../src/auth.js";
-import { registerKnowledgeRoutes } from "../src/knowledge-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerKnowledgeRoutes } from "../src/routes/knowledge-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");

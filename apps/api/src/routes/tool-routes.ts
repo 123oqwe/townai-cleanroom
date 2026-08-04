@@ -14,7 +14,7 @@ import {
   type ToolRegistryRepository,
 } from "@town/tools";
 
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface ToolDependencies {
   registry: ToolRegistryRepository;

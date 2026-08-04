@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 
-import type { AuthVariables } from "../src/auth.js";
-import { registerAccountRoutes } from "../src/account-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerAccountRoutes } from "../src/routes/account-routes.js";
 import type { AccountRepository } from "@town/identity";
 import { asId } from "@town/contracts";
 

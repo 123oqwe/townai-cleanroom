@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 
-import type { AuthVariables } from "../src/auth.js";
-import { registerContentRoutes } from "../src/content-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerContentRoutes } from "../src/routes/content-routes.js";
 import { ContentError, type ContentRepository } from "@town/content";
 
 describe("content share route", () => {

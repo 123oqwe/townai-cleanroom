@@ -6,8 +6,8 @@ import type { AccountRepository } from "@town/identity";
 import type { TaskRepository } from "@town/agents";
 import type { GoogleApiClient } from "@town/google";
 import type { RoutineRepository } from "@town/routines";
-import type { AuthVariables } from "../src/auth.js";
-import { registerScheduleRoutes } from "../src/schedule-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerScheduleRoutes } from "../src/routes/schedule-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const accountId = asId<"connected-account">(

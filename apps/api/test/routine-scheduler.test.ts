@@ -4,7 +4,7 @@ import { asId } from "@town/contracts";
 import type { AgentRepository, ThreadRepository } from "@town/agents";
 import type { SessionRepository } from "@town/runtime";
 import type { RoutineRepository } from "@town/routines";
-import { createRoutineScheduler } from "../src/routine-scheduler.js";
+import { createRoutineScheduler } from "../src/lib/routine-scheduler.js";
 
 describe("routine scheduler", () => {
   it("claims due schedules and submits durable session runs", async () => {

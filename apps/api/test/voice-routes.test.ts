@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
-import type { AuthVariables } from "../src/auth.js";
+import type { AuthVariables } from "../src/lib/auth.js";
 import {
   createElevenLabsVoiceProvider,
   VoiceProviderError,
-} from "../src/elevenlabs-voice.js";
-import { registerVoiceRoutes } from "../src/voice-routes.js";
+} from "../src/lib/elevenlabs-voice.js";
+import { registerVoiceRoutes } from "../src/lib/voice-routes.js";
 
 describe("ElevenLabs voice provider", () => {
   it("sends a real TTS request and returns audio bytes", async () => {

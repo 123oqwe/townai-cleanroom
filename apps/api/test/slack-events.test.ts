@@ -7,8 +7,8 @@ import type { RoutineRepository } from "@town/routines";
 import {
   registerSlackEventsRoute,
   verifySlackSignature,
-} from "../src/slack-events.js";
-import type { AuthVariables } from "../src/auth.js";
+} from "../src/webhooks/slack-events.js";
+import type { AuthVariables } from "../src/lib/auth.js";
 
 const secret = "slack-signing-secret";
 const routineId = "01900000-0000-7000-8000-000000000004";

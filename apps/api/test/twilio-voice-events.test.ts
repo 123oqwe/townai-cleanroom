@@ -4,11 +4,11 @@ import { Hono } from "hono";
 import type { Sql } from "postgres";
 import { asId } from "@town/contracts";
 import type { RoutineRepository } from "@town/routines";
-import type { AuthVariables } from "../src/auth.js";
+import type { AuthVariables } from "../src/lib/auth.js";
 import {
   registerTwilioVoiceEventsRoute,
   verifyTwilioSignature,
-} from "../src/twilio-voice-events.js";
+} from "../src/webhooks/twilio-voice-events.js";
 
 const authToken = "twilio-auth-token";
 const routineId = "01900000-0000-7000-8000-000000000004";

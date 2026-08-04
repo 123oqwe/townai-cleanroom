@@ -6,7 +6,7 @@ import type { TaskRepository } from "@town/agents";
 import type { GoogleApiClient } from "@town/google";
 import type { RoutineRepository } from "@town/routines";
 
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface ScheduleDependencies {
   tasks?: TaskRepository;

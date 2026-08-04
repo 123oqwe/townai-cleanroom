@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import type { Sql } from "postgres";
 
-import type { AuthVariables } from "../src/auth.js";
+import type { AuthVariables } from "../src/lib/auth.js";
 import {
   registerRoutineRoutes,
   registerRoutineShareRoutes,
   registerRoutineWebhookRoutes,
-} from "../src/routine-routes.js";
+} from "../src/routes/routine-routes.js";
 import type {
   RoutineRepository,
   RoutineResultRepository,

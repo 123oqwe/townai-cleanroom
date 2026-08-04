@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { z } from "zod";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 const appSummarySchema = z
   .object({

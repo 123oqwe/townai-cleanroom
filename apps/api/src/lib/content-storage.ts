@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { createHash, createHmac } from "node:crypto";
 import path from "node:path";
 
-import type { ContentStorage } from "./content-routes.js";
+import type { ContentStorage } from "../routes/content-routes.js";
 
 const MAX_CONTENT_BLOB_BYTES = 50 * 1024 * 1024;
 

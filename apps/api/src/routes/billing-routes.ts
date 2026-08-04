@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { z } from "zod";
 
 import type { BillingRepository } from "@town/billing";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface BillingDependencies {
   repository: BillingRepository;

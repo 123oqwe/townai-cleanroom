@@ -2,7 +2,7 @@ import type { Context, Hono } from "hono";
 import { z } from "zod";
 import { asId } from "@town/contracts";
 import type { SharedAccountRepository } from "@town/teams";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface SharedAccountDependencies {
   repository: SharedAccountRepository;

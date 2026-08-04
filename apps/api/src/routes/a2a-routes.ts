@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { z } from "zod";
 import { asId } from "@town/contracts";
 import { a2aStatusSchema, type A2ARepository } from "@town/a2a";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export function registerA2ARoutes(
   app: Hono<{ Variables: AuthVariables }>,

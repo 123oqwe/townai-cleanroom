@@ -3,7 +3,7 @@ import type { Context, Hono } from "hono";
 import type { Sql } from "postgres";
 import { asId } from "@town/contracts";
 import type { RoutineRepository } from "@town/routines";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 function twilioSignatureBase(url: string, params: URLSearchParams): string {
   const entries = [...params.entries()].sort(([left], [right]) =>

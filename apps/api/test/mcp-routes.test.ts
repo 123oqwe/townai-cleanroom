@@ -5,8 +5,8 @@ import { z } from "zod";
 import { asId } from "@town/contracts";
 import type { AuthenticatedIdentity } from "@town/identity";
 import type { McpRepository } from "@town/tools";
-import type { AuthVariables } from "../src/auth.js";
-import { registerMcpRoutes } from "../src/mcp-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerMcpRoutes } from "../src/routes/mcp-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");

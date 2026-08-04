@@ -6,7 +6,7 @@ import {
   presenceSurfaceSchema,
   type OperationsRepository,
 } from "@town/operations";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export interface OperationsDependencies {
   repository: OperationsRepository;

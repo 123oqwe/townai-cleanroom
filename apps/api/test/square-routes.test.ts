@@ -4,8 +4,8 @@ import { z } from "zod";
 
 import { asId } from "@town/contracts";
 import type { SquareRepository } from "@town/teams";
-import type { AuthVariables } from "../src/auth.js";
-import { registerSquareRoutes } from "../src/square-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerSquareRoutes } from "../src/routes/square-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const squareId = asId<"square">("01900000-0000-7000-8000-000000000002");

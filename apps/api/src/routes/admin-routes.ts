@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { OperationsRepository } from "@town/operations";
 import { asId } from "@town/contracts";
 import type { BillingRepository } from "@town/billing";
-import type { AuthVariables } from "./auth.js";
+import type { AuthVariables } from "../lib/auth.js";
 
 export type ContentStorageReadiness = boolean | "read-only";
 

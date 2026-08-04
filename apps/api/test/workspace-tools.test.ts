@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createTownWorkspaceHarnessBinding } from "../src/workspace-tools.js";
+import { createTownWorkspaceHarnessBinding } from "../src/tools/workspace-tools.js";
 
 const roots: string[] = [];
 

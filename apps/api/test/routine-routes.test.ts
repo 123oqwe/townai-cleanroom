@@ -11,12 +11,12 @@ import type {
 } from "@town/routines";
 import type { GoogleApiClient } from "@town/google";
 import type { SessionRepository } from "@town/runtime";
-import type { AuthVariables } from "../src/auth.js";
+import type { AuthVariables } from "../src/lib/auth.js";
 import {
   registerRoutineRoutes,
   registerRoutineShareRoutes,
   type RoutineDependencies,
-} from "../src/routine-routes.js";
+} from "../src/routes/routine-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");

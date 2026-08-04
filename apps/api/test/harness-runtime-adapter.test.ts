@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { asId } from "@town/contracts";
-import { createHarnessRuntimeAdapter } from "../src/harness-runtime-adapter.js";
+import { createHarnessRuntimeAdapter } from "../src/lib/harness-runtime-adapter.js";
 import type { AppServer, PersistentThreadStore } from "@town/harness";
 import {
   RetryableRuntimeError,

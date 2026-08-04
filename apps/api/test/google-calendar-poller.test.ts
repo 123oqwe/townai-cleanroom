@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { asId } from "@town/contracts";
 import type { GoogleApiClient } from "@town/google";
 import type { RoutineRepository } from "@town/routines";
-import { createGoogleCalendarPoller } from "../src/google-calendar-poller.js";
+import { createGoogleCalendarPoller } from "../src/pollers/google-calendar-poller.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const routineId = asId<"routine-schedule">(

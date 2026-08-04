@@ -10,8 +10,8 @@ import type {
   ApprovalDecisionRepository,
 } from "@town/runtime";
 import type { BillingRepository } from "@town/billing";
-import type { AuthVariables } from "../src/auth.js";
-import { registerRuntimeRoutes } from "../src/runtime-routes.js";
+import type { AuthVariables } from "../src/lib/auth.js";
+import { registerRuntimeRoutes } from "../src/routes/runtime-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const threadId = asId<"thread">("01900000-0000-7000-8000-000000000002");
