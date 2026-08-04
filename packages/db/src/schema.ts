@@ -2012,3 +2012,49 @@ export const operationAuditEvents = pgTable(
     ),
   ],
 );
+
+export const goals = pgTable(
+  "goals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status").notNull().default("active"),
+    metadata: jsonb("metadata").notNull().default({}),
+    currentRevision: integer("current_revision").notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    index("goals_owner_idx").on(table.ownerId),
+    index("goals_owner_status_idx").on(table.ownerId, table.status),
+    check(
+      "goals_status_allowed",
+      sql`${table.status} in ('active','completed','paused','archived')`,
+    ),
+  ],
+);
+
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status").notNull().default("active"),
+    goalId: uuid("goal_id"),
+    metadata: jsonb("metadata").notNull().default({}),
+    currentRevision: integer("current_revision").notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    index("projects_owner_idx").on(table.ownerId),
+    index("projects_owner_status_idx").on(table.ownerId, table.status),
+    index("projects_goal_idx").on(table.goalId),
+    check(
+      "projects_status_allowed",
+      sql`${table.status} in ('active','on_hold','completed','archived')`,
+    ),
+  ],
+);

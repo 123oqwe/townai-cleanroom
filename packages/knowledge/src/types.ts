@@ -10,6 +10,8 @@ export const resourceTypeSchema = z.enum([
   "memory",
   "person",
   "wiki",
+  "goal",
+  "project",
 ]);
 export const authorTypeSchema = z.enum(["user", "assistant", "system"]);
 export const snapshotSchema = z.record(z.string(), z.json());
