@@ -361,6 +361,119 @@ describe("runtime transitions", () => {
     });
   });
 
+  it("requeues a running run with retry metadata and a delayed queue time", async () => {
+    const submitted = await queuedRun("requeue-run");
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const lease = await queue.claim({
+      workerId: "worker-requeue",
+      leaseMs: 60_000,
+    });
+    if (lease === null) throw new Error("Expected a lease.");
+
+    await transitions.start({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+    });
+
+    const beforeMs = Date.now();
+    const requeued = await transitions.requeue({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      delayMs: 1_000,
+    });
+    expect(requeued).toMatchObject({
+      state: "queued",
+      attempt: 1,
+    });
+
+    const [job] = await sql<{
+      state: string;
+      availableAt: Date;
+      leaseTokenHash: Buffer | null;
+      leasedBy: string | null;
+      leasedAt: Date | null;
+      leaseExpiresAt: Date | null;
+    }[]>`
+      select
+        state,
+        available_at as "availableAt",
+        lease_token_hash as "leaseTokenHash",
+        leased_by as "leasedBy",
+        leased_at as "leasedAt",
+        lease_expires_at as "leaseExpiresAt"
+      from runtime_jobs
+      where run_id = ${lease.runId}
+    `;
+    if (job === undefined) throw new Error("Expected runtime job row.");
+
+    expect(job?.state).toBe("queued");
+    expect(job?.leaseTokenHash).toBeNull();
+    expect(job?.leasedBy).toBeNull();
+    expect(job?.leasedAt).toBeNull();
+    expect(job?.leaseExpiresAt).toBeNull();
+    expect(job?.availableAt.getTime() - beforeMs).toBeGreaterThanOrEqual(0);
+    expect(job?.availableAt.getTime() - beforeMs).toBeLessThan(5_000);
+
+    const events = await sql<{
+      kind: string;
+      payload: { runId?: string; retry?: boolean; delayMs?: number };
+    }[]>`
+      select kind, payload
+      from session_events
+      where session_id = ${submitted.session.id}
+        and kind = 'run_queued'
+      order by sequence
+    `;
+    expect(events).toMatchObject([
+      {
+        kind: "run_queued",
+        payload: { runId: submitted.run.id },
+      },
+      {
+        kind: "run_queued",
+        payload: { retry: true, delayMs: 1_000 },
+      },
+    ]);
+  });
+
+  it("rejects requeue for non-running runs and keeps state unchanged", async () => {
+    const submitted = await queuedRun("non-running-requeue");
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const lease = await queue.claim({
+      workerId: "worker-queued-requeue",
+      leaseMs: 60_000,
+    });
+    if (lease === null) throw new Error("Expected a lease.");
+
+    await expect(
+      transitions.requeue({
+        runId: lease.runId,
+        leaseToken: lease.leaseToken,
+        delayMs: 500,
+      }),
+    ).rejects.toMatchObject({ code: "RUN_STATE_CONFLICT" });
+
+    const [run] = await sql<{ state: string; startedAt: Date | null }[]>`
+      select state, started_at as "startedAt"
+      from session_runs
+      where id = ${lease.runId}
+    `;
+    expect(run?.state).toBe("queued");
+    expect(run?.startedAt).toBeNull();
+
+    const events = await sql<{ kind: string }[]>`
+      select kind from session_events
+      where session_id = ${submitted.session.id}
+      order by sequence
+    `;
+    expect(events).toEqual([
+      { kind: "input_observed" },
+      { kind: "run_queued" },
+    ]);
+  });
+
   it("derives Session state when cancelling or resuming a non-current Run", async () => {
     const first = await queuedRun("session-state-first");
     const sessions = createSessionRepository(sql);
