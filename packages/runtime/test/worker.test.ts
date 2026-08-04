@@ -85,6 +85,141 @@ describe("runtime worker", () => {
     });
   });
 
+  it("forwards adapter tool lifecycle and approval events as session events", async () => {
+    const queue = {
+      claim: vi.fn(async () => ({
+        ownerId,
+        sessionId,
+        runId,
+        runState: "queued" as const,
+        workerId: "worker-1",
+        leaseToken,
+        attempt: 1,
+        leasedAt: new Date(),
+        leaseExpiresAt: new Date(Date.now() + 30_000),
+      })),
+      heartbeat: vi.fn(async (value) => value),
+      retry: vi.fn(async () => undefined),
+    };
+    const transitions = {
+      start: vi.fn(async () => undefined),
+      recordPhase: vi.fn(async () => undefined),
+      recordAssistantOutput: vi.fn(async () => undefined),
+      recordToolCallProposed: vi.fn(async () => undefined),
+      recordPolicyDecided: vi.fn(async () => undefined),
+      recordToolStarted: vi.fn(async () => undefined),
+      recordToolSucceeded: vi.fn(async () => undefined),
+      recordToolFailed: vi.fn(async () => undefined),
+      recordApprovalRequested: vi.fn(async () => undefined),
+      recordApprovalResolved: vi.fn(async () => undefined),
+      complete: vi.fn(async () => undefined),
+      fail: vi.fn(async () => undefined),
+      wait: vi.fn(async () => undefined),
+    };
+    const dependencies = {
+      queue,
+      sessions: {
+        get: vi.fn(async () => ({ ownerId }) as never),
+        getRun: vi.fn(async () => ({}) as never),
+      },
+      transitions,
+      adapter: {
+        async *execute() {
+          yield {
+            type: "tool_call_proposed" as const,
+            callId: "tool-1",
+            toolName: "search",
+            stepKey: "lookup",
+            arguments: { q: "town" },
+          };
+          yield {
+            type: "policy_decided" as const,
+            callId: "tool-1",
+            decision: "allow",
+            riskFlags: ["safe"],
+          };
+          yield {
+            type: "tool_started" as const,
+            callId: "tool-1",
+            toolName: "search",
+            arguments: { q: "town" },
+          };
+          yield {
+            type: "tool_succeeded" as const,
+            callId: "tool-1",
+            toolName: "search",
+            output: "Town docs fetched",
+          };
+          yield {
+            type: "approval_requested" as const,
+            approvalId: "approval-1",
+            toolName: "send_mail",
+          };
+          yield {
+            type: "approval_resolved" as const,
+            approvalId: "approval-1",
+            toolName: "send_mail",
+            decision: "approve",
+          };
+          yield {
+            type: "assistant_output" as const,
+            text: "A real adapter response.",
+            mentions: [],
+          };
+        },
+      },
+    } as unknown as RuntimeWorkerDependencies;
+
+    const result = await createRuntimeWorker(dependencies, {
+      workerId: "worker-1",
+      leaseMs: 3_000,
+    }).runOnce();
+
+    expect(result).toMatchObject({ claimed: true, state: "completed", runId });
+    expect(transitions.recordToolCallProposed).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      callId: "tool-1",
+      toolName: "search",
+      arguments: { q: "town" },
+      stepKey: "lookup",
+    });
+    expect(transitions.recordPolicyDecided).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      callId: "tool-1",
+      decision: "allow",
+      riskFlags: ["safe"],
+    });
+    expect(transitions.recordToolStarted).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      callId: "tool-1",
+      toolName: "search",
+      arguments: { q: "town" },
+    });
+    expect(transitions.recordToolSucceeded).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      callId: "tool-1",
+      toolName: "search",
+      output: "Town docs fetched",
+    });
+    expect(transitions.recordApprovalRequested).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      approvalId: "approval-1",
+      toolName: "send_mail",
+    });
+    expect(transitions.recordApprovalResolved).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      approvalId: "approval-1",
+      toolName: "send_mail",
+      decision: "approve",
+    });
+  });
+
   it("drains a bounded batch and stops when the queue is empty", async () => {
     const queue = {
       claim: vi

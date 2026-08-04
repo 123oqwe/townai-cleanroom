@@ -49,6 +49,56 @@ const recordOutputSchema = leasedRunSchema
     mentions: turnMentionsInputSchema,
   })
   .strict();
+const callPayloadSchema = z.record(z.string(), z.unknown());
+const toolCallProposedSchema = leasedRunSchema
+  .extend({
+    callId: z.string().trim().min(1).max(500),
+    toolName: z.string().trim().min(1).max(500),
+    arguments: callPayloadSchema,
+    stepKey: z.string().trim().min(1).max(500),
+  })
+  .strict();
+const policyDecidedSchema = leasedRunSchema
+  .extend({
+    callId: z.string().trim().min(1).max(500),
+    decision: z.enum(["allow", "approval_required", "deny"]),
+    riskFlags: z.array(z.string().trim().min(1).max(500)).optional(),
+  })
+  .strict();
+const toolStartedSchema = leasedRunSchema
+  .extend({
+    callId: z.string().trim().min(1).max(500),
+    toolName: z.string().trim().min(1).max(500),
+    arguments: callPayloadSchema,
+  })
+  .strict();
+const toolSucceededSchema = leasedRunSchema
+  .extend({
+    callId: z.string().trim().min(1).max(500),
+    toolName: z.string().trim().min(1).max(500),
+    output: z.string().trim().min(1).max(100_000),
+  })
+  .strict();
+const toolFailedSchema = leasedRunSchema
+  .extend({
+    callId: z.string().trim().min(1).max(500),
+    toolName: z.string().trim().min(1).max(500),
+    error: z.string().trim().min(1).max(100_000),
+  })
+  .strict();
+const approvalRequestedSchema = leasedRunSchema
+  .extend({
+    approvalId: z.string().trim().min(1).max(500),
+    toolName: z.string().trim().min(1).max(500),
+  })
+  .strict();
+const approvalResolvedSchema = leasedRunSchema
+  .extend({
+    approvalId: z.string().trim().min(1).max(500),
+    toolName: z.string().trim().min(1).max(500),
+    decision: z.enum(["approve", "reject", "expired"]),
+  })
+  .strict();
 const completeSchema = leasedRunSchema
   .extend({ outcome: runtimePayloadSchema })
   .strict();
@@ -174,6 +224,38 @@ async function appendEvent(
 
 export function createRuntimeTransitionService(sql: Sql) {
   const sessions = createSessionRepository(sql);
+
+  async function recordRunningEvent(input: {
+    runId: string;
+    leaseToken: string;
+    kind: SessionEventKind;
+    payload: RuntimePayload;
+  }): Promise<void> {
+    const value = leasedRunSchema.parse({
+      runId: input.runId,
+      leaseToken: input.leaseToken,
+    });
+    const runId = asId<"session-run">(value.runId);
+    await sql.begin(async (transaction) => {
+      const lease = await verifyRuntimeLeaseInTransaction(transaction, {
+        runId,
+        leaseToken: value.leaseToken,
+      });
+      const run = await lockRun(transaction, {
+        ownerId: lease.owner_id,
+        sessionId: lease.session_id,
+        runId,
+      });
+      requireState(run, "running");
+      await appendEvent(transaction, {
+        ownerId: run.owner_id,
+        sessionId: run.session_id,
+        runId,
+        kind: input.kind,
+        payload: input.payload,
+      });
+    });
+  }
 
   async function start(
     input: z.input<typeof leasedRunSchema>,
@@ -352,6 +434,120 @@ export function createRuntimeTransitionService(sql: Sql) {
       leaseToken: value.leaseToken,
       state: "failed",
       errorCode: value.errorCode,
+    });
+  }
+
+  async function recordToolCallProposed(
+    input: z.input<typeof toolCallProposedSchema>,
+  ): Promise<void> {
+    const value = toolCallProposedSchema.parse(input);
+    await recordRunningEvent({
+      runId: value.runId,
+      leaseToken: value.leaseToken,
+      kind: "tool_call_proposed",
+      payload: {
+        callId: value.callId,
+        toolName: value.toolName,
+        arguments: value.arguments as RuntimePayload,
+        stepKey: value.stepKey,
+      },
+    });
+  }
+
+  async function recordPolicyDecided(
+    input: z.input<typeof policyDecidedSchema>,
+  ): Promise<void> {
+    const value = policyDecidedSchema.parse(input);
+    await recordRunningEvent({
+      runId: value.runId,
+      leaseToken: value.leaseToken,
+      kind: "policy_decided",
+      payload: {
+        callId: value.callId,
+        decision: value.decision,
+        ...(value.riskFlags === undefined
+          ? {}
+          : { riskFlags: value.riskFlags }),
+      },
+    });
+  }
+
+  async function recordToolStarted(
+    input: z.input<typeof toolStartedSchema>,
+  ): Promise<void> {
+    const value = toolStartedSchema.parse(input);
+    await recordRunningEvent({
+      runId: value.runId,
+      leaseToken: value.leaseToken,
+      kind: "tool_started",
+      payload: {
+        callId: value.callId,
+        toolName: value.toolName,
+        arguments: value.arguments as RuntimePayload,
+      },
+    });
+  }
+
+  async function recordToolSucceeded(
+    input: z.input<typeof toolSucceededSchema>,
+  ): Promise<void> {
+    const value = toolSucceededSchema.parse(input);
+    await recordRunningEvent({
+      runId: value.runId,
+      leaseToken: value.leaseToken,
+      kind: "tool_succeeded",
+      payload: {
+        callId: value.callId,
+        toolName: value.toolName,
+        output: value.output,
+      },
+    });
+  }
+
+  async function recordToolFailed(
+    input: z.input<typeof toolFailedSchema>,
+  ): Promise<void> {
+    const value = toolFailedSchema.parse(input);
+    await recordRunningEvent({
+      runId: value.runId,
+      leaseToken: value.leaseToken,
+      kind: "tool_failed",
+      payload: {
+        callId: value.callId,
+        toolName: value.toolName,
+        error: value.error,
+      },
+    });
+  }
+
+  async function recordApprovalRequested(
+    input: z.input<typeof approvalRequestedSchema>,
+  ): Promise<void> {
+    const value = approvalRequestedSchema.parse(input);
+    await recordRunningEvent({
+      runId: value.runId,
+      leaseToken: value.leaseToken,
+      kind: "approval_requested",
+      payload: {
+        approvalId: value.approvalId,
+        toolName: value.toolName,
+      },
+    });
+  }
+
+  async function recordApprovalResolved(
+    input: z.input<typeof approvalResolvedSchema>,
+  ): Promise<void> {
+    const value = approvalResolvedSchema.parse(input);
+    await recordRunningEvent({
+      runId: value.runId,
+      leaseToken: value.leaseToken,
+      kind: "approval_resolved",
+      payload: {
+        approvalId: value.approvalId,
+        toolName: value.toolName,
+        decision: value.decision,
+      },
     });
   }
 
@@ -585,7 +781,14 @@ export function createRuntimeTransitionService(sql: Sql) {
     cancel,
     complete,
     fail,
+    recordApprovalRequested,
+    recordApprovalResolved,
     requeue,
+    recordPolicyDecided,
+    recordToolCallProposed,
+    recordToolStarted,
+    recordToolSucceeded,
+    recordToolFailed,
     recordAssistantOutput,
     recordPhase,
     resume,

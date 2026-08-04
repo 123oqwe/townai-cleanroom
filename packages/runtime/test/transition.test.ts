@@ -140,6 +140,111 @@ describe("runtime transitions", () => {
     ).rejects.toMatchObject({ code: "RUN_STATE_CONFLICT" });
   });
 
+  it("persists durable tool and approval events from the runtime worker stream", async () => {
+    const submitted = await queuedRun("tooling-run");
+    const queue = createRuntimeQueueRepository(sql);
+    const transitions = createRuntimeTransitionService(sql);
+    const lease = await queue.claim({
+      workerId: "worker-tooling",
+      leaseMs: 60_000,
+    });
+    if (lease === null) throw new Error("Expected a lease.");
+
+    await transitions.start({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+    });
+
+    await transitions.recordToolCallProposed({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      callId: "tool-1",
+      toolName: "search",
+      stepKey: "lookup",
+      arguments: { q: "town" },
+    });
+
+    await transitions.recordPolicyDecided({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      callId: "tool-1",
+      decision: "allow",
+      riskFlags: ["safe"],
+    });
+
+    await transitions.recordToolStarted({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      callId: "tool-1",
+      toolName: "search",
+      arguments: { q: "town" },
+    });
+
+    await transitions.recordToolSucceeded({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      callId: "tool-1",
+      toolName: "search",
+      output: "Town docs fetched",
+    });
+
+    await transitions.recordApprovalRequested({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      approvalId: "approval-1",
+      toolName: "send_mail",
+    });
+
+    await transitions.recordApprovalResolved({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      approvalId: "approval-1",
+      toolName: "send_mail",
+      decision: "approve",
+    });
+
+    await transitions.complete({
+      runId: lease.runId,
+      leaseToken: lease.leaseToken,
+      outcome: { summary: "Tooling complete" },
+    });
+
+    const events = await sql<{
+      kind: string;
+      payload: {
+        callId?: string;
+        toolName?: string;
+        approvalId?: string;
+        output?: string;
+      };
+    }[]>`
+      select kind, payload
+      from session_events
+      where session_id = ${submitted.session.id}
+      order by sequence
+    `;
+    expect(events.map(({ kind }) => kind)).toEqual([
+      "input_observed",
+      "run_queued",
+      "run_started",
+      "tool_call_proposed",
+      "policy_decided",
+      "tool_started",
+      "tool_succeeded",
+      "approval_requested",
+      "approval_resolved",
+      "run_completed",
+    ]);
+    const toolSucceeded = events.find((entry) => entry.kind === "tool_succeeded");
+    expect(toolSucceeded).toMatchObject({
+      payload: {
+        callId: "tool-1",
+        toolName: "search",
+        output: "Town docs fetched",
+      },
+    });
+  });
+
   it("pauses, resumes without replaying prior work, and increments attempts", async () => {
     const submitted = await queuedRun("waiting-run");
     const queue = createRuntimeQueueRepository(sql);

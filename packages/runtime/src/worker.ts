@@ -123,6 +123,64 @@ export function createRuntimeWorker(
             text: event.text,
             mentions: event.mentions,
           });
+        } else if (event.type === "tool_call_proposed") {
+          await dependencies.transitions.recordToolCallProposed({
+            runId: lease.runId,
+            leaseToken: lease.leaseToken,
+            callId: event.callId,
+            toolName: event.toolName,
+            arguments: event.arguments,
+            stepKey: event.stepKey,
+          });
+        } else if (event.type === "policy_decided") {
+          await dependencies.transitions.recordPolicyDecided({
+            runId: lease.runId,
+            leaseToken: lease.leaseToken,
+            callId: event.callId,
+            decision: event.decision,
+            ...(event.riskFlags === undefined
+              ? {}
+              : { riskFlags: event.riskFlags }),
+          });
+        } else if (event.type === "tool_started") {
+          await dependencies.transitions.recordToolStarted({
+            runId: lease.runId,
+            leaseToken: lease.leaseToken,
+            callId: event.callId,
+            toolName: event.toolName,
+            arguments: event.arguments,
+          });
+        } else if (event.type === "tool_succeeded") {
+          await dependencies.transitions.recordToolSucceeded({
+            runId: lease.runId,
+            leaseToken: lease.leaseToken,
+            callId: event.callId,
+            toolName: event.toolName,
+            output: event.output,
+          });
+        } else if (event.type === "tool_failed") {
+          await dependencies.transitions.recordToolFailed({
+            runId: lease.runId,
+            leaseToken: lease.leaseToken,
+            callId: event.callId,
+            toolName: event.toolName,
+            error: event.error,
+          });
+        } else if (event.type === "approval_requested") {
+          await dependencies.transitions.recordApprovalRequested({
+            runId: lease.runId,
+            leaseToken: lease.leaseToken,
+            approvalId: event.approvalId,
+            toolName: event.toolName,
+          });
+        } else if (event.type === "approval_resolved") {
+          await dependencies.transitions.recordApprovalResolved({
+            runId: lease.runId,
+            leaseToken: lease.leaseToken,
+            approvalId: event.approvalId,
+            toolName: event.toolName,
+            decision: event.decision,
+          });
         } else {
           await dependencies.transitions.wait({
             runId: lease.runId,
