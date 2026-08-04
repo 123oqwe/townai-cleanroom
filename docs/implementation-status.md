@@ -463,3 +463,10 @@ minimal receipt. Owner analytics remain authenticated and isolated. Town's
 private downstream analytics transport and event taxonomy are not claimed. The
 public session is additionally limited to 100 writes per rolling minute in
 the durable store and returns `429` after the bound.
+
+Runtime workers now expose an explicit opt-in retry policy for provider
+adapters. An adapter must throw the exported `RetryableRuntimeError`; the
+worker then requeues the leased run with bounded exponential backoff only
+within a 2–10 attempt budget. Ordinary errors remain terminal failures, so
+external side effects are never retried by assumption. This is a clean-room
+retry boundary rather than a claim about Town's private retry classifier.

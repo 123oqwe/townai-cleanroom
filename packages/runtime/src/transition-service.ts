@@ -55,6 +55,9 @@ const completeSchema = leasedRunSchema
 const failSchema = leasedRunSchema
   .extend({ errorCode: z.string().trim().min(1).max(200) })
   .strict();
+const requeueSchema = leasedRunSchema
+  .extend({ delayMs: z.number().int().min(0).max(3_600_000) })
+  .strict();
 const waitSchema = leasedRunSchema
   .extend({
     state: z.enum(["waiting_approval", "waiting_user_input"]),
@@ -352,6 +355,58 @@ export function createRuntimeTransitionService(sql: Sql) {
     });
   }
 
+  async function requeue(
+    input: z.input<typeof requeueSchema>,
+  ): Promise<SessionRun> {
+    const value = requeueSchema.parse(input);
+    const runId = asId<"session-run">(value.runId);
+    const result = await sql.begin(async (transaction) => {
+      const lease = await verifyRuntimeLeaseInTransaction(transaction, {
+        runId,
+        leaseToken: value.leaseToken,
+      });
+      const run = await lockRun(transaction, {
+        ownerId: lease.owner_id,
+        sessionId: lease.session_id,
+        runId,
+      });
+      requireState(run, "running");
+      await transaction`
+        update session_runs
+        set state='queued', wait_reason=null, input_response=null,
+            started_at=null, finished_at=null, outcome=null,
+            error_code=null, updated_at=clock_timestamp()
+        where id=${runId}
+      `;
+      await transaction`
+        update runtime_jobs
+        set state='queued', available_at=clock_timestamp()
+          + ${value.delayMs} * interval '1 millisecond',
+            lease_token_hash=null, leased_by=null, leased_at=null,
+            lease_expires_at=null, updated_at=clock_timestamp()
+        where run_id=${runId}
+      `;
+      await appendEvent(transaction, {
+        ownerId: run.owner_id,
+        sessionId: run.session_id,
+        runId,
+        kind: "run_queued",
+        payload: { retry: true, delayMs: value.delayMs },
+        sessionState: await deriveRuntimeSessionStateInTransaction(
+          transaction,
+          run.owner_id,
+          run.session_id,
+        ),
+      });
+      return run;
+    });
+    return sessions.getRun(
+      asId<"user">(result.owner_id),
+      asId<"runtime-session">(result.session_id),
+      runId,
+    );
+  }
+
   async function wait(input: z.input<typeof waitSchema>): Promise<SessionRun> {
     const value = waitSchema.parse(input);
     const runId = asId<"session-run">(value.runId);
@@ -530,6 +585,7 @@ export function createRuntimeTransitionService(sql: Sql) {
     cancel,
     complete,
     fail,
+    requeue,
     recordAssistantOutput,
     recordPhase,
     resume,

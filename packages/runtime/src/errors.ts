@@ -15,3 +15,11 @@ export class RuntimeError extends Error {
     this.name = "RuntimeError";
   }
 }
+
+/** Provider adapters may opt into a bounded retry without making all failures retryable. */
+export class RetryableRuntimeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RetryableRuntimeError";
+  }
+}

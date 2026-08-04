@@ -3,6 +3,7 @@ import type { RuntimeAdapter } from "./runtime-adapter.js";
 import type { RuntimeSession, SessionRun } from "./types.js";
 import type { RuntimeTransitionService } from "./transition-service.js";
 import type { SessionRepository } from "./session-repository.js";
+import { RetryableRuntimeError } from "./errors.js";
 
 export interface RuntimeWorkerDependencies {
   queue: RuntimeQueueRepository;
@@ -14,6 +15,10 @@ export interface RuntimeWorkerDependencies {
 export interface RuntimeWorkerOptions {
   workerId: string;
   leaseMs?: number;
+  retryPolicy?: {
+    maxAttempts: number;
+    baseDelayMs: number;
+  };
   onFinished?: (input: {
     ownerId: RuntimeSession["ownerId"];
     runId: SessionRun["id"];
@@ -24,7 +29,12 @@ export interface RuntimeWorkerOptions {
 
 export interface RuntimeWorkerResult {
   claimed: boolean;
-  state?: "completed" | "failed" | "waiting_approval" | "waiting_user_input";
+  state?:
+    | "completed"
+    | "failed"
+    | "queued"
+    | "waiting_approval"
+    | "waiting_user_input";
   runId?: string;
 }
 
@@ -44,6 +54,19 @@ export function createRuntimeWorker(
   options: RuntimeWorkerOptions,
 ) {
   const leaseMs = options.leaseMs ?? 30_000;
+  const retryPolicy = options.retryPolicy;
+  if (
+    retryPolicy !== undefined &&
+    (!Number.isInteger(retryPolicy.maxAttempts) ||
+      retryPolicy.maxAttempts < 2 ||
+      retryPolicy.maxAttempts > 10 ||
+      !Number.isInteger(retryPolicy.baseDelayMs) ||
+      retryPolicy.baseDelayMs < 0 ||
+      retryPolicy.baseDelayMs > 3_600_000)
+  )
+    throw new RangeError(
+      "retryPolicy must use 2-10 attempts and a 0-3600000ms base delay",
+    );
 
   async function runOnce(): Promise<RuntimeWorkerResult> {
     const lease = await dependencies.queue.claim({
@@ -141,6 +164,30 @@ export function createRuntimeWorker(
       return { claimed: true, state: "completed", runId: lease.runId };
     } catch (error) {
       if (started) {
+        if (
+          retryPolicy !== undefined &&
+          error instanceof RetryableRuntimeError &&
+          lease.attempt < retryPolicy.maxAttempts
+        ) {
+          const delayMs = Math.min(
+            3_600_000,
+            retryPolicy.baseDelayMs * 2 ** Math.max(0, lease.attempt - 1),
+          );
+          let requeued = false;
+          try {
+            await dependencies.transitions.requeue({
+              runId: lease.runId,
+              leaseToken: lease.leaseToken,
+              delayMs,
+            });
+            requeued = true;
+          } catch {
+            requeued = false;
+          }
+          if (requeued) {
+            return { claimed: true, state: "queued", runId: lease.runId };
+          }
+        }
         await dependencies.transitions
           .fail({
             runId: lease.runId,

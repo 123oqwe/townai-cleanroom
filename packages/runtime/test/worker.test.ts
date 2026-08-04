@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { asId } from "@town/contracts";
 import { createRuntimeWorker } from "../src/worker.js";
+import { RetryableRuntimeError } from "../src/errors.js";
 import type { RuntimeWorkerDependencies } from "../src/worker.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
@@ -133,5 +134,57 @@ describe("runtime worker", () => {
     await expect(worker.runBatch(2)).resolves.toMatchObject({ processed: 1 });
     await expect(worker.runBatch(0)).rejects.toThrow(/between 1 and 100/);
     expect(queue.claim).toHaveBeenCalledTimes(2);
+  });
+
+  it("requeues only explicitly retryable adapter failures within the attempt budget", async () => {
+    const queue = {
+      claim: vi.fn(async () => ({
+        ownerId,
+        sessionId,
+        runId,
+        runState: "queued" as const,
+        workerId: "worker-1",
+        leaseToken,
+        attempt: 1,
+        leasedAt: new Date(),
+        leaseExpiresAt: new Date(Date.now() + 30_000),
+      })),
+      heartbeat: vi.fn(async (value) => value),
+      retry: vi.fn(async () => undefined),
+    };
+    const transitions = {
+      start: vi.fn(async () => undefined),
+      recordPhase: vi.fn(async () => undefined),
+      recordAssistantOutput: vi.fn(async () => undefined),
+      complete: vi.fn(async () => undefined),
+      fail: vi.fn(async () => undefined),
+      requeue: vi.fn(async () => undefined),
+      wait: vi.fn(async () => undefined),
+    };
+    const dependencies = {
+      queue,
+      sessions: {
+        get: vi.fn(async () => ({ ownerId }) as never),
+        getRun: vi.fn(async () => ({}) as never),
+      },
+      transitions,
+      adapter: {
+        async *execute() {
+          yield* [] as never[];
+          throw new RetryableRuntimeError("provider unavailable");
+        },
+      },
+    } as unknown as RuntimeWorkerDependencies;
+    const result = await createRuntimeWorker(dependencies, {
+      workerId: "worker-1",
+      retryPolicy: { maxAttempts: 3, baseDelayMs: 250 },
+    }).runOnce();
+    expect(result).toMatchObject({ claimed: true, state: "queued", runId });
+    expect(transitions.requeue).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      delayMs: 250,
+    });
+    expect(transitions.fail).not.toHaveBeenCalled();
   });
 });
