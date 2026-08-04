@@ -37,6 +37,10 @@ function inspectCredentialKey(value) {
   }
 }
 
+function inspectEnvVar(name, value) {
+  return { name, status: value ? "configured" : "missing" };
+}
+
 export function inspectRuntimeConfig(environment = process.env) {
   const checks = [
     inspectUrl("DATABASE_URL", environment.DATABASE_URL),
@@ -61,6 +65,24 @@ export function inspectRuntimeConfig(environment = process.env) {
           ? "configured"
           : "missing",
     },
+    inspectEnvVar("SLACK_SIGNING_SECRET", environment.SLACK_SIGNING_SECRET),
+    inspectEnvVar("TWILIO_AUTH_TOKEN", environment.TWILIO_AUTH_TOKEN),
+    inspectEnvVar("VAPI_WEBHOOK_SECRET", environment.VAPI_WEBHOOK_SECRET),
+    inspectEnvVar("ELEVENLABS_API_KEY", environment.ELEVENLABS_API_KEY),
+    inspectEnvVar("ELEVENLABS_VOICE_ID", environment.ELEVENLABS_VOICE_ID),
+    inspectEnvVar("GOOGLE_OAUTH_CLIENT_ID", environment.GOOGLE_OAUTH_CLIENT_ID),
+    inspectEnvVar(
+      "GOOGLE_OAUTH_CLIENT_SECRET",
+      environment.GOOGLE_OAUTH_CLIENT_SECRET,
+    ),
+    inspectEnvVar(
+      "GOOGLE_OAUTH_REDIRECT_URI",
+      environment.GOOGLE_OAUTH_REDIRECT_URI,
+    ),
+    inspectEnvVar(
+      "CHANNEL_CREDENTIALS_JSON",
+      environment.CHANNEL_CREDENTIALS_JSON,
+    ),
   ];
   const missingRequired = checks
     .filter(
