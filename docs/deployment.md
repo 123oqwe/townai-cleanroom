@@ -1490,3 +1490,21 @@ The API entrypoint (`api/index.js`) returns a structured `API_NOT_CONFIGURED`
 `/v1/health` and `/v1/health/capabilities` endpoints are available without
 authentication and report the real readiness state without exposing
 credentials or environment values.
+
+## Clean build deployment (no TS errors)
+
+The latest deployment `dpl_8Pce1KN3SV1CnFx2WGQy2hH3KRU1` from commit
+`1adca57` builds cleanly on Vercel with no TypeScript diagnostics in the
+build log. The `vercel.json` rewrite rule (`/v1/(.*)` → `/api`) ensures
+all `/v1/*` paths reach the serverless function instead of the static HTML
+fallback.
+
+- Production alias: `https://townai-cleanroom.vercel.app`
+- Direct URL: `https://townai-cleanroom-3g6l2m9c4-123oqwes-projects.vercel.app`
+- State: `READY`
+- `/v1/health` returns: `{"status":"ok","service":"town-api",...}`
+- `/v1/health/capabilities` returns all flags as `false` (runtime not
+  configured — correct behavior)
+- Direct URL access check: `302` to Vercel SSO (protected)
+- Production alias: `200` (public, Pro plan limitation)
+- Build log: no TS errors (only the Node engine warning)
