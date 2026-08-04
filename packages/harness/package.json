@@ -23,6 +23,8 @@
     "@openai/codex": "0.146.0",
     "@openai/codex-sdk": "0.146.0",
     "@town/contracts": "file:../contracts",
-    "zod": "4.4.3"
+    "@town/db": "file:../db",
+    "zod": "4.4.3",
+    "drizzle-orm": "0.45.2"
   }
 }

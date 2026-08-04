@@ -18,13 +18,10 @@ import {
   createThreadRepository,
   createTurnRepository,
 } from "@town/agents";
-import {
-  createDatabase,
-  createHarnessThreadStore,
-  runMigrations,
-} from "@town/db";
+import { createDatabase, runMigrations } from "@town/db";
 import {
   createAppServer,
+  createHarnessThreadStore,
   createModelRouter,
   createResponsesAgentFactory,
   createResponsesModel,

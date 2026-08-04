@@ -210,9 +210,6 @@ importers:
 
   packages/db:
     dependencies:
-      '@town/harness':
-        specifier: file:../harness
-        version: link:../harness
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(postgres@3.4.9)
@@ -251,6 +248,12 @@ importers:
       '@town/contracts':
         specifier: file:../contracts
         version: link:../contracts
+      '@town/db':
+        specifier: file:../db
+        version: link:../db
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(postgres@3.4.9)
       zod:
         specifier: 4.4.3
         version: 4.4.3

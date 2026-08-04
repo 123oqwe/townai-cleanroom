@@ -4,10 +4,10 @@ import {
   threadSnapshotSchema,
   type PersistentThreadStore,
   type ThreadSnapshot,
-} from "@town/harness";
+} from "./app-server.js";
 
-import { createDatabase } from "./client.js";
-import { harnessThreads } from "./schema.js";
+import { createDatabase } from "@town/db";
+import { harnessThreads } from "@town/db";
 
 type TownDatabase = ReturnType<typeof createDatabase>["db"];
 
