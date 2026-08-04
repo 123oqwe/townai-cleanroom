@@ -1,4 +1,3 @@
-
 import type { AdminDependencies } from "./types.js";
 
 export function reportReadiness(dependencies: AdminDependencies) {
