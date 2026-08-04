@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TownAI Cleanroom — 目录结构审计</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --surface2: #1c2330;
+        --border: #30363d;
+        --text: #e6edf3;
+        --text-dim: #8b949e;
+        --green: #3fb950;
+        --green-bg: rgba(63, 185, 80, 0.12);
+        --red: #f85149;
+        --red-bg: rgba(248, 81, 73, 0.12);
+        --yellow: #d29922;
+        --yellow-bg: rgba(210, 153, 34, 0.12);
+        --blue: #58a6ff;
+        --blue-bg: rgba(88, 166, 255, 0.12);
+        --purple: #bc8cff;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+          sans-serif;
+        line-height: 1.6;
+        padding: 32px 24px 80px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        letter-spacing: -0.5px;
+      }
+      .subtitle {
+        color: var(--text-dim);
+        font-size: 15px;
+        margin-bottom: 32px;
+      }
+      h2 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 40px 0 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        letter-spacing: -0.3px;
+      }
+      h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 24px 0 10px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .score-card {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px 16px;
+        text-align: center;
+      }
+      .stat .num {
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: -1px;
+      }
+      .stat .label {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .stat.green .num {
+        color: var(--green);
+      }
+      .stat.red .num {
+        color: var(--red);
+      }
+      .stat.yellow .num {
+        color: var(--yellow);
+      }
+      .stat.blue .num {
+        color: var(--blue);
+      }
+
+      .tree-container {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        overflow-x: auto;
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+        font-size: 13px;
+        line-height: 1.75;
+      }
+      .tree {
+        white-space: pre;
+      }
+      .dir {
+        color: var(--blue);
+        font-weight: 600;
+      }
+      .file {
+        color: var(--text);
+      }
+      .dim {
+        color: var(--text-dim);
+      }
+      .warn {
+        color: var(--yellow);
+      }
+      .bad {
+        color: var(--red);
+        font-weight: 600;
+      }
+      .ok {
+        color: var(--green);
+      }
+      .comment {
+        color: var(--purple);
+        font-style: italic;
+      }
+      .size {
+        color: var(--text-dim);
+        font-size: 11px;
+      }
+
+      .issues {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .issue {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px 20px;
+        border-left: 4px solid var(--red);
+      }
+      .issue.medium {
+        border-left-color: var(--yellow);
+      }
+      .issue.low {
+        border-left-color: var(--blue);
+      }
+      .issue .title {
+        font-weight: 600;
+        font-size: 15px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .badge.red {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .badge.yellow {
+        background: var(--yellow-bg);
+        color: var(--yellow);
+      }
+      .badge.blue {
+        background: var(--blue-bg);
+        color: var(--blue);
+      }
+      .badge.green {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .issue p {
+        color: var(--text-dim);
+        font-size: 14px;
+      }
+      .issue p strong {
+        color: var(--text);
+      }
+      .issue .detail {
+        margin-top: 8px;
+        background: var(--surface2);
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-family: "SF Mono", monospace;
+        font-size: 12px;
+        color: var(--text-dim);
+        white-space: pre-wrap;
+      }
+
+      .dep-graph {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 24px;
+        overflow-x: auto;
+        font-family: "SF Mono", monospace;
+        font-size: 12px;
+        line-height: 1.8;
+        white-space: pre;
+      }
+
+      .legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .legend .dot.green {
+        background: var(--green);
+      }
+      .legend .dot.yellow {
+        background: var(--yellow);
+      }
+      .legend .dot.red {
+        background: var(--red);
+      }
+      .legend .dot.blue {
+        background: var(--blue);
+      }
+      .legend .dot.purple {
+        background: var(--purple);
+      }
+
+      .verdict {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 8px;
+      }
+      .verdict p {
+        font-size: 15px;
+      }
+      .verdict p + p {
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TownAI Cleanroom — 目录结构审计</h1>
+    <p class="subtitle">
+      pnpm monorepo · 17 packages · 2 apps · ~70,000 行源码 · 49 个数据库迁移
+    </p>
+
+    <div class="score-card">
+      <div class="stat green">
+        <div class="num">A-</div>
+        <div class="label">整体评分</div>
+      </div>
+      <div class="stat green">
+        <div class="num">17</div>
+        <div class="label">包划分清晰</div>
+      </div>
+      <div class="stat yellow">
+        <div class="num">5</div>
+        <div class="label">结构问题</div>
+      </div>
+      <div class="stat red">
+        <div class="num">3</div>
+        <div class="label">巨型文件区</div>
+      </div>
+    </div>
+
+    <h2>当前目录树（带标注）</h2>
+
+    <div class="legend">
+      <span><span class="dot green"></span> 结构良好</span>
+      <span><span class="dot yellow"></span> 可改进</span>
+      <span><span class="dot red"></span> 需要重构</span>
+      <span><span class="dot blue"></span> 目录/文件</span>
+      <span><span class="dot purple"></span> 注释</span>
+    </div>
+
+    <div class="tree-container">
+      <div class="tree">
+        <span class="dir">townai-cleanroom/</span> ├──
+        <span class="file">package.json</span>
+        <span class="comment"
+          ># pnpm workspace root, 10 scripts (verify, check, lint,
+          test...)</span
+        >
+        ├── <span class="file">pnpm-workspace.yaml</span>
+        <span class="comment"># workspaces: apps/* + packages/*</span> ├──
+        <span class="file">pnpm-lock.yaml</span> ├──
+        <span class="file">tsconfig.base.json</span> ├──
+        <span class="file">vitest.config.ts</span> ├──
+        <span class="file">eslint.config.mjs</span> ├──
+        <span class="file">vercel.json</span>
+        <span class="comment"># Vercel 部署配置</span> ├──
+        <span class="file">.env.example</span> ├──
+        <span class="file">GOAL.md</span>
+        <span class="ok"># 项目目标 + 7 条不可妥协约束</span> ├──
+        <span class="file">README.md</span> ├──
+        <span class="file">LICENSE</span> │ ├── <span class="dir">apps/</span>
+        <span class="ok"># ── 应用层 ──</span> │ ├──
+        <span class="dir">api/</span>
+        <span class="warn"
+          ># ⚠ Hono REST API — 40 个文件全部平铺在 src/ 下</span
+        >
+        │ │ ├── <span class="dir">src/</span>
+        <span class="comment"># 11,137 行，无子目录分组</span> │ │ │ ├──
+        <span class="bad">index.ts</span>
+        <span class="size">(47KB, 1204 行)</span>
+        <span class="bad"># 🔴 超级文件：路由注册+中间件+启动</span> │ │ │ ├──
+        <span class="bad">admin-routes.ts</span>
+        <span class="size">(42KB, 1013 行)</span>
+        <span class="bad"># 🔴</span> │ │ │ ├──
+        <span class="bad">harness-tools.ts</span>
+        <span class="size">(39KB, 1217 行)</span>
+        <span class="bad"># 🔴 工具定义全堆在一个文件</span> │ │ │ ├──
+        <span class="bad">app.ts</span>
+        <span class="size">(38KB, 1116 行)</span>
+        <span class="bad"># 🔴</span> │ │ │ ├── knowledge-routes.ts
+        <span class="size">(26KB)</span> │ │ │ ├── routine-routes.ts
+        <span class="size">(21KB)</span> │ │ │ ├── content-routes.ts
+        <span class="size">(13KB)</span> │ │ │ ├── agent-routes.ts
+        <span class="size">(13KB)</span> │ │ │ ├── harness-runtime-adapter.ts
+        <span class="size">(13KB)</span> │ │ │ ├── workspace-tools.ts
+        <span class="size">(11KB)</span> │ │ │ ├── runtime-routes.ts
+        <span class="size">(10KB)</span> │ │ │ └──
+        <span class="dim">...还有 28 个文件平铺在这里 (oauth, pollers,</span> │
+        │ │ <span class="dim"> event webhooks, voice, storage, etc.)</span> │ │
+        ├── <span class="dir">test/</span>
+        <span class="ok"># 39 个测试文件，覆盖良好</span> │ │ ├──
+        <span class="dir">dist/</span>
+        <span class="dim"># gitignored 构建产物</span> │ │ └── package.json
+        <span class="comment"># 依赖全部 17 个 @town/* 包</span> │ │ │ └──
+        <span class="dir">web/</span>
+        <span class="bad"># 🔴 前端是 3 个巨型文件，无构建系统</span> │ ├──
+        <span class="bad">app.js</span>
+        <span class="size">(164KB, 4257 行)</span>
+        <span class="bad"># 🔴 全部 JS 逻辑在一个文件</span> │ ├──
+        <span class="bad">index.html</span>
+        <span class="size">(72KB, 1965 行)</span>
+        <span class="bad"># 🔴</span> │ ├── <span class="bad">styles.css</span>
+        <span class="size">(56KB, 3090 行)</span>
+        <span class="bad"># 🔴</span> │ └── package.json
+        <span class="comment"># 无任何依赖，只有 check 脚本</span> │ ├──
+        <span class="dir">packages/</span>
+        <span class="ok"># ── 17 个工作区包 ──</span> │ │ │ ├──
+        <span class="comment">### 核心运行时（结构良好）</span> │ ├──
+        <span class="dir">contracts/</span>
+        <span class="ok"># ✅ 基础类型层：ID, cursor, error, event</span> │ │
+        └── src/ <span class="dim">(5 files)</span> │ ├──
+        <span class="dir">db/</span>
+        <span class="warn"># ⚠ schema.ts + 49 个 SQL 迁移</span> │ │ ├── src/
+        <span class="dim">(5 files)</span> │ │ └── migrations/
+        <span class="dim">(49 files, 0001-0049)</span> │ │
+        <span class="comment"># ⚠ 依赖 @town/harness → 分层倒置</span> │ ├──
+        <span class="dir">harness/</span>
+        <span class="ok"># ✅ Codex SDK + Responses API</span> │ │ └── src/
+        <span class="dim">(7 files)</span> │ ├──
+        <span class="dir">runtime/</span>
+        <span class="ok"># ✅ 持久化会话、队列、worker</span> │ │ └── src/
+        <span class="dim">(10 files)</span> │ ├──
+        <span class="dir">tools/</span>
+        <span class="ok"># ✅ 工具注册 + 策略引擎 + MCP</span> │ │ └── src/
+        <span class="dim">(7 files)</span> │ │ │ ├──
+        <span class="comment">### 身份与知识（结构良好）</span> │ ├──
+        <span class="dir">identity/</span>
+        <span class="ok"># ✅ OAuth, 加密, 会话</span> │ │ └── src/
+        <span class="dim">(8 files)</span> │ ├──
+        <span class="dir">knowledge/</span>
+        <span class="ok"># ✅ 最完善的包 (15 files)</span> │ │ └── src/
+        <span class="dim">(15 files: repositories, builder, graph...)</span> │
+        ├── <span class="dir">agents/</span>
+        <span class="ok"># ✅ 代理定义、线程、任务</span> │ │ └── src/
+        <span class="dim">(8 files)</span> │ │ │ ├──
+        <span class="comment">### 自动化与渠道（⚠ 单文件包）</span> │ ├──
+        <span class="dir">routines/</span>
+        <span class="warn"># ⚠ 只有 contracts 依赖，无 db</span> │ │ └── src/
+        <span class="dim">(5 files)</span> │ ├──
+        <span class="dir">channels/</span>
+        <span class="warn"># ⚠ 677 行全在 index.ts</span> │ │ └── src/index.ts
+        <span class="size">(677 行)</span> │ ├──
+        <span class="dir">content/</span>
+        <span class="warn"># ⚠ 609 行全在 index.ts</span> │ │ └── src/index.ts
+        <span class="size">(609 行)</span> │ ├──
+        <span class="dir">suggestions/</span>
+        <span class="warn"># ⚠ 333 行全在 index.ts</span> │ │ └── src/index.ts
+        <span class="size">(333 行)</span> │ │ │ ├──
+        <span class="comment">### 平台（⚠ 单文件包）</span> │ ├──
+        <span class="dir">teams/</span>
+        <span class="warn"># ⚠ 只有 2 个文件</span> │ ├──
+        <span class="dir">billing/</span>
+        <span class="warn"># ⚠ 296 行全在 index.ts</span> │ │ └── src/index.ts
+        <span class="size">(296 行)</span> │ ├──
+        <span class="dir">operations/</span>
+        <span class="warn"># ⚠ 606 行全在 index.ts</span> │ │ └── src/index.ts
+        <span class="size">(606 行)</span> │ ├── <span class="dir">a2a/</span>
+        <span class="warn"># ⚠ 203 行全在 index.ts</span> │ │ └── src/index.ts
+        <span class="size">(203 行)</span> │ │ │ └──
+        <span class="comment">### 外部集成</span> │ └──
+        <span class="dir">google/</span>
+        <span class="warn"># ⚠ 370 行全在 index.ts</span> │ └── src/index.ts
+        <span class="size">(370 行)</span> │ ├── <span class="dir">api/</span>
+        <span class="warn"># ⚠ 与 apps/api/ 同名易混 — 这是 Vercel 入口</span> │
+        ├── <span class="file">index.js</span>
+        <span class="comment"
+          ># Vercel serverless 函数入口 (lazy import apps/api)</span
+        >
+        │ ├── <span class="file">index.test.ts</span> │ └──
+        <span class="file">tsconfig.json</span> │ ├──
+        <span class="dir">scripts/</span>
+        <span class="ok"># ✅ 6 个构建验证脚本</span> │ ├──
+        check-source-only.mjs │ ├── check-runtime-config.mjs │ ├──
+        check-build-entries.mjs │ ├── check-web.mjs │ ├──
+        configure-vercel-protection.mjs │ └── source-policy.mjs │ ├──
+        <span class="dir">test/</span>
+        <span class="ok"># ✅ 顶层集成测试</span> │ ├── global-postgres.ts
+        <span class="comment"># Testcontainers PostgreSQL</span> │ ├──
+        runtime-config.test.mjs │ ├── serverless-health.test.mjs │ ├──
+        source-policy.test.mjs │ ├── setup.ts │ └── vitest.d.ts │ └──
+        <span class="dir">docs/</span> <span class="ok"># ✅ 文档齐全</span> ├──
+        ARCHITECTURE_GAPS.md ├── PACKAGES.md ├── deployment.md └──
+        implementation-status.md
+      </div>
+    </div>
+
+    <h2>包依赖图</h2>
+
+    <div class="dep-graph">
+      <span style="color: var(--text-dim)"
+        ># 箭头方向 = "依赖于" ✅ 无循环依赖 ⚠ 有一个分层倒置</span
+      >
+
+      <span style="color: var(--green)">@town/contracts</span>
+      <span style="color: var(--text-dim)"
+        >◄── (所有包的根依赖，零自身依赖)</span
+      >
+      │ ▼
+      <span style="color: var(--blue)">@town/db</span>
+      <span style="color: var(--red)"
+        >────⚠ 依赖 @town/harness (分层倒置!)</span
+      >
+      │ ├─◄── <span style="color: var(--green)">@town/identity</span> ├─◄──
+      <span style="color: var(--green)">@town/knowledge</span> ├─◄──
+      <span style="color: var(--green)">@town/agents</span> └─◄──
+      <span style="color: var(--green)">@town/runtime</span> ──◄──
+      <span style="color: var(--green)">@town/tools</span>
+
+      <span style="color: var(--text-dim)"
+        ># 以下 8 个包只依赖 contracts，不依赖 db</span
+      >
+      <span style="color: var(--text-dim)"
+        ># → 它们不直接访问数据库，数据操作由 apps/api 层编排</span
+      >
+
+      <span style="color: var(--yellow)">@town/routines</span> ◄── contracts
+      only <span style="color: var(--yellow)">@town/channels</span> ◄──
+      contracts only
+      <span style="color: var(--text-dim)">(677行 in 1 file)</span>
+      <span style="color: var(--yellow)">@town/content</span> ◄── contracts only
+      <span style="color: var(--text-dim)">(609行 in 1 file)</span>
+      <span style="color: var(--yellow)">@town/teams</span> ◄── contracts only
+      <span style="color: var(--yellow)">@town/billing</span> ◄── contracts only
+      <span style="color: var(--text-dim)">(296行 in 1 file)</span>
+      <span style="color: var(--yellow)">@town/operations</span> ◄── contracts
+      only <span style="color: var(--text-dim)">(606行 in 1 file)</span>
+      <span style="color: var(--yellow)">@town/a2a</span> ◄── contracts only
+      <span style="color: var(--text-dim)">(203行 in 1 file)</span>
+      <span style="color: var(--yellow)">@town/suggestions</span> ◄── contracts,
+      agents
+
+      <span style="color: var(--green)">@town/google</span> ◄── contracts,
+      identity <span style="color: var(--green)">@town/harness</span> ◄──
+      contracts only
+
+      <span style="color: var(--purple)"
+        >┌──────────────────────────────────────────┐</span
+      >
+      <span style="color: var(--purple)"
+        >│ apps/api ◄── 全部 17 个 @town/* 包 │</span
+      >
+      <span style="color: var(--purple)"
+        >│ (God App: 编排所有包 + 直接做 DB 操作) │</span
+      >
+      <span style="color: var(--purple)"
+        >└──────────────────────────────────────────┘</span
+      >
+    </div>
+
+    <h2>问题清单</h2>
+
+    <div class="issues">
+      <div class="issue">
+        <div class="title">
+          <span class="badge red">严重</span> apps/api/src/ — 40
+          个文件平铺无分组
+        </div>
+        <p>
+          这是最大的结构问题。<strong>所有源文件平铺在一个目录里</strong>，没有按功能分子目录。路由、OAuth、webhook
+          事件处理器、轮询器、工具、存储等不同关注点全部混在一起。
+        </p>
+        <div class="detail">
+          应该拆分为: src/ ├── routes/ (admin, knowledge, routine, content,
+          agent, runtime, billing...) ├── webhooks/ (slack-events,
+          telegram-events, whatsapp-events, twilio, vapi) ├── oauth/
+          (google-oauth, microsoft-oauth) ├── pollers/ (google-calendar-poller,
+          google-routine-poller) ├── tools/ (harness-tools, workspace-tools) ├──
+          lib/ (auth, code-runner, content-storage, voice)
+        </div>
+      </div>
+
+      <div class="issue">
+        <div class="title">
+          <span class="badge red">严重</span> 4 个巨型文件 (每个超 1000 行)
+        </div>
+        <p>
+          <strong>index.ts (1204行)</strong>、<strong
+            >admin-routes.ts (1013行)</strong
+          >、<strong>harness-tools.ts (1217行)</strong>、<strong
+            >app.ts (1116行)</strong
+          >。这些文件承担了过多职责，难以导航和维护。
+        </p>
+        <div class="detail">
+          apps/api/src 总计 11,137 行 其中 top 4 文件占 4,550 行 = 41%
+          的代码集中在 4 个文件里
+        </div>
+      </div>
+
+      <div class="issue">
+        <div class="title">
+          <span class="badge red">严重</span> apps/web/ — 3
+          个巨型文件，无构建系统
+        </div>
+        <p>
+          前端是纯 vanilla JS：<strong>app.js (4257行)</strong>、<strong
+            >index.html (1965行)</strong
+          >、<strong>styles.css (3090行)</strong>。没有模块化、没有 src/
+          目录、没有构建工具。ARCHITECTURE_GAPS.md 已承认这是已知差距（真实
+          Town.ai 用 Next.js 16）。
+        </p>
+        <div class="detail">
+          apps/web/package.json 的 dependencies 为空 {} 唯一脚本是 "check":
+          "node ../../scripts/check-web.mjs"
+        </div>
+      </div>
+
+      <div class="issue medium">
+        <div class="title">
+          <span class="badge yellow">中等</span> 7 个包是单文件包 (index.ts
+          only)
+        </div>
+        <p>
+          channels (677行)、content (609行)、operations (606行)、google
+          (370行)、suggestions (333行)、billing (296行)、a2a (203行)
+          的全部逻辑塞在一个 <code>index.ts</code> 里。对比之下，knowledge 包有
+          15 个文件、runtime 有 10 个，结构合理。
+        </p>
+      </div>
+
+      <div class="issue medium">
+        <div class="title">
+          <span class="badge yellow">中等</span> @town/db → @town/harness
+          分层倒置
+        </div>
+        <p>
+          <code>packages/db/src/harness-thread-store.ts</code> 导入了
+          <code>@town/harness</code>，导致低层的 db 包依赖了高层的 harness
+          包。虽然没有循环依赖，但违反了分层原则。harness-thread-store 应该移到
+          harness 包或 runtime 包里。
+        </p>
+        <div class="detail">
+          packages/db/package.json: "dependencies": { "@town/harness":
+          "file:../harness", ... } packages/db/src/harness-thread-store.ts:
+          import { ... } from "@town/harness";
+        </div>
+      </div>
+
+      <div class="issue low">
+        <div class="title">
+          <span class="badge blue">轻微</span> 两个 "api" 目录容易混淆
+        </div>
+        <p>
+          根目录的 <code>api/</code>（Vercel serverless 入口）和
+          <code>apps/api/</code>（实际 API 应用）同名。虽然这是 Vercel
+          的约定（根 <code>api/</code> 是 functions
+          目录），但对新人来说容易困惑。可以考虑在
+          <code>api/index.js</code> 顶部注释中更明确地说明关系。
+        </p>
+      </div>
+    </div>
+
+    <h2>做得好的地方</h2>
+
+    <div class="issues">
+      <div class="issue low" style="border-left-color: var(--green)">
+        <div class="title">
+          <span class="badge green">优点</span> Monorepo 骨架规范
+        </div>
+        <p>
+          apps/ + packages/ 分离、每个包统一结构 (src/ + test/ + package.json +
+          tsconfig)、pnpm workspace 配置正确、catalog 统一 zod 版本。
+        </p>
+      </div>
+      <div class="issue low" style="border-left-color: var(--green)">
+        <div class="title">
+          <span class="badge green">优点</span> 包边界与依赖流清晰
+        </div>
+        <p>
+          17 个包按职责划分（contracts → db → identity/knowledge/agents/runtime
+          → tools/harness），无循环依赖。文档 PACKAGES.md
+          明确记录了每个包的职责和依赖流。
+        </p>
+      </div>
+      <div class="issue low" style="border-left-color: var(--green)">
+        <div class="title">
+          <span class="badge green">优点</span> 测试覆盖全面
+        </div>
+        <p>
+          apps/api 有 39 个测试文件，几乎每个路由都有对应测试。packages
+          层也有独立测试。顶层 test/ 做集成测试（Testcontainers PostgreSQL）。
+        </p>
+      </div>
+      <div class="issue low" style="border-left-color: var(--green)">
+        <div class="title">
+          <span class="badge green">优点</span> 文档与自省
+        </div>
+        <p>
+          GOAL.md（目标+约束）、implementation-status.md（功能矩阵）、ARCHITECTURE_GAPS.md（已知差距）、PACKAGES.md（包参考）——项目对自身状态有清晰记录。
+        </p>
+      </div>
+      <div class="issue low" style="border-left-color: var(--green)">
+        <div class="title">
+          <span class="badge green">优点</span> 构建验证脚本
+        </div>
+        <p>
+          6 个 check 脚本（source-only、runtime-config、build-entries、web）+
+          <code>pnpm verify</code> 一键全检。构建产物和敏感文件都被 gitignore。
+        </p>
+      </div>
+    </div>
+
+    <h2>总结</h2>
+
+    <div class="verdict">
+      <p><strong>整体评价：骨架干净，血肉混乱。</strong></p>
+      <p>
+        Monorepo
+        的包划分、依赖流、测试策略、文档体系都是专业水准。包层（packages/）的结构基本合理——核心包（contracts,
+        db, knowledge, runtime, harness）文件组织得当。
+      </p>
+      <p>
+        真正的混乱集中在两个地方：<strong>apps/api/src/</strong> 是一个 40
+        文件平铺、4 个超千行巨型文件的"大杂烩"目录；<strong>apps/web/</strong>
+        是 3 个无模块化的巨型文件。另外有 7 个包是单文件包，以及一个 db→harness
+        的分层倒置。
+      </p>
+      <p>
+        不乱的部分占大头（约 75%），但 apps/api 和 apps/web
+        这两个最常改动的应用层恰好是最乱的地方，所以日常开发体验会比较差。优先级建议：<strong
+          >先拆 apps/api/src/ 的目录结构，再拆巨型文件，最后考虑 apps/web 的
+          Next.js 重写。</strong
+        >
+      </p>
+    </div>
+  </body>
+</html>
