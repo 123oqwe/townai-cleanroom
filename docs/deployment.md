@@ -1436,3 +1436,57 @@ source state deployed as
 reported no runtime errors in the selected hour; an unauthenticated `HEAD`
 request returned the same Vercel SSO `302` with deny/noindex headers and a
 secure HttpOnly nonce cookie.
+
+## New project deployment (townai-cleanroom)
+
+A new Vercel project `townai-cleanroom` (project ID
+`prj_6ogZiOqg2NLLO022FisesRLlA0lW`) was created from the current source via
+the Vercel CLI, connected to the GitHub repository `123oqwe/townai-cleanroom`,
+and deployed as production from commit `dc5ad92`.
+
+- Deployment: `dpl_FzfWmETq2YFpLqwS2jYhvogrebMs`
+- Direct URL: `https://townai-cleanroom-kms12dv7n-123oqwes-projects.vercel.app`
+- Production alias: `https://townai-cleanroom.vercel.app`
+- State: `READY`
+- Build: full workspace build succeeded; Vercel detected a Node.js Lambda
+  for `api/index.js`.
+
+### Deployment protection
+
+The `vercel:protect` script (`scripts/configure-vercel-protection.mjs`) now
+attempts `ssoProtection.deploymentType: "all"` first and falls back to
+`"all_except_custom_domains"` when the team plan does not include production
+SSO. The team is on the Pro plan, which does not include production SSO;
+the script therefore settled on `all_except_custom_domains`.
+
+- Project SSO protection: `all_except_custom_domains` (verified via REST API).
+- Direct deployment URL access check: unauthenticated `HEAD` returns HTTP
+  `302` to `https://vercel.com/sso-api` with a secure HttpOnly nonce cookie.
+- Production alias access check: unauthenticated `HEAD` returns HTTP `200`
+  (public). This is a known plan limitation: production SSO requires
+  Enterprise. The direct deployment URL is SSO-gated; the production alias
+  is not, and this distinction is recorded honestly.
+
+The `vercel:protect` script output:
+
+```
+SSO "all" rejected (Vercel Authentication is not available on your plan for
+production deployments); falling back.
+{
+  "projectId": "prj_6ogZiOqg2NLLO022FisesRLlA0lW",
+  "projectName": "townai-cleanroom",
+  "deploymentType": "all_except_custom_domains"
+}
+```
+
+This deployment includes the Wiki revision history and Tool policy risk
+preview UI surfaces added in commit `dc5ad92`.
+
+### Runtime configuration boundary
+
+The API entrypoint (`api/index.js`) returns a structured `API_NOT_CONFIGURED`
+503 for all non-health routes until `DATABASE_URL`,
+`CREDENTIAL_MASTER_KEY_BASE64URL`, and `WEB_ORIGIN` are supplied. The
+`/v1/health` and `/v1/health/capabilities` endpoints are available without
+authentication and report the real readiness state without exposing
+credentials or environment values.

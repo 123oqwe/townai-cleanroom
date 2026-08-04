@@ -9,24 +9,35 @@ if (!token || !projectId) {
 }
 
 const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : "";
-const response = await globalThis.fetch(
-  `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}${query}`,
-  {
+const baseUrl = `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}${query}`;
+
+// Attempt "all" first; fall back to "all_except_custom_domains" when the
+// team plan does not include production SSO (Pro vs Enterprise).
+const protectionLevels = ["all", "all_except_custom_domains"];
+
+let payload;
+for (const level of protectionLevels) {
+  const response = await globalThis.fetch(baseUrl, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      ssoProtection: { deploymentType: "all" },
+      ssoProtection: { deploymentType: level },
     }),
-  },
-);
+  });
 
-const payload = await response.json();
-if (!response.ok) {
+  payload = await response.json();
+  if (response.ok) break;
+
+  const message = payload?.error?.message ?? "unknown error";
+  if (level === "all" && (response.status === 400 || response.status === 428)) {
+    console.error(`SSO "all" rejected (${message}); falling back.`);
+    continue;
+  }
   throw new Error(
-    `Vercel protection update failed (${response.status}): ${payload?.error?.message ?? "unknown error"}`,
+    `Vercel protection update failed (${response.status}): ${message}`,
   );
 }
 
