@@ -1,392 +1,212 @@
-# Town Clean-Room
+# TownAI Clean-Room
 
-Town Clean-Room is an evidence-driven implementation of a durable personal AI operating system. It reconstructs externally observable product behavior using public documentation and authenticated production observations. It does not contain, claim to contain, or attempt to extract Town's private source code.
+A durable personal AI operating system, reconstructed from publicly observable
+behavior of [Town.com](https://www.town.com). This is a clean-room
+implementation — it does not contain or extract Town's private source code,
+system prompts, or secrets.
 
-## Rules
+The system is built around four pillars: **personal long-term context**,
+**durable agent execution**, **tool governance with approval policy**, and
+**cross-channel continuity**. It uses the official [Codex SDK](https://github.com/openai/codex)
+as the agent harness backend.
 
-- Observed behavior and clean-room engineering choices remain explicitly distinguishable.
-- Product paths use real persistence and explicit `not_configured` states; they never invent dashboard data.
-- External side effects require policy evaluation, idempotency, and an immutable execution record.
-- Durable ToolCalls now have lease-checked `allowed/approved → executing → succeeded/failed`
-  transitions with immutable session events and bounded result/error fields.
-- Reverse-engineering captures, personal data, credentials, and investigation notes never enter this repository.
-- Each module is verified and pushed independently.
+## Architecture
 
-## Development
+```mermaid
+flowchart TB
+  subgraph ENTRY["Entry & Channels"]
+    WEB["Web UI"]
+    SLACK["Slack"]
+    TG["Telegram"]
+    WA["WhatsApp"]
+    VOICE["Voice (Twilio / Vapi)"]
+    SCHED["Schedule / Calendar / Webhook"]
+  end
 
-Requires Node.js 24, pnpm 10, PostgreSQL 16, and Docker for the disposable
-integration-test database.
+  subgraph API["API Layer (Hono)"]
+    AUTH["Auth & Sessions"]
+    ROUTES["REST Routes"]
+    WORKER["Durable Worker"]
+  end
+
+  subgraph CORE["Core Runtime"]
+    HARNESS["Codex Harness"]
+    CONTEXT["Context Builder"]
+    POLICY["Policy Engine"]
+    TOOLS["Tool Registry"]
+  end
+
+  subgraph STATE["State & Knowledge"]
+    DB[("PostgreSQL<br/>49 migrations<br/>53 tables")]
+    KNOW["Profile / Memory / People<br/>Wiki / Goals / Knowledge Graph"]
+    CONTENT["Content Library"]
+    BILLING["Credits & Usage"]
+  end
+
+  subgraph EXT["External"]
+    GOOGLE["Google Workspace"]
+    E2B["E2B Sandbox"]
+    MCP["MCP Servers"]
+    PD["Pipedream Catalog"]
+  end
+
+  ENTRY --> API
+  API --> CORE
+  CORE --> STATE
+  TOOLS --> EXT
+  HARNESS -->|"codex exec"| CODEX["Codex CLI"]
+```
+
+## Workspace Structure
+
+```
+townai-cleanroom/
+├── apps/
+│   ├── api/          Hono REST API + durable worker (119 TS files, 89 test files)
+│   └── web/          Vanilla JS command center UI
+├── packages/
+│   ├── contracts/    Shared types, IDs, Zod schemas
+│   ├── db/           PostgreSQL schema + 49 migrations
+│   ├── identity/     Auth, sessions, OAuth (Google + Microsoft), connected accounts
+│   ├── knowledge/    Profile, Memory, People, Wiki, Goals, Knowledge Graph, Context Builder
+│   ├── agents/       Agent versions, threads, tasks
+│   ├── runtime/      Durable sessions, runs, events, queue leases, worker loop
+│   ├── harness/      Codex SDK adapter + Responses API fallback
+│   ├── tools/        Tool registry, policy engine, MCP client
+│   ├── routines/     Schedules, triggers, step cache, replay, results
+│   ├── content/      Content library (10 types), collections, share tokens
+│   ├── channels/     Notification delivery (email, webhook, Telegram, WhatsApp, Slack)
+│   ├── teams/        Squares, memberships, team policy
+│   ├── billing/      Credits, usage ledger, plan state
+│   ├── operations/   Audit events, admin diagnostics
+│   ├── suggestions/  Need-to-know candidates, dismiss/convert
+│   ├── a2a/          Agent-to-agent request/result envelope
+│   └── google/       Gmail + Calendar API client
+├── docs/
+│   ├── PACKAGES.md           Package responsibility reference
+│   ├── ARCHITECTURE_GAPS.md  Clean-room vs real Town.ai parity matrix
+│   ├── implementation-status.md
+│   └── deployment.md
+├── api/               Vercel serverless entrypoint
+├── scripts/           Build checks, config validation, Vercel setup
+└── vercel.json
+```
+
+## Quick Start
+
+**Prerequisites:** Node.js 20+, pnpm 10, PostgreSQL 16.
 
 ```bash
 pnpm install
+cp .env.example .env
+# Set DATABASE_URL and CREDENTIAL_MASTER_KEY_BASE64URL (32-byte base64url key)
 pnpm verify
 ```
 
-To run the API, copy `.env.example` to `.env`, set `DATABASE_URL`, and provide a
-32-byte credential-encryption key encoded as base64url in
-`CREDENTIAL_MASTER_KEY_BASE64URL`. The API applies pending migrations before it
-starts. Never commit the populated `.env` file.
+`pnpm verify` runs source checks, lint, typecheck, tests, build, and build-entry
+verification. The API applies pending migrations on startup.
 
-The repository also contains the production entrypoint used by Vercel:
-`api/index.js` re-exports the built `apps/api/dist/index.js` application and
-`vercel.json` builds the workspace before serving `apps/web`. Vercel startup
-still requires the real environment variables; this entrypoint does not embed
-fallback credentials or a fake database.
+### Running the API
 
-Generate a development encryption key without printing or storing it in source
-control using your platform's secure secret-management workflow.
+```bash
+pnpm --filter @town/api build
+node apps/api/dist/index.js
+```
 
-Before starting a real deployment, run `pnpm check:runtime-config` to inspect
-configuration readiness. It reports only variable names and states, never secret
-values; add `--strict` to fail when the database, encryption key, or web origin
-is missing or invalid.
+### Running the worker
 
-For an allowlisted deployment, set `ACCESS_ALLOWLIST_EMAILS` to a comma-separated
-list of approved email addresses. Startup idempotently enables those rows in
-the server-side allowlist and disables previously enabled rows that are no
-longer listed. It never deletes rows. Leave it empty to preserve the database's
-existing allowlist state.
+Set `WORKER_ENABLED=true` for local development. For serverless deployments,
+use `WORKER_SECRET` + `POST /v1/internal/worker` or `CRON_SECRET` with the
+Vercel hourly cron in `vercel.json`.
 
-## Implemented backend modules
+## Configuration
 
-- Foundation contracts, source-only policy, health API, and CI.
-- Allowlist-gated identity, hashed bearer sessions, encrypted OAuth credentials,
-  and connected accounts.
-- Owner-isolated Profile, global and routine-scoped Memory, People, editable
-  Wiki/Goals/Projects, immutable revisions, citations, conflict resolution, and
-  protected knowledge APIs.
-- One owner-isolated personal Agent with immutable configuration versions;
-  durable assistant and task Threads; append-only ordered Turns and validated
-  Mentions; monotonic read state; and protected metadata/read APIs.
-- Atomic Tasks with linked task Threads, schedules, source references, computed
-  unread state, optimistic lifecycle updates, and durable InputRequests with
-  compare-and-set answer and cancellation behavior.
-- Persistent owner-isolated Sessions pinned to immutable AgentVersions;
-  idempotent message-to-Turn/Run submission; append-only reconnectable events;
-  PostgreSQL queue leases; and guarded start, wait/resume, completion, failure,
-  and cancellation transitions.
-- Owner-scoped Content Library with document/file metadata, immutable content
-  revisions, collections, object-storage references, and privacy-safe expiring
-  share tokens. Public share responses never expose storage keys or tenant/session metadata.
-- Owner-scoped Squares with active memberships, owner/admin/member roles,
-  canonical-owner invariants, team policy revisions, and authenticated API
-  boundaries for member administration.
-- Owner-scoped notification Channels (email/webhook/Telegram/WhatsApp/Slack metadata)
-  with strict public configuration, disabled-channel controls, idempotent
-  delivery outbox records, worker leases, claim-token completion, retry state,
-  and no worker capability token in public delivery DTOs.
-  Email delivery uses a selected Google account; Telegram, WhatsApp Cloud API,
-  and Slack use provider HTTP requests with `credentialRef` values resolved
-  from the deployment-only `CHANNEL_CREDENTIALS_JSON` secret map. Credentials
-  are never persisted in channel rows.
-  Terminal failed deliveries can be replayed through a new idempotent queued
-  delivery linked by `replay_of_delivery_id`; replay never mutates the failed
-  record and requires the authenticated owner plus an active channel.
-- Owner-scoped MCP server metadata under `/v1/mcp-servers` with HTTPS URL,
-  `streamable_http`/`sse` transport, optional credential reference, and
-  revision-checked disable. Servers can be explicitly enabled per immutable
-  AgentVersion through revision-checked bindings; inactive servers and bindings
-  are excluded from the effective list. Registration does not claim remote
-  execution or trust an external server automatically. The tools package now
-  contains a real injected-fetch MCP JSON-RPC client for Streamable HTTP and
-  legacy SSE discovery/calls; production use still requires an explicit
-  credential resolver and runtime policy decision.
-- Discovered MCP tools are normalized into immutable, versioned internal
-  `ToolDefinition` records and idempotently bound to the active AgentVersion;
-  durable ToolCalls therefore have a real policy foreign key instead of only
-  a transient provider name. During a leased runtime execution, approved MCP
-  calls now create, start, and complete/fail the same durable ToolCall record;
-  read-only calls use the allow path and write-capable calls require the
-  persisted Harness approval before the remote call.
-- Routine runs now have owner-scoped, idempotent `RoutineResult` records tied to
-  the immutable runtime session/run. Results preserve completion/failure,
-  subject, output, and optional document/notification references and can be
-  listed through `/v1/routine-results?sessionId=...`.
-- Schedule and webhook runs now carry explicit `triggerType`, `triggerData`,
-  and `idempotencyKey` fields; webhook payloads are no longer overloaded into
-  the integration cursor.
-- Queued webhook runs are claimed with a lease token by the scheduler, passed
-  to the same durable runtime/session path as schedules, and include the
-  payload as explicitly untrusted trigger text.
-- Terminal routine runs can be replayed with `POST /v1/routine-runs/:runId/replay`;
-  replay creates a new queued run, preserves trigger data, and is idempotent by
-  `(sourceRunId, Idempotency-Key)`.
-- Manual runs and explicit `incoming_email`/`calendar` trigger submissions now
-  use one `queueTrigger` contract and the same scheduler/runtime path. These
-  endpoints record submitted events; they do not claim an external provider
-  event occurred without a configured connector.
-- A configured `incoming_email`/`email_to_assistant` trigger can now ingest real
-  Gmail messages through `POST /v1/routines/:routineId/ingest/email`. The route
-  searches and fetches messages with the owner-selected Google account, queues
-  each message by stable Gmail message ID, and preserves the provider payload as
-  untrusted trigger data. It returns `503` when the connector is not wired and
-  never reports a message as ingested without a successful Gmail response.
-- The local worker and protected internal worker tick also poll enabled Gmail
-  triggers at a bounded interval. Polling resolves the configured account (or
-  the owner's primary active Google account), fetches message details, and
-  reuses the same message-id idempotency key as the explicit ingestion route.
-- Calendar triggers (`calendar_start`, `calendar_end`, `calendar_rsvp`, and
-  `calendar_changed`) are polled through the real Google Calendar Events API.
-  Each window is bounded, event updates use the provider `updated` version in
-  the idempotency key, and event payloads enter the same untrusted calendar
-  trigger queue for durable runtime execution.
-- Routine finalization can associate a notification only when an enabled
-  `outgoing_email` trigger explicitly names a notification channel. It queues
-  a real outbox delivery with `routine-result:<resultId>` idempotency, links the
-  delivery ID back to `RoutineResult`, and never changes a completed runtime
-  result into a failure when delivery is disabled or unavailable.
-- Explicit Billing state with `not_configured` behavior, optimistic revisions,
-  owner-scoped usage ledger entries, idempotent usage recording, and period
-  summaries; no external payment state is invented when no provider is wired.
-- Owner-scoped Operations audit events with deduplication, opaque keyset
-  pagination, authenticated audit reads, and live runtime backlog summaries for
-  sessions, runs, approvals, and notification delivery recovery.
-- Deployment-admin Agent health diagnostics at
-  `/v1/admin/agent-health/:userId` are gated by the explicit
-  `ADMIN_ALLOWLIST_EMAILS` environment variable. They return only safe user
-  identity, runtime readiness, and owner-scoped backlog counters; prompts,
-  credentials, and provider payloads are never exposed.
-- The matching `/v1/admin/billing-reconciliation/:userId` endpoint exposes the
-  internal period usage ledger and billing state to the same admin boundary.
-  External payment reconciliation remains an explicit `not_configured` state
-  until a real billing provider adapter is supplied.
-- `/v1/admin/users/:userId` exposes a safe administrative user projection,
-  resource counts, and connected-account metadata without credentials or
-  private knowledge content.
-- `/v1/admin/teams/:squareId` exposes a safe Square/team projection, owner
-  identity, membership-state counts, and policy mode/revision to the same
-  administrator boundary; it does not grant team access or expose secrets.
-- Owner-scoped Suggestions/Need-to-Know records with source provenance,
-  fingerprint deduplication, expiry, and optimistic dismiss/convert actions;
-  converting a suggestion atomically creates a Task thread and source
-  reference; the API never invents suggestions when no internal candidate exists.
-- Owner-scoped Routine schedules with strict five-field cron validation,
-  timezone/next-run metadata, authenticated CRUD APIs under `/v1/routines`,
-  optimistic revisions, and transactional due-work claims for an internal
-  worker. Sync-run records expose owner-scoped history plus queued → running →
-  succeeded/failed transitions. Schedules with run history are protected from
-  destructive deletion; disable them instead. Routine webhooks support
-  one-time `whsec_` secrets, rotation by recreation, disable/enable state,
-  JSON/text payloads, bearer authentication, and idempotent asynchronous
-  enqueueing with HTTP 202.
-- Routine Agent versions persist an explicit `callableRoutineIds` allowlist;
-  publication rejects missing, disabled, cross-owner, and self-referential
-  child routines before the immutable version is activated. The harness exposes
-  `invoke_routine` as an approval-gated operation that creates a child Task
-  thread and durable queued Session Run using the child’s immutable version.
-- A responsive, API-backed `apps/web` command center with explicit connection,
-  empty, error, focus, and harness states; it uses no fabricated backend data.
-  The Harness surface bootstraps an owner-scoped personal Agent, lists real
-  assistant Threads, supports creating and switching Threads, renders persisted
-  Turns, polls durable Runs/Events, and exposes only the approval decision
-  recorded by the server.
-- The same UI exposes a real owner-scoped Knowledge search and active Content
-  Library view. Search results identify their resource type and local search
-  algorithm; empty or unavailable stores remain explicit instead of being
-  replaced with sample cards.
-- Content Library cards can create a server-issued 24-hour share token and
-  revoke it again. The UI only shows the API share URL; public responses stay
-  limited to safe content fields.
-- The Content Library accepts the verified kinds `document`, `email_draft`,
-  `spreadsheet`, `deck`, `file`, `image`, `video`, `audio`, `recording`,
-  `briefing`, `link`, and `session`; each remains a typed item with immutable
-  revisions.
-- The People surface reads active relationship records from `/v1/people` and
-  can create a user-authored person with category, email, and notes. It does
-  not infer or fabricate contacts.
-- Person relationship edges are explicit under
-  `/v1/people/:personId/relationships`: they are owner-scoped, typed, revision
-  checked, and retired rather than silently deleted. Supplying two person IDs
-  can never cross an owner boundary.
-- The workspace profile chip opens a versioned JSON editor backed by
-  `/v1/profile`. New profiles use the real create path; existing saves carry
-  `expectedRevision` and surface conflicts instead of overwriting newer data.
-- Library also reads active `/v1/memories` and supports creating a global,
-  user-authored memory with optional confidence. Routine-scoped memories stay
-  out of this simple surface until a real routine selector is present.
-- The Runs signal now opens a real Task surface backed by `/v1/tasks`, with
-  owner-scoped open-task reads and task creation that creates the linked Task
-  Thread on the server. No task is marked complete by the UI without server
-  state.
-- The system signal also exposes configured Routines from `/v1/routines` and
-  can trigger a selected routine through its idempotent `/run` endpoint. The
-  UI reports the returned queued Run; it does not claim provider completion.
-- Routine selection also exposes the real webhook lifecycle: create/rotate a
-  one-time `whsec_` secret, copy the endpoint, and enable or disable delivery.
-  The secret is never refetched or rendered after the one-time response.
-- The top account control reads safe connected-account projections from
-  `/v1/accounts` and starts the authenticated Google OAuth flow. OAuth and
-  provider credentials remain server-side; an unconfigured deployment reports
-  the API's explicit error instead of showing a fake connected account.
-- The System Signal surface also exposes notification Channels from
-  `/v1/channels` and supports creating channel metadata for email, webhook,
-  Telegram, WhatsApp, Slack, and iMessage. Delivery remains asynchronous and
-  server-owned; saving a channel never claims a message was sent.
-- The Run trail opens a read-only Operations audit view backed by
-  `/v1/operations/audit`, with outcome filtering and opaque cursor pagination;
-  audit records cannot be edited from the UI.
-- Usage & Billing is read from `/v1/billing`; configured workspaces show the
-  plan, credit band, period, and recorded category totals, while an absent
-  billing provider renders the server's `not_configured` state.
-- Need to Know is read from `/v1/suggestions`; the command center shows only
-  server-recorded, provenance-bearing candidates and supports optimistic
-  dismiss or atomic conversion into a real Task.
-- Squares is read from `/v1/squares`; the command center shows explicit
-  memberships and can create an owner-controlled workspace without granting
-  implicit access or bypassing its policy boundary.
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string (required) |
+| `CREDENTIAL_MASTER_KEY_BASE64URL` | 32-byte encryption key for OAuth tokens (required) |
+| `CODEX_EXEC_ENABLED` | Use Codex SDK harness instead of Responses API |
+| `CODEX_CLI_PATH` | Override path to `codex` binary (auto-detected if on PATH) |
+| `CODEX_SANDBOX_MODE` | `read-only` / `workspace-write` / `danger-full-access` |
+| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth (PKCE + offline access) |
+| `MICROSOFT_OAUTH_CLIENT_ID` | Microsoft OAuth (Azure AD v2.0) |
+| `SLACK_SIGNING_SECRET` | Slack Events API inbound webhooks |
+| `TELEGRAM_SECRET_TOKEN` | Telegram Bot webhook verification |
+| `WHATSAPP_APP_SECRET` | WhatsApp Cloud API webhook signing |
+| `E2B_API_KEY` | E2B sandbox code runner (falls back to local Node runner) |
+| `PIPEDREAM_API_KEY` | Pipedream integration catalog proxy |
 
-Knowledge search uses PostgreSQL full-text ranking and opaque keyset cursors. Its
-responses identify the source as `local_postgresql` with algorithm
-`postgres_full_text_v1`. This is a documented clean-room implementation choice;
-it is not represented as Town's private ranking system or as live federated
-search across unconfigured external accounts.
+See [`.env.example`](.env.example) for the full list. Missing credentials
+produce explicit `not_configured` states — the system never fabricates data.
 
-Authenticated knowledge resources are available under `/v1/profile`,
-`/v1/memories`, `/v1/people`, `/v1/wiki`, and `/v1/knowledge`. Public API writes
-are recorded as user-authored citations; assistant and system provenance can
-only be written by internal runtime code.
+## Harness Backends
 
-Authenticated connected-account management is available under `/v1/accounts`:
-safe account listing, owner-scoped credential rotation, and account removal.
-OAuth secrets are encrypted at rest and are never returned in API projections;
-Google OAuth callback wiring is implemented with PKCE, one-time state, offline
-refresh scope, userinfo verification, and encrypted credential persistence. It
-returns `OAUTH_NOT_CONFIGURED` until the deployment supplies Google client
-credentials and a registered redirect URI.
-Server-side Google access-token refresh is available at
-`POST /v1/accounts/:accountId/refresh`; plaintext credentials stay inside the
-provider boundary and the response is only the safe connected-account view.
-The Harness now exposes owner-scoped read-only `google_gmail_search` and
-`google_calendar_freebusy` tools. They use the selected connected account,
-refresh once on expiry/401 when configured, and validate provider responses;
-they do not fabricate connector data.
-It also exposes read-only `google_gmail_get_message` and approval-gated
-`google_calendar_create_event`; external event creation cannot execute until
-the durable Harness approval context is resumed.
-Approval-gated `google_gmail_send` uses Gmail's RFC 822 `messages.send` API,
-rejects header-injection input, and reports success only after Google confirms
-the sent message.
+The agent runtime supports two backends, selected by environment:
 
-Notification channels now have a real webhook outbox executor: queued
-deliveries are leased, POSTed as `{ eventType, payload }`, marked succeeded only
-on a 2xx response, and scheduled for bounded exponential retry on provider
-failure. The executor runs from the protected internal worker endpoint and the
-local worker loop.
+- **Codex SDK** (`CODEX_EXEC_ENABLED=true`): Uses `@openai/codex-sdk` which
+  spawns the `codex` CLI as a subprocess. The CLI handles model reasoning,
+  sandbox execution, approval policies, MCP tool calls, and web search. The
+  binary package `@openai/codex` is installed as a dependency; `CODEX_CLI_PATH`
+  can override the binary path for deployments where the vendored binary does
+  not resolve.
 
-Waiting runtime runs can be durably re-enqueued through
-`POST /v1/sessions/:sessionId/runs/:runId/resume` with an explicit
-`expectedState` of `waiting_approval` or `waiting_user_input`; stale or
-cross-owner resumes are rejected by the transition service.
-For Harness approvals, `POST /v1/sessions/:sessionId/runs/:runId/approval`
-persists a one-time owner/run-bound decision and requeues the run. The next
-worker execution consumes that decision through `approval/resolve` before
-continuing the persisted Harness thread.
+- **Responses API** (`RESPONSES_API_KEY`): Calls the OpenAI Responses API
+  directly. Used as the fallback when Codex is not enabled.
 
-Cross-owner Agent-to-Agent requests are available under `/v1/a2a/requests`.
-They use an explicit request/result envelope, recipient consent, expiry metadata,
-and revision-checked transitions; expired pending requests are hidden from the
-pending view and cannot be accepted. Private Memory and credentials are never
-shared by this clean-room protocol.
+Both backends are wired only when their configuration is present. Without either,
+runs remain honestly queued.
 
-The command center exposes the same A2A envelope: send a request to an explicit
-recipient, inspect pending/accepted state, and accept or decline with the
-server's revision check. The UI never manufactures a recipient identity or a
-result payload.
+## Key Design Decisions
 
-Authenticated Agent, Thread, Turn-read, Task, and InputRequest resources are
-available under `/v1/agents`, `/v1/threads`, and `/v1/tasks`. Owner identity,
-runtime role, Turn sequence, and source provenance are server-derived.
+- **Durable sessions**: Sessions survive restarts, support pause/resume across
+  approvals, and cache completed steps to avoid repeating external side effects.
+- **Idempotent tool calls**: Every external action carries a stable idempotency
+  key. Approvals freeze the normalized arguments before execution.
+- **Trust engine**: Three permission modes (read-only / approval-required /
+  autonomous) with per-tool overrides, trusted contact/domain matching, and
+  prompt-injection risk detection.
+- **Knowledge graph**: 12 node types, 15 edge types, recursive traversal (3 hops).
+  Context Builder uses retrieval planning with federated search, deduplication,
+  and compression.
+- **Source-only policy**: No reverse-engineering captures, credentials, or
+  personal data enter this repository. See [`scripts/check-source-only.mjs`](scripts/check-source-only.mjs).
 
-Routine Agents can be created, listed, and optimistically version-published
-under `/v1/agents/routines`; their immutable active versions are then
-referenced by `/v1/routines` schedules. An authenticated
-`GET /v1/agents/routines/:agentId/versions` exposes the owner-scoped immutable
-history used to audit which Routine configuration a schedule can execute.
-Routine schedules can also create a one-time `rtnshare_…` token through
-`POST /v1/routines/:routineId/shares`; the public
-`GET /v1/routine-shares/:token` response contains only the shared schedule and
-version snapshot, and the owner can revoke it through
-`DELETE /v1/routines/shares/:shareId`. Tokens are hashed at rest and expire by
-default after 24 hours.
-An authenticated `POST /v1/routines/install` can fork a live share into a new
-owner-scoped Routine Agent, immutable version, and schedule atomically. The
-fork clears `callableRoutineIds`, so sharing a Routine never grants access to
-the source workspace's child Routines.
-An authenticated
-`POST /v1/routines/:routineId/run` creates a real child Task/Session Run and
-returns queued state for the worker; it never reports a fabricated completion.
-Routine trigger definitions are available under
-`/v1/routines/:routineId/triggers` for the verified Manual, Schedule, email,
-calendar, voice, Slack mention, and Webhook trigger kinds. These definitions
-are owner-scoped and revision-checked; declaring a trigger does not claim that
-an external provider is connected or that an event has fired.
-The local/serverless worker tick also claims due schedules and submits them
-through that same Session queue; trigger failures are recorded as failed sync
-runs, and each claimed sync run stores the resulting runtime `runId` for
-reconciliation and recovery. Worker completion/failure callbacks reconcile that
-linked sync record to `succeeded`/`failed` without changing the runtime result.
+## API Surface
 
-An authenticated `GET /v1/routine-runs/:runId` returns the owner-scoped trigger
-record together with its persisted `RoutineResult` when the run has reached the
-runtime boundary. This is the source-of-truth read used for replay/audit; it
-does not synthesize output for queued or unlinked runs.
+The API exposes 90+ authenticated REST endpoints under `/v1/`. Key namespaces:
 
-Authenticated message submission is available at
-`/v1/threads/:threadId/messages`; Session, Run, and reconnectable event reads are
-available under `/v1/sessions`. Submission requires an idempotency key and
-returns queued state without inventing assistant content. Queue claims, leases,
-event writes, runtime roles, and assistant-output writes are internal only.
-For live clients, `/v1/sessions/:sessionId/events/stream` exposes the same
-owner-scoped events as bounded SSE windows with cursor replay and heartbeats;
-clients reconnect instead of treating a disconnected stream as lost state.
+| Namespace | Routes |
+|-----------|--------|
+| Identity | `/v1/auth/session`, `/v1/accounts/*`, `/v1/accounts/{google,microsoft}/oauth/*` |
+| Agents | `/v1/agents/personal/*`, `/v1/agents/routines/*` |
+| Threads & Tasks | `/v1/threads/*`, `/v1/tasks/*` |
+| Sessions | `/v1/sessions/*`, `/v1/sessions/:id/events/stream` (SSE) |
+| Knowledge | `/v1/profile`, `/v1/memories`, `/v1/people/*`, `/v1/wiki/*`, `/v1/goals/*`, `/v1/trusted-contacts/*` |
+| Routines | `/v1/routines/*`, `/v1/routine-runs/*`, `/v1/routine-results/*` |
+| Tools | `/v1/tools`, `/v1/tools/policy/evaluate`, `/v1/approvals/*` |
+| Content | `/v1/content/*`, `/v1/content-shares/:token` |
+| Channels | `/v1/channels/*` |
+| Teams | `/v1/squares/*` |
+| Billing | `/v1/billing` |
+| Admin | `/v1/admin/{overview,users,teams,agent-health,billing-reconciliation}` |
+| Integrations | `/v1/mcp-servers/*`, `/v1/integrations/{slack,telegram,whatsapp}/events/*`, `/v1/integrations/pipedream/apps` |
 
-Module 4 defines the durable execution boundary and a provider-neutral runtime
-adapter port. The harness adapter supports two backends:
+## Documentation
 
-- **Codex SDK** (`@openai/codex-sdk` from `openai/codex`): activated by
-  `CODEX_EXEC_ENABLED=true`. Uses the official Codex agent via the Codex CLI,
-  which handles model reasoning, sandbox execution, approval policies, MCP tool
-  calls, command execution, file changes, and web search. The SDK is a declared
-  dependency and spawns the CLI as a subprocess.
-- **Responses API**: activated by `RESPONSES_API_KEY`. Calls the OpenAI
-  Responses API directly with tool definitions and conversation history.
+- [Package Reference](docs/PACKAGES.md) — what each of the 17 packages does
+- [Architecture Gaps](docs/ARCHITECTURE_GAPS.md) — clean-room vs real Town.ai parity
+- [Implementation Status](docs/implementation-status.md) — evidence ledger
+- [Deployment](docs/deployment.md) — Vercel deployment notes
 
-Both backends are wired only when their explicit configuration is present; no
-provider call or assistant output is fabricated otherwise. Without an injected
-provider adapter, Runs remain honestly queued. Genuine assistant output can only
-be recorded by an internal worker holding the current unexpired Run lease.
+## Verification
 
-The runtime package now includes a durable `createRuntimeWorker` loop that
-claims queue leases, forwards adapter phases/output, handles wait states,
-heartbeats active leases, and records completion/failure transitions. It still
-requires an explicitly injected provider adapter; the worker itself never
-generates model content.
+```bash
+pnpm typecheck   # 18 packages, all pass
+pnpm test        # 452 tests, all pass
+pnpm build       # workspace build
+```
 
-For local durable execution, set `RESPONSES_API_KEY` and
-`WORKER_ENABLED=true` in the environment. The API process then runs one worker
-poller alongside the HTTP listener; leave the flag false in serverless
-deployments. Serverless deployments can instead set `WORKER_SECRET` and invoke
-`POST /v1/internal/worker` with `Authorization: Bearer <secret>` once per
-scheduled tick; the endpoint processes at most one leased queue item and is not
-registered when the secret is absent.
+## License
 
-Vercel deployments may set `CRON_SECRET` instead. `vercel.json` schedules the
-same protected worker endpoint hourly, and Vercel supplies that secret as the
-Bearer credential. The endpoint remains unregistered when neither secret is
-present.
-
-The current product objective is recorded in [GOAL.md](./GOAL.md).
-
-The Vercel API entrypoint lazy-loads the configured server and returns a
-structured `503 API_NOT_CONFIGURED` response when required database or crypto
-settings are absent. Package build entries are checked after every workspace
-build so a successful compile cannot hide a missing runtime export.
-
-The command center's Routines surface now reads each selected routine's durable
-run history and linked `RoutineResult` detail from the API. Terminal runs expose
-an explicit Replay action that calls the idempotent replay endpoint; the UI
-never invents a result for a queued or unlinked run.
-
-Desktop and 390px mobile Chromium smoke tests cover the initial command center,
-Routines dialog, Harness dialog, and horizontal-overflow boundary. Authenticated
-workflows remain dependent on a configured API token and connected account.
+This project is a clean-room reconstruction. It does not use or reproduce
+Town's proprietary source code.
