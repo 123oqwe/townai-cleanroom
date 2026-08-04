@@ -936,7 +936,12 @@ export function createApp(dependencies?: AppDependencies) {
         twilioVoice: dependencies.twilioAuthToken !== undefined,
         vapiVoice: dependencies.vapiWebhookSecret !== undefined,
         voiceSynthesis: dependencies.voiceProvider !== undefined,
-        contentStorage: dependencies.contentStorage !== undefined,
+        contentStorage:
+          dependencies.contentStorage === undefined
+            ? false
+            : dependencies.contentStorage.write === undefined
+              ? "read-only"
+              : true,
         ...(dependencies.billingRepository === undefined
           ? {}
           : { billing: dependencies.billingRepository }),

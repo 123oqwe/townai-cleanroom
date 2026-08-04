@@ -51,7 +51,7 @@ function buildAdminApp(input: {
   twilioVoice?: boolean;
   vapiVoice?: boolean;
   voiceSynthesis?: boolean;
-  contentStorage?: boolean;
+  contentStorage?: false | true | "read-only";
   billing?: BillingRepository;
 }) {
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -68,7 +68,7 @@ function buildAdminApp(input: {
     twilioVoice: input.twilioVoice ?? false,
     vapiVoice: input.vapiVoice ?? false,
     voiceSynthesis: input.voiceSynthesis ?? false,
-    contentStorage: input.contentStorage ?? false,
+      contentStorage: input.contentStorage ?? false,
     ...input,
   });
   return app;
@@ -482,6 +482,37 @@ describe("admin routes", () => {
         vapiVoice: false,
         voiceSynthesis: false,
         contentStorage: false,
+      },
+    });
+  });
+
+  it("includes read-only content storage in admin readiness", async () => {
+    const app = buildAdminApp({
+      sql: mockSql() as unknown as Sql,
+      operations: baseOperations,
+      contentStorage: "read-only",
+    });
+
+    const overview = await app.request("/v1/admin/overview");
+    const report = await app.request("/v1/admin/reports/overview");
+    const agentHealth = await app.request(
+      `/v1/admin/agent-health/${routineOwnerId}`,
+    );
+
+    expect(overview.status).toBe(200);
+    expect(await overview.json()).toMatchObject({
+      readiness: {
+        contentStorage: "read-only",
+      },
+    });
+    expect(await report.json()).toMatchObject({
+      readiness: {
+        contentStorage: "read-only",
+      },
+    });
+    expect(await agentHealth.json()).toMatchObject({
+      readiness: {
+        contentStorage: "read-only",
       },
     });
   });

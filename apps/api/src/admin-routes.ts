@@ -7,6 +7,8 @@ import { asId } from "@town/contracts";
 import type { BillingRepository } from "@town/billing";
 import type { AuthVariables } from "./auth.js";
 
+export type ContentStorageReadiness = boolean | "read-only";
+
 export interface AdminDependencies {
   sql: Sql;
   operations: OperationsRepository;
@@ -17,7 +19,7 @@ export interface AdminDependencies {
   twilioVoice: boolean;
   vapiVoice: boolean;
   voiceSynthesis: boolean;
-  contentStorage: boolean;
+  contentStorage: ContentStorageReadiness;
   billing?: BillingRepository;
 }
 
