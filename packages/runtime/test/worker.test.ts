@@ -238,4 +238,64 @@ describe("runtime worker", () => {
       errorCode: "RetryableRuntimeError",
     });
   });
+
+  it("retries the queue lease when start fails before durable state is set", async () => {
+    const queue = {
+      claim: vi.fn(async () => ({
+        ownerId,
+        sessionId,
+        runId,
+        runState: "queued" as const,
+        workerId: "worker-1",
+        leaseToken,
+        attempt: 1,
+        leasedAt: new Date(),
+        leaseExpiresAt: new Date(Date.now() + 30_000),
+      })),
+      heartbeat: vi.fn(async (value) => value),
+      retry: vi.fn(async () => undefined),
+    };
+    const transitions = {
+      start: vi.fn(async () => {
+        throw new Error("Lease lost before start");
+      }),
+      recordPhase: vi.fn(async () => undefined),
+      recordAssistantOutput: vi.fn(async () => undefined),
+      complete: vi.fn(async () => undefined),
+      fail: vi.fn(async () => undefined),
+      requeue: vi.fn(async () => undefined),
+      wait: vi.fn(async () => undefined),
+    };
+    const dependencies = {
+      queue,
+      sessions: {
+        get: vi.fn(async () => ({ ownerId }) as never),
+        getRun: vi.fn(async () => ({}) as never),
+      },
+      transitions,
+      adapter: {
+        async *execute() {
+          yield {
+            type: "assistant_output" as const,
+            text: "should never be observed",
+            mentions: [],
+          };
+        },
+      },
+    } as unknown as RuntimeWorkerDependencies;
+
+    const result = await createRuntimeWorker(dependencies, {
+      workerId: "worker-1",
+      retryPolicy: { maxAttempts: 3, baseDelayMs: 250 },
+    }).runOnce();
+
+    expect(result).toMatchObject({ claimed: true, state: "failed", runId });
+    expect(queue.retry).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      delayMs: 1_000,
+    });
+    expect(transitions.fail).not.toHaveBeenCalled();
+    expect(transitions.requeue).not.toHaveBeenCalled();
+  });
 });

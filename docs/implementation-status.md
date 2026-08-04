@@ -383,6 +383,13 @@ Runtime worker draining is now explicitly bounded: `WORKER_BATCH_SIZE` accepts
 backlog amplification without creating an unbounded serverless invocation;
 provider/model execution remains the injected adapter boundary.
 
+Runtime worker execution now recovers from lease or startup race failures by
+re-queuing the current run with a short fixed `retry` delay when the lease
+is valid but the run fails before entering the explicit `started` transition.
+This preserves durable progress while avoiding a permanent stuck lease when a
+worker process restarts or a transition precondition fails between claim and
+state bump.
+
 Slack inbound events now have a real provider adapter at
 `POST /v1/integrations/slack/events/:routineId`. It verifies the exact raw body
 with Slack's `v0` HMAC signature and five-minute replay window, answers URL
