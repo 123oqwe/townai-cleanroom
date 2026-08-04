@@ -208,5 +208,11 @@ pnpm build       # workspace build
 
 ## License
 
+All Rights Reserved. This software is proprietary. No license is granted to
+use, copy, modify, distribute, or sublicense this software without prior
+written authorization from the copyright holders.
+
 This project is a clean-room reconstruction. It does not use or reproduce
-Town's proprietary source code.
+Town's proprietary source code, database internals, system prompts,
+model-routing weights, or secrets. All implementation is derived from
+observed external behavior and public documentation.
