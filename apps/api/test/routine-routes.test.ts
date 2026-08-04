@@ -4,7 +4,10 @@ import { z } from "zod";
 
 import { asId } from "@town/contracts";
 import type { AgentRepository, ThreadRepository } from "@town/agents";
-import type { RoutineRepository, RoutineResultRepository } from "@town/routines";
+import type {
+  RoutineRepository,
+  RoutineResultRepository,
+} from "@town/routines";
 import type { GoogleApiClient } from "@town/google";
 import type { SessionRepository } from "@town/runtime";
 import type { AuthVariables } from "../src/auth.js";
@@ -15,14 +18,28 @@ import {
 } from "../src/routine-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
-const routineId = asId<"routine-schedule">("01900000-0000-7000-8000-000000000010");
+const routineId = asId<"routine-schedule">(
+  "01900000-0000-7000-8000-000000000010",
+);
 const routineAgentId = asId<"agent">("01900000-0000-7000-8000-000000000011");
-const routineAgentVersionId = asId<"agent-version">("01900000-0000-7000-8000-000000000012");
-const routineRunId = asId<"integration-sync-run">("01900000-0000-7000-8000-000000000020");
-const sessionRunId = asId<"session-run">("01900000-0000-7000-8000-000000000021");
-const runtimeSessionId = asId<"runtime-session">("01900000-0000-7000-8000-000000000022");
-const triggerId = asId<"routine-trigger">("01900000-0000-7000-8000-000000000030");
-const webhookId = asId<"routine-webhook">("01900000-0000-7000-8000-000000000040");
+const routineAgentVersionId = asId<"agent-version">(
+  "01900000-0000-7000-8000-000000000012",
+);
+const routineRunId = asId<"integration-sync-run">(
+  "01900000-0000-7000-8000-000000000020",
+);
+const sessionRunId = asId<"session-run">(
+  "01900000-0000-7000-8000-000000000021",
+);
+const runtimeSessionId = asId<"runtime-session">(
+  "01900000-0000-7000-8000-000000000022",
+);
+const triggerId = asId<"routine-trigger">(
+  "01900000-0000-7000-8000-000000000030",
+);
+const webhookId = asId<"routine-webhook">(
+  "01900000-0000-7000-8000-000000000040",
+);
 const shareId = asId<"routine-share">("01900000-0000-7000-8000-000000000050");
 const resultId = asId<"routine-result">("01900000-0000-7000-8000-000000000060");
 const connectedAccountId = asId<"connected-account">(
@@ -39,7 +56,9 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.test" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.test" },
+    });
     await next();
   });
 }
@@ -199,7 +218,9 @@ describe("routine routes", () => {
       getRun: vi.fn().mockResolvedValue(run),
       getWebhook: vi.fn().mockResolvedValue(webhook),
       createWebhook: vi.fn().mockResolvedValue(webhook),
-      setWebhookEnabled: vi.fn().mockResolvedValue({ ...webhook, enabled: false }),
+      setWebhookEnabled: vi
+        .fn()
+        .mockResolvedValue({ ...webhook, enabled: false }),
       createShare: vi.fn().mockResolvedValue(share),
       revokeShare: vi.fn().mockResolvedValue(undefined),
       installShare: vi.fn().mockResolvedValue(installed),
@@ -265,7 +286,9 @@ describe("routine routes", () => {
         nextRunAt: "2026-08-01T12:00:00.000Z",
       }),
     });
-    const listRuns = await app.request(`/v1/routines/${routineId}/runs?limit=10`);
+    const listRuns = await app.request(
+      `/v1/routines/${routineId}/runs?limit=10`,
+    );
     const updateRoutine = await app.request(`/v1/routines/${routineId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -284,53 +307,64 @@ describe("routine routes", () => {
       `/v1/routines/${routineId}?expectedRevision=2`,
       { method: "DELETE" },
     );
-    const createRunByQueue = await app.request(`/v1/routines/${routineId}/run`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "Idempotency-Key": "manual-idem",
+    const createRunByQueue = await app.request(
+      `/v1/routines/${routineId}/run`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "Idempotency-Key": "manual-idem",
+        },
+        body: JSON.stringify({ input: "trigger now" }),
       },
-      body: JSON.stringify({ input: "trigger now" }),
-    });
-    const triggerRoutine = await app.request(`/v1/routines/${routineId}/trigger`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "Idempotency-Key": "trigger-idem",
+    );
+    const triggerRoutine = await app.request(
+      `/v1/routines/${routineId}/trigger`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "Idempotency-Key": "trigger-idem",
+        },
+        body: JSON.stringify({ kind: "webhook", data: { event: "x" } }),
       },
-      body: JSON.stringify({ kind: "webhook", data: { event: "x" } }),
-    });
-    const listTriggers = await app.request(`/v1/routines/${routineId}/triggers`);
-    const createTrigger = await app.request(`/v1/routines/${routineId}/triggers`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        kind: "webhook",
-        config: { event: "run" },
-        enabled: true,
-      }),
-    });
-    const patchTrigger = await app.request(`/v1/routine-triggers/${triggerId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        expectedRevision: 1,
-        config: { event: "run", filter: "urgent" },
-        enabled: false,
-      }),
-    });
+    );
+    const listTriggers = await app.request(
+      `/v1/routines/${routineId}/triggers`,
+    );
+    const createTrigger = await app.request(
+      `/v1/routines/${routineId}/triggers`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "webhook",
+          config: { event: "run" },
+          enabled: true,
+        }),
+      },
+    );
+    const patchTrigger = await app.request(
+      `/v1/routine-triggers/${triggerId}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: 1,
+          config: { event: "run", filter: "urgent" },
+          enabled: false,
+        }),
+      },
+    );
     const deleteTrigger = await app.request(
       `/v1/routine-triggers/${triggerId}?expectedRevision=1`,
       { method: "DELETE" },
     );
     const routineRuns = await app.request(`/v1/routine-runs/${routineRunId}`);
-    const rerun = await app.request(
-      `/v1/routine-runs/${routineRunId}/replay`,
-      {
-        method: "POST",
-        headers: { "Idempotency-Key": "replay-id" },
-      },
-    );
+    const rerun = await app.request(`/v1/routine-runs/${routineRunId}/replay`, {
+      method: "POST",
+      headers: { "Idempotency-Key": "replay-id" },
+    });
     const routineResult = await app.request(
       `/v1/routine-results?sessionId=${runtimeSessionId}&limit=2`,
     );
@@ -338,11 +372,14 @@ describe("routine routes", () => {
     const webhookPost = await app.request(`/v1/routines/${routineId}/webhook`, {
       method: "POST",
     });
-    const webhookPatch = await app.request(`/v1/routines/${routineId}/webhook`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ enabled: false }),
-    });
+    const webhookPatch = await app.request(
+      `/v1/routines/${routineId}/webhook`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: false }),
+      },
+    );
     const createShare = await app.request(`/v1/routines/${routineId}/shares`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -356,10 +393,9 @@ describe("routine routes", () => {
         nextRunAt: "2026-08-02T00:00:00.000Z",
       }),
     });
-    const revokeShare = await app.request(
-      `/v1/routines/shares/${shareId}`,
-      { method: "DELETE" },
-    );
+    const revokeShare = await app.request(`/v1/routines/shares/${shareId}`, {
+      method: "DELETE",
+    });
 
     expect(routineTemplates.status).toBe(200);
     expect(routineList.status).toBe(200);
@@ -391,7 +427,9 @@ describe("routine routes", () => {
       routines: [{ id: routineId, name: "Daily routine" }],
     });
     expect(await routineVersions.json()).toMatchObject({
-      items: [{ id: asId<"agent-version">("01900000-0000-7000-8000-000000000011") }],
+      items: [
+        { id: asId<"agent-version">("01900000-0000-7000-8000-000000000011") },
+      ],
       nextCursor: "next-version",
     });
     expect(await createRoutine.json()).toMatchObject({
@@ -426,7 +464,11 @@ describe("routine routes", () => {
       },
     });
     expect(await rerun.json()).toMatchObject({
-      run: { id: asId<"integration-sync-run">("01900000-0000-7000-8000-000000000080") },
+      run: {
+        id: asId<"integration-sync-run">(
+          "01900000-0000-7000-8000-000000000080",
+        ),
+      },
     });
     expect(await routineResult.json()).toMatchObject({
       results: [{ id: resultId, subject: "routine result" }],
@@ -492,7 +534,11 @@ describe("routine routes", () => {
       "trigger-idem",
     );
     expect(repository.getRun).toHaveBeenCalledWith(ownerId, routineRunId);
-    expect(repository.replayRun).toHaveBeenCalledWith(ownerId, routineRunId, "replay-id");
+    expect(repository.replayRun).toHaveBeenCalledWith(
+      ownerId,
+      routineRunId,
+      "replay-id",
+    );
     expect(repository.createTrigger).toHaveBeenCalledWith({
       ownerId,
       routineScheduleId: routineId,
@@ -514,7 +560,11 @@ describe("routine routes", () => {
     );
     expect(repository.getWebhook).toHaveBeenCalledWith(ownerId, routineId);
     expect(repository.createWebhook).toHaveBeenCalledWith(ownerId, routineId);
-    expect(repository.setWebhookEnabled).toHaveBeenCalledWith(ownerId, routineId, false);
+    expect(repository.setWebhookEnabled).toHaveBeenCalledWith(
+      ownerId,
+      routineId,
+      false,
+    );
     expect(repository.createShare).toHaveBeenCalledWith({
       ownerId,
       routineScheduleId: routineId,
@@ -589,9 +639,12 @@ describe("routine routes", () => {
     const noRoutineResults = await app.request(
       `/v1/routine-results?sessionId=${runtimeSessionId}`,
     );
-    const noWebhookHeader = await app.request(`/v1/routines/${routineId}/webhook`, {
-      method: "GET",
-    });
+    const noWebhookHeader = await app.request(
+      `/v1/routines/${routineId}/webhook`,
+      {
+        method: "GET",
+      },
+    );
     expect(invalidCron.status).toBe(400);
     expect(versionsUnavailable.status).toBe(503);
     expect(noRoutineResults.status).toBe(404);

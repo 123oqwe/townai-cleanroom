@@ -170,11 +170,11 @@ describe("routine scheduler", () => {
       queued: 0,
       failed: 1,
     });
-    expect((routines.startRun as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+    expect(routines.startRun as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
       ownerId,
       routine.claimId,
     );
-    expect((routines.failRun as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+    expect(routines.failRun as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
       ownerId,
       routine.claimId,
       "SCHEDULE_TRIGGER_FAILED",
@@ -218,9 +218,9 @@ describe("routine scheduler", () => {
       routines,
       agents,
       threads: {
-        createTask: vi
-          .fn()
-          .mockResolvedValue({ id: asId<"thread">("01900000-0000-7000-8000-000000000031") }),
+        createTask: vi.fn().mockResolvedValue({
+          id: asId<"thread">("01900000-0000-7000-8000-000000000031"),
+        }),
       } as unknown as ThreadRepository,
       sessions: { submitMessage } as unknown as SessionRepository,
     })(new Date("2026-08-03T00:00:00Z"));
@@ -231,7 +231,9 @@ describe("routine scheduler", () => {
       queued: 0,
       failed: 1,
     });
-    expect((routines.failQueuedRun as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+    expect(
+      routines.failQueuedRun as ReturnType<typeof vi.fn>,
+    ).toHaveBeenCalledWith(
       ownerId,
       run.id,
       run.claimToken,

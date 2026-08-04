@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import type { Sql } from "postgres";
 import { z } from "zod";
 import { asId } from "@town/contracts";
@@ -33,7 +33,7 @@ export function registerVapiVoiceEventsRoute(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: VapiVoiceEventsDependencies,
 ): void {
-  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
+  const route = async (context: Context<{ Variables: AuthVariables }>) => {
     const rawBody = await context.req.raw.text();
     if (Buffer.byteLength(rawBody, "utf8") > 512 * 1024)
       return context.json({ code: "PAYLOAD_TOO_LARGE" }, 413);

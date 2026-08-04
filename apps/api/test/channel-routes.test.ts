@@ -19,10 +19,7 @@ describe("channel routes", () => {
         if (error.code === "FORBIDDEN")
           return context.json({ code: error.code }, 403);
         if (error.code === "INVALID_CHANNEL_CONFIG") {
-          return context.json(
-            { code: error.code, detail: error.message },
-            400,
-          );
+          return context.json({ code: error.code, detail: error.message }, 400);
         }
         if (error.code === "CHANNEL_NOT_FOUND") {
           return context.json({ code: error.code }, 404);
@@ -36,7 +33,10 @@ describe("channel routes", () => {
           return context.json({ code: error.code }, 409);
         }
       }
-      return context.json({ code: "INTERNAL_ERROR", detail: error.message }, 500);
+      return context.json(
+        { code: "INTERNAL_ERROR", detail: error.message },
+        500,
+      );
     });
   }
 
@@ -47,7 +47,9 @@ describe("channel routes", () => {
     const app = new Hono<{ Variables: AuthVariables }>();
     withErrorMapping(app);
     app.use("*", async (context, next) => {
-      context.set("identity", { user: { id: ownerId } } as AuthVariables["identity"]);
+      context.set("identity", {
+        user: { id: ownerId },
+      } as AuthVariables["identity"]);
       await next();
     });
     registerChannelRoutes(app, {
@@ -80,19 +82,17 @@ describe("channel routes", () => {
         updatedAt: new Date("2026-08-03T00:00:00.000Z"),
       },
     ]);
-    const create = vi
-      .fn()
-      .mockResolvedValue({
-        id: channelId,
-        ownerId,
-        kind: "webhook",
-        address: "https://example.invalid/webhook",
-        config: {},
-        status: "active",
-        verifiedAt: null,
-        createdAt: new Date("2026-08-03T01:00:00.000Z"),
-        updatedAt: new Date("2026-08-03T01:00:00.000Z"),
-      });
+    const create = vi.fn().mockResolvedValue({
+      id: channelId,
+      ownerId,
+      kind: "webhook",
+      address: "https://example.invalid/webhook",
+      config: {},
+      status: "active",
+      verifiedAt: null,
+      createdAt: new Date("2026-08-03T01:00:00.000Z"),
+      updatedAt: new Date("2026-08-03T01:00:00.000Z"),
+    });
     const disable = vi.fn().mockResolvedValue({
       id: channelId,
       ownerId,
@@ -136,22 +136,24 @@ describe("channel routes", () => {
       createdAt: new Date("2026-08-03T02:00:30.000Z"),
       updatedAt: new Date("2026-08-03T02:00:30.000Z"),
     });
-    const listDeliveries = vi.fn().mockResolvedValue([{
-      id: deliveryId,
-      ownerId,
-      channelId,
-      eventType: "routine.completed",
-      idempotencyKey: "run-1",
-      payload: { runId: "run-1" },
-      status: "queued",
-      attempts: 1,
-      nextAttemptAt: null,
-      lastError: null,
-      replayOfDeliveryId: null,
-      sentAt: null,
-      createdAt: new Date("2026-08-03T02:00:10.000Z"),
-      updatedAt: new Date("2026-08-03T02:00:10.000Z"),
-    }]);
+    const listDeliveries = vi.fn().mockResolvedValue([
+      {
+        id: deliveryId,
+        ownerId,
+        channelId,
+        eventType: "routine.completed",
+        idempotencyKey: "run-1",
+        payload: { runId: "run-1" },
+        status: "queued",
+        attempts: 1,
+        nextAttemptAt: null,
+        lastError: null,
+        replayOfDeliveryId: null,
+        sentAt: null,
+        createdAt: new Date("2026-08-03T02:00:10.000Z"),
+        updatedAt: new Date("2026-08-03T02:00:10.000Z"),
+      },
+    ]);
     const repository = {
       list,
       create,
@@ -209,12 +211,18 @@ describe("channel routes", () => {
     expect(await channels.json()).toMatchObject({
       channels: [{ id: channelId, kind: "webhook" }],
     });
-    expect(await created.json()).toMatchObject({ channel: { kind: "webhook" } });
+    expect(await created.json()).toMatchObject({
+      channel: { kind: "webhook" },
+    });
     expect(await disabled.json()).toMatchObject({
       channel: { id: channelId, status: "disabled" },
     });
-    expect(await delivery.json()).toMatchObject({ delivery: { id: deliveryId } });
-    expect(await replayResponse.json()).toMatchObject({ delivery: { id: replayId } });
+    expect(await delivery.json()).toMatchObject({
+      delivery: { id: deliveryId },
+    });
+    expect(await replayResponse.json()).toMatchObject({
+      delivery: { id: replayId },
+    });
     expect(await deliveries.json()).toMatchObject({
       deliveries: [{ id: deliveryId, status: "queued" }],
     });
@@ -256,7 +264,9 @@ describe("channel routes", () => {
     );
 
     expect(noAudit.status).toBe(503);
-    expect(await noAudit.json()).toMatchObject({ code: "AUDIT_NOT_CONFIGURED" });
+    expect(await noAudit.json()).toMatchObject({
+      code: "AUDIT_NOT_CONFIGURED",
+    });
     expect(badStatus.status).toBe(400);
   });
 

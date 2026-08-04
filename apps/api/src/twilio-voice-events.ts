@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import type { Sql } from "postgres";
 import { asId } from "@town/contracts";
 import type { RoutineRepository } from "@town/routines";
@@ -42,7 +42,7 @@ export function registerTwilioVoiceEventsRoute(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: TwilioVoiceEventsDependencies,
 ): void {
-  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
+  const route = async (context: Context<{ Variables: AuthVariables }>) => {
     const rawBody = await context.req.raw.text();
     if (Buffer.byteLength(rawBody, "utf8") > 256 * 1024)
       return context.json({ code: "PAYLOAD_TOO_LARGE" }, 413);

@@ -147,7 +147,11 @@ describe("square routes", () => {
     });
     expect(create.status).toBe(201);
     expect(await create.json()).toMatchObject({
-      square: { ...square, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+      square: {
+        ...square,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
     });
     expect(repository.create).toHaveBeenCalledWith({
       ownerId,
@@ -157,12 +161,14 @@ describe("square routes", () => {
       settings: {},
     });
 
-    const get = await app.request(
-      `http://town.test/v1/squares/${squareId}`,
-    );
+    const get = await app.request(`http://town.test/v1/squares/${squareId}`);
     expect(get.status).toBe(200);
     expect(await get.json()).toMatchObject({
-      square: { ...square, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+      square: {
+        ...square,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
     });
     expect(repository.getForActor).toHaveBeenCalledWith(ownerId, squareId);
 
@@ -238,7 +244,11 @@ describe("square routes", () => {
     );
     expect(getPolicy.status).toBe(200);
     expect(await getPolicy.json()).toMatchObject({
-      policy: { ...policy, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+      policy: {
+        ...policy,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
     });
     expect(repository.getPolicy).toHaveBeenCalledWith(ownerId, squareId);
 

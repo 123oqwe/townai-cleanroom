@@ -76,13 +76,18 @@ describe("protected A2A API", () => {
     const unauthenticatedCreate = await app.request("/v1/a2a/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientId: "01900000-0000-7000-8000-000000000001" }),
+      body: JSON.stringify({
+        recipientId: "01900000-0000-7000-8000-000000000001",
+      }),
     });
     const malformedAuthPatch = await app.request(
       "/v1/a2a/requests/01900000-0000-7000-8000-000000000001",
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer bad" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer bad",
+        },
         body: JSON.stringify({
           status: "accepted",
           expectedRevision: 1,
@@ -117,7 +122,9 @@ describe("protected A2A API", () => {
         request: { window: "next-week", durationMinutes: 45 },
       }),
     });
-    const createBody = (await createResponse.json()) as { request: Record<string, unknown> };
+    const createBody = (await createResponse.json()) as {
+      request: { id: string };
+    };
     expect(createResponse.status).toBe(201);
     expect(createBody.request).toMatchObject({
       requesterId: owner.user.id,
@@ -138,7 +145,9 @@ describe("protected A2A API", () => {
     const recipientList = await app.request("/v1/a2a/requests", {
       headers: headers(recipient.token),
     });
-    const ownerBody = (await ownerList.json()) as { requests: Array<{ id: string }> };
+    const ownerBody = (await ownerList.json()) as {
+      requests: Array<{ id: string }>;
+    };
     const recipientBody = (await recipientList.json()) as {
       requests: Array<{ id: string }>;
     };
@@ -147,12 +156,23 @@ describe("protected A2A API", () => {
     expect(recipientList.status).toBe(200);
     expect(ownerBody.requests).toHaveLength(1);
     expect(recipientBody.requests).toHaveLength(1);
-    expect(ownerBody.requests[0]!.id).toBe(createBody.request.id);
-    expect(recipientBody.requests[0]!.id).toBe(createBody.request.id);
+    const ownerRequest = ownerBody.requests[0];
+    const recipientRequest = recipientBody.requests[0];
 
-    const acceptedFilter = await app.request("/v1/a2a/requests?status=accepted", {
-      headers: headers(owner.token),
-    });
+    expect(ownerRequest).toBeDefined();
+    expect(recipientRequest).toBeDefined();
+    if (ownerRequest === undefined || recipientRequest === undefined) {
+      throw new Error("expected request row");
+    }
+    expect(ownerRequest.id).toBe(createBody.request.id);
+    expect(recipientRequest.id).toBe(createBody.request.id);
+
+    const acceptedFilter = await app.request(
+      "/v1/a2a/requests?status=accepted",
+      {
+        headers: headers(owner.token),
+      },
+    );
     const filtered = (await acceptedFilter.json()) as {
       requests: Array<{ id: string }>;
     };
@@ -171,7 +191,9 @@ describe("protected A2A API", () => {
         request: { window: "tomorrow", timezone: "UTC" },
       }),
     });
-    const created = (await createResponse.json()) as { request: { id: string } };
+    const created = (await createResponse.json()) as {
+      request: { id: string };
+    };
     const requestId = created.request.id;
 
     const ownerDeniedRecipientAction = await app.request(
@@ -227,7 +249,11 @@ describe("protected A2A API", () => {
       }),
     });
     const completedBody = (await completed.json()) as {
-      request: { status: string; revision: number; result: { slots: string[] } };
+      request: {
+        status: string;
+        revision: number;
+        result: { slots: string[] };
+      };
     };
     expect(completed.status).toBe(200);
     expect(completedBody.request).toMatchObject({
@@ -299,17 +325,25 @@ describe("protected A2A API", () => {
       })
     ).json()) as { request: { id: string; revision: number } };
 
-    const grant = await app.request(`/v1/a2a/requests/${fresh.request.id}/consent`, {
-      method: "POST",
-      headers: headers(recipient.token),
-      body: JSON.stringify({
-        decision: "grant",
-        expectedRevision: fresh.request.revision,
-        scope: ["calendar.read", "calendar.availability"],
-      }),
-    });
+    const grant = await app.request(
+      `/v1/a2a/requests/${fresh.request.id}/consent`,
+      {
+        method: "POST",
+        headers: headers(recipient.token),
+        body: JSON.stringify({
+          decision: "grant",
+          expectedRevision: fresh.request.revision,
+          scope: ["calendar.read", "calendar.availability"],
+        }),
+      },
+    );
     const grantBody = (await grant.json()) as {
-      request: { status: string; consentStatus: string; consentScope: string[]; revision: number };
+      request: {
+        status: string;
+        consentStatus: string;
+        consentScope: string[];
+        revision: number;
+      };
     };
     expect(grant.status).toBe(200);
     expect(grantBody.request).toMatchObject({
@@ -319,24 +353,30 @@ describe("protected A2A API", () => {
       revision: 2,
     });
 
-    const ownerConsent = await app.request(`/v1/a2a/requests/${fresh.request.id}/consent`, {
-      method: "POST",
-      headers: headers(owner.token),
-      body: JSON.stringify({
-        decision: "revoke",
-        expectedRevision: grantBody.request.revision,
-      }),
-    });
+    const ownerConsent = await app.request(
+      `/v1/a2a/requests/${fresh.request.id}/consent`,
+      {
+        method: "POST",
+        headers: headers(owner.token),
+        body: JSON.stringify({
+          decision: "revoke",
+          expectedRevision: grantBody.request.revision,
+        }),
+      },
+    );
     expect(ownerConsent.status).toBe(409);
 
-    const revoke = await app.request(`/v1/a2a/requests/${fresh.request.id}/consent`, {
-      method: "POST",
-      headers: headers(recipient.token),
-      body: JSON.stringify({
-        decision: "revoke",
-        expectedRevision: grantBody.request.revision,
-      }),
-    });
+    const revoke = await app.request(
+      `/v1/a2a/requests/${fresh.request.id}/consent`,
+      {
+        method: "POST",
+        headers: headers(recipient.token),
+        body: JSON.stringify({
+          decision: "revoke",
+          expectedRevision: grantBody.request.revision,
+        }),
+      },
+    );
     const revokeBody = (await revoke.json()) as {
       request: { consentStatus: string; status: string; revision: number };
     };
@@ -358,14 +398,17 @@ describe("protected A2A API", () => {
         }),
       })
     ).json()) as { request: { id: string; revision: number } };
-    const deny = await app.request(`/v1/a2a/requests/${deniedRequest.request.id}/consent`, {
-      method: "POST",
-      headers: headers(recipient.token),
-      body: JSON.stringify({
-        decision: "deny",
-        expectedRevision: deniedRequest.request.revision,
-      }),
-    });
+    const deny = await app.request(
+      `/v1/a2a/requests/${deniedRequest.request.id}/consent`,
+      {
+        method: "POST",
+        headers: headers(recipient.token),
+        body: JSON.stringify({
+          decision: "deny",
+          expectedRevision: deniedRequest.request.revision,
+        }),
+      },
+    );
     const denyBody = (await deny.json()) as {
       request: { status: string; consentStatus: string };
     };
@@ -389,14 +432,17 @@ describe("protected A2A API", () => {
         }),
       })
     ).json()) as { request: { id: string } };
-    const patchInvalid = await app.request(`/v1/a2a/requests/${created.request.id}`, {
-      method: "PATCH",
-      headers: headers(recipient.token),
-      body: JSON.stringify({
-        status: "accepted",
-        expectedRevision: "bad",
-      }),
-    });
+    const patchInvalid = await app.request(
+      `/v1/a2a/requests/${created.request.id}`,
+      {
+        method: "PATCH",
+        headers: headers(recipient.token),
+        body: JSON.stringify({
+          status: "accepted",
+          expectedRevision: "bad",
+        }),
+      },
+    );
     const consentInvalid = await app.request(
       `/v1/a2a/requests/${created.request.id}/consent`,
       {
@@ -411,7 +457,11 @@ describe("protected A2A API", () => {
     );
     expect(patchInvalid.status).toBe(400);
     expect(consentInvalid.status).toBe(400);
-    expect(await patchInvalid.json()).toMatchObject({ code: "INVALID_REQUEST" });
-    expect(await consentInvalid.json()).toMatchObject({ code: "INVALID_REQUEST" });
+    expect(await patchInvalid.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await consentInvalid.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
   });
 });

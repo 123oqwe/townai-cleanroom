@@ -15,7 +15,8 @@ const squareId = asId<"square">("01900000-0000-7000-8000-000000000004");
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
-    if (error instanceof z.ZodError) return context.json({ code: "INVALID_REQUEST" }, 400);
+    if (error instanceof z.ZodError)
+      return context.json({ code: "INVALID_REQUEST" }, 400);
     return context.json({ code: "INTERNAL_ERROR", detail: String(error) }, 500);
   });
 }
@@ -31,7 +32,9 @@ function buildAdminApp(input: {
   const app = new Hono<{ Variables: AuthVariables }>();
   withErrorMapping(app);
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "admin@example.test" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "admin@example.test" },
+    });
     await next();
   });
   registerAdminRoutes(app, {
@@ -71,10 +74,7 @@ function mockSql() {
         },
       ];
     if (has("sessions_running")) {
-      if (
-        has("by provider") ||
-        has("succeeded as runs_succeeded")
-      ) {
+      if (has("by provider") || has("succeeded as runs_succeeded")) {
         if (has("runtime") && has("session_runs"))
           return [
             {
@@ -94,7 +94,7 @@ function mockSql() {
               runtimeRunsLinkedPeriod: 2,
             },
           ];
-        }
+      }
       return [
         {
           sessions_running: 1,
@@ -360,7 +360,9 @@ function mockSql() {
       return [];
     }
     if (has("select id,email,status from users where id")) {
-      return [{ id: otherUserId, email: "other@example.test", status: "active" }];
+      return [
+        { id: otherUserId, email: "other@example.test", status: "active" },
+      ];
     }
     if (has("exists(select 1 from profiles p where p.owner_id=u.id)")) {
       return [
@@ -514,9 +516,11 @@ describe("admin routes", () => {
         creditBand: "healthy",
         isBlocked: false,
       }),
-      summarize: vi.fn().mockResolvedValue([
-        { category: "model", quantity: 12, occurredAt: new Date() },
-      ]),
+      summarize: vi
+        .fn()
+        .mockResolvedValue([
+          { category: "model", quantity: 12, occurredAt: new Date() },
+        ]),
     } as unknown as BillingRepository;
     const app = buildAdminApp({
       sql: mockSql(),
@@ -526,14 +530,18 @@ describe("admin routes", () => {
       workerEnabled: true,
     });
 
-    const agentHealth = await app.request(`/v1/admin/agent-health/${routineOwnerId}`);
+    const agentHealth = await app.request(
+      `/v1/admin/agent-health/${routineOwnerId}`,
+    );
     const users = await app.request(`/v1/admin/users/${ownerId}`);
     const teams = await app.request(`/v1/admin/teams/${squareId}`);
     const notFound = await app.request(`/v1/admin/teams/${routineOwnerId}`);
     const reconciliation = await app.request(
       `/v1/admin/billing-reconciliation/${otherUserId}`,
     );
-    const empty = await app.request("/v1/admin/billing-reconciliation/not-a-uuid");
+    const empty = await app.request(
+      "/v1/admin/billing-reconciliation/not-a-uuid",
+    );
 
     expect(agentHealth.status).toBe(200);
     expect(await agentHealth.json()).toMatchObject({

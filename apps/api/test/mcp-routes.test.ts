@@ -9,7 +9,9 @@ import { registerMcpRoutes } from "../src/mcp-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const mcpServerId = asId<"mcp-server">("01900000-0000-7000-8000-000000000002");
-const anotherServerId = asId<"mcp-server">("01900000-0000-7000-8000-000000000003");
+const anotherServerId = asId<"mcp-server">(
+  "01900000-0000-7000-8000-000000000003",
+);
 const agentVersionId = asId<"agent-version">(
   "01900000-0000-7000-8000-000000000010",
 );
@@ -27,7 +29,9 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.test" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.test" },
+    });
     await next();
   });
 }
@@ -118,18 +122,15 @@ describe("mcp routes", () => {
       `/v1/mcp-servers/${mcpServerId}?expectedRevision=1`,
       { method: "DELETE" },
     );
-    const bound = await app.request(
-      `/v1/mcp-servers/${mcpServerId}/bindings`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          agentVersionId,
-          modeOverride: "approval_required",
-          accountScope: ["calendar.read", "calendar.write"],
-        }),
-      },
-    );
+    const bound = await app.request(`/v1/mcp-servers/${mcpServerId}/bindings`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        agentVersionId,
+        modeOverride: "approval_required",
+        accountScope: ["calendar.read", "calendar.write"],
+      }),
+    });
     const unbound = await app.request(
       `/v1/mcp-server-bindings/${bindingId}?expectedRevision=1`,
       { method: "DELETE" },
@@ -240,7 +241,9 @@ describe("mcp routes", () => {
     expect(badCreate.status).toBe(400);
     expect(badDelete.status).toBe(400);
     expect(badBinding.status).toBe(400);
-    expect(await missingQuery.json()).toMatchObject({ code: "INVALID_REQUEST" });
+    expect(await missingQuery.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
     expect(await badCreate.json()).toMatchObject({ code: "INVALID_REQUEST" });
     expect(await badDelete.json()).toMatchObject({ code: "INVALID_REQUEST" });
     expect(await badBinding.json()).toMatchObject({ code: "INVALID_REQUEST" });

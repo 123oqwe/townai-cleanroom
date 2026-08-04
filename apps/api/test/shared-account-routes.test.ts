@@ -26,7 +26,9 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.test" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.test" },
+    });
     await next();
   });
 }
@@ -76,10 +78,9 @@ describe("shared-account routes", () => {
         capabilities: ["read", "write"],
       }),
     });
-    const revoke = await app.request(
-      `/v1/square-account-shares/${shareId}`,
-      { method: "DELETE" },
-    );
+    const revoke = await app.request(`/v1/square-account-shares/${shareId}`, {
+      method: "DELETE",
+    });
 
     expect(list.status).toBe(200);
     expect(grant.status).toBe(201);
@@ -108,15 +109,18 @@ describe("shared-account routes", () => {
       revoke: vi.fn(),
     } as unknown as SharedAccountRepository);
     const badList = await app.request("/v1/squares/not-a-uuid/accounts");
-    const badGrant = await app.request("/v1/squares/00000000-0000-0000-0000-000000000000/accounts", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        accountId: "not-an-uuid",
-        accountOwnerId: ownerId,
-        capabilities: ["read", "write"],
-      }),
-    });
+    const badGrant = await app.request(
+      "/v1/squares/00000000-0000-0000-0000-000000000000/accounts",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          accountId: "not-an-uuid",
+          accountOwnerId: ownerId,
+          capabilities: ["read", "write"],
+        }),
+      },
+    );
     const tooLongCapabilities = await app.request(
       `/v1/squares/${squareId}/accounts`,
       {

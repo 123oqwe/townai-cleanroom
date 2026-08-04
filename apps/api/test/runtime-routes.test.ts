@@ -14,9 +14,13 @@ import { registerRuntimeRoutes } from "../src/runtime-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const threadId = asId<"thread">("01900000-0000-7000-8000-000000000002");
-const sessionId = asId<"runtime-session">("01900000-0000-7000-8000-000000000003");
+const sessionId = asId<"runtime-session">(
+  "01900000-0000-7000-8000-000000000003",
+);
 const runId = asId<"session-run">("01900000-0000-7000-8000-000000000004");
-const approvalId = asId<"approval-request">("01900000-0000-7000-8000-000000000005");
+const approvalId = asId<"approval-request">(
+  "01900000-0000-7000-8000-000000000005",
+);
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
@@ -29,7 +33,9 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.invalid" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.invalid" },
+    });
     await next();
   });
 }
@@ -187,7 +193,9 @@ describe("runtime routes", () => {
       },
     );
     expect(resumed.status).toBe(202);
-    expect(await resumed.json()).toMatchObject({ run: { id: resumedRun.id, state: "running" } });
+    expect(await resumed.json()).toMatchObject({
+      run: { id: resumedRun.id, state: "running" },
+    });
     expect(runtimeTransitionService.resume).toHaveBeenCalledWith({
       ownerId,
       sessionId,
@@ -242,7 +250,10 @@ describe("runtime routes", () => {
       `http://town.test/v1/sessions/${sessionId}/runs?state=queued&limit=25&cursor=eyJvZmZzZXQiOjF9`,
     );
     expect(runs.status).toBe(200);
-    expect(await runs.json()).toMatchObject({ items: [{ id: run.id }], nextCursor: null });
+    expect(await runs.json()).toMatchObject({
+      items: [{ id: run.id }],
+      nextCursor: null,
+    });
     expect(sessionRepository.listRuns).toHaveBeenCalledWith({
       ownerId,
       sessionId,
@@ -279,7 +290,9 @@ describe("runtime routes", () => {
       },
     );
     expect(cancelled.status).toBe(200);
-    expect(await cancelled.json()).toMatchObject({ run: { id: run.id, state: "queued" } });
+    expect(await cancelled.json()).toMatchObject({
+      run: { id: run.id, state: "queued" },
+    });
     expect(runtimeTransitionService.cancel).toHaveBeenCalledWith({
       ownerId,
       sessionId,
@@ -325,18 +338,15 @@ describe("runtime routes", () => {
   });
 
   it("requires approval service and records decision in runtime", async () => {
-    const decision = {
-      id: asId<"approval-request">("01900000-0000-7000-8000-000000000014"),
-      status: "approved" as const,
-      decidedBy: ownerId,
-      decision: "approve",
-    };
     const approvalDecisions = {
       record: vi.fn(async () => ({ approvalId: approvalId })),
     } as unknown as ApprovalDecisionRepository;
     const runtimeTransitionService = {
-      resume: vi
-        .fn(async () => ({ id: runId, state: "queued" as const, sessionId })),
+      resume: vi.fn(async () => ({
+        id: runId,
+        state: "queued" as const,
+        sessionId,
+      })),
       answerInput: vi.fn(),
       cancel: vi.fn(),
     } as unknown as RuntimeTransitionService;
@@ -353,10 +363,17 @@ describe("runtime routes", () => {
 
     const first = await app.request(
       `http://town.test/v1/sessions/${sessionId}/runs/${runId}/approval`,
-      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ approvalId: "app-1", decision: "approve" })},
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ approvalId: "app-1", decision: "approve" }),
+      },
     );
     expect(first.status).toBe(202);
-    expect(await first.json()).toMatchObject({ decision: { approvalId: approvalId }, run: { id: runId, state: "queued" } });
+    expect(await first.json()).toMatchObject({
+      decision: { approvalId: approvalId },
+      run: { id: runId, state: "queued" },
+    });
     expect(approvalDecisions.record).toHaveBeenCalledWith({
       ownerId,
       sessionId,
@@ -419,11 +436,15 @@ describe("runtime routes", () => {
     );
 
     expect(await badSubmit.json()).toMatchObject({ code: "INVALID_REQUEST" });
-    expect(await missingHeader.json()).toMatchObject({ code: "INVALID_REQUEST" });
+    expect(await missingHeader.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
     expect(await badApproval.json()).toMatchObject({
       code: "APPROVAL_DECISIONS_NOT_CONFIGURED",
     });
-    expect(await missingRun.json()).toMatchObject({ error: "SESSION_NOT_FOUND" });
+    expect(await missingRun.json()).toMatchObject({
+      error: "SESSION_NOT_FOUND",
+    });
   });
 
   it("streams runtime events with SSE framing", async () => {

@@ -56,7 +56,9 @@ describe("operations routes", () => {
     const list = vi.fn().mockResolvedValue({
       items: [
         {
-          id: asId<"operation-audit-event">("01900000-0000-7000-8000-000000000010"),
+          id: asId<"operation-audit-event">(
+            "01900000-0000-7000-8000-000000000010",
+          ),
           ownerId,
           actorId: ownerId,
           action: "runtime.run.completed",
@@ -232,10 +234,14 @@ describe("operations routes", () => {
   });
 
   it("accepts anonymous public analytics events and validates request contracts", async () => {
-    const appendPublicAnalytics = vi.fn()
+    const appendPublicAnalytics = vi
+      .fn()
       .mockResolvedValueOnce({ accepted: true, replayed: false })
       .mockRejectedValueOnce(
-        new OperationsError("INVALID_METADATA", "The analytics payload is invalid."),
+        new OperationsError(
+          "INVALID_METADATA",
+          "The analytics payload is invalid.",
+        ),
       );
     const repository = {
       appendPublicAnalytics,

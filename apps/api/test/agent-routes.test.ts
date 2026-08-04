@@ -24,14 +24,14 @@ const routineAgentVersionId = asId<"agent-version">(
 const personalId = asId<"agent">("01900000-0000-7000-8000-000000000010");
 const threadId = asId<"thread">("01900000-0000-7000-8000-000000000020");
 const taskId = asId<"task">("01900000-0000-7000-8000-000000000030");
-const taskDetailSourceId = asId<"task-source">("01900000-0000-7000-8000-000000000031");
+const taskDetailSourceId = asId<"task-source">(
+  "01900000-0000-7000-8000-000000000031",
+);
 const turnId = asId<"thread-turn">("01900000-0000-7000-8000-000000000040");
 const inputRequestId = asId<"input-request">(
   "01900000-0000-7000-8000-000000000050",
 );
 const deliveryTaskId = asId<"task">("01900000-0000-7000-8000-000000000060");
-const routineVersionId = asId<"agent-version">("01900000-0000-7000-8000-000000000061");
-
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
     if (error instanceof z.ZodError || error instanceof SyntaxError)
@@ -42,7 +42,9 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.test" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.test" },
+    });
     await next();
   });
 }
@@ -371,11 +373,14 @@ describe("agent routes", () => {
         forceUnread: true,
       }),
     });
-    const threadMarkRead = await app.request(`/v1/threads/${threadId}/mark-read`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ throughSequence: 4 }),
-    });
+    const threadMarkRead = await app.request(
+      `/v1/threads/${threadId}/mark-read`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ throughSequence: 4 }),
+      },
+    );
     const threadDelete = await app.request(
       `/v1/threads/${threadId}?expectedRevision=4`,
       { method: "DELETE" },
@@ -408,15 +413,20 @@ describe("agent routes", () => {
         scheduledFor: null,
       }),
     });
-    const taskDelete = await app.request(`/v1/tasks/${taskId}?expectedRevision=2`, {
-      method: "DELETE",
-    });
+    const taskDelete = await app.request(
+      `/v1/tasks/${taskId}?expectedRevision=2`,
+      {
+        method: "DELETE",
+      },
+    );
     const taskMarkRead = await app.request(`/v1/tasks/${taskId}/mark-read`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
     });
-    const taskRequests = await app.request(`/v1/tasks/${taskId}/input-requests`);
+    const taskRequests = await app.request(
+      `/v1/tasks/${taskId}/input-requests`,
+    );
     const pendingRequests = await app.request("/v1/input-requests");
     const responded = await app.request(
       `/v1/tasks/${taskId}/input-requests/${inputRequestId}/respond`,
@@ -482,11 +492,17 @@ describe("agent routes", () => {
       agent: { id: personalId, revision: 2 },
     });
     expect(await personalVersions.json()).toMatchObject({
-      items: [{ id: personalAgent.activeVersion.id }, { id: personalAgentUpdated.activeVersion.id }],
+      items: [
+        { id: personalAgent.activeVersion.id },
+        { id: personalAgentUpdated.activeVersion.id },
+      ],
       nextCursor: "next-versions",
     });
     expect(await routineVersions.json()).toMatchObject({
-      items: [{ id: routineAgent.activeVersion.id }, { id: routineAgentPublished.activeVersion.id }],
+      items: [
+        { id: routineAgent.activeVersion.id },
+        { id: routineAgentPublished.activeVersion.id },
+      ],
       nextCursor: null,
     });
 
@@ -738,7 +754,9 @@ describe("agent routes", () => {
         defaultApprovalMode: "auto",
       }),
     });
-    const invalidThreadList = await app.request("/v1/threads?kind=bogus&limit=0");
+    const invalidThreadList = await app.request(
+      "/v1/threads?kind=bogus&limit=0",
+    );
     const badTaskMarkRead = await app.request(
       `/v1/tasks/${deliveryTaskId}/mark-read`,
       {
@@ -747,22 +765,25 @@ describe("agent routes", () => {
         body: JSON.stringify({ response: "extra" }),
       },
     );
-    const badMarkRead = await app.request(
-      `/v1/threads/${threadId}/mark-read`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ throughSequence: "abc" }),
-      },
-    );
+    const badMarkRead = await app.request(`/v1/threads/${threadId}/mark-read`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ throughSequence: "abc" }),
+    });
 
     expect(invalidPersonal.status).toBe(400);
     expect(invalidThreadList.status).toBe(400);
     expect(badTaskMarkRead.status).toBe(400);
     expect(badMarkRead.status).toBe(400);
-    expect(await invalidPersonal.json()).toMatchObject({ code: "INVALID_REQUEST" });
-    expect(await invalidThreadList.json()).toMatchObject({ code: "INVALID_REQUEST" });
-    expect(await badTaskMarkRead.json()).toMatchObject({ code: "INVALID_REQUEST" });
+    expect(await invalidPersonal.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await invalidThreadList.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await badTaskMarkRead.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
     expect(await badMarkRead.json()).toMatchObject({ code: "INVALID_REQUEST" });
   });
 });

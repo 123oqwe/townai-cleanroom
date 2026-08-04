@@ -108,17 +108,14 @@ describe("Twilio voice transcription adapter", () => {
       From: "+3000",
       To: "+4000",
     });
-    const response = await app.request(
-      legacyUrl,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          "x-twilio-signature": signature(params, legacyUrl),
-        },
-        body: params.toString(),
+    const response = await app.request(legacyUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "x-twilio-signature": signature(params, legacyUrl),
       },
-    );
+      body: params.toString(),
+    });
     expect(response.status).toBe(202);
     expect(queueTrigger).toHaveBeenCalledWith(
       ownerId,

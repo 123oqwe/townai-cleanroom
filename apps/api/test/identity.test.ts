@@ -581,7 +581,14 @@ describe("protected identity API", () => {
     await seedRoutineAdminData(owner.user.id);
 
     const headers = { Authorization: `Bearer ${owner.token}` };
-    const [overviewResponse, schedulesResponse, triggersResponse, runsResponse, webhooksResponse, sharesResponse] = await Promise.all([
+    const [
+      overviewResponse,
+      schedulesResponse,
+      triggersResponse,
+      runsResponse,
+      webhooksResponse,
+      sharesResponse,
+    ] = await Promise.all([
       app.request("/v1/admin/routines/overview", { headers }),
       app.request("/v1/admin/routines/schedules", { headers }),
       app.request("/v1/admin/routines/triggers", { headers }),
@@ -595,7 +602,13 @@ describe("protected identity API", () => {
       counts: {
         routines: { total: number; enabled: number; disabled: number };
         triggers: { total: number; enabled: number };
-        runs: { queued: number; running: number; succeeded: number; failed: number; blocked: number };
+        runs: {
+          queued: number;
+          running: number;
+          succeeded: number;
+          failed: number;
+          blocked: number;
+        };
         webhooks: { total: number; enabled: number };
         shares: { total: number; active: number; revoked: number };
       };
@@ -603,8 +616,18 @@ describe("protected identity API", () => {
     const schedules = (await schedulesResponse.json()) as {
       slug: string;
       counts: {
-        routines: { total: number; enabled: number; disabled: number; overdue: number; dueIn24h: number };
-        lifecycle: { createdInPeriod: number; updatedInPeriod: number; staleLastRun: number };
+        routines: {
+          total: number;
+          enabled: number;
+          disabled: number;
+          overdue: number;
+          dueIn24h: number;
+        };
+        lifecycle: {
+          createdInPeriod: number;
+          updatedInPeriod: number;
+          staleLastRun: number;
+        };
       };
     };
     const triggers = (await triggersResponse.json()) as {
@@ -647,7 +670,12 @@ describe("protected identity API", () => {
     const shares = (await sharesResponse.json()) as {
       slug: string;
       counts: {
-        shares: { total: number; active: number; revoked: number; expired: number };
+        shares: {
+          total: number;
+          active: number;
+          revoked: number;
+          expired: number;
+        };
         byPeriod: { created: number; revoked: number; expired: number };
       };
     };
@@ -692,7 +720,14 @@ describe("protected identity API", () => {
 
     expect(runs.slug).toBe("runs");
     expect(runs.totals).toMatchObject({
-      all: { total: 5, queued: 1, running: 1, succeeded: 1, failed: 1, blocked: 1 },
+      all: {
+        total: 5,
+        queued: 1,
+        running: 1,
+        succeeded: 1,
+        failed: 1,
+        blocked: 1,
+      },
       byProvider: { google: 3, calendar: 2, other: 0 },
       byTriggerType: { webhook: 2, voiceTranscribed: 1 },
       byPeriod: { succeeded: 1, failed: 1 },

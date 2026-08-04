@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { z } from "zod";
 import type { Sql } from "postgres";
 import { asId } from "@town/contracts";
@@ -63,7 +63,7 @@ export function registerSlackEventsRoute(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: SlackEventsDependencies,
 ): void {
-  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
+  const route = async (context: Context<{ Variables: AuthVariables }>) => {
     const rawBody = await context.req.raw.text();
     if (Buffer.byteLength(rawBody, "utf8") > 256 * 1024)
       return context.json({ code: "PAYLOAD_TOO_LARGE" }, 413);

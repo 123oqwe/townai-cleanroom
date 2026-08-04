@@ -104,7 +104,8 @@ export function registerContentRoutes(
     if (content.storageKey === null)
       return context.json({ error: "CONTENT_BLOB_NOT_AVAILABLE" }, 409);
     const object = await dependencies.storage.read(content.storageKey);
-    if (object === null) return context.json({ error: "CONTENT_BLOB_NOT_FOUND" }, 404);
+    if (object === null)
+      return context.json({ error: "CONTENT_BLOB_NOT_FOUND" }, 404);
     return new Response(object.body, {
       status: 200,
       headers: {

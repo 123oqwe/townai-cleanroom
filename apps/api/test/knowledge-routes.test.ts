@@ -18,14 +18,17 @@ import type { AuthVariables } from "../src/auth.js";
 import { registerKnowledgeRoutes } from "../src/knowledge-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
-const profileRevisionId = asId<"knowledge-revision">("01900000-0000-7000-8000-000000000002");
 const memoryId = asId<"memory">("01900000-0000-7000-8000-000000000003");
 const personId = asId<"person">("01900000-0000-7000-8000-000000000004");
-const personRelId = asId<"person-relationship">("01900000-0000-7000-8000-000000000005");
+const personRelId = asId<"person-relationship">(
+  "01900000-0000-7000-8000-000000000005",
+);
 const routineId = asId<"routine">("01900000-0000-7000-8000-000000000006");
 const wikiId = asId<"wiki">("01900000-0000-7000-8000-000000000007");
 const relatedPersonId = asId<"person">("01900000-0000-7000-8000-000000000008");
-const conflictId = asId<"knowledge-conflict">("01900000-0000-7000-8000-000000000009");
+const conflictId = asId<"knowledge-conflict">(
+  "01900000-0000-7000-8000-000000000009",
+);
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
@@ -37,7 +40,9 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.test" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.test" },
+    });
     await next();
   });
 }
@@ -159,15 +164,21 @@ describe("knowledge routes", () => {
       list: vi.fn().mockResolvedValue([memory]),
       get: vi.fn().mockResolvedValue(memory),
       create: vi.fn().mockResolvedValue(memory),
-      update: vi.fn().mockResolvedValue({ kind: "applied", memory: memoryUpdated }),
-      retire: vi.fn().mockResolvedValue({ ...memoryUpdated, status: "retired" as const }),
+      update: vi
+        .fn()
+        .mockResolvedValue({ kind: "applied", memory: memoryUpdated }),
+      retire: vi
+        .fn()
+        .mockResolvedValue({ ...memoryUpdated, status: "retired" as const }),
     } as unknown as MemoryRepository;
     const peopleRepository = {
       list: vi.fn().mockResolvedValue([person]),
       get: vi.fn().mockResolvedValue(person),
       listRelationships: vi.fn().mockResolvedValue([relationship]),
       createRelationship: vi.fn().mockResolvedValue(relationship),
-      updateRelationship: vi.fn().mockResolvedValue({ ...relationship, relationshipType: "buddy" }),
+      updateRelationship: vi
+        .fn()
+        .mockResolvedValue({ ...relationship, relationshipType: "buddy" }),
       retireRelationship: vi.fn().mockResolvedValue(undefined),
       create: vi.fn().mockResolvedValue(person),
       update: vi.fn().mockResolvedValue({ kind: "applied", person }),
@@ -176,7 +187,9 @@ describe("knowledge routes", () => {
       list: vi.fn().mockResolvedValue([wiki]),
       get: vi.fn().mockResolvedValue(wiki),
       create: vi.fn().mockResolvedValue(wiki),
-      update: vi.fn().mockResolvedValue({ kind: "applied", document: wiki } as never),
+      update: vi
+        .fn()
+        .mockResolvedValue({ kind: "applied", document: wiki } as never),
     } as unknown as WikiRepository;
 
     const revisionRepository = {
@@ -208,20 +221,22 @@ describe("knowledge routes", () => {
     } as unknown as KnowledgeSearchRepository;
 
     const knowledgeConflictService = {
-      list: vi.fn().mockResolvedValue([{
-        id: conflictId,
-        ownerId,
-        resourceType: "memory" as const,
-        resourceId: memoryId,
-        baseRevision: 1,
-        currentRevision: 2,
-        proposedAuthorType: "assistant" as const,
-        proposedSnapshot: { x: "y" },
-        proposedCitations: [],
-        status: "pending" as const,
-        createdAt: new Date("2026-08-01T00:00:00.000Z"),
-        resolvedAt: null,
-      }]),
+      list: vi.fn().mockResolvedValue([
+        {
+          id: conflictId,
+          ownerId,
+          resourceType: "memory" as const,
+          resourceId: memoryId,
+          baseRevision: 1,
+          currentRevision: 2,
+          proposedAuthorType: "assistant" as const,
+          proposedSnapshot: { x: "y" },
+          proposedCitations: [],
+          status: "pending" as const,
+          createdAt: new Date("2026-08-01T00:00:00.000Z"),
+          resolvedAt: null,
+        },
+      ]),
       resolve: vi.fn().mockResolvedValue({
         id: conflictId,
         ownerId,
@@ -238,7 +253,10 @@ describe("knowledge routes", () => {
       }),
     } as unknown as KnowledgeConflictService;
 
-    const createContextBuilder = vi.spyOn(knowledge, "createKnowledgeContextBuilder");
+    const createContextBuilder = vi.spyOn(
+      knowledge,
+      "createKnowledgeContextBuilder",
+    );
     createContextBuilder.mockReturnValue({
       build: vi.fn().mockResolvedValue({
         context: "assembled",
@@ -438,7 +456,12 @@ describe("knowledge routes", () => {
     });
     expect(memoryGet.status).toBe(200);
     expect(await memoryGet.json()).toMatchObject({
-      memory: { id: memoryId, ownerId, content: "town memory", scope: "global" },
+      memory: {
+        id: memoryId,
+        ownerId,
+        content: "town memory",
+        scope: "global",
+      },
     });
     expect(memoryCreate.status).toBe(201);
     expect(await memoryCreate.json()).toMatchObject({
@@ -557,9 +580,13 @@ describe("knowledge routes", () => {
       items: [{ resourceType: "memory" }],
       nextCursor: null,
     });
-    expect(createContextBuilder).toHaveBeenCalledWith(knowledgeSearchRepository);
+    expect(createContextBuilder).toHaveBeenCalledWith(
+      knowledgeSearchRepository,
+    );
     expect(knowledgeContext.status).toBe(200);
-    expect(await knowledgeContext.json()).toMatchObject({ context: "assembled" });
+    expect(await knowledgeContext.json()).toMatchObject({
+      context: "assembled",
+    });
 
     expect(conflicts.status).toBe(200);
     expect(resolveConflict.status).toBe(200);
@@ -600,7 +627,12 @@ describe("knowledge routes", () => {
 
   it("validates knowledge search query constraints", async () => {
     const app = buildKnowledgeApp({
-      profileRepository: { get: vi.fn(), create: vi.fn(), update: vi.fn(), history: vi.fn() } as unknown as ProfileRepository,
+      profileRepository: {
+        get: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        history: vi.fn(),
+      } as unknown as ProfileRepository,
       memoryRepository: {
         list: vi.fn(),
         get: vi.fn(),
@@ -625,7 +657,9 @@ describe("knowledge routes", () => {
         update: vi.fn(),
       } as unknown as WikiRepository,
       revisionRepository: { list: vi.fn() } as unknown as RevisionRepository,
-      knowledgeSearchRepository: { search: vi.fn() } as unknown as KnowledgeSearchRepository,
+      knowledgeSearchRepository: {
+        search: vi.fn(),
+      } as unknown as KnowledgeSearchRepository,
       knowledgeConflictService: {
         list: vi.fn(),
         resolve: vi.fn(),
@@ -635,13 +669,22 @@ describe("knowledge routes", () => {
       } as unknown as WikiUpkeepScanner,
     });
 
-    const invalidScope = await app.request("/v1/knowledge/search?q=abc&memoryScope=global&routineId=" + relatedPersonId);
-    const missingRoutine = await app.request("/v1/knowledge/search?q=abc&memoryScope=routine");
+    const invalidScope = await app.request(
+      "/v1/knowledge/search?q=abc&memoryScope=global&routineId=" +
+        relatedPersonId,
+    );
+    const missingRoutine = await app.request(
+      "/v1/knowledge/search?q=abc&memoryScope=routine",
+    );
 
     expect(invalidScope.status).toBe(400);
     expect(missingRoutine.status).toBe(400);
-    expect(await invalidScope.json()).toMatchObject({ code: "INVALID_REQUEST" });
-    expect(await missingRoutine.json()).toMatchObject({ code: "INVALID_REQUEST" });
+    expect(await invalidScope.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await missingRoutine.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
   });
 
   it("supports optional upkeep scanner and returns 503 when unavailable", async () => {
@@ -658,7 +701,9 @@ describe("knowledge routes", () => {
     expect(miss.status).toBe(503);
     expect(await miss.json()).toMatchObject({ code: "UPKEEP_NOT_CONFIGURED" });
 
-    const scan = vi.fn().mockResolvedValue({ items: [], nextCursor: null, staleCount: 0 });
+    const scan = vi
+      .fn()
+      .mockResolvedValue({ items: [], nextCursor: null, staleCount: 0 });
     const configured = buildKnowledgeApp({
       profileRepository: { get: vi.fn() } as unknown as ProfileRepository,
       memoryRepository: {} as unknown as MemoryRepository,
@@ -674,7 +719,15 @@ describe("knowledge routes", () => {
     );
 
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toMatchObject({ items: [], nextCursor: null, staleCount: 0 });
-    expect(scan).toHaveBeenCalledWith({ ownerId, staleAfterDays: 7, limit: 10 });
+    expect(await ok.json()).toMatchObject({
+      items: [],
+      nextCursor: null,
+      staleCount: 0,
+    });
+    expect(scan).toHaveBeenCalledWith({
+      ownerId,
+      staleAfterDays: 7,
+      limit: 10,
+    });
   });
 });

@@ -11,14 +11,17 @@ const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
-    if (error instanceof z.ZodError) return context.json({ code: "INVALID_REQUEST" }, 400);
+    if (error instanceof z.ZodError)
+      return context.json({ code: "INVALID_REQUEST" }, 400);
     return context.json({ code: "INTERNAL_ERROR", detail: String(error) }, 500);
   });
 }
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.test" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.test" },
+    });
     await next();
   });
 }
@@ -46,16 +49,14 @@ describe("billing routes", () => {
       revision: 8,
       updatedAt: new Date("2026-08-01T00:00:00.000Z"),
     });
-    const summarize = vi
-      .fn()
-      .mockResolvedValue([
-        {
-          category: "model" as UsageCategory,
-          quantity: "42",
-          unit: "credits",
-          occurredAt: new Date("2026-08-01T12:00:00.000Z"),
-        },
-      ]);
+    const summarize = vi.fn().mockResolvedValue([
+      {
+        category: "model" as UsageCategory,
+        quantity: "42",
+        unit: "credits",
+        occurredAt: new Date("2026-08-01T12:00:00.000Z"),
+      },
+    ]);
     const repository = { get, summarize } as unknown as BillingRepository;
 
     const app = buildBillingApp(repository);
@@ -80,9 +81,16 @@ describe("billing routes", () => {
       expect.any(Date),
       expect.any(Date),
     );
-    const [calledStart, calledEnd] = summarize.mock.calls[0]!.slice(1) as [Date, Date];
+    const call = summarize.mock.calls[0];
+    if (call === undefined) {
+      throw new Error("expected billing summarize call");
+    }
+    expect(call).toHaveLength(3);
+    const [, calledStart, calledEnd] = call;
     expect(calledEnd.getTime()).toBeGreaterThan(calledStart.getTime());
-    expect(calledEnd.getTime() - calledStart.getTime()).toBeLessThanOrEqual(366 * 24 * 60 * 60 * 1_000);
+    expect(calledEnd.getTime() - calledStart.getTime()).toBeLessThanOrEqual(
+      366 * 24 * 60 * 60 * 1_000,
+    );
   });
 
   it("returns not_configured when no state exists", async () => {
@@ -137,21 +145,19 @@ describe("billing routes", () => {
   });
 
   it("returns INVALID_REQUEST for invalid period windows", async () => {
-    const get = vi
-      .fn()
-      .mockResolvedValue({
-        ownerId,
-        planName: "Cleanroom",
-        isBlocked: false,
-        isTrial: false,
-        isEnterprise: false,
-        creditBand: "healthy" as const,
-        creditBanners: [],
-        periodStart: null,
-        periodEnd: null,
-        revision: 1,
-        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
-      });
+    const get = vi.fn().mockResolvedValue({
+      ownerId,
+      planName: "Cleanroom",
+      isBlocked: false,
+      isTrial: false,
+      isEnterprise: false,
+      creditBand: "healthy" as const,
+      creditBanners: [],
+      periodStart: null,
+      periodEnd: null,
+      revision: 1,
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
     const summarize = vi.fn().mockResolvedValue([]);
     const repository = { get, summarize } as unknown as BillingRepository;
     const app = buildBillingApp(repository);

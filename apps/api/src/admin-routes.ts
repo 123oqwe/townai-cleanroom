@@ -140,8 +140,11 @@ function parseReportSlug(candidate: string | undefined): ReportSlug | null {
     : null;
 }
 
-function parseRoutineReportSlug(candidate: string | undefined): RoutineReportSlug | null {
-  return candidate !== undefined && routineReportSlugSet.has(candidate as RoutineReportSlug)
+function parseRoutineReportSlug(
+  candidate: string | undefined,
+): RoutineReportSlug | null {
+  return candidate !== undefined &&
+    routineReportSlugSet.has(candidate as RoutineReportSlug)
     ? (candidate as RoutineReportSlug)
     : null;
 }

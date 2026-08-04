@@ -30,7 +30,9 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", { user: { id: ownerId, email: "owner@example.invalid" } });
+    context.set("identity", {
+      user: { id: ownerId, email: "owner@example.invalid" },
+    });
     await next();
   });
 }
@@ -112,7 +114,11 @@ describe("tool routes", () => {
       decisionNote: null,
     };
     const approvals = [approval];
-    const decision = { approvalId, sessionId: approval.sessionId, status: "decided" };
+    const decision = {
+      approvalId,
+      sessionId: approval.sessionId,
+      status: "decided",
+    };
     const registry = {
       list: vi.fn(async () => toolsList),
     } as unknown as ToolRegistryRepository;
@@ -145,21 +151,24 @@ describe("tool routes", () => {
     });
     expect(registry.list).toHaveBeenCalledWith(ownerId);
 
-    const policy = await app.request("http://town.test/v1/tools/policy/evaluate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        sessionMode: "ask_before_changes",
-        routineMode: "read_only",
-        perToolOverride: null,
-        sideEffect: "read",
-        dataSensitivity: "public",
-        inputTrust: "trusted_instruction",
-        targetIsSelf: true,
-        targetIsTrusted: false,
-        accountBound: false,
-      }),
-    });
+    const policy = await app.request(
+      "http://town.test/v1/tools/policy/evaluate",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sessionMode: "ask_before_changes",
+          routineMode: "read_only",
+          perToolOverride: null,
+          sideEffect: "read",
+          dataSensitivity: "public",
+          inputTrust: "trusted_instruction",
+          targetIsSelf: true,
+          targetIsTrusted: false,
+          accountBound: false,
+        }),
+      },
+    );
     expect(policy.status).toBe(200);
     expect(await policy.json()).toMatchObject({
       policy: {

@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import type { Sql } from "postgres";
 import { z } from "zod";
 
@@ -593,8 +593,8 @@ export function registerRoutineShareRoutes(
     );
     return share
       ? acceptsHtml(context.req.raw)
-      ? context.html(routineShareHtml(share))
-      : context.json({ share })
+        ? context.html(routineShareHtml(share))
+        : context.json({ share })
       : context.json({ error: "SHARE_NOT_FOUND" }, 404);
   });
   app.get("/content/routines/shared/:token", async (context) => {
@@ -613,7 +613,7 @@ export function registerRoutineWebhookRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: RoutineDependencies,
 ): void {
-  const route = async (context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0]) => {
+  const route = async (context: Context<{ Variables: AuthVariables }>) => {
     const contentType = context.req.header("content-type")?.split(";", 1)[0];
     if (contentType !== "application/json" && contentType !== "text/plain")
       return context.json({ error: "UNSUPPORTED_CONTENT_TYPE" }, 415);

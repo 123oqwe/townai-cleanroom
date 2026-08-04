@@ -11,7 +11,10 @@ describe("content share route", () => {
       resolveShare: vi
         .fn()
         .mockRejectedValue(
-          new ContentError("SHARE_NOT_FOUND", "The share token is invalid or expired."),
+          new ContentError(
+            "SHARE_NOT_FOUND",
+            "The share token is invalid or expired.",
+          ),
         ),
       toPublic: (item: Record<string, unknown>) => item,
     } as unknown as ContentRepository;
@@ -35,7 +38,10 @@ describe("content share route", () => {
       resolveShare: vi
         .fn()
         .mockRejectedValue(
-          new ContentError("SHARE_NOT_FOUND", "The share token is invalid or expired."),
+          new ContentError(
+            "SHARE_NOT_FOUND",
+            "The share token is invalid or expired.",
+          ),
         ),
       toPublic: (item: Record<string, unknown>) => item,
     } as unknown as ContentRepository;
@@ -55,7 +61,10 @@ describe("content share route", () => {
       resolveShare: vi
         .fn()
         .mockRejectedValue(
-          new ContentError("SHARE_NOT_FOUND", "The share token is invalid or expired."),
+          new ContentError(
+            "SHARE_NOT_FOUND",
+            "The share token is invalid or expired.",
+          ),
         ),
     } as unknown as ContentRepository;
     const app = new Hono<{ Variables: AuthVariables }>();
