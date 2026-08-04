@@ -30,6 +30,26 @@ describe("content share route", () => {
     expect(await legacyJson.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
   });
 
+  it("returns JSON errors for unknown share tokens even for browser Accept", async () => {
+    const repository = {
+      resolveShare: vi
+        .fn()
+        .mockRejectedValue(
+          new ContentError("SHARE_NOT_FOUND", "The share token is invalid or expired."),
+        ),
+      toPublic: (item: Record<string, unknown>) => item,
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerContentRoutes(app, { repository });
+
+    const legacyPage = await app.request(
+      "http://town.test/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      { headers: { accept: "text/html" } },
+    );
+    expect(legacyPage.status).toBe(404);
+    expect(await legacyPage.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
+  });
+
   it("returns 404 for missing shared blobs", async () => {
     const repository = {
       resolveShare: vi
