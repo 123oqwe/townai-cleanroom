@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { asId } from "@town/contracts";
 import {
+  ContentError,
   contentKindSchema,
   contentStatusSchema,
   type ContentRepository,
@@ -46,18 +47,30 @@ export function registerContentRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: ContentDependencies,
 ): void {
+  const resolveShare = async (token: string) => {
+    try {
+      return await dependencies.repository.resolveShare(token);
+    } catch (error) {
+      if (error instanceof ContentError && error.code === "SHARE_NOT_FOUND")
+        return null;
+      throw error;
+    }
+  };
+
   app.get("/v1/content-shares/:token", async (context) => {
-    const content = dependencies.repository.toPublic(
-      await dependencies.repository.resolveShare(context.req.param("token")),
-    );
+    const contentItem = await resolveShare(context.req.param("token"));
+    if (contentItem === null)
+      return context.json({ error: "SHARE_NOT_FOUND" }, 404);
+    const content = dependencies.repository.toPublic(contentItem);
     return acceptsHtml(context.req.raw)
       ? context.html(contentShareHtml(content))
       : context.json({ content });
   });
   app.get("/content-shares/:token", async (context) => {
-    const content = dependencies.repository.toPublic(
-      await dependencies.repository.resolveShare(context.req.param("token")),
-    );
+    const contentItem = await resolveShare(context.req.param("token"));
+    if (contentItem === null)
+      return context.json({ error: "SHARE_NOT_FOUND" }, 404);
+    const content = dependencies.repository.toPublic(contentItem);
     return acceptsHtml(context.req.raw)
       ? context.html(contentShareHtml(content))
       : context.json({ content });
@@ -65,9 +78,9 @@ export function registerContentRoutes(
   app.get("/v1/content-shares/:token/blob", async (context) => {
     if (dependencies.storage === undefined)
       return context.json({ error: "CONTENT_STORAGE_NOT_CONFIGURED" }, 503);
-    const content = await dependencies.repository.resolveShare(
-      context.req.param("token"),
-    );
+    const content = await resolveShare(context.req.param("token"));
+    if (content === null)
+      return context.json({ error: "SHARE_NOT_FOUND" }, 404);
     if (content.storageKey === null)
       return context.json({ error: "CONTENT_BLOB_NOT_AVAILABLE" }, 409);
     const object = await dependencies.storage.read(content.storageKey);
@@ -85,9 +98,9 @@ export function registerContentRoutes(
   app.get("/content-shares/:token/blob", async (context) => {
     if (dependencies.storage === undefined)
       return context.json({ error: "CONTENT_STORAGE_NOT_CONFIGURED" }, 503);
-    const content = await dependencies.repository.resolveShare(
-      context.req.param("token"),
-    );
+    const content = await resolveShare(context.req.param("token"));
+    if (content === null)
+      return context.json({ error: "SHARE_NOT_FOUND" }, 404);
     if (content.storageKey === null)
       return context.json({ error: "CONTENT_BLOB_NOT_AVAILABLE" }, 409);
     const object = await dependencies.storage.read(content.storageKey);

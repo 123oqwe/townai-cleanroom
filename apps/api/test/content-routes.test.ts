@@ -3,9 +3,61 @@ import { Hono } from "hono";
 
 import type { AuthVariables } from "../src/auth.js";
 import { registerContentRoutes } from "../src/content-routes.js";
-import type { ContentRepository } from "@town/content";
+import { ContentError, type ContentRepository } from "@town/content";
 
 describe("content share route", () => {
+  it("returns 404 for unknown share tokens", async () => {
+    const repository = {
+      resolveShare: vi
+        .fn()
+        .mockRejectedValue(
+          new ContentError("SHARE_NOT_FOUND", "The share token is invalid or expired."),
+        ),
+      toPublic: (item: Record<string, unknown>) => item,
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerContentRoutes(app, { repository });
+
+    const json = await app.request(
+      "http://town.test/v1/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    );
+    const legacyJson = await app.request(
+      "http://town.test/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    );
+    expect(json.status).toBe(404);
+    expect(await json.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
+    expect(legacyJson.status).toBe(404);
+    expect(await legacyJson.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
+  });
+
+  it("returns 404 for missing shared blobs", async () => {
+    const repository = {
+      resolveShare: vi
+        .fn()
+        .mockRejectedValue(
+          new ContentError("SHARE_NOT_FOUND", "The share token is invalid or expired."),
+        ),
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerContentRoutes(app, {
+      repository,
+      storage: {
+        read: vi.fn(),
+      },
+    });
+
+    const legacyBlob = await app.request(
+      "http://town.test/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/blob",
+    );
+    const blob = await app.request(
+      "http://town.test/v1/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/blob",
+    );
+    expect(legacyBlob.status).toBe(404);
+    expect(await legacyBlob.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
+    expect(blob.status).toBe(404);
+    expect(await blob.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
+  });
+
   it("keeps JSON for API clients and renders escaped HTML for browsers", async () => {
     const repository = {
       resolveShare: vi.fn().mockResolvedValue({
