@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
+import type { AuthenticatedIdentity } from "@town/identity";
 import type {
   AgentRepository,
   InputRequestRepository,
@@ -14,6 +15,7 @@ import type { AuthVariables } from "../src/auth.js";
 import { registerAgentRoutes } from "../src/agent-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
+const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");
 const routineId = asId<"agent">("01900000-0000-7000-8000-000000000002");
 const personalAgentVersionId = asId<"agent-version">(
   "01900000-0000-7000-8000-000000000003",
@@ -32,6 +34,23 @@ const inputRequestId = asId<"input-request">(
   "01900000-0000-7000-8000-000000000050",
 );
 const deliveryTaskId = asId<"task">("01900000-0000-7000-8000-000000000060");
+const agentIdentity: AuthenticatedIdentity = {
+  user: {
+    id: ownerId,
+    email: "owner@example.test",
+    firstName: null,
+    lastName: null,
+    timezone: "UTC",
+    status: "active",
+  },
+  session: {
+    id: sessionId,
+    userId: ownerId,
+    expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    lastSeenAt: new Date("2026-08-01T00:00:00.000Z"),
+  },
+};
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
     if (error instanceof z.ZodError || error instanceof SyntaxError)
@@ -42,9 +61,7 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", {
-      user: { id: ownerId, email: "owner@example.test" },
-    });
+    context.set("identity", agentIdentity);
     await next();
   });
 }

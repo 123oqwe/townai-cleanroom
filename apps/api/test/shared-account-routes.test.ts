@@ -3,11 +3,13 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
+import type { AuthenticatedIdentity } from "@town/identity";
 import type { SharedAccountRepository } from "@town/teams";
 import type { AuthVariables } from "../src/auth.js";
 import { registerSharedAccountRoutes } from "../src/shared-account-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
+const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");
 const squareId = asId<"square">("01900000-0000-7000-8000-000000000010");
 const accountId = asId<"connected-account">(
   "01900000-0000-7000-8000-000000000020",
@@ -15,6 +17,23 @@ const accountId = asId<"connected-account">(
 const shareId = asId<"square-account-share">(
   "01900000-0000-7000-8000-000000000030",
 );
+const sharedAccountIdentity: AuthenticatedIdentity = {
+  user: {
+    id: ownerId,
+    email: "owner@example.test",
+    firstName: null,
+    lastName: null,
+    timezone: "UTC",
+    status: "active",
+  },
+  session: {
+    id: sessionId,
+    userId: ownerId,
+    expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    lastSeenAt: new Date("2026-08-01T00:00:00.000Z"),
+  },
+};
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
@@ -26,9 +45,7 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", {
-      user: { id: ownerId, email: "owner@example.test" },
-    });
+    context.set("identity", sharedAccountIdentity);
     await next();
   });
 }

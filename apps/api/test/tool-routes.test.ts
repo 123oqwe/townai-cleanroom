@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
+import type { AuthenticatedIdentity } from "@town/identity";
 import * as tools from "@town/tools";
 import type {
   ToolRegistryRepository,
@@ -12,6 +13,7 @@ import type { AuthVariables } from "../src/auth.js";
 import { registerToolRoutes } from "../src/tool-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
+const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");
 const toolCallId = asId<"tool-call">("01900000-0000-7000-8000-000000000002");
 const approvalId = asId<"approval-request">(
   "01900000-0000-7000-8000-000000000003",
@@ -19,6 +21,23 @@ const approvalId = asId<"approval-request">(
 const toolDefinitionId = asId<"tool-definition">(
   "01900000-0000-7000-8000-000000000004",
 );
+const toolIdentity: AuthenticatedIdentity = {
+  user: {
+    id: ownerId,
+    email: "owner@example.invalid",
+    firstName: null,
+    lastName: null,
+    timezone: "UTC",
+    status: "active",
+  },
+  session: {
+    id: sessionId,
+    userId: ownerId,
+    expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    lastSeenAt: new Date("2026-08-01T00:00:00.000Z"),
+  },
+};
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
@@ -30,9 +49,7 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", {
-      user: { id: ownerId, email: "owner@example.invalid" },
-    });
+    context.set("identity", toolIdentity);
     await next();
   });
 }

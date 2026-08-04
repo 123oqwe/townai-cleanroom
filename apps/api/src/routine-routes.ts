@@ -636,8 +636,11 @@ export function registerRoutineWebhookRoutes(
     } else {
       payload = { text: raw };
     }
+    const routineId = context.req.param("routineId");
+    if (routineId === undefined)
+      return context.json({ error: "NOT_FOUND" }, 404);
     const delivery = await dependencies.repository.deliverWebhook(
-      asRoutineId(context.req.param("routineId")),
+      asRoutineId(routineId),
       secret,
       idempotencyKey,
       payload,

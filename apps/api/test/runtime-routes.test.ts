@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
+import type { AuthenticatedIdentity } from "@town/identity";
 import type {
   SessionRepository,
   RuntimeTransitionService,
@@ -14,6 +15,9 @@ import { registerRuntimeRoutes } from "../src/runtime-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const threadId = asId<"thread">("01900000-0000-7000-8000-000000000002");
+const authSessionId = asId<"auth-session">(
+  "01900000-0000-7000-8000-000000000009",
+);
 const sessionId = asId<"runtime-session">(
   "01900000-0000-7000-8000-000000000003",
 );
@@ -21,6 +25,23 @@ const runId = asId<"session-run">("01900000-0000-7000-8000-000000000004");
 const approvalId = asId<"approval-request">(
   "01900000-0000-7000-8000-000000000005",
 );
+const runtimeIdentity: AuthenticatedIdentity = {
+  user: {
+    id: ownerId,
+    email: "owner@example.invalid",
+    firstName: null,
+    lastName: null,
+    timezone: "UTC",
+    status: "active",
+  },
+  session: {
+    id: authSessionId,
+    userId: ownerId,
+    expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    lastSeenAt: new Date("2026-08-01T00:00:00.000Z"),
+  },
+};
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
@@ -33,9 +54,7 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 
 function withIdentity(app: Hono<{ Variables: AuthVariables }>) {
   app.use("*", async (context, next) => {
-    context.set("identity", {
-      user: { id: ownerId, email: "owner@example.invalid" },
-    });
+    context.set("identity", runtimeIdentity);
     await next();
   });
 }
@@ -261,10 +280,17 @@ describe("runtime routes", () => {
       cursor: "eyJvZmZzZXQiOjF9",
       limit: 25,
     });
-    expect(
-      (sessionRepository.listRuns as unknown as ReturnType<typeof vi.fn>).mock
-        .calls[0][0],
-    ).toMatchObject({ limit: 25, state: "queued", cursor: "eyJvZmZzZXQiOjF9" });
+    const listRunsCalls = (
+      sessionRepository.listRuns as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls;
+    const listRunsFirstCall = listRunsCalls[0]?.[0];
+    if (listRunsFirstCall === undefined)
+      throw new Error("expected sessionRepository.listRuns to be called");
+    expect(listRunsFirstCall).toMatchObject({
+      limit: 25,
+      state: "queued",
+      cursor: "eyJvZmZzZXQiOjF9",
+    });
 
     const eventsResponse = await app.request(
       `http://town.test/v1/sessions/${sessionId}/events?cursor=cursor-one&limit=10`,

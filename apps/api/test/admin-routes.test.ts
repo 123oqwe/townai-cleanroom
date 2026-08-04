@@ -1,17 +1,37 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import { z } from "zod";
+import type { Sql } from "postgres";
 
 import { asId } from "@town/contracts";
 import type { BillingRepository } from "@town/billing";
 import type { OperationsRepository } from "@town/operations";
+import type { AuthenticatedIdentity } from "@town/identity";
 import type { AuthVariables } from "../src/auth.js";
 import { registerAdminRoutes } from "../src/admin-routes.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
+const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");
 const otherUserId = asId<"user">("01900000-0000-7000-8000-000000000002");
 const routineOwnerId = asId<"user">("01900000-0000-7000-8000-000000000003");
 const squareId = asId<"square">("01900000-0000-7000-8000-000000000004");
+const adminIdentity: AuthenticatedIdentity = {
+  user: {
+    id: ownerId,
+    email: "admin@example.test",
+    firstName: null,
+    lastName: null,
+    timezone: "UTC",
+    status: "active",
+  },
+  session: {
+    id: sessionId,
+    userId: ownerId,
+    expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    lastSeenAt: new Date("2026-08-01T00:00:00.000Z"),
+  },
+};
 
 function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
   app.onError((error, context) => {
@@ -22,7 +42,7 @@ function withErrorMapping(app: Hono<{ Variables: AuthVariables }>) {
 }
 
 function buildAdminApp(input: {
-  sql: ReturnType<typeof vi.fn>;
+  sql: Sql;
   operations: OperationsRepository;
   harnessReady?: boolean;
   workerEnabled?: boolean;
@@ -32,9 +52,7 @@ function buildAdminApp(input: {
   const app = new Hono<{ Variables: AuthVariables }>();
   withErrorMapping(app);
   app.use("*", async (context, next) => {
-    context.set("identity", {
-      user: { id: ownerId, email: "admin@example.test" },
-    });
+    context.set("identity", adminIdentity);
     await next();
   });
   registerAdminRoutes(app, {
@@ -416,7 +434,7 @@ describe("admin routes", () => {
 
   it("returns admin overview and report readiness", async () => {
     const app = buildAdminApp({
-      sql: mockSql(),
+      sql: mockSql() as unknown as Sql,
       operations: baseOperations,
       workerEnabled: true,
       googleOAuthReady: true,
@@ -441,7 +459,7 @@ describe("admin routes", () => {
 
   it("resolves admin reports by slug and validates query period bounds", async () => {
     const app = buildAdminApp({
-      sql: mockSql(),
+      sql: mockSql() as unknown as Sql,
       operations: baseOperations,
       workerEnabled: true,
       googleOAuthReady: false,
@@ -478,7 +496,7 @@ describe("admin routes", () => {
 
   it("resolves routine admin reports and period validation", async () => {
     const app = buildAdminApp({
-      sql: mockSql(),
+      sql: mockSql() as unknown as Sql,
       operations: baseOperations,
     });
 
@@ -523,7 +541,7 @@ describe("admin routes", () => {
         ]),
     } as unknown as BillingRepository;
     const app = buildAdminApp({
-      sql: mockSql(),
+      sql: mockSql() as unknown as Sql,
       operations: baseOperations,
       billing,
       harnessReady: false,
@@ -550,7 +568,11 @@ describe("admin routes", () => {
       summary: operationsSummary(),
     });
     expect(users.status).toBe(200);
-    const usersJson = await users.json();
+    const usersJson = (await users.json()) as {
+      user: { id: string; firstName: string };
+      resources: { activeAgents: number; openTasks: number };
+      accounts: Array<{ provider: string; credentialPresent: boolean }>;
+    };
     expect(usersJson).toMatchObject({
       user: { id: ownerId, firstName: "Town" },
       resources: { activeAgents: 2, openTasks: 4 },
