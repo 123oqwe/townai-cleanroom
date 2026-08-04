@@ -17,6 +17,8 @@ describe("serverless health probes", () => {
       "GOOGLE_OAUTH_CLIENT_ID",
       "GOOGLE_OAUTH_CLIENT_SECRET",
       "GOOGLE_OAUTH_REDIRECT_URI",
+      "WORKSPACE_ROOT",
+      "CODE_RUNNER_ENABLED",
     ];
     const previous = new Map(names.map((name) => [name, process.env[name]]));
     for (const name of names) Reflect.deleteProperty(process.env, name);
@@ -33,6 +35,8 @@ describe("serverless health probes", () => {
         auth: false,
         harness: false,
         worker: false,
+        workspaceTools: false,
+        codeRunner: false,
         slackEvents: false,
         twilioVoice: false,
         vapiVoice: false,

@@ -63,6 +63,10 @@ function isValidContentStorageConfig() {
   return hasAllS3;
 }
 
+function isEnabled(value) {
+  return value === "true" || value === "1" || value === "yes";
+}
+
 const app = new Hono();
 let runtimePromise;
 let runtimeError;
@@ -91,6 +95,8 @@ app.get("/v1/health/capabilities", (context) =>
     auth: hasRequiredRuntimeConfig(),
     harness: Boolean(process.env.RESPONSES_API_KEY),
     worker: Boolean(process.env.WORKER_SECRET || process.env.CRON_SECRET),
+    workspaceTools: Boolean(process.env.WORKSPACE_ROOT),
+    codeRunner: isEnabled(process.env.CODE_RUNNER_ENABLED),
     slackEvents: Boolean(process.env.SLACK_SIGNING_SECRET),
     twilioVoice: Boolean(process.env.TWILIO_AUTH_TOKEN),
     vapiVoice: Boolean(process.env.VAPI_WEBHOOK_SECRET),
