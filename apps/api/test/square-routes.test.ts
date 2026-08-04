@@ -283,6 +283,60 @@ describe("square routes", () => {
       allowedToolNames: ["calendar.list"],
       settings: { locale: "en" },
     });
+
+    const legacyList = await app.request("http://town.test/squares");
+    expect(legacyList.status).toBe(200);
+    expect(await legacyList.json()).toMatchObject({
+      squares: [
+        {
+          ...listSquareMembership,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+          membership: {
+            ...listSquareMembership.membership,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+          },
+        },
+      ],
+    });
+
+    const legacyGet = await app.request(`http://town.test/squares/${squareId}`);
+    expect(legacyGet.status).toBe(200);
+    expect(await legacyGet.json()).toMatchObject({
+      square: {
+        ...square,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
+    });
+    expect(repository.getForActor).toHaveBeenCalledWith(ownerId, squareId);
+
+    const legacyMembers = await app.request(
+      `http://town.test/squares/${squareId}/members`,
+    );
+    expect(legacyMembers.status).toBe(200);
+    expect(await legacyMembers.json()).toMatchObject({
+      members: [
+        {
+          ...member,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        },
+      ],
+    });
+
+    const legacyPolicy = await app.request(
+      `http://town.test/squares/${squareId}/policy`,
+    );
+    expect(legacyPolicy.status).toBe(200);
+    expect(await legacyPolicy.json()).toMatchObject({
+      policy: {
+        ...policy,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
+    });
   });
 
   it("rejects malformed square requests", async () => {
@@ -311,9 +365,26 @@ describe("square routes", () => {
         body: JSON.stringify({}),
       },
     );
+    const legacyBadList = await app.request(
+      "http://town.test/squares/not-a-uuid",
+    );
+    const legacyBadAddMember = await app.request(
+      `http://town.test/squares/${squareId}/members`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
 
     expect(await badCreate.json()).toMatchObject({ code: "INVALID_REQUEST" });
     expect(await badPolicyDecision.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await legacyBadList.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await legacyBadAddMember.json()).toMatchObject({
       code: "INVALID_REQUEST",
     });
   });

@@ -55,13 +55,17 @@ export function registerSquareRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: SquareDependencies,
 ): void {
-  app.get("/v1/squares", async (context) => {
+  const listSquares = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const userId = context.get("identity").user.id;
     return context.json({
       squares: await dependencies.repository.listForUser(userId),
     });
-  });
-  app.post("/v1/squares", async (context) => {
+  };
+  const createSquare = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0],
+  ) => {
     const ownerId = context.get("identity").user.id;
     const value = createSchema.parse(await context.req.json());
     return context.json(
@@ -75,8 +79,10 @@ export function registerSquareRoutes(
       },
       201,
     );
-  });
-  app.get("/v1/squares/:squareId", async (context) => {
+  };
+  const getSquare = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const ownerId = context.get("identity").user.id;
     return context.json({
       square: await dependencies.repository.getForActor(
@@ -84,8 +90,10 @@ export function registerSquareRoutes(
         asId<"square">(context.req.param("squareId")),
       ),
     });
-  });
-  app.get("/v1/squares/:squareId/members", async (context) => {
+  };
+  const listSquareMembers = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const ownerId = context.get("identity").user.id;
     return context.json({
       members: await dependencies.repository.listMembers(
@@ -93,8 +101,10 @@ export function registerSquareRoutes(
         asId<"square">(context.req.param("squareId")),
       ),
     });
-  });
-  app.post("/v1/squares/:squareId/members", async (context) => {
+  };
+  const addSquareMember = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0],
+  ) => {
     const ownerId = context.get("identity").user.id;
     const value = memberSchema.parse(await context.req.json());
     return context.json(
@@ -110,8 +120,10 @@ export function registerSquareRoutes(
       },
       201,
     );
-  });
-  app.patch("/v1/squares/:squareId/members/:userId", async (context) => {
+  };
+  const updateSquareMember = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["patch"]>[0],
+  ) => {
     const ownerId = context.get("identity").user.id;
     const value = memberUpdateSchema.parse(await context.req.json());
     return context.json({
@@ -123,8 +135,10 @@ export function registerSquareRoutes(
         ...(value.status === undefined ? {} : { status: value.status }),
       }),
     });
-  });
-  app.get("/v1/squares/:squareId/policy", async (context) => {
+  };
+  const getSquarePolicy = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const ownerId = context.get("identity").user.id;
     return context.json({
       policy: await dependencies.repository.getPolicy(
@@ -132,8 +146,10 @@ export function registerSquareRoutes(
         asId<"square">(context.req.param("squareId")),
       ),
     });
-  });
-  app.patch("/v1/squares/:squareId/policy", async (context) => {
+  };
+  const updateSquarePolicy = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["patch"]>[0],
+  ) => {
     const ownerId = context.get("identity").user.id;
     const value = policySchema.parse(await context.req.json());
     return context.json({
@@ -143,5 +159,23 @@ export function registerSquareRoutes(
         ...value,
       }),
     });
-  });
+  };
+
+  app.get("/v1/squares", listSquares);
+  app.post("/v1/squares", createSquare);
+  app.get("/v1/squares/:squareId", getSquare);
+  app.get("/v1/squares/:squareId/members", listSquareMembers);
+  app.post("/v1/squares/:squareId/members", addSquareMember);
+  app.patch("/v1/squares/:squareId/members/:userId", updateSquareMember);
+  app.get("/v1/squares/:squareId/policy", getSquarePolicy);
+  app.patch("/v1/squares/:squareId/policy", updateSquarePolicy);
+
+  app.get("/squares", listSquares);
+  app.post("/squares", createSquare);
+  app.get("/squares/:squareId", getSquare);
+  app.get("/squares/:squareId/members", listSquareMembers);
+  app.post("/squares/:squareId/members", addSquareMember);
+  app.patch("/squares/:squareId/members/:userId", updateSquareMember);
+  app.get("/squares/:squareId/policy", getSquarePolicy);
+  app.patch("/squares/:squareId/policy", updateSquarePolicy);
 }
