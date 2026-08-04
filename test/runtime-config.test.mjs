@@ -46,7 +46,7 @@ describe("runtime configuration preflight", () => {
       GOOGLE_OAUTH_CLIENT_ID: "client-id",
       GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
       GOOGLE_OAUTH_REDIRECT_URI: "https://app.example/oauth/callback",
-      CHANNEL_CREDENTIALS_JSON: JSON.stringify({ telegram: { token: "bot" } }),
+      CHANNEL_CREDENTIALS_JSON: JSON.stringify({ telegram: "bot-token" }),
     });
 
     for (const check of result.checks) {
@@ -67,6 +67,25 @@ describe("runtime configuration preflight", () => {
         expect(check.status).toBe("configured");
       }
     }
+    expect(result.missingRequired).toEqual([]);
+  });
+
+  it("marks malformed optional values as invalid but not required", () => {
+    const result = inspectRuntimeConfig({
+      DATABASE_URL: "postgres://user:pass@localhost/db",
+      CREDENTIAL_MASTER_KEY_BASE64URL:
+        "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE",
+      WEB_ORIGIN: "https://app.example",
+      GOOGLE_OAUTH_REDIRECT_URI: "not-a-url",
+      CHANNEL_CREDENTIALS_JSON: "{bad-json",
+    });
+
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        { name: "GOOGLE_OAUTH_REDIRECT_URI", status: "invalid" },
+        { name: "CHANNEL_CREDENTIALS_JSON", status: "invalid" },
+      ]),
+    );
     expect(result.missingRequired).toEqual([]);
   });
 

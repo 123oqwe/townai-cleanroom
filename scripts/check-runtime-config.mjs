@@ -37,6 +37,23 @@ function inspectCredentialKey(value) {
   }
 }
 
+function inspectJsonObject(name, value) {
+  if (!value) return { name, status: "missing" };
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
+      return { name, status: "invalid" };
+    for (const [entryKey, entryValue] of Object.entries(parsed)) {
+      if (typeof entryKey !== "string" || entryKey.length < 1) return { name, status: "invalid" };
+      if (typeof entryValue !== "string" || entryValue.length < 1)
+        return { name, status: "invalid" };
+    }
+    return { name, status: "configured" };
+  } catch {
+    return { name, status: "invalid" };
+  }
+}
+
 function inspectEnvVar(name, value) {
   return { name, status: value ? "configured" : "missing" };
 }
@@ -75,11 +92,14 @@ export function inspectRuntimeConfig(environment = process.env) {
       "GOOGLE_OAUTH_CLIENT_SECRET",
       environment.GOOGLE_OAUTH_CLIENT_SECRET,
     ),
-    inspectEnvVar(
-      "GOOGLE_OAUTH_REDIRECT_URI",
-      environment.GOOGLE_OAUTH_REDIRECT_URI,
-    ),
-    inspectEnvVar(
+    {
+      name: "GOOGLE_OAUTH_REDIRECT_URI",
+      status: inspectUrl(
+        "GOOGLE_OAUTH_REDIRECT_URI",
+        environment.GOOGLE_OAUTH_REDIRECT_URI,
+      ).status,
+    },
+    inspectJsonObject(
       "CHANNEL_CREDENTIALS_JSON",
       environment.CHANNEL_CREDENTIALS_JSON,
     ),
