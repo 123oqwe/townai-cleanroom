@@ -54,6 +54,14 @@ export function registerContentRoutes(
       ? context.html(contentShareHtml(content))
       : context.json({ content });
   });
+  app.get("/content-shares/:token", async (context) => {
+    const content = dependencies.repository.toPublic(
+      await dependencies.repository.resolveShare(context.req.param("token")),
+    );
+    return acceptsHtml(context.req.raw)
+      ? context.html(contentShareHtml(content))
+      : context.json({ content });
+  });
   app.get("/v1/content-shares/:token/blob", async (context) => {
     if (dependencies.storage === undefined)
       return context.json({ error: "CONTENT_STORAGE_NOT_CONFIGURED" }, 503);
@@ -65,6 +73,25 @@ export function registerContentRoutes(
     const object = await dependencies.storage.read(content.storageKey);
     if (object === null)
       return context.json({ error: "CONTENT_BLOB_NOT_FOUND" }, 404);
+    return new Response(object.body, {
+      status: 200,
+      headers: {
+        "content-type":
+          object.contentType ?? content.mimeType ?? "application/octet-stream",
+        "cache-control": "private, no-store",
+      },
+    });
+  });
+  app.get("/content-shares/:token/blob", async (context) => {
+    if (dependencies.storage === undefined)
+      return context.json({ error: "CONTENT_STORAGE_NOT_CONFIGURED" }, 503);
+    const content = await dependencies.repository.resolveShare(
+      context.req.param("token"),
+    );
+    if (content.storageKey === null)
+      return context.json({ error: "CONTENT_BLOB_NOT_AVAILABLE" }, 409);
+    const object = await dependencies.storage.read(content.storageKey);
+    if (object === null) return context.json({ error: "CONTENT_BLOB_NOT_FOUND" }, 404);
     return new Response(object.body, {
       status: 200,
       headers: {

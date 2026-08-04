@@ -593,6 +593,16 @@ export function registerRoutineShareRoutes(
     );
     return share
       ? acceptsHtml(context.req.raw)
+      ? context.html(routineShareHtml(share))
+      : context.json({ share })
+      : context.json({ error: "SHARE_NOT_FOUND" }, 404);
+  });
+  app.get("/content/routines/shared/:token", async (context) => {
+    const share = await dependencies.repository.getPublicShare(
+      context.req.param("token"),
+    );
+    return share
+      ? acceptsHtml(context.req.raw)
         ? context.html(routineShareHtml(share))
         : context.json({ share })
       : context.json({ error: "SHARE_NOT_FOUND" }, 404);

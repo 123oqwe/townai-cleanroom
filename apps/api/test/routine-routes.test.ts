@@ -10,6 +10,7 @@ import type { SessionRepository } from "@town/runtime";
 import type { AuthVariables } from "../src/auth.js";
 import {
   registerRoutineRoutes,
+  registerRoutineShareRoutes,
   type RoutineDependencies,
 } from "../src/routine-routes.js";
 
@@ -601,5 +602,46 @@ describe("routine routes", () => {
     const missingRoutineResultsBody = await noRoutineResults.text();
     expect(missingRoutineResultsBody).toMatch(/Not Found/);
     expect(noWebhookHeader.status).toBe(404);
+  });
+});
+
+describe("routine shared route aliases", () => {
+  it("exposes shared routine page and JSON at /content/routines/shared/:token", async () => {
+    const routine = {
+      id: routineId,
+      name: "Daily routine",
+      cron: "*/15 * * * *",
+      timezone: "UTC",
+      enabled: true,
+    };
+    const version = {
+      version: 1,
+      snapshot: {
+        displayName: "Daily",
+        instructions: "do work",
+        defaultApprovalMode: "autonomous",
+        callableRoutineIds: [],
+      },
+    };
+    const repository = {
+      getPublicShare: vi.fn().mockResolvedValue({ routine, version }),
+    } as unknown as RoutineDependencies["repository"];
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerRoutineShareRoutes(app, { repository });
+
+    const json = await app.request(
+      "http://town.test/content/routines/shared/rtnshare_valid_token_12345",
+    );
+    expect(json.status).toBe(200);
+    expect(await json.json()).toMatchObject({
+      share: { routine: { name: "Daily routine" }, version: { version: 1 } },
+    });
+
+    const page = await app.request(
+      "http://town.test/content/routines/shared/rtnshare_valid_token_12345",
+      { headers: { accept: "text/html" } },
+    );
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain("Shared routine");
   });
 });

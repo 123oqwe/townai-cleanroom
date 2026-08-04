@@ -106,6 +106,43 @@ describe("content share route", () => {
     );
   });
 
+  it("exposes the same share routes without the v1 prefix", async () => {
+    const repository = {
+      resolveShare: vi.fn().mockResolvedValue({
+        id: "01900000-0000-7000-8000-000000000014",
+        kind: "document",
+        title: "Legacy share",
+        body: "content body",
+      }),
+      toPublic: (item: Record<string, unknown>) => item,
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerContentRoutes(app, { repository });
+
+    const json = await app.request(
+      "http://town.test/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    );
+    expect(json.status).toBe(200);
+    expect(await json.json()).toMatchObject({
+      content: { title: "Legacy share", body: "content body" },
+    });
+
+    const page = await app.request(
+      "http://town.test/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      { headers: { accept: "text/html" } },
+    );
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain("Legacy share");
+
+    const blob = await app.request(
+      "http://town.test/content-shares/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/blob",
+    );
+    expect(blob.status).toBe(503);
+    expect(await blob.json()).toMatchObject({
+      error: "CONTENT_STORAGE_NOT_CONFIGURED",
+    });
+  });
+
   it("uploads an owner-scoped blob and records its storage key", async () => {
     const contentId = "01900000-0000-7000-8000-000000000013";
     const content = {
