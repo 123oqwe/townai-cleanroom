@@ -95,7 +95,7 @@ import {
   registerOperationsRoutes,
   registerPublicAnalyticsRoutes,
 } from "./routes/operations-routes.js";
-import { registerAdminRoutes } from "./routes/admin-routes.js";
+import { registerAdminRoutes } from "./routes/admin/index.js";
 import {
   registerRoutineRoutes,
   registerRoutineShareRoutes,

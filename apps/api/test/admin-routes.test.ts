@@ -8,7 +8,7 @@ import type { BillingRepository } from "@town/billing";
 import type { OperationsRepository } from "@town/operations";
 import type { AuthenticatedIdentity } from "@town/identity";
 import type { AuthVariables } from "../src/lib/auth.js";
-import { registerAdminRoutes } from "../src/routes/admin-routes.js";
+import { registerAdminRoutes } from "../src/routes/admin/index.js";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const sessionId = asId<"auth-session">("01900000-0000-7000-8000-000000000009");
