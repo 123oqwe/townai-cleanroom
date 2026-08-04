@@ -134,6 +134,18 @@ const environmentSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   WORKER_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(10),
+  WORKER_RETRY_MAX_ATTEMPTS: z.coerce
+    .number()
+    .int()
+    .min(2)
+    .max(10)
+    .optional(),
+  WORKER_RETRY_BASE_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(3_600_000)
+    .optional(),
   WORKER_SECRET: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
   SLACK_SIGNING_SECRET: z.string().min(1).optional(),
@@ -783,6 +795,15 @@ const runtimeWorker =
         },
         {
           workerId: process.env["WORKER_ID"] ?? `town-worker-${process.pid}`,
+          ...(environment.WORKER_RETRY_MAX_ATTEMPTS === undefined ||
+          environment.WORKER_RETRY_BASE_DELAY_MS === undefined
+            ? {}
+            : {
+                retryPolicy: {
+                  maxAttempts: environment.WORKER_RETRY_MAX_ATTEMPTS,
+                  baseDelayMs: environment.WORKER_RETRY_BASE_DELAY_MS,
+                },
+              }),
           onFinished: ({ ownerId, runId, state, errorCode }) =>
             finalizeRoutineRun({
               sql,

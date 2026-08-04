@@ -468,5 +468,8 @@ Runtime workers now expose an explicit opt-in retry policy for provider
 adapters. An adapter must throw the exported `RetryableRuntimeError`; the
 worker then requeues the leased run with bounded exponential backoff only
 within a 2–10 attempt budget. Ordinary errors remain terminal failures, so
-external side effects are never retried by assumption. This is a clean-room
-retry boundary rather than a claim about Town's private retry classifier.
+external side effects are never retried by assumption. The runtime worker reads
+optional `WORKER_RETRY_MAX_ATTEMPTS` and `WORKER_RETRY_BASE_DELAY_MS`
+environment variables and enables this behavior only when both are present.
+This is a clean-room retry boundary rather than a claim about Town's private
+retry classifier.
