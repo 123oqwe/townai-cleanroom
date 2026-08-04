@@ -17,7 +17,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { HarnessItem, ModelPort, ToolPort } from "./index.js";
+import type { HarnessItem, ModelPort, ModelProgressEvent, ToolPort } from "./index.js";
 import type { ResponsesToolDefinition, ResponsesUsage } from "./responses.js";
 
 import {
@@ -115,6 +115,7 @@ export function createCodexModel(input: {
   approvalPolicy?: "never" | "on-request" | "on-failure" | "untrusted";
   skipGitRepoCheck?: boolean;
   onUsage?: (usage: ResponsesUsage) => Promise<void> | void;
+  onProgress?: (event: ModelProgressEvent) => void;
 }): ModelPort {
   const codex = new Codex({
     ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
@@ -158,18 +159,57 @@ export function createCodexModel(input: {
         });
       }
 
-      const result = await thread.run(prompt, {
+      const { events } = await thread.runStreamed(prompt, {
         outputSchema: outputSchemaShape,
       });
+      let finalResponse = "";
+      const items: ThreadItem[] = [];
+      let usage: Usage | null = null;
+      for await (const event of events) {
+        if (event.type === "item.completed") {
+          items.push(event.item);
+          const itemType = event.item["type"] as string | undefined;
+          if (itemType === "agent_message") {
+            finalResponse = (event.item as Record<string, unknown>)["text"] as string;
+          }
+          if (input.onProgress !== undefined) {
+            if (itemType === "reasoning") {
+              const reasoningText = (event.item as Record<string, unknown>)["text"] as string | undefined;
+              input.onProgress({
+                type: "reasoning",
+                ...(reasoningText === undefined ? {} : { text: reasoningText }),
+              });
+            } else if (itemType === "agent_message") {
+              input.onProgress({
+                type: "agent_message_chunk",
+                text: finalResponse,
+              });
+            } else if (itemType === "command_execution") {
+              input.onProgress({
+                type: "tool_started",
+                toolName: "shell",
+              });
+            } else if (itemType === "mcp_tool_call") {
+              const mcpToolName = (event.item as Record<string, unknown>)["tool"] as string | undefined;
+              input.onProgress({
+                type: "tool_started",
+                ...(mcpToolName === undefined ? {} : { toolName: mcpToolName }),
+              });
+            }
+          }
+        } else if (event.type === "turn.completed") {
+          usage = event.usage;
+        }
+      }
+      const result = { items, finalResponse, usage };
 
-      if (input.onUsage !== undefined && result.usage !== null) {
+      if (input.onUsage !== undefined && usage !== null) {
         const threadId = thread.id ?? randomUUID();
         await input.onUsage({
           responseId: threadId,
-          inputTokens: result.usage.input_tokens,
-          outputTokens: result.usage.output_tokens,
-          totalTokens:
-            result.usage.input_tokens + result.usage.output_tokens,
+          inputTokens: usage.input_tokens,
+          outputTokens: usage.output_tokens,
+          totalTokens: usage.input_tokens + usage.output_tokens,
         });
       }
 

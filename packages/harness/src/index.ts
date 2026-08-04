@@ -20,7 +20,15 @@ export type HarnessItem =
   | { type: "assistant_message"; text: string }
   | { type: "provider_item"; item: Record<string, unknown> };
 
+export interface ModelProgressEvent {
+  type: "reasoning" | "agent_message_chunk" | "tool_started" | "tool_completed";
+  text?: string;
+  toolName?: string;
+  output?: string;
+}
+
 export interface ModelPort {
+  onProgress?: (event: ModelProgressEvent) => void;
   respond(input: { items: HarnessItem[] }): Promise<
     | {
         kind: "tool_call";
