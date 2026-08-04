@@ -87,7 +87,7 @@ import {
   createGoogleGmailSendHarnessBinding,
   createGoogleCalendarFreeBusyHarnessBinding,
   createGoogleCalendarCreateEventHarnessBinding,
-} from "./tools/harness-tools.js";
+} from "./tools/index.js";
 import {
   createHarnessRuntimeAdapter,
   type HarnessExecutionContext,

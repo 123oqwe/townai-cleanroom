@@ -17,7 +17,7 @@ import {
   createGoogleCalendarCreateEventHarnessBinding,
   createGoogleGmailSendHarnessBinding,
   createMcpHarnessBindings,
-} from "../src/tools/harness-tools.js";
+} from "../src/tools/index.js";
 import { AgentError } from "@town/agents";
 import type { AgentRepository, RoutineAgent } from "@town/agents";
 import type { SessionRepository } from "@town/runtime";
