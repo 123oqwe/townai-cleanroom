@@ -47,6 +47,10 @@ function buildAdminApp(input: {
   harnessReady?: boolean;
   workerEnabled?: boolean;
   googleOAuthReady?: boolean;
+  slackEvents?: boolean;
+  twilioVoice?: boolean;
+  vapiVoice?: boolean;
+  voiceSynthesis?: boolean;
   billing?: BillingRepository;
 }) {
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -59,6 +63,10 @@ function buildAdminApp(input: {
     harnessReady: input.harnessReady ?? true,
     workerEnabled: input.workerEnabled ?? false,
     googleOAuthReady: input.googleOAuthReady ?? false,
+    slackEvents: input.slackEvents ?? false,
+    twilioVoice: input.twilioVoice ?? false,
+    vapiVoice: input.vapiVoice ?? false,
+    voiceSynthesis: input.voiceSynthesis ?? false,
     ...input,
   });
   return app;
@@ -448,12 +456,76 @@ describe("admin routes", () => {
     expect(report.status).toBe(200);
     expect(await overview.json()).toMatchObject({
       counts: { users: { total: 12, active: 9 }, failedRuns: 1 },
-      readiness: { api: true, harness: true, worker: true, googleOAuth: true },
+      readiness: {
+        api: true,
+        harness: true,
+        worker: true,
+        googleOAuth: true,
+        slackEvents: false,
+        twilioVoice: false,
+        vapiVoice: false,
+        voiceSynthesis: false,
+      },
     });
     expect(await report.json()).toMatchObject({
       slug: "overview",
       counts: { users: { total: 12, active: 9 } },
-      readiness: { api: true, harness: true, worker: true },
+      readiness: {
+        api: true,
+        harness: true,
+        worker: true,
+        slackEvents: false,
+        twilioVoice: false,
+        vapiVoice: false,
+        voiceSynthesis: false,
+      },
+    });
+  });
+
+  it("surfaces provider integration readiness flags as independent diagnostics", async () => {
+    const app = buildAdminApp({
+      sql: mockSql() as unknown as Sql,
+      operations: baseOperations,
+      workerEnabled: true,
+      harnessReady: true,
+      googleOAuthReady: true,
+      slackEvents: true,
+      twilioVoice: true,
+      vapiVoice: true,
+      voiceSynthesis: true,
+    });
+
+    const report = await app.request("/v1/admin/reports/overview");
+    const agentHealth = await app.request(
+      `/v1/admin/agent-health/${routineOwnerId}`,
+    );
+
+    expect(report.status).toBe(200);
+    expect(await report.json()).toMatchObject({
+      readiness: {
+        api: true,
+        harness: true,
+        worker: true,
+        googleOAuth: true,
+        slackEvents: true,
+        twilioVoice: true,
+        vapiVoice: true,
+        voiceSynthesis: true,
+      },
+    });
+
+    expect(agentHealth.status).toBe(200);
+    expect(await agentHealth.json()).toMatchObject({
+      readiness: {
+        api: true,
+        harness: true,
+        worker: true,
+        googleOAuth: true,
+        slackEvents: true,
+        twilioVoice: true,
+        vapiVoice: true,
+        voiceSynthesis: true,
+      },
     });
   });
 
@@ -480,7 +552,15 @@ describe("admin routes", () => {
         start: expect.any(String),
         end: expect.any(String),
       },
-      readiness: { worker: true, harness: false, googleOAuth: false },
+      readiness: {
+        worker: true,
+        harness: false,
+        googleOAuth: false,
+        slackEvents: false,
+        twilioVoice: false,
+        vapiVoice: false,
+        voiceSynthesis: false,
+      },
     });
     expect(bad.status).toBe(400);
     expect(await bad.json()).toMatchObject({ code: "INVALID_REQUEST" });
@@ -564,7 +644,16 @@ describe("admin routes", () => {
     expect(agentHealth.status).toBe(200);
     expect(await agentHealth.json()).toMatchObject({
       user: { id: ownerId, email: "owner@example.test" },
-      readiness: { harness: false, worker: true },
+      readiness: {
+        api: true,
+        harness: false,
+        worker: true,
+        googleOAuth: false,
+        slackEvents: false,
+        twilioVoice: false,
+        vapiVoice: false,
+        voiceSynthesis: false,
+      },
       summary: operationsSummary(),
     });
     expect(users.status).toBe(200);

@@ -926,6 +926,10 @@ export function createApp(dependencies?: AppDependencies) {
           dependencies.harnessServerFactory !== undefined,
         workerEnabled: dependencies.workerEnabled === true,
         googleOAuthReady: dependencies.googleOAuth !== undefined,
+        slackEvents: dependencies.slackSigningSecret !== undefined,
+        twilioVoice: dependencies.twilioAuthToken !== undefined,
+        vapiVoice: dependencies.vapiWebhookSecret !== undefined,
+        voiceSynthesis: dependencies.voiceProvider !== undefined,
         ...(dependencies.billingRepository === undefined
           ? {}
           : { billing: dependencies.billingRepository }),

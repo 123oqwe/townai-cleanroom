@@ -13,6 +13,10 @@ export interface AdminDependencies {
   harnessReady: boolean;
   workerEnabled: boolean;
   googleOAuthReady: boolean;
+  slackEvents: boolean;
+  twilioVoice: boolean;
+  vapiVoice: boolean;
+  voiceSynthesis: boolean;
   billing?: BillingRepository;
 }
 
@@ -83,6 +87,10 @@ function reportReadiness(dependencies: AdminDependencies) {
     harness: dependencies.harnessReady,
     worker: dependencies.workerEnabled,
     googleOAuth: dependencies.googleOAuthReady,
+    slackEvents: dependencies.slackEvents,
+    twilioVoice: dependencies.twilioVoice,
+    vapiVoice: dependencies.vapiVoice,
+    voiceSynthesis: dependencies.voiceSynthesis,
   };
 }
 
@@ -789,12 +797,7 @@ export function registerAdminRoutes(
         status: user.status,
         createdAt: user.created_at,
       },
-      readiness: {
-        api: true,
-        harness: dependencies.harnessReady,
-        worker: dependencies.workerEnabled,
-        googleOAuth: dependencies.googleOAuthReady,
-      },
+      readiness: reportReadiness(dependencies),
       summary,
     });
   });
