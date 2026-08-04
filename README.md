@@ -341,11 +341,20 @@ owner-scoped events as bounded SSE windows with cursor replay and heartbeats;
 clients reconnect instead of treating a disconnected stream as lost state.
 
 Module 4 defines the durable execution boundary and a provider-neutral runtime
-adapter port. The Responses/Codex-compatible harness adapter is wired only when
-its explicit API key is configured; no provider call or assistant output is
-fabricated otherwise. Without an injected provider adapter, Runs remain honestly
-queued. Genuine assistant output can only be recorded by an internal worker
-holding the current unexpired Run lease.
+adapter port. The harness adapter supports two backends:
+
+- **Codex SDK** (`@openai/codex-sdk` from `openai/codex`): activated by
+  `CODEX_EXEC_ENABLED=true`. Uses the official Codex agent via the Codex CLI,
+  which handles model reasoning, sandbox execution, approval policies, MCP tool
+  calls, command execution, file changes, and web search. The SDK is a declared
+  dependency and spawns the CLI as a subprocess.
+- **Responses API**: activated by `RESPONSES_API_KEY`. Calls the OpenAI
+  Responses API directly with tool definitions and conversation history.
+
+Both backends are wired only when their explicit configuration is present; no
+provider call or assistant output is fabricated otherwise. Without an injected
+provider adapter, Runs remain honestly queued. Genuine assistant output can only
+be recorded by an internal worker holding the current unexpired Run lease.
 
 The runtime package now includes a durable `createRuntimeWorker` loop that
 claims queue leases, forwards adapter phases/output, handles wait states,

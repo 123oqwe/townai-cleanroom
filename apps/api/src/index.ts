@@ -28,6 +28,7 @@ import {
   createModelRouter,
   createResponsesAgentFactory,
   createResponsesModel,
+  createCodexAgentFactory,
   type ResponsesUsage,
 } from "@town/harness";
 import {
@@ -126,6 +127,14 @@ const environmentSchema = z.object({
   RESPONSES_MODEL: z.string().min(1).default("gpt-5"),
   RESPONSES_API_KEY: z.string().min(1).optional(),
   RESPONSES_FALLBACKS_JSON: z.string().default("[]"),
+  CODEX_EXEC_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  CODEX_MODEL: z.string().min(1).optional(),
+  CODEX_SANDBOX_MODE: z
+    .enum(["read-only", "workspace-write", "danger-full-access"])
+    .default("read-only"),
   WEB_ORIGIN: z.string().url().default("http://localhost:4173"),
   CHANNEL_CREDENTIALS_JSON: z.string().default("{}"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
@@ -420,7 +429,7 @@ const channelRepository = createChannelRepository(sql, {
 const mcpRepository = createMcpRepository(sql);
 
 const harnessServerFactory =
-  environment.RESPONSES_API_KEY === undefined
+  environment.RESPONSES_API_KEY === undefined && !environment.CODEX_EXEC_ENABLED
     ? undefined
     : async (ownerId: string, executionContext?: HarnessExecutionContext) => {
         const typedOwnerId = asId<"user">(ownerId);
@@ -568,135 +577,264 @@ const harnessServerFactory =
         };
         return createAppServer({
           store: createHarnessThreadStore(database.db, ownerId),
-          createAgent: createResponsesAgentFactory({
-            endpoint: environment.RESPONSES_API_ENDPOINT,
-            model: environment.RESPONSES_MODEL,
-            agentVersionForThread: (agentVersionId) =>
-              agentVersionId === undefined
-                ? undefined
-                : versions.get(agentVersionId),
-            apiKey: async () => environment.RESPONSES_API_KEY as string,
-            onUsage: (usage) =>
-              recordResponsesUsage(usage, environment.RESPONSES_MODEL),
-            ...(responseFallbacks.length === 0
-              ? {}
-              : {
-                  modelRouterFactory: ({ defaultModel, bindings }) =>
-                    createModelRouter({
-                      routes: [
-                        {
-                          id: "responses-primary",
-                          operation: "interactive",
-                          provider: "responses",
-                          model: environment.RESPONSES_MODEL,
-                          priority: 0,
-                          port: defaultModel,
-                        },
-                        ...responseFallbacks.map((route) => ({
-                          id: route.id,
-                          operation: "interactive" as const,
-                          provider: route.provider,
-                          model: route.model,
-                          priority: route.priority,
-                          port: createResponsesModel({
-                            endpoint: route.endpoint,
-                            model: route.model,
-                            apiKey: async () =>
-                              environment.RESPONSES_API_KEY as string,
-                            onUsage: (usage) =>
-                              recordResponsesUsage(usage, route.model),
-                            tools: bindings.map(({ definition }) => definition),
-                          }),
-                        })),
-                      ],
-                    }),
-                }),
-            tools: (threadId, agentVersionId) => {
-              const builtIns = [
-                createTownSearchHarnessBinding(
-                  typedOwnerId,
-                  knowledgeSearchRepository,
-                ),
-                createTownContextHarnessBinding(
-                  typedOwnerId,
-                  knowledgeContextBuilder,
-                ),
-                createTownWebFetchHarnessBinding(),
+          createAgent: environment.CODEX_EXEC_ENABLED
+            ? createCodexAgentFactory({
+                ...(environment.CODEX_MODEL === undefined
+                  ? {}
+                  : { model: environment.CODEX_MODEL }),
+                sandboxMode: environment.CODEX_SANDBOX_MODE,
                 ...(environment.WORKSPACE_ROOT === undefined
-                  ? []
-                  : [
-                      createTownWorkspaceHarnessBinding(
-                        environment.WORKSPACE_ROOT,
-                      ),
-                    ]),
-                ...(environment.CODE_RUNNER_ENABLED
-                  ? [createTownCodeRunHarnessBinding()]
-                  : []),
-                ...(voiceProvider === undefined
-                  ? []
-                  : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
-                createTownMemoryAddHarnessBinding(
-                  typedOwnerId,
-                  memoryRepository,
-                  threadId,
-                  (owner, routineScheduleId) =>
-                    routineRepository.ownsSchedule(owner, routineScheduleId),
-                ),
-                createInvokeRoutineHarnessBinding({
-                  ownerId: typedOwnerId,
-                  threadId,
-                  agents: agentRepository,
-                  threads: threadRepository,
-                  sessions: sessionRepository,
-                }),
-                createGoogleGmailSearchHarnessBinding(typedOwnerId, googleApi),
-                createGoogleGmailGetMessageHarnessBinding(
-                  typedOwnerId,
-                  googleApi,
-                ),
-                createGoogleGmailSendHarnessBinding(typedOwnerId, googleApi),
-                createGoogleCalendarFreeBusyHarnessBinding(
-                  typedOwnerId,
-                  googleApi,
-                ),
-                createGoogleCalendarCreateEventHarnessBinding(
-                  typedOwnerId,
-                  googleApi,
-                ),
-              ];
-              const handlers = new Map(
-                builtIns.map(({ definition, port }) => [
-                  definition.name,
-                  port.execute.bind(port),
-                ]),
-              );
-              const registryBindings = createRegistryHarnessBindings({
-                ownerId: typedOwnerId,
-                threadId,
-                definitions: registryByVersion.get(agentVersionId ?? "") ?? [],
-                handlers,
-              });
-              const registryNames = new Set(
-                registryBindings.map(({ definition }) => definition.name),
-              );
-              const mcpBindings = (
-                mcpByVersion.get(agentVersionId ?? "") ?? []
-              ).filter(
-                ({ definition }) =>
-                  !registryNames.has(definition.name) &&
-                  !builtIns.some(
-                    (builtIn) => builtIn.definition.name === definition.name,
+                  ? {}
+                  : { workingDirectory: environment.WORKSPACE_ROOT }),
+                skipGitRepoCheck: true,
+                agentVersionForThread: (agentVersionId) =>
+                  agentVersionId === undefined
+                    ? undefined
+                    : versions.get(agentVersionId),
+                onUsage: (usage) =>
+                  recordResponsesUsage(
+                    usage,
+                    environment.CODEX_MODEL ?? "codex",
                   ),
-              );
-              return [
-                ...registryBindings,
-                ...mcpBindings,
-                ...builtIns.filter(
-                  ({ definition }) => !registryNames.has(definition.name),
-                ),
-              ];
-            },
-          }),
+                tools: (threadId, agentVersionId) => {
+                  const builtIns = [
+                    createTownSearchHarnessBinding(
+                      typedOwnerId,
+                      knowledgeSearchRepository,
+                    ),
+                    createTownContextHarnessBinding(
+                      typedOwnerId,
+                      knowledgeContextBuilder,
+                    ),
+                    createTownWebFetchHarnessBinding(),
+                    ...(environment.WORKSPACE_ROOT === undefined
+                      ? []
+                      : [
+                          createTownWorkspaceHarnessBinding(
+                            environment.WORKSPACE_ROOT,
+                          ),
+                        ]),
+                    ...(environment.CODE_RUNNER_ENABLED
+                      ? [createTownCodeRunHarnessBinding()]
+                      : []),
+                    ...(voiceProvider === undefined
+                      ? []
+                      : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
+                    createTownMemoryAddHarnessBinding(
+                      typedOwnerId,
+                      memoryRepository,
+                      threadId,
+                      (owner, routineScheduleId) =>
+                        routineRepository.ownsSchedule(
+                          owner,
+                          routineScheduleId,
+                        ),
+                    ),
+                    createInvokeRoutineHarnessBinding({
+                      ownerId: typedOwnerId,
+                      threadId,
+                      agents: agentRepository,
+                      threads: threadRepository,
+                      sessions: sessionRepository,
+                    }),
+                    createGoogleGmailSearchHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleGmailGetMessageHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleGmailSendHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleCalendarFreeBusyHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleCalendarCreateEventHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                  ];
+                  const codexHandlers = new Map(
+                    builtIns.map(({ definition, port }) => [
+                      definition.name,
+                      port.execute.bind(port),
+                    ]),
+                  );
+                  const registryBindings = createRegistryHarnessBindings({
+                    ownerId: typedOwnerId,
+                    threadId,
+                    definitions:
+                      registryByVersion.get(agentVersionId ?? "") ?? [],
+                    handlers: codexHandlers,
+                  });
+                  const registryNames = new Set(
+                    registryBindings.map(({ definition }) => definition.name),
+                  );
+                  const mcpBindings = (
+                    mcpByVersion.get(agentVersionId ?? "") ?? []
+                  ).filter(
+                    ({ definition }) =>
+                      !registryNames.has(definition.name) &&
+                      !builtIns.some(
+                        (builtIn) =>
+                          builtIn.definition.name === definition.name,
+                      ),
+                  );
+                  return [
+                    ...registryBindings,
+                    ...mcpBindings,
+                    ...builtIns.filter(
+                      ({ definition }) => !registryNames.has(definition.name),
+                    ),
+                  ];
+                },
+              })
+            : createResponsesAgentFactory({
+                endpoint: environment.RESPONSES_API_ENDPOINT,
+                model: environment.RESPONSES_MODEL,
+                agentVersionForThread: (agentVersionId) =>
+                  agentVersionId === undefined
+                    ? undefined
+                    : versions.get(agentVersionId),
+                apiKey: async () => environment.RESPONSES_API_KEY as string,
+                onUsage: (usage) =>
+                  recordResponsesUsage(usage, environment.RESPONSES_MODEL),
+                ...(responseFallbacks.length === 0
+                  ? {}
+                  : {
+                      modelRouterFactory: ({ defaultModel, bindings }) =>
+                        createModelRouter({
+                          routes: [
+                            {
+                              id: "responses-primary",
+                              operation: "interactive",
+                              provider: "responses",
+                              model: environment.RESPONSES_MODEL,
+                              priority: 0,
+                              port: defaultModel,
+                            },
+                            ...responseFallbacks.map((route) => ({
+                              id: route.id,
+                              operation: "interactive" as const,
+                              provider: route.provider,
+                              model: route.model,
+                              priority: route.priority,
+                              port: createResponsesModel({
+                                endpoint: route.endpoint,
+                                model: route.model,
+                                apiKey: async () =>
+                                  environment.RESPONSES_API_KEY as string,
+                                onUsage: (usage) =>
+                                  recordResponsesUsage(usage, route.model),
+                                tools: bindings.map(
+                                  ({ definition }) => definition,
+                                ),
+                              }),
+                            })),
+                          ],
+                        }),
+                    }),
+                tools: (threadId, agentVersionId) => {
+                  const builtIns = [
+                    createTownSearchHarnessBinding(
+                      typedOwnerId,
+                      knowledgeSearchRepository,
+                    ),
+                    createTownContextHarnessBinding(
+                      typedOwnerId,
+                      knowledgeContextBuilder,
+                    ),
+                    createTownWebFetchHarnessBinding(),
+                    ...(environment.WORKSPACE_ROOT === undefined
+                      ? []
+                      : [
+                          createTownWorkspaceHarnessBinding(
+                            environment.WORKSPACE_ROOT,
+                          ),
+                        ]),
+                    ...(environment.CODE_RUNNER_ENABLED
+                      ? [createTownCodeRunHarnessBinding()]
+                      : []),
+                    ...(voiceProvider === undefined
+                      ? []
+                      : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
+                    createTownMemoryAddHarnessBinding(
+                      typedOwnerId,
+                      memoryRepository,
+                      threadId,
+                      (owner, routineScheduleId) =>
+                        routineRepository.ownsSchedule(
+                          owner,
+                          routineScheduleId,
+                        ),
+                    ),
+                    createInvokeRoutineHarnessBinding({
+                      ownerId: typedOwnerId,
+                      threadId,
+                      agents: agentRepository,
+                      threads: threadRepository,
+                      sessions: sessionRepository,
+                    }),
+                    createGoogleGmailSearchHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleGmailGetMessageHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleGmailSendHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleCalendarFreeBusyHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                    createGoogleCalendarCreateEventHarnessBinding(
+                      typedOwnerId,
+                      googleApi,
+                    ),
+                  ];
+                  const handlers = new Map(
+                    builtIns.map(({ definition, port }) => [
+                      definition.name,
+                      port.execute.bind(port),
+                    ]),
+                  );
+                  const registryBindings = createRegistryHarnessBindings({
+                    ownerId: typedOwnerId,
+                    threadId,
+                    definitions:
+                      registryByVersion.get(agentVersionId ?? "") ?? [],
+                    handlers,
+                  });
+                  const registryNames = new Set(
+                    registryBindings.map(({ definition }) => definition.name),
+                  );
+                  const mcpBindings = (
+                    mcpByVersion.get(agentVersionId ?? "") ?? []
+                  ).filter(
+                    ({ definition }) =>
+                      !registryNames.has(definition.name) &&
+                      !builtIns.some(
+                        (builtIn) =>
+                          builtIn.definition.name === definition.name,
+                      ),
+                  );
+                  return [
+                    ...registryBindings,
+                    ...mcpBindings,
+                    ...builtIns.filter(
+                      ({ definition }) => !registryNames.has(definition.name),
+                    ),
+                  ];
+                },
+              }),
         });
       };
 
