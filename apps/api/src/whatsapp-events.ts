@@ -67,10 +67,7 @@ function verifySignature(input: {
     .update(input.rawBody)
     .digest("hex");
   const expectedBuffer = Buffer.from(expected, "utf8");
-  const actualBuffer = Buffer.from(
-    input.signature.slice(7),
-    "utf8",
-  );
+  const actualBuffer = Buffer.from(input.signature.slice(7), "utf8");
   return (
     expectedBuffer.length === actualBuffer.length &&
     timingSafeEqual(expectedBuffer, actualBuffer)
@@ -122,14 +119,11 @@ export function registerWhatsAppEventsRoute(
       return context.json({ code: "INVALID_JSON" }, 400);
     }
 
-    const messages =
-      envelope.entry?.[0]?.changes?.[0]?.value?.messages ?? [];
+    const messages = envelope.entry?.[0]?.changes?.[0]?.value?.messages ?? [];
     if (messages.length === 0)
       return context.json({ accepted: false, reason: "NO_MESSAGES" });
 
-    const routineId = asId<"routine-schedule">(
-      context.req.param("routineId"),
-    );
+    const routineId = asId<"routine-schedule">(context.req.param("routineId"));
     const [owner] = await dependencies.sql<{ owner_id: string }[]>`
       select owner_id from routine_schedules
       where id=${routineId} and enabled=true
@@ -138,17 +132,18 @@ export function registerWhatsAppEventsRoute(
     if (owner === undefined)
       return context.json({ code: "ROUTINE_NOT_FOUND" }, 404);
 
-    const messageId = messages[0]!.id;
+    const firstMessage = messages[0];
+    if (firstMessage === undefined)
+      return context.json({ code: "INVALID_MESSAGE" }, 400);
     const run = await dependencies.repository.queueTrigger(
       asId<"user">(owner.owner_id),
       routineId,
       "whatsapp_message",
       { messages, envelopeObject: envelope.object },
-      `whatsapp:${messageId}`,
+      `whatsapp:${firstMessage.id}`,
     );
     return context.json({ accepted: true, run }, 202);
   };
   app.post(basePath, callback);
   app.post(altPath, callback);
 }
-

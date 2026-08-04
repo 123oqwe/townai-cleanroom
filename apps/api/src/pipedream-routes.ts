@@ -44,8 +44,7 @@ export function registerPipedreamRoutes(
     const params = new URLSearchParams();
     if (query["q"] !== undefined) params.set("q", query["q"]);
     if (query["limit"] !== undefined) params.set("limit", query["limit"]);
-    if (query["cursor"] !== undefined)
-      params.set("cursor", query["cursor"]);
+    if (query["cursor"] !== undefined) params.set("cursor", query["cursor"]);
 
     const url = `${dependencies.apiUrl}?${params.toString()}`;
     const fetcher = dependencies.fetch ?? globalThis.fetch;
@@ -96,4 +95,3 @@ export function registerPipedreamRoutes(
     return context.json({ app: await response.json() });
   });
 }
-

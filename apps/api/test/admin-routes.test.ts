@@ -46,19 +46,19 @@ function buildAdminApp(input: {
   operations: OperationsRepository;
   harnessReady?: boolean;
   workerEnabled?: boolean;
- googleOAuthReady?: boolean;
+  googleOAuthReady?: boolean;
   microsoftOAuthReady?: boolean;
- slackEvents?: boolean;
+  slackEvents?: boolean;
   telegramEvents?: boolean;
   whatsappEvents?: boolean;
- twilioVoice?: boolean;
+  twilioVoice?: boolean;
   vapiVoice?: boolean;
   voiceSynthesis?: boolean;
   workspaceTools?: boolean;
- codeRunner?: boolean;
+  codeRunner?: boolean;
   e2bSandbox?: boolean;
   pipedreamCatalog?: boolean;
- contentStorage?: false | true | "read-only";
+  contentStorage?: false | true | "read-only";
   billing?: BillingRepository;
 }) {
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -70,19 +70,19 @@ function buildAdminApp(input: {
   registerAdminRoutes(app, {
     harnessReady: input.harnessReady ?? true,
     workerEnabled: input.workerEnabled ?? false,
-   googleOAuthReady: input.googleOAuthReady ?? false,
-   microsoftOAuthReady: input.microsoftOAuthReady ?? false,
-   slackEvents: input.slackEvents ?? false,
-   telegramEvents: input.telegramEvents ?? false,
-   whatsappEvents: input.whatsappEvents ?? false,
-   twilioVoice: input.twilioVoice ?? false,
+    googleOAuthReady: input.googleOAuthReady ?? false,
+    microsoftOAuthReady: input.microsoftOAuthReady ?? false,
+    slackEvents: input.slackEvents ?? false,
+    telegramEvents: input.telegramEvents ?? false,
+    whatsappEvents: input.whatsappEvents ?? false,
+    twilioVoice: input.twilioVoice ?? false,
     vapiVoice: input.vapiVoice ?? false,
     voiceSynthesis: input.voiceSynthesis ?? false,
     workspaceTools: input.workspaceTools ?? false,
-   codeRunner: input.codeRunner ?? false,
-   e2bSandbox: input.e2bSandbox ?? false,
-   pipedreamCatalog: input.pipedreamCatalog ?? false,
-   contentStorage: input.contentStorage ?? false,
+    codeRunner: input.codeRunner ?? false,
+    e2bSandbox: input.e2bSandbox ?? false,
+    pipedreamCatalog: input.pipedreamCatalog ?? false,
+    contentStorage: input.contentStorage ?? false,
     ...input,
   });
   return app;

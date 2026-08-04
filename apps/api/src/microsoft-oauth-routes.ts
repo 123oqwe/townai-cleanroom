@@ -136,10 +136,10 @@ export function registerMicrosoftOAuthRoutes(
       `;
       if (!stored) return null;
       await tx`update oauth_connect_states set consumed_at=now() where id=${stored.id}`;
-     return {
-       ownerId: asId<"user">(stored.owner_id),
+      return {
+        ownerId: asId<"user">(stored.owner_id),
         redirectUri: stored.redirect_uri,
-     };
+      };
     });
     if (!result) return context.json({ code: "OAUTH_STATE_EXPIRED" }, 400);
     const fetcher = dependencies.fetch ?? globalThis.fetch;

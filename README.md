@@ -121,20 +121,20 @@ Vercel hourly cron in `vercel.json`.
 
 ## Configuration
 
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | PostgreSQL connection string (required) |
-| `CREDENTIAL_MASTER_KEY_BASE64URL` | 32-byte encryption key for OAuth tokens (required) |
-| `CODEX_EXEC_ENABLED` | Use Codex SDK harness instead of Responses API |
-| `CODEX_CLI_PATH` | Override path to `codex` binary (auto-detected if on PATH) |
-| `CODEX_SANDBOX_MODE` | `read-only` / `workspace-write` / `danger-full-access` |
-| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth (PKCE + offline access) |
-| `MICROSOFT_OAUTH_CLIENT_ID` | Microsoft OAuth (Azure AD v2.0) |
-| `SLACK_SIGNING_SECRET` | Slack Events API inbound webhooks |
-| `TELEGRAM_SECRET_TOKEN` | Telegram Bot webhook verification |
-| `WHATSAPP_APP_SECRET` | WhatsApp Cloud API webhook signing |
-| `E2B_API_KEY` | E2B sandbox code runner (falls back to local Node runner) |
-| `PIPEDREAM_API_KEY` | Pipedream integration catalog proxy |
+| Variable                          | Purpose                                                    |
+| --------------------------------- | ---------------------------------------------------------- |
+| `DATABASE_URL`                    | PostgreSQL connection string (required)                    |
+| `CREDENTIAL_MASTER_KEY_BASE64URL` | 32-byte encryption key for OAuth tokens (required)         |
+| `CODEX_EXEC_ENABLED`              | Use Codex SDK harness instead of Responses API             |
+| `CODEX_CLI_PATH`                  | Override path to `codex` binary (auto-detected if on PATH) |
+| `CODEX_SANDBOX_MODE`              | `read-only` / `workspace-write` / `danger-full-access`     |
+| `GOOGLE_OAUTH_CLIENT_ID`          | Google OAuth (PKCE + offline access)                       |
+| `MICROSOFT_OAUTH_CLIENT_ID`       | Microsoft OAuth (Azure AD v2.0)                            |
+| `SLACK_SIGNING_SECRET`            | Slack Events API inbound webhooks                          |
+| `TELEGRAM_SECRET_TOKEN`           | Telegram Bot webhook verification                          |
+| `WHATSAPP_APP_SECRET`             | WhatsApp Cloud API webhook signing                         |
+| `E2B_API_KEY`                     | E2B sandbox code runner (falls back to local Node runner)  |
+| `PIPEDREAM_API_KEY`               | Pipedream integration catalog proxy                        |
 
 See [`.env.example`](.env.example) for the full list. Missing credentials
 produce explicit `not_configured` states — the system never fabricates data.
@@ -175,21 +175,21 @@ runs remain honestly queued.
 
 The API exposes 90+ authenticated REST endpoints under `/v1/`. Key namespaces:
 
-| Namespace | Routes |
-|-----------|--------|
-| Identity | `/v1/auth/session`, `/v1/accounts/*`, `/v1/accounts/{google,microsoft}/oauth/*` |
-| Agents | `/v1/agents/personal/*`, `/v1/agents/routines/*` |
-| Threads & Tasks | `/v1/threads/*`, `/v1/tasks/*` |
-| Sessions | `/v1/sessions/*`, `/v1/sessions/:id/events/stream` (SSE) |
-| Knowledge | `/v1/profile`, `/v1/memories`, `/v1/people/*`, `/v1/wiki/*`, `/v1/goals/*`, `/v1/trusted-contacts/*` |
-| Routines | `/v1/routines/*`, `/v1/routine-runs/*`, `/v1/routine-results/*` |
-| Tools | `/v1/tools`, `/v1/tools/policy/evaluate`, `/v1/approvals/*` |
-| Content | `/v1/content/*`, `/v1/content-shares/:token` |
-| Channels | `/v1/channels/*` |
-| Teams | `/v1/squares/*` |
-| Billing | `/v1/billing` |
-| Admin | `/v1/admin/{overview,users,teams,agent-health,billing-reconciliation}` |
-| Integrations | `/v1/mcp-servers/*`, `/v1/integrations/{slack,telegram,whatsapp}/events/*`, `/v1/integrations/pipedream/apps` |
+| Namespace       | Routes                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------- |
+| Identity        | `/v1/auth/session`, `/v1/accounts/*`, `/v1/accounts/{google,microsoft}/oauth/*`                               |
+| Agents          | `/v1/agents/personal/*`, `/v1/agents/routines/*`                                                              |
+| Threads & Tasks | `/v1/threads/*`, `/v1/tasks/*`                                                                                |
+| Sessions        | `/v1/sessions/*`, `/v1/sessions/:id/events/stream` (SSE)                                                      |
+| Knowledge       | `/v1/profile`, `/v1/memories`, `/v1/people/*`, `/v1/wiki/*`, `/v1/goals/*`, `/v1/trusted-contacts/*`          |
+| Routines        | `/v1/routines/*`, `/v1/routine-runs/*`, `/v1/routine-results/*`                                               |
+| Tools           | `/v1/tools`, `/v1/tools/policy/evaluate`, `/v1/approvals/*`                                                   |
+| Content         | `/v1/content/*`, `/v1/content-shares/:token`                                                                  |
+| Channels        | `/v1/channels/*`                                                                                              |
+| Teams           | `/v1/squares/*`                                                                                               |
+| Billing         | `/v1/billing`                                                                                                 |
+| Admin           | `/v1/admin/{overview,users,teams,agent-health,billing-reconciliation}`                                        |
+| Integrations    | `/v1/mcp-servers/*`, `/v1/integrations/{slack,telegram,whatsapp}/events/*`, `/v1/integrations/pipedream/apps` |
 
 ## Documentation
 

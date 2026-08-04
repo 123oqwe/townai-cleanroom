@@ -86,13 +86,13 @@ export interface IntegrationSyncRun {
     | "webhook"
     | "incoming_email"
     | "email_to_assistant"
-   | "calendar"
+    | "calendar"
     | "voice_transcribed"
     | "slack_mention"
     | "telegram_message"
     | "whatsapp_message";
   triggerData: Record<string, unknown>;
- idempotencyKey: string | null;
+  idempotencyKey: string | null;
   replayOfRunId: Id<"integration-sync-run"> | null;
   replayKey: string | null;
   cursor: Record<string, unknown>;
@@ -125,8 +125,8 @@ export const routineTriggerKindSchema = z.enum([
   "calendar_rsvp",
   "calendar_changed",
   "voice_transcribed",
- "slack_mention",
- "webhook",
+  "slack_mention",
+  "webhook",
   "telegram_message",
   "whatsapp_message",
 ]);
@@ -221,7 +221,7 @@ type SyncRunRow = {
     | "webhook"
     | "incoming_email"
     | "email_to_assistant"
-   | "calendar"
+    | "calendar"
     | "voice_transcribed"
     | "slack_mention"
     | "telegram_message"
@@ -640,7 +640,7 @@ export function createRoutineRepository(sql: Sql) {
       | "manual"
       | "incoming_email"
       | "email_to_assistant"
-     | "calendar"
+      | "calendar"
       | "voice_transcribed"
       | "slack_mention"
       | "webhook"
@@ -656,13 +656,13 @@ export function createRoutineRepository(sql: Sql) {
         "incoming_email",
         "email_to_assistant",
         "calendar",
-       "voice_transcribed",
-       "slack_mention",
-       "webhook",
+        "voice_transcribed",
+        "slack_mention",
+        "webhook",
         "telegram_message",
         "whatsapp_message",
-     ])
-     .parse(triggerType);
+      ])
+      .parse(triggerType);
     const data = z.record(z.string(), z.json()).parse(triggerData);
     const key = z.string().trim().min(1).max(500).parse(idempotencyKey);
     const accountId =

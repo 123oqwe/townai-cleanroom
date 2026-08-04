@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import type { Context, Hono } from "hono";
 import { z } from "zod";
 import type { Sql } from "postgres";
@@ -51,10 +51,7 @@ export function registerTelegramEventsRoute(
       return context.json({ code: "TELEGRAM_TOKEN_MISSING" }, 401);
     const expected = Buffer.from(dependencies.secretToken, "utf8");
     const actual = Buffer.from(token, "utf8");
-    if (
-      expected.length !== actual.length ||
-      !timingSafeEqual(expected, actual)
-    )
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual))
       return context.json({ code: "TELEGRAM_TOKEN_INVALID" }, 401);
 
     const rawBody = await context.req.raw.text();
@@ -69,9 +66,7 @@ export function registerTelegramEventsRoute(
     if (update.message === undefined || update.message.text === undefined)
       return context.json({ accepted: false, reason: "IGNORED_UPDATE" });
 
-    const routineId = asId<"routine-schedule">(
-      context.req.param("routineId"),
-    );
+    const routineId = asId<"routine-schedule">(context.req.param("routineId"));
     const [owner] = await dependencies.sql<{ owner_id: string }[]>`
       select owner_id from routine_schedules
       where id=${routineId} and enabled=true
@@ -96,4 +91,3 @@ export function registerTelegramEventsRoute(
   app.post("/v1/integrations/telegram/events/:routineId", route);
   app.post("/integrations/telegram/events/:routineId", route);
 }
-

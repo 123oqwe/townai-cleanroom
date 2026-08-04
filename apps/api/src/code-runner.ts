@@ -51,9 +51,7 @@ export async function runE2BCode(
       output = output.slice(0, options.maxOutputChars);
     }
     if (execution.error !== undefined) {
-      throw new Error(
-        `CODE_RUN_FAILED: ${execution.error.value}`,
-      );
+      throw new Error(`CODE_RUN_FAILED: ${execution.error.value}`);
     }
     return { output, truncated };
   } finally {

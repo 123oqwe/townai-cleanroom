@@ -199,14 +199,14 @@ function compressContext(
       formatted.length > perItemBudget
         ? formatted.slice(0, perItemBudget - 3) + "..."
         : formatted;
-   const separator = text.length === 0 ? "" : "\n\n";
-   if (
+    const separator = text.length === 0 ? "" : "\n\n";
+    if (
       budgeted.length >= maxChars ||
       text.length + separator.length + budgeted.length > maxChars
-   ) {
-     truncated = true;
-     break;
-   }
+    ) {
+      truncated = true;
+      break;
+    }
     text += separator + budgeted;
     result.push({
       ...item,

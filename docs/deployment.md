@@ -14,16 +14,16 @@ Production URL: `https://townai-cleanroom.vercel.app`
 
 Set these in the Vercel project settings (Settings > Environment Variables):
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `DATABASE_URL` | Yes | PostgreSQL 16+ connection string |
-| `CREDENTIAL_MASTER_KEY_BASE64URL` | Yes | 32-byte base64url encryption key |
-| `ACCESS_ALLOWLIST_EMAILS` | Yes | Comma-separated approved emails |
-| `WEB_ORIGIN` | Yes | Your production URL |
-| `CODEX_EXEC_ENABLED` | No | Set to `true` for Codex harness |
-| `RESPONSES_API_KEY` | No | Set for Responses API fallback |
-| `GOOGLE_OAUTH_*` | No | Google Workspace integration |
-| `MICROSOFT_OAUTH_*` | No | Microsoft integration |
+| Variable                          | Required | Notes                            |
+| --------------------------------- | -------- | -------------------------------- |
+| `DATABASE_URL`                    | Yes      | PostgreSQL 16+ connection string |
+| `CREDENTIAL_MASTER_KEY_BASE64URL` | Yes      | 32-byte base64url encryption key |
+| `ACCESS_ALLOWLIST_EMAILS`         | Yes      | Comma-separated approved emails  |
+| `WEB_ORIGIN`                      | Yes      | Your production URL              |
+| `CODEX_EXEC_ENABLED`              | No       | Set to `true` for Codex harness  |
+| `RESPONSES_API_KEY`               | No       | Set for Responses API fallback   |
+| `GOOGLE_OAUTH_*`                  | No       | Google Workspace integration     |
+| `MICROSOFT_OAUTH_*`               | No       | Microsoft integration            |
 
 ### Deployment protection
 
