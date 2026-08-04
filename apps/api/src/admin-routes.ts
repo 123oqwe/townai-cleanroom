@@ -44,7 +44,24 @@ const periodQuerySchema = z
     start: z.iso.datetime().optional(),
     end: z.iso.datetime().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    const end = value.end === undefined ? new Date() : new Date(value.end);
+    const start =
+      value.start === undefined
+        ? new Date(end.getTime() - 30 * 24 * 60 * 60 * 1_000)
+        : new Date(value.start);
+    if (
+      start >= end ||
+      end.getTime() - start.getTime() > 366 * 24 * 60 * 60 * 1_000
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["period"],
+        message: "Billing period must be positive and at most one year.",
+      });
+    }
+  });
 
 function resolvePeriod(query: Record<string, string | undefined>) {
   const value = periodQuerySchema.parse(query);
@@ -53,17 +70,6 @@ function resolvePeriod(query: Record<string, string | undefined>) {
     value.start === undefined
       ? new Date(end.getTime() - 30 * 24 * 60 * 60 * 1_000)
       : new Date(value.start);
-  if (
-    start >= end ||
-    end.getTime() - start.getTime() > 366 * 24 * 60 * 60 * 1_000
-  )
-    throw new z.ZodError([
-      {
-        code: "custom",
-        path: ["period"],
-        message: "Billing period must be positive and at most one year.",
-      },
-    ]);
   return { start, end };
 }
 
@@ -430,7 +436,8 @@ export function registerAdminRoutes(
   app.get("/v1/admin/routines/:slug", async (context) => {
     const slug = parseRoutineReportSlug(context.req.param("slug"));
     if (slug === null) return reportNotFound(context);
-    const period = resolvePeriod(context.req.query());
+    const query = context.req.query();
+    const period = resolvePeriod(query);
 
     switch (slug) {
       case "overview": {
