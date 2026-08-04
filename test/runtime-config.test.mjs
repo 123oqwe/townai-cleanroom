@@ -50,20 +50,25 @@ describe("runtime configuration preflight", () => {
     });
 
     for (const check of result.checks) {
-      if (check.name.endsWith("ALLOWLIST_EMAILS") || check.name === "WORKER_SECRET_OR_CRON_SECRET")
+      if (
+        check.name.endsWith("ALLOWLIST_EMAILS") ||
+        check.name === "WORKER_SECRET_OR_CRON_SECRET"
+      )
         continue;
       if (check.name === "RESPONSES_API_KEY") continue;
-      if ([
-        "SLACK_SIGNING_SECRET",
-        "TWILIO_AUTH_TOKEN",
-        "VAPI_WEBHOOK_SECRET",
-        "ELEVENLABS_API_KEY",
-        "ELEVENLABS_VOICE_ID",
-        "GOOGLE_OAUTH_CLIENT_ID",
-        "GOOGLE_OAUTH_CLIENT_SECRET",
-        "GOOGLE_OAUTH_REDIRECT_URI",
-        "CHANNEL_CREDENTIALS_JSON",
-      ].includes(check.name)) {
+      if (
+        [
+          "SLACK_SIGNING_SECRET",
+          "TWILIO_AUTH_TOKEN",
+          "VAPI_WEBHOOK_SECRET",
+          "ELEVENLABS_API_KEY",
+          "ELEVENLABS_VOICE_ID",
+          "GOOGLE_OAUTH_CLIENT_ID",
+          "GOOGLE_OAUTH_CLIENT_SECRET",
+          "GOOGLE_OAUTH_REDIRECT_URI",
+          "CHANNEL_CREDENTIALS_JSON",
+        ].includes(check.name)
+      ) {
         expect(check.status).toBe("configured");
       }
     }

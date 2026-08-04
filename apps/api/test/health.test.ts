@@ -116,7 +116,8 @@ describe("GET /v1/health", () => {
       voiceProvider: {} as never,
       googleOAuth: {} as never,
       workerEnabled: false,
-      harnessServerFactory: () => ({ dispatch: async () => new Response() }) as never,
+      harnessServerFactory: () =>
+        ({ dispatch: async () => new Response() }) as never,
     }).request("/v1/health/capabilities");
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({

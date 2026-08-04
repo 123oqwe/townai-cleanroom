@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
@@ -56,7 +56,7 @@ export function registerSquareRoutes(
   dependencies: SquareDependencies,
 ): void {
   const listSquares = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const userId = context.get("identity").user.id;
     return context.json({
@@ -64,7 +64,7 @@ export function registerSquareRoutes(
     });
   };
   const createSquare = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const ownerId = context.get("identity").user.id;
     const value = createSchema.parse(await context.req.json());
@@ -80,9 +80,7 @@ export function registerSquareRoutes(
       201,
     );
   };
-  const getSquare = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
-  ) => {
+  const getSquare = async (context: Context<{ Variables: AuthVariables }>) => {
     const ownerId = context.get("identity").user.id;
     return context.json({
       square: await dependencies.repository.getForActor(
@@ -92,7 +90,7 @@ export function registerSquareRoutes(
     });
   };
   const listSquareMembers = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const ownerId = context.get("identity").user.id;
     return context.json({
@@ -103,7 +101,7 @@ export function registerSquareRoutes(
     });
   };
   const addSquareMember = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const ownerId = context.get("identity").user.id;
     const value = memberSchema.parse(await context.req.json());
@@ -122,7 +120,7 @@ export function registerSquareRoutes(
     );
   };
   const updateSquareMember = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["patch"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const ownerId = context.get("identity").user.id;
     const value = memberUpdateSchema.parse(await context.req.json());
@@ -137,7 +135,7 @@ export function registerSquareRoutes(
     });
   };
   const getSquarePolicy = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const ownerId = context.get("identity").user.id;
     return context.json({
@@ -148,7 +146,7 @@ export function registerSquareRoutes(
     });
   };
   const updateSquarePolicy = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["patch"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const ownerId = context.get("identity").user.id;
     const value = policySchema.parse(await context.req.json());

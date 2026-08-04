@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { z } from "zod";
 import { asId } from "@town/contracts";
 import type { SharedAccountRepository } from "@town/teams";
@@ -19,7 +19,7 @@ export function registerSharedAccountRoutes(
   dependencies: SharedAccountDependencies,
 ): void {
   const listAccounts = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const actorId = context.get("identity").user.id;
     return context.json({
@@ -30,7 +30,7 @@ export function registerSharedAccountRoutes(
     });
   };
   const grantAccount = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const actorId = context.get("identity").user.id;
     const value = grantSchema.parse(await context.req.json());
@@ -48,7 +48,7 @@ export function registerSharedAccountRoutes(
     );
   };
   const revokeShare = async (
-    context: Parameters<Hono<{ Variables: AuthVariables }>["delete"]>[0],
+    context: Context<{ Variables: AuthVariables }>,
   ) => {
     const actorId = context.get("identity").user.id;
     await dependencies.repository.revoke(

@@ -8,7 +8,8 @@ describe("Vercel serverless health capabilities", () => {
   beforeEach(() => {
     baselineEnv = {
       DATABASE_URL: process.env.DATABASE_URL,
-      CREDENTIAL_MASTER_KEY_BASE64URL: process.env.CREDENTIAL_MASTER_KEY_BASE64URL,
+      CREDENTIAL_MASTER_KEY_BASE64URL:
+        process.env.CREDENTIAL_MASTER_KEY_BASE64URL,
       WEB_ORIGIN: process.env.WEB_ORIGIN,
       RESPONSES_API_KEY: process.env.RESPONSES_API_KEY,
       WORKER_SECRET: process.env.WORKER_SECRET,
@@ -27,8 +28,10 @@ describe("Vercel serverless health capabilities", () => {
       CONTENT_STORAGE_S3_ENDPOINT: process.env.CONTENT_STORAGE_S3_ENDPOINT,
       CONTENT_STORAGE_S3_BUCKET: process.env.CONTENT_STORAGE_S3_BUCKET,
       CONTENT_STORAGE_S3_REGION: process.env.CONTENT_STORAGE_S3_REGION,
-      CONTENT_STORAGE_S3_ACCESS_KEY_ID: process.env.CONTENT_STORAGE_S3_ACCESS_KEY_ID,
-      CONTENT_STORAGE_S3_SECRET_ACCESS_KEY: process.env.CONTENT_STORAGE_S3_SECRET_ACCESS_KEY,
+      CONTENT_STORAGE_S3_ACCESS_KEY_ID:
+        process.env.CONTENT_STORAGE_S3_ACCESS_KEY_ID,
+      CONTENT_STORAGE_S3_SECRET_ACCESS_KEY:
+        process.env.CONTENT_STORAGE_S3_SECRET_ACCESS_KEY,
     };
 
     process.env = {
@@ -124,7 +127,8 @@ describe("Vercel serverless health capabilities", () => {
     process.env.ELEVENLABS_VOICE_ID = "voice-id";
     process.env.GOOGLE_OAUTH_CLIENT_ID = "client-id";
     process.env.GOOGLE_OAUTH_CLIENT_SECRET = "client-secret";
-    process.env.GOOGLE_OAUTH_REDIRECT_URI = "https://example.com/auth/google/callback";
+    process.env.GOOGLE_OAUTH_REDIRECT_URI =
+      "https://example.com/auth/google/callback";
     process.env.CONTENT_STORAGE_ROOT = undefined;
     process.env.CONTENT_STORAGE_S3_ENDPOINT = "https://s3.example.com";
     process.env.CONTENT_STORAGE_S3_BUCKET = "bucket";

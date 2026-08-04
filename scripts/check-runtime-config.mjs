@@ -44,7 +44,8 @@ function inspectJsonObject(name, value) {
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
       return { name, status: "invalid" };
     for (const [entryKey, entryValue] of Object.entries(parsed)) {
-      if (typeof entryKey !== "string" || entryKey.length < 1) return { name, status: "invalid" };
+      if (typeof entryKey !== "string" || entryKey.length < 1)
+        return { name, status: "invalid" };
       if (typeof entryValue !== "string" || entryValue.length < 1)
         return { name, status: "invalid" };
     }
@@ -57,9 +58,18 @@ function inspectJsonObject(name, value) {
 function inspectOptionalStorageConfig(environment = process.env) {
   const storageRoot = environment.CONTENT_STORAGE_ROOT;
   const s3Fields = [
-    { name: "CONTENT_STORAGE_S3_ENDPOINT", value: environment.CONTENT_STORAGE_S3_ENDPOINT },
-    { name: "CONTENT_STORAGE_S3_BUCKET", value: environment.CONTENT_STORAGE_S3_BUCKET },
-    { name: "CONTENT_STORAGE_S3_REGION", value: environment.CONTENT_STORAGE_S3_REGION },
+    {
+      name: "CONTENT_STORAGE_S3_ENDPOINT",
+      value: environment.CONTENT_STORAGE_S3_ENDPOINT,
+    },
+    {
+      name: "CONTENT_STORAGE_S3_BUCKET",
+      value: environment.CONTENT_STORAGE_S3_BUCKET,
+    },
+    {
+      name: "CONTENT_STORAGE_S3_REGION",
+      value: environment.CONTENT_STORAGE_S3_REGION,
+    },
     {
       name: "CONTENT_STORAGE_S3_ACCESS_KEY_ID",
       value: environment.CONTENT_STORAGE_S3_ACCESS_KEY_ID,
