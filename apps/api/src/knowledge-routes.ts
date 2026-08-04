@@ -13,6 +13,11 @@ import {
   type RevisionRepository,
   type WikiRepository,
   type WikiUpkeepScanner,
+  type GoalsProjectsRepository,
+  type TrustedContactsRepository,
+  type KnowledgeGraphRepository,
+  type GraphNodeType,
+  type GraphEdgeType,
 } from "@town/knowledge";
 
 import type { AuthVariables } from "./auth.js";
@@ -26,6 +31,9 @@ export interface KnowledgeDependencies {
   knowledgeSearchRepository: KnowledgeSearchRepository;
   knowledgeConflictService: KnowledgeConflictService;
   knowledgeUpkeepScanner?: WikiUpkeepScanner;
+  goalsProjectsRepository?: GoalsProjectsRepository;
+  trustedContactsRepository?: TrustedContactsRepository;
+  knowledgeGraphRepository?: KnowledgeGraphRepository;
 }
 
 const jsonObjectSchema = z.record(z.string(), z.json());
@@ -552,5 +560,229 @@ export function registerKnowledgeRoutes(
         ...body,
       }),
     );
+  });
+
+  /* ── Goals ── */
+  app.get("/v1/goals", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    return context.json(
+      await dependencies.goalsProjectsRepository.listGoals(ownerId),
+    );
+  });
+
+  app.post("/v1/goals", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const body = await context.req.json();
+    return context.json(
+      await dependencies.goalsProjectsRepository.createGoal({
+        ownerId,
+        title: body.title,
+        description: body.description ?? "",
+        status: body.status ?? "active",
+        metadata: body.metadata ?? {},
+        authorType: "user",
+        citations: body.citations ?? [],
+      }),
+    );
+  });
+
+  app.get("/v1/goals/:goalId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const goalId = asId<"goal">(context.req.param("goalId"));
+    return context.json(
+      await dependencies.goalsProjectsRepository.getGoal(ownerId, goalId),
+    );
+  });
+
+  app.put("/v1/goals/:goalId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const goalId = asId<"goal">(context.req.param("goalId"));
+    const body = await context.req.json();
+    return context.json(
+      await dependencies.goalsProjectsRepository.updateGoal({
+        id: goalId,
+        ownerId,
+        title: body.title,
+        description: body.description ?? "",
+        status: body.status ?? "active",
+        metadata: body.metadata ?? {},
+        authorType: "user",
+        citations: body.citations ?? [],
+        expectedRevision: body.expectedRevision,
+      }),
+    );
+  });
+
+  /* ── Projects ── */
+  app.get("/v1/projects", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    return context.json(
+      await dependencies.goalsProjectsRepository.listProjects(ownerId),
+    );
+  });
+
+  app.post("/v1/projects", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const body = await context.req.json();
+    return context.json(
+      await dependencies.goalsProjectsRepository.createProject({
+        ownerId,
+        title: body.title,
+        description: body.description ?? "",
+        status: body.status ?? "active",
+        ...(body.goalId === undefined ? {} : { goalId: body.goalId }),
+        metadata: body.metadata ?? {},
+        authorType: "user",
+        citations: body.citations ?? [],
+      }),
+    );
+  });
+
+  app.get("/v1/projects/:projectId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const projectId = asId<"project">(context.req.param("projectId"));
+    return context.json(
+      await dependencies.goalsProjectsRepository.getProject(ownerId, projectId),
+    );
+  });
+
+  app.put("/v1/projects/:projectId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.goalsProjectsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const projectId = asId<"project">(context.req.param("projectId"));
+    const body = await context.req.json();
+    return context.json(
+      await dependencies.goalsProjectsRepository.updateProject({
+        id: projectId,
+        ownerId,
+        title: body.title,
+        description: body.description ?? "",
+        status: body.status ?? "active",
+        ...(body.goalId === undefined ? {} : { goalId: body.goalId }),
+        metadata: body.metadata ?? {},
+        authorType: "user",
+        citations: body.citations ?? [],
+        expectedRevision: body.expectedRevision,
+      }),
+    );
+  });
+
+  /* ── Trusted Contacts ── */
+  app.get("/v1/trusted-contacts", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.trustedContactsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    return context.json(
+      await dependencies.trustedContactsRepository.list(ownerId),
+    );
+  });
+
+  app.post("/v1/trusted-contacts", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.trustedContactsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const body = await context.req.json();
+    return context.json(
+      await dependencies.trustedContactsRepository.add({
+        ownerId,
+        scope: body.scope,
+        value: body.value,
+        ...(body.label === undefined ? {} : { label: body.label }),
+      }),
+    );
+  });
+
+  app.delete("/v1/trusted-contacts/:contactId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.trustedContactsRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const contactId = asId<"trusted-contact">(context.req.param("contactId"));
+    await dependencies.trustedContactsRepository.remove(ownerId, contactId);
+    return context.json({ ok: true });
+  });
+
+  /* ── Knowledge Graph ── */
+  app.get("/v1/knowledge-graph/edges", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.knowledgeGraphRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const query = context.req.query();
+    return context.json(
+      await dependencies.knowledgeGraphRepository.listEdges(ownerId, {
+        ...(query["fromType"] === undefined
+          ? {}
+          : { fromType: query["fromType"] as GraphNodeType }),
+        ...(query["fromId"] === undefined ? {} : { fromId: query["fromId"] }),
+        ...(query["toType"] === undefined
+          ? {}
+          : { toType: query["toType"] as GraphNodeType }),
+        ...(query["toId"] === undefined ? {} : { toId: query["toId"] }),
+        ...(query["edgeType"] === undefined
+          ? {}
+          : { edgeType: query["edgeType"] as GraphEdgeType }),
+      }),
+    );
+  });
+
+  app.post("/v1/knowledge-graph/edges", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.knowledgeGraphRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const body = await context.req.json();
+    return context.json(
+      await dependencies.knowledgeGraphRepository.createEdge({
+        ownerId,
+        fromType: body.fromType,
+        fromId: body.fromId,
+        toType: body.toType,
+        toId: body.toId,
+        edgeType: body.edgeType,
+        ...(body.notes === undefined ? {} : { notes: body.notes }),
+        metadata: body.metadata ?? {},
+      }),
+    );
+  });
+
+  app.get("/v1/knowledge-graph/neighbors", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.knowledgeGraphRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const query = context.req.query();
+    return context.json(
+      await dependencies.knowledgeGraphRepository.getNeighbors(
+        ownerId,
+        query["nodeType"] as GraphNodeType,
+        query["nodeId"] ?? "",
+      ),
+    );
+  });
+
+  app.delete("/v1/knowledge-graph/edges/:edgeId", async (context) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.knowledgeGraphRepository === undefined)
+      return context.json({ code: "NOT_CONFIGURED" }, 503);
+    const edgeId = asId<"graph-edge">(context.req.param("edgeId"));
+    const body = await context.req.json();
+    await dependencies.knowledgeGraphRepository.retireEdge(
+      ownerId,
+      edgeId,
+      body.expectedRevision,
+    );
+    return context.json({ ok: true });
   });
 }

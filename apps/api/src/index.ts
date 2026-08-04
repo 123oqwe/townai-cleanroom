@@ -47,6 +47,9 @@ import {
   createProfileRepository,
   createRevisionRepository,
   createWikiRepository,
+  createGoalsProjectsRepository,
+  createTrustedContactsRepository,
+  createKnowledgeGraphRepository,
 } from "@town/knowledge";
 import {
   createRuntimeTransitionService,
@@ -274,6 +277,9 @@ const knowledgeContextBuilder = createKnowledgeContextBuilder(
 );
 const knowledgeUpkeepScanner = createWikiUpkeepScanner(sql);
 const knowledgeConflictService = createKnowledgeConflictService(sql);
+const goalsProjectsRepository = createGoalsProjectsRepository(sql);
+const trustedContactsRepository = createTrustedContactsRepository(sql);
+const knowledgeGraphRepository = createKnowledgeGraphRepository(sql);
 const agentRepository = createAgentRepository(sql);
 const threadRepository = createThreadRepository(sql);
 const turnRepository = createTurnRepository(sql);
@@ -909,6 +915,9 @@ const app = createApp({
   revisionRepository,
   knowledgeSearchRepository,
   knowledgeUpkeepScanner,
+  goalsProjectsRepository,
+  trustedContactsRepository,
+  knowledgeGraphRepository,
   knowledgeConflictService,
   agentRepository,
   threadRepository,
