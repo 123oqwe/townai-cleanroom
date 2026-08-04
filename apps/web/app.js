@@ -916,9 +916,36 @@ function renderWiki(result) {
     .slice(0, 20)
     .map(
       (document) =>
-        `<article class="wiki-card" data-wiki-id="${escapeHtml(document.id)}"><div><span class="wiki-kind">${escapeHtml(document.kind)}</span><strong>${escapeHtml(document.title)}</strong><p>${escapeHtml(document.body)}</p><small>${escapeHtml(document.slug)} · revision ${escapeHtml(document.currentRevision)}</small></div><button class="quiet-button wiki-edit" type="button">Edit</button></article>`,
+        `<article class="wiki-card" data-wiki-id="${escapeHtml(document.id)}"><div><span class="wiki-kind">${escapeHtml(document.kind)}</span><strong>${escapeHtml(document.title)}</strong><p>${escapeHtml(document.body)}</p><small>${escapeHtml(document.slug)} · revision ${escapeHtml(document.currentRevision)}</small></div><div class="wiki-actions"><button class="quiet-button wiki-edit" type="button">Edit</button><button class="quiet-button wiki-history-button" type="button">History</button></div></article>`,
     )
     .join("");
+}
+async function loadWikiHistory(card) {
+  const wikiId = card.dataset.wikiId;
+  if (!wikiId || !state.token) return;
+  const existing = card.querySelector(".wiki-history");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  try {
+    const result = await api(`/v1/wiki/${wikiId}/revisions`);
+    const history = document.createElement("div");
+    history.className = "wiki-history";
+    history.innerHTML = (result.revisions || [])
+      .map(
+        (revision) =>
+          `<div><strong>Revision ${escapeHtml(String(revision.revision))}</strong><small>${escapeHtml(new Date(revision.createdAt).toLocaleString())}</small><p>${escapeHtml(revision.title || "")}</p><pre>${escapeHtml(revision.body || "")}</pre></div>`,
+      )
+      .join("");
+    card.append(history);
+  } catch (cause) {
+    const error = document.createElement("p");
+    error.className = "harness-empty wiki-history-error";
+    error.textContent =
+      cause instanceof Error ? cause.message : "History unavailable.";
+    card.append(error);
+  }
 }
 async function saveWiki() {
   const error = $("#wiki-error");
@@ -2391,9 +2418,43 @@ function renderTools(result) {
   target.innerHTML = tools
     .map(
       (tool) =>
-        `<article class="tool-catalog-card"><div><strong>${escapeHtml(tool.name)}</strong><p>${escapeHtml(tool.description)}</p></div><small>v${escapeHtml(String(tool.version))} · ${escapeHtml(tool.sideEffect)} · ${escapeHtml(tool.dataSensitivity)} · account ${escapeHtml(tool.accountBinding)}</small></article>`,
+        `<article class="tool-catalog-card" data-tool-name="${escapeHtml(tool.name)}" data-side-effect="${escapeHtml(tool.sideEffect)}" data-data-sensitivity="${escapeHtml(tool.dataSensitivity)}" data-account-binding="${escapeHtml(tool.accountBinding)}"><div><strong>${escapeHtml(tool.name)}</strong><p>${escapeHtml(tool.description)}</p></div><small>v${escapeHtml(String(tool.version))} · ${escapeHtml(tool.sideEffect)} · ${escapeHtml(tool.dataSensitivity)} · account ${escapeHtml(tool.accountBinding)}</small><button class="quiet-button tool-policy-preview-button" type="button">Preview risk</button></article>`,
     )
     .join("");
+}
+async function evaluateToolPolicy(card) {
+  if (!card.dataset.toolName || !state.token) return;
+  const existing = card.querySelector(".tool-policy-result");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  const accountBound = card.dataset.accountBinding !== "none";
+  try {
+    const result = await apiJson("/v1/tools/policy/evaluate", {
+      sessionMode: "allow_safe_actions",
+      routineMode: "approval_required",
+      perToolOverride: null,
+      sideEffect: card.dataset.sideEffect,
+      dataSensitivity: card.dataset.dataSensitivity,
+      inputTrust: "untrusted_data",
+      targetIsSelf: true,
+      targetIsTrusted: true,
+      accountBound,
+    });
+    const policy = result.policy || {};
+    const detail = document.createElement("div");
+    detail.className = "tool-policy-result";
+    const flags = (policy.riskFlags || []).map((f) => escapeHtml(f)).join(", ");
+    detail.innerHTML = `<div><strong>Decision: ${escapeHtml(policy.decision || "unknown")}</strong></div>${flags ? `<small>Flags: ${flags}</small>` : ""}<p>${escapeHtml(policy.rationale || "")}</p>`;
+    card.append(detail);
+  } catch (cause) {
+    const error = document.createElement("p");
+    error.className = "harness-empty tool-policy-error";
+    error.textContent =
+      cause instanceof Error ? cause.message : "Policy preview unavailable.";
+    card.append(error);
+  }
 }
 async function loadTools() {
   if (!state.token) {
@@ -3730,6 +3791,7 @@ $("#wiki-list").addEventListener("click", (event) => {
         cause instanceof Error ? cause.message : "Could not edit Wiki page.";
       error.hidden = false;
     });
+  if (event.target.closest(".wiki-history-button")) void loadWikiHistory(card);
 });
 $("#knowledge-conflict-list").addEventListener("click", (event) => {
   const card = event.target.closest(".knowledge-conflict-card");
@@ -3842,6 +3904,12 @@ $("#profile-history-refresh").addEventListener(
   () => void loadProfileHistory(),
 );
 $("#agent-save").addEventListener("click", () => void saveAgentSettings());
+$("#tool-catalog-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".tool-policy-preview-button");
+  if (!button) return;
+  const card = event.target.closest(".tool-catalog-card");
+  if (card) void evaluateToolPolicy(card);
+});
 $("#mcp-catalog-list").addEventListener("click", (event) => {
   const button = event.target.closest(".mcp-binding-action");
   if (button) void toggleMcpBinding(button);
