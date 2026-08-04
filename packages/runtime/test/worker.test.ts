@@ -298,4 +298,64 @@ describe("runtime worker", () => {
     expect(transitions.fail).not.toHaveBeenCalled();
     expect(transitions.requeue).not.toHaveBeenCalled();
   });
+
+  it("falls back to hard-fail when a retryable error cannot be requeued", async () => {
+    const queue = {
+      claim: vi.fn(async () => ({
+        ownerId,
+        sessionId,
+        runId,
+        runState: "queued" as const,
+        workerId: "worker-1",
+        leaseToken,
+        attempt: 2,
+        leasedAt: new Date(),
+        leaseExpiresAt: new Date(Date.now() + 30_000),
+      })),
+      heartbeat: vi.fn(async (value) => value),
+      retry: vi.fn(async () => undefined),
+    };
+    const transitions = {
+      start: vi.fn(async () => undefined),
+      recordPhase: vi.fn(async () => undefined),
+      recordAssistantOutput: vi.fn(async () => undefined),
+      complete: vi.fn(async () => undefined),
+      fail: vi.fn(async () => undefined),
+      requeue: vi.fn(async () => {
+        throw new Error("requeue outage");
+      }),
+      wait: vi.fn(async () => undefined),
+    };
+    const dependencies = {
+      queue,
+      sessions: {
+        get: vi.fn(async () => ({ ownerId }) as never),
+        getRun: vi.fn(async () => ({}) as never),
+      },
+      transitions,
+      adapter: {
+        async *execute() {
+          yield* [] as never[];
+          throw new RetryableRuntimeError("adapter transient");
+        },
+      },
+    } as unknown as RuntimeWorkerDependencies;
+
+    const result = await createRuntimeWorker(dependencies, {
+      workerId: "worker-1",
+      retryPolicy: { maxAttempts: 3, baseDelayMs: 250 },
+    }).runOnce();
+
+    expect(result).toMatchObject({ claimed: true, state: "failed", runId });
+    expect(transitions.requeue).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      delayMs: 500,
+    });
+    expect(transitions.fail).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      errorCode: "RetryableRuntimeError",
+    });
+  });
 });
