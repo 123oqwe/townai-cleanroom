@@ -676,4 +676,41 @@ describe("routine shared route aliases", () => {
     expect(legacy.status).toBe(404);
     expect(await legacy.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
   });
+
+  it("renders a sanitized shared routine page", async () => {
+    const routine = {
+      id: routineId,
+      name: "<script>alert(1)</script>",
+      cron: "*/15 * * * *",
+      timezone: "UTC",
+      enabled: true,
+    };
+    const version = {
+      version: 2,
+      snapshot: {
+        displayName: "<b>Daily</b>",
+        instructions: "<img src=x onerror=alert(1)>",
+        defaultApprovalMode: "autonomous",
+        callableRoutineIds: [],
+      },
+    };
+    const repository = {
+      getPublicShare: vi.fn().mockResolvedValue({ routine, version }),
+    } as unknown as RoutineDependencies["repository"];
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerRoutineShareRoutes(app, { repository });
+
+    const page = await app.request(
+      "http://town.test/content/routines/shared/rtnshare_valid_token_12345",
+      { headers: { accept: "text/html" } },
+    );
+    const text = await page.text();
+    expect(page.status).toBe(200);
+    expect(text).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(text).toContain("&lt;b&gt;Daily&lt;/b&gt;");
+    expect(text).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(text).not.toContain("<script>");
+    expect(text).not.toContain("<b>Daily</b>");
+    expect(text).not.toContain("<img src=x");
+  });
 });
