@@ -26,11 +26,15 @@ describe("GET /v1/health", () => {
   it("reports capability readiness without exposing configuration values", async () => {
     const response = await createApp().request("/v1/health/capabilities");
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       api: false,
       auth: false,
       harness: false,
       worker: false,
+      slackEvents: false,
+      twilioVoice: false,
+      vapiVoice: false,
+      voiceSynthesis: false,
       googleOAuth: false,
     });
   });
@@ -46,12 +50,42 @@ describe("GET /v1/health", () => {
     }).request("/v1/health/capabilities");
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       api: true,
       auth: true,
       harness: true,
       worker: true,
+      slackEvents: false,
+      twilioVoice: false,
+      vapiVoice: false,
+      voiceSynthesis: false,
       googleOAuth: false,
+    });
+  });
+
+  it("surfaces provider integration capabilities independently", async () => {
+    const response = await createApp({
+      identityService: {} as never,
+      accountRepository: {} as never,
+      slackSigningSecret: "slack-signing-secret",
+      twilioAuthToken: "twilio-token",
+      vapiWebhookSecret: "vapi-secret",
+      voiceProvider: {} as never,
+      googleOAuth: {} as never,
+      workerEnabled: false,
+      harnessServerFactory: () => ({ dispatch: async () => new Response() }) as never,
+    }).request("/v1/health/capabilities");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      api: true,
+      auth: true,
+      harness: true,
+      worker: false,
+      slackEvents: true,
+      twilioVoice: true,
+      vapiVoice: true,
+      voiceSynthesis: true,
+      googleOAuth: true,
     });
   });
 });

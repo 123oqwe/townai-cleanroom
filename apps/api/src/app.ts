@@ -680,6 +680,10 @@ export function createApp(dependencies?: AppDependencies) {
         dependencies?.harnessServer !== undefined ||
         dependencies?.harnessServerFactory !== undefined,
       worker: dependencies?.workerEnabled === true,
+      slackEvents: dependencies?.slackSigningSecret !== undefined,
+      twilioVoice: dependencies?.twilioAuthToken !== undefined,
+      vapiVoice: dependencies?.vapiWebhookSecret !== undefined,
+      voiceSynthesis: dependencies?.voiceProvider !== undefined,
       googleOAuth: dependencies?.googleOAuth !== undefined,
     }),
   );
