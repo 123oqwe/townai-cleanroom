@@ -28,6 +28,17 @@ const reportSlugs = [
 ] as const;
 type ReportSlug = (typeof reportSlugs)[number];
 const reportSlugSet = new Set<ReportSlug>(reportSlugs);
+
+const routineReportSlugs = [
+  "overview",
+  "schedules",
+  "triggers",
+  "runs",
+  "webhooks",
+  "shares",
+] as const;
+type RoutineReportSlug = (typeof routineReportSlugs)[number];
+const routineReportSlugSet = new Set<RoutineReportSlug>(routineReportSlugs);
 const periodQuerySchema = z
   .object({
     start: z.iso.datetime().optional(),
@@ -120,6 +131,12 @@ async function collectOverviewReport(dependencies: AdminDependencies) {
 function parseReportSlug(candidate: string | undefined): ReportSlug | null {
   return candidate !== undefined && reportSlugSet.has(candidate as ReportSlug)
     ? (candidate as ReportSlug)
+    : null;
+}
+
+function parseRoutineReportSlug(candidate: string | undefined): RoutineReportSlug | null {
+  return candidate !== undefined && routineReportSlugSet.has(candidate as RoutineReportSlug)
+    ? (candidate as RoutineReportSlug)
     : null;
 }
 
@@ -403,6 +420,340 @@ export function registerAdminRoutes(
                 ? "not_configured"
                 : "not_available",
             discrepancy: null,
+          },
+        });
+      }
+      default:
+        return reportNotFound(context);
+    }
+  });
+  app.get("/v1/admin/routines/:slug", async (context) => {
+    const slug = parseRoutineReportSlug(context.req.param("slug"));
+    if (slug === null) return reportNotFound(context);
+    const period = resolvePeriod(context.req.query());
+
+    switch (slug) {
+      case "overview": {
+        const [row] = await dependencies.sql<
+          {
+            routines_total: number;
+            routines_enabled: number;
+            routines_disabled: number;
+            triggers_total: number;
+            triggers_enabled: number;
+            sync_queued: number;
+            sync_running: number;
+            sync_succeeded: number;
+            sync_failed: number;
+            sync_blocked: number;
+            webhooks_total: number;
+            webhooks_enabled: number;
+            shares_total: number;
+            shares_active: number;
+            shares_revoked: number;
+          }[]
+        >`
+          select
+            (select count(*)::int from routine_schedules) as routines_total,
+            (select count(*)::int from routine_schedules where enabled=true) as routines_enabled,
+            (select count(*)::int from routine_schedules where enabled=false) as routines_disabled,
+            (select count(*)::int from routine_triggers) as triggers_total,
+            (select count(*)::int from routine_triggers where enabled=true) as triggers_enabled,
+            (select count(*)::int from integration_sync_runs where status='queued') as sync_queued,
+            (select count(*)::int from integration_sync_runs where status='running') as sync_running,
+            (select count(*)::int from integration_sync_runs where status='succeeded') as sync_succeeded,
+            (select count(*)::int from integration_sync_runs where status='failed') as sync_failed,
+            (select count(*)::int from integration_sync_runs where status='blocked') as sync_blocked,
+            (select count(*)::int from routine_webhooks) as webhooks_total,
+            (select count(*)::int from routine_webhooks where enabled=true) as webhooks_enabled,
+            (select count(*)::int from routine_share_grants) as shares_total,
+            (select count(*)::int from routine_share_grants where revoked_at is null and (expires_at is null or expires_at > now())) as shares_active,
+            (select count(*)::int from routine_share_grants where revoked_at is not null) as shares_revoked
+        `;
+        return context.json({
+          slug,
+          generatedAt: new Date(),
+          period,
+          readiness: reportReadiness(dependencies),
+          counts: {
+            routines: {
+              total: row?.routines_total ?? 0,
+              enabled: row?.routines_enabled ?? 0,
+              disabled: row?.routines_disabled ?? 0,
+            },
+            triggers: {
+              total: row?.triggers_total ?? 0,
+              enabled: row?.triggers_enabled ?? 0,
+            },
+            runs: {
+              queued: row?.sync_queued ?? 0,
+              running: row?.sync_running ?? 0,
+              succeeded: row?.sync_succeeded ?? 0,
+              failed: row?.sync_failed ?? 0,
+              blocked: row?.sync_blocked ?? 0,
+            },
+            webhooks: {
+              total: row?.webhooks_total ?? 0,
+              enabled: row?.webhooks_enabled ?? 0,
+            },
+            shares: {
+              total: row?.shares_total ?? 0,
+              active: row?.shares_active ?? 0,
+              revoked: row?.shares_revoked ?? 0,
+            },
+          },
+        });
+      }
+      case "schedules": {
+        const [row] = await dependencies.sql<
+          {
+            routines_total: number;
+            routines_enabled: number;
+            routines_disabled: number;
+            routines_created_period: number;
+            routines_updated_period: number;
+            routines_overdue: number;
+            routines_due_24h: number;
+            routines_stale_last_run: number;
+          }[]
+        >`
+          select
+            (select count(*)::int from routine_schedules) as routines_total,
+            (select count(*)::int from routine_schedules where enabled=true) as routines_enabled,
+            (select count(*)::int from routine_schedules where enabled=false) as routines_disabled,
+            (select count(*)::int from routine_schedules where created_at >= ${period.start} and created_at < ${period.end}) as routines_created_period,
+            (select count(*)::int from routine_schedules where updated_at >= ${period.start} and updated_at < ${period.end}) as routines_updated_period,
+            (select count(*)::int from routine_schedules where next_run_at < now()) as routines_overdue,
+            (select count(*)::int from routine_schedules where next_run_at >= now() and next_run_at < now() + interval '24 hours') as routines_due_24h,
+            (select count(*)::int from routine_schedules where last_run_at is not null and last_run_at < now() - interval '30 days') as routines_stale_last_run
+        `;
+        return context.json({
+          slug,
+          generatedAt: new Date(),
+          period,
+          counts: {
+            routines: {
+              total: row?.routines_total ?? 0,
+              enabled: row?.routines_enabled ?? 0,
+              disabled: row?.routines_disabled ?? 0,
+              overdue: row?.routines_overdue ?? 0,
+              dueIn24h: row?.routines_due_24h ?? 0,
+            },
+            lifecycle: {
+              createdInPeriod: row?.routines_created_period ?? 0,
+              updatedInPeriod: row?.routines_updated_period ?? 0,
+              staleLastRun: row?.routines_stale_last_run ?? 0,
+            },
+          },
+        });
+      }
+      case "triggers": {
+        const [row] = await dependencies.sql<
+          {
+            triggers_total: number;
+            triggers_enabled: number;
+            triggers_disabled: number;
+            triggers_created_period: number;
+            manual: number;
+            schedule: number;
+            incoming_email: number;
+            outgoing_email: number;
+            email_to_assistant: number;
+            calendar_start: number;
+            calendar_end: number;
+            calendar_rsvp: number;
+            calendar_changed: number;
+            voice_transcribed: number;
+            slack_mention: number;
+            webhook: number;
+          }[]
+        >`
+          select
+            (select count(*)::int from routine_triggers) as triggers_total,
+            (select count(*)::int from routine_triggers where enabled=true) as triggers_enabled,
+            (select count(*)::int from routine_triggers where enabled=false) as triggers_disabled,
+            (select count(*)::int from routine_triggers where created_at >= ${period.start} and created_at < ${period.end}) as triggers_created_period,
+            (select count(*)::int from routine_triggers where kind='manual') as manual,
+            (select count(*)::int from routine_triggers where kind='schedule') as schedule,
+            (select count(*)::int from routine_triggers where kind='incoming_email') as incoming_email,
+            (select count(*)::int from routine_triggers where kind='outgoing_email') as outgoing_email,
+            (select count(*)::int from routine_triggers where kind='email_to_assistant') as email_to_assistant,
+            (select count(*)::int from routine_triggers where kind='calendar_start') as calendar_start,
+            (select count(*)::int from routine_triggers where kind='calendar_end') as calendar_end,
+            (select count(*)::int from routine_triggers where kind='calendar_rsvp') as calendar_rsvp,
+            (select count(*)::int from routine_triggers where kind='calendar_changed') as calendar_changed,
+            (select count(*)::int from routine_triggers where kind='voice_transcribed') as voice_transcribed,
+            (select count(*)::int from routine_triggers where kind='slack_mention') as slack_mention,
+            (select count(*)::int from routine_triggers where kind='webhook') as webhook
+        `;
+        return context.json({
+          slug,
+          generatedAt: new Date(),
+          period,
+          counts: {
+            total: row?.triggers_total ?? 0,
+            enabled: row?.triggers_enabled ?? 0,
+            disabled: row?.triggers_disabled ?? 0,
+            createdInPeriod: row?.triggers_created_period ?? 0,
+            byKind: {
+              manual: row?.manual ?? 0,
+              schedule: row?.schedule ?? 0,
+              incomingEmail: row?.incoming_email ?? 0,
+              outgoingEmail: row?.outgoing_email ?? 0,
+              emailToAssistant: row?.email_to_assistant ?? 0,
+              calendarStart: row?.calendar_start ?? 0,
+              calendarEnd: row?.calendar_end ?? 0,
+              calendarRsvp: row?.calendar_rsvp ?? 0,
+              calendarChanged: row?.calendar_changed ?? 0,
+              voiceTranscribed: row?.voice_transcribed ?? 0,
+              slackMention: row?.slack_mention ?? 0,
+              webhook: row?.webhook ?? 0,
+            },
+          },
+        });
+      }
+      case "runs": {
+        const [row] = await dependencies.sql<
+          {
+            runs_total: number;
+            runs_queued: number;
+            runs_running: number;
+            runs_succeeded: number;
+            runs_failed: number;
+            runs_blocked: number;
+            runs_google: number;
+            runs_calendar: number;
+            runs_webhook: number;
+            runs_voice_transcribed: number;
+            runs_failed_period: number;
+            runs_succeeded_period: number;
+            runtimeRunsLinked: number;
+            runtimeRunsLinkedPeriod: number;
+          }[]
+        >`
+          select
+            (select count(*)::int from integration_sync_runs) as runs_total,
+            (select count(*)::int from integration_sync_runs where status='queued') as runs_queued,
+            (select count(*)::int from integration_sync_runs where status='running') as runs_running,
+            (select count(*)::int from integration_sync_runs where status='succeeded') as runs_succeeded,
+            (select count(*)::int from integration_sync_runs where status='failed') as runs_failed,
+            (select count(*)::int from integration_sync_runs where status='blocked') as runs_blocked,
+            (select count(*)::int from integration_sync_runs where provider='google') as runs_google,
+            (select count(*)::int from integration_sync_runs where provider='calendar') as runs_calendar,
+            (select count(*)::int from integration_sync_runs where trigger_type='webhook') as runs_webhook,
+            (select count(*)::int from integration_sync_runs where trigger_type='voice_transcribed') as runs_voice_transcribed,
+            (select count(*)::int from integration_sync_runs where status='failed' and created_at >= ${period.start} and created_at < ${period.end}) as runs_failed_period,
+            (select count(*)::int from integration_sync_runs where status='succeeded' and finished_at >= ${period.start} and finished_at < ${period.end}) as runs_succeeded_period,
+            (select count(*)::int from integration_sync_runs where runtime_run_id is not null) as runtimeRunsLinked,
+            (select count(*)::int from integration_sync_runs where runtime_run_id is not null and created_at >= ${period.start} and created_at < ${period.end}) as runtimeRunsLinkedPeriod
+        `;
+        return context.json({
+          slug,
+          generatedAt: new Date(),
+          period,
+          totals: {
+            all: {
+              total: row?.runs_total ?? 0,
+              queued: row?.runs_queued ?? 0,
+              running: row?.runs_running ?? 0,
+              succeeded: row?.runs_succeeded ?? 0,
+              failed: row?.runs_failed ?? 0,
+              blocked: row?.runs_blocked ?? 0,
+            },
+            byProvider: {
+              google: row?.runs_google ?? 0,
+              calendar: row?.runs_calendar ?? 0,
+              other: 0,
+            },
+            byTriggerType: {
+              webhook: row?.runs_webhook ?? 0,
+              voiceTranscribed: row?.runs_voice_transcribed ?? 0,
+            },
+            runtimeLinked: {
+              total: row?.runtimeRunsLinked ?? 0,
+              period: row?.runtimeRunsLinkedPeriod ?? 0,
+            },
+            byPeriod: {
+              succeeded: row?.runs_succeeded_period ?? 0,
+              failed: row?.runs_failed_period ?? 0,
+            },
+          },
+        });
+      }
+      case "webhooks": {
+        const [row] = await dependencies.sql<
+          {
+            webhooks_total: number;
+            webhooks_enabled: number;
+            webhooks_disabled: number;
+            deliveries_total: number;
+            deliveries_period: number;
+            deliveries_latest: number;
+          }[]
+        >`
+          select
+            (select count(*)::int from routine_webhooks) as webhooks_total,
+            (select count(*)::int from routine_webhooks where enabled=true) as webhooks_enabled,
+            (select count(*)::int from routine_webhooks where enabled=false) as webhooks_disabled,
+            (select count(*)::int from routine_webhook_deliveries) as deliveries_total,
+            (select count(*)::int from routine_webhook_deliveries where created_at >= ${period.start} and created_at < ${period.end}) as deliveries_period,
+            (select count(*)::int from routine_webhook_deliveries where created_at >= (now() - interval '24 hours')) as deliveries_latest
+        `;
+        return context.json({
+          slug,
+          generatedAt: new Date(),
+          period,
+          counts: {
+            webhooks: {
+              total: row?.webhooks_total ?? 0,
+              enabled: row?.webhooks_enabled ?? 0,
+              disabled: row?.webhooks_disabled ?? 0,
+            },
+            deliveries: {
+              total: row?.deliveries_total ?? 0,
+              inPeriod: row?.deliveries_period ?? 0,
+              inLast24h: row?.deliveries_latest ?? 0,
+            },
+          },
+        });
+      }
+      case "shares": {
+        const [row] = await dependencies.sql<
+          {
+            shares_total: number;
+            shares_active: number;
+            shares_revoked: number;
+            shares_expired: number;
+            shares_created: number;
+            shares_revoked_period: number;
+            shares_expired_period: number;
+          }[]
+        >`
+          select
+            (select count(*)::int from routine_share_grants) as shares_total,
+            (select count(*)::int from routine_share_grants where revoked_at is null and (expires_at is null or expires_at > now())) as shares_active,
+            (select count(*)::int from routine_share_grants where revoked_at is not null) as shares_revoked,
+            (select count(*)::int from routine_share_grants where revoked_at is null and expires_at is not null and expires_at <= now()) as shares_expired,
+            (select count(*)::int from routine_share_grants where created_at >= ${period.start} and created_at < ${period.end}) as shares_created,
+            (select count(*)::int from routine_share_grants where revoked_at >= ${period.start} and revoked_at < ${period.end}) as shares_revoked_period,
+            (select count(*)::int from routine_share_grants where revoked_at is null and expires_at is not null and expires_at >= ${period.start} and expires_at < ${period.end}) as shares_expired_period
+        `;
+        return context.json({
+          slug,
+          generatedAt: new Date(),
+          period,
+          counts: {
+            shares: {
+              total: row?.shares_total ?? 0,
+              active: row?.shares_active ?? 0,
+              revoked: row?.shares_revoked ?? 0,
+              expired: row?.shares_expired ?? 0,
+            },
+            byPeriod: {
+              created: row?.shares_created ?? 0,
+              revoked: row?.shares_revoked_period ?? 0,
+              expired: row?.shares_expired_period ?? 0,
+            },
           },
         });
       }

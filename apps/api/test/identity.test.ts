@@ -34,7 +34,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`truncate connected_accounts, oauth_credentials, auth_sessions, users, access_allowlist cascade`;
+  await sql`truncate connected_accounts, oauth_credentials, auth_sessions, users, access_allowlist, agents, agent_versions, routine_schedules, routine_triggers, integration_sync_runs, routine_webhooks, routine_webhook_deliveries, routine_share_grants, routine_results cascade`;
 });
 
 async function fixture() {
@@ -92,6 +92,90 @@ async function fixture() {
     owner,
     other,
   };
+}
+
+async function seedRoutineAdminData(ownerId: string) {
+  const routineAgentId = newId<"agent">();
+  const routineVersionId = newId<"agent-version">();
+  const routineId = newId<"routine-schedule">();
+  const routineDisabledId = newId<"routine-schedule">();
+  const triggerOneId = newId<"routine-trigger">();
+  const triggerTwoId = newId<"routine-trigger">();
+  const runQueuedId = newId<"integration-sync-run">();
+  const runRunningId = newId<"integration-sync-run">();
+  const runSucceededId = newId<"integration-sync-run">();
+  const runFailedId = newId<"integration-sync-run">();
+  const runBlockedId = newId<"integration-sync-run">();
+  const webhookEnabledId = newId<"routine-webhook">();
+  const webhookDisabledId = newId<"routine-webhook">();
+  const webhookDeliveryRecentId = newId<"routine-webhook-delivery">();
+  const webhookDeliveryStaleId = newId<"routine-webhook-delivery">();
+  const shareActiveId = newId<"routine-share">();
+  const shareRevokedId = newId<"routine-share">();
+  const shareExpiredId = newId<"routine-share">();
+  const tokenHashActive = "11".repeat(32);
+  const tokenHashDisabled = "22".repeat(32);
+  const shareTokenActive = "33".repeat(32);
+  const shareTokenRevoked = "44".repeat(32);
+  const shareTokenExpired = "55".repeat(32);
+
+  await sql`insert into agents (id,owner_id,kind,revision,status) values (${routineAgentId},${ownerId},'routine',1,'active')`;
+  await sql`insert into agent_versions (id,owner_id,agent_id,version,snapshot,created_by) values (${routineVersionId},${ownerId},${routineAgentId},1,'{}','system')`;
+  await sql`update agents set active_version_id=${routineVersionId} where owner_id=${ownerId} and id=${routineAgentId}`;
+
+  await sql`
+    insert into routine_schedules
+      (id, owner_id, agent_id, agent_version_id, name, cron, timezone, enabled, next_run_at, last_run_at)
+    values
+      (${routineId}, ${ownerId}, ${routineAgentId}, ${routineVersionId}, 'Morning brief','0 9 * * *','UTC',true,now()-interval '1 hour',now()-interval '1 hour'),
+      (${routineDisabledId}, ${ownerId}, ${routineAgentId}, ${routineVersionId}, 'Weekend check','30 0 * * 1-5','UTC',false,now()+interval '2 hours',now()-interval '40 days')
+  `;
+
+  await sql`
+    insert into routine_triggers (id, owner_id, routine_schedule_id, kind, config, enabled)
+    values
+      (${triggerOneId}, ${ownerId}, ${routineId}, 'manual', '{}'::jsonb, true),
+      (${triggerTwoId}, ${ownerId}, ${routineDisabledId}, 'email_to_assistant', '{}'::jsonb, false)
+  `;
+
+  await sql`
+    insert into integration_sync_runs
+      (id, owner_id, account_id, routine_schedule_id, provider, status, trigger_type, trigger_data, finished_at)
+    values
+      (${runQueuedId}, ${ownerId}, (select id from connected_accounts where owner_id=${ownerId} limit 1), ${routineId}, 'google', 'queued', 'schedule', '{}'::jsonb, null),
+      (${runRunningId}, ${ownerId}, (select id from connected_accounts where owner_id=${ownerId} limit 1), ${routineId}, 'google', 'running', 'manual', '{}'::jsonb, null),
+      (${runSucceededId}, ${ownerId}, (select id from connected_accounts where owner_id=${ownerId} limit 1), ${routineId}, 'calendar', 'succeeded', 'webhook', '{}'::jsonb, now()),
+      (${runFailedId}, ${ownerId}, (select id from connected_accounts where owner_id=${ownerId} limit 1), ${routineDisabledId}, 'calendar', 'failed', 'webhook', '{}'::jsonb, null),
+      (${runBlockedId}, ${ownerId}, (select id from connected_accounts where owner_id=${ownerId} limit 1), ${routineDisabledId}, 'google', 'blocked', 'voice_transcribed', '{}'::jsonb, null)
+  `;
+
+  await sql`
+    insert into routine_webhooks (id, owner_id, routine_schedule_id, token_hash, enabled)
+    values
+      (${webhookEnabledId}, ${ownerId}, ${routineId}, decode(${tokenHashActive}, 'hex'), true),
+      (${webhookDisabledId}, ${ownerId}, ${routineDisabledId}, decode(${tokenHashDisabled}, 'hex'), false)
+  `;
+
+  await sql`
+    insert into routine_webhook_deliveries (id, owner_id, webhook_id, idempotency_key, payload, run_id, created_at)
+    values
+      (${webhookDeliveryRecentId}, ${ownerId}, ${webhookEnabledId}, 'recent-key', '{}'::jsonb, ${runQueuedId}, now()),
+      (${webhookDeliveryStaleId}, ${ownerId}, ${webhookEnabledId}, 'stale-key', '{}'::jsonb, ${runRunningId}, now()-interval '2 days')
+  `;
+
+  await sql`
+    insert into routine_share_grants (id, owner_id, routine_schedule_id, token_hash, revoked_at, expires_at)
+    values
+      (${shareActiveId}, ${ownerId}, ${routineId}, decode(${shareTokenActive}, 'hex'), null, null),
+      (${shareRevokedId}, ${ownerId}, ${routineId}, decode(${shareTokenRevoked}, 'hex'), now()-interval '2 hours', null),
+      (${shareExpiredId}, ${ownerId}, ${routineDisabledId}, decode(${shareTokenExpired}, 'hex'), null, now()+interval '30 minutes')
+  `;
+  await sql`
+    update routine_share_grants
+      set expires_at = now()-interval '1 hour',
+          created_at = now()-interval '2 hours'
+      where id=${shareExpiredId}
+  `;
 }
 
 describe("protected identity API", () => {
@@ -490,6 +574,157 @@ describe("protected identity API", () => {
     expect(serializedOverview).not.toContain(owner.token);
     expect(serializedRuntime).not.toContain(owner.token);
     expect(serializedContent).not.toContain(owner.token);
+  });
+
+  it("exposes routine admin reports by slug with real aggregate data", async () => {
+    const { app, owner } = await fixture();
+    await seedRoutineAdminData(owner.user.id);
+
+    const headers = { Authorization: `Bearer ${owner.token}` };
+    const [overviewResponse, schedulesResponse, triggersResponse, runsResponse, webhooksResponse, sharesResponse] = await Promise.all([
+      app.request("/v1/admin/routines/overview", { headers }),
+      app.request("/v1/admin/routines/schedules", { headers }),
+      app.request("/v1/admin/routines/triggers", { headers }),
+      app.request("/v1/admin/routines/runs", { headers }),
+      app.request("/v1/admin/routines/webhooks", { headers }),
+      app.request("/v1/admin/routines/shares", { headers }),
+    ]);
+
+    const overview = (await overviewResponse.json()) as {
+      slug: string;
+      counts: {
+        routines: { total: number; enabled: number; disabled: number };
+        triggers: { total: number; enabled: number };
+        runs: { queued: number; running: number; succeeded: number; failed: number; blocked: number };
+        webhooks: { total: number; enabled: number };
+        shares: { total: number; active: number; revoked: number };
+      };
+    };
+    const schedules = (await schedulesResponse.json()) as {
+      slug: string;
+      counts: {
+        routines: { total: number; enabled: number; disabled: number; overdue: number; dueIn24h: number };
+        lifecycle: { createdInPeriod: number; updatedInPeriod: number; staleLastRun: number };
+      };
+    };
+    const triggers = (await triggersResponse.json()) as {
+      slug: string;
+      counts: {
+        total: number;
+        enabled: number;
+        disabled: number;
+        createdInPeriod: number;
+        byKind: {
+          manual: number;
+          emailToAssistant: number;
+          calendarStart: number;
+        };
+      };
+    };
+    const runs = (await runsResponse.json()) as {
+      slug: string;
+      totals: {
+        all: {
+          total: number;
+          queued: number;
+          running: number;
+          succeeded: number;
+          failed: number;
+          blocked: number;
+        };
+        byProvider: { google: number; calendar: number; other: number };
+        byTriggerType: { webhook: number; voiceTranscribed: number };
+        byPeriod: { succeeded: number; failed: number };
+      };
+    };
+    const webhooks = (await webhooksResponse.json()) as {
+      slug: string;
+      counts: {
+        webhooks: { total: number; enabled: number; disabled: number };
+        deliveries: { total: number; inPeriod: number; inLast24h: number };
+      };
+    };
+    const shares = (await sharesResponse.json()) as {
+      slug: string;
+      counts: {
+        shares: { total: number; active: number; revoked: number; expired: number };
+        byPeriod: { created: number; revoked: number; expired: number };
+      };
+    };
+
+    expect(overviewResponse.status).toBe(200);
+    expect(schedulesResponse.status).toBe(200);
+    expect(triggersResponse.status).toBe(200);
+    expect(runsResponse.status).toBe(200);
+    expect(webhooksResponse.status).toBe(200);
+    expect(sharesResponse.status).toBe(200);
+
+    expect(overview.slug).toBe("overview");
+    expect(overview.counts).toMatchObject({
+      routines: { total: 2, enabled: 1, disabled: 1 },
+      triggers: { total: 2, enabled: 1 },
+      runs: { queued: 1, running: 1, succeeded: 1, failed: 1, blocked: 1 },
+      webhooks: { total: 2, enabled: 1 },
+      shares: { total: 3, active: 1, revoked: 1 },
+    });
+
+    expect(schedules.counts.routines).toMatchObject({
+      total: 2,
+      enabled: 1,
+      disabled: 1,
+      overdue: 1,
+      dueIn24h: 1,
+    });
+    expect(schedules.counts.lifecycle).toMatchObject({
+      createdInPeriod: 2,
+      updatedInPeriod: 2,
+      staleLastRun: 1,
+    });
+
+    expect(triggers.slug).toBe("triggers");
+    expect(triggers.counts).toMatchObject({
+      total: 2,
+      enabled: 1,
+      disabled: 1,
+      createdInPeriod: 2,
+      byKind: { manual: 1, emailToAssistant: 1 },
+    });
+
+    expect(runs.slug).toBe("runs");
+    expect(runs.totals).toMatchObject({
+      all: { total: 5, queued: 1, running: 1, succeeded: 1, failed: 1, blocked: 1 },
+      byProvider: { google: 3, calendar: 2, other: 0 },
+      byTriggerType: { webhook: 2, voiceTranscribed: 1 },
+      byPeriod: { succeeded: 1, failed: 1 },
+    });
+
+    expect(webhooks.slug).toBe("webhooks");
+    expect(webhooks.counts).toMatchObject({
+      webhooks: { total: 2, enabled: 1, disabled: 1 },
+      deliveries: { total: 2, inPeriod: 2, inLast24h: 1 },
+    });
+
+    expect(shares.slug).toBe("shares");
+    expect(shares.counts).toMatchObject({
+      shares: { total: 3, active: 1, revoked: 1, expired: 1 },
+      byPeriod: { created: 3, revoked: 1, expired: 1 },
+    });
+
+    expect(JSON.stringify(overview)).not.toContain("credential");
+    expect(JSON.stringify(schedules)).not.toContain("credential");
+    expect(JSON.stringify(triggers)).not.toContain("credential");
+    expect(JSON.stringify(runs)).not.toContain("credential");
+    expect(JSON.stringify(webhooks)).not.toContain("credential");
+    expect(JSON.stringify(shares)).not.toContain("credential");
+  });
+
+  it("rejects unknown routine admin report slug explicitly", async () => {
+    const { app, owner } = await fixture();
+    const response = await app.request("/v1/admin/routines/does-not-exist", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "REPORT_NOT_FOUND" });
   });
 
   it("rejects unknown admin report slug explicitly", async () => {

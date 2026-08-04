@@ -495,3 +495,9 @@ server-side dispatch failures) are now mapped to the same retry boundary via
 `RetryableRuntimeError`, so durable runs can be re-queued for bounded
 recovery without inventing additional retry assumptions. This is a clean-room
 retry boundary rather than a claim about Town's private retry classifier.
+
+Admin operations now expose `GET /v1/admin/routines/:slug` with read-only
+aggregates for routine schedules, triggers, sync runs, webhook deliveries, and
+share grants. The route set mirrors Town's surface with production-safe counters,
+owner-safe readiness/status fields, and period-gated time-window slices where
+applicable.
