@@ -471,5 +471,8 @@ within a 2–10 attempt budget. Ordinary errors remain terminal failures, so
 external side effects are never retried by assumption. The runtime worker reads
 optional `WORKER_RETRY_MAX_ATTEMPTS` and `WORKER_RETRY_BASE_DELAY_MS`
 environment variables and enables this behavior only when both are present.
-This is a clean-room retry boundary rather than a claim about Town's private
-retry classifier.
+Harness transport failures that are clearly transient (connection/timeouts,
+server-side dispatch failures) are now mapped to the same retry boundary via
+`RetryableRuntimeError`, so durable runs can be re-queued for bounded
+recovery without inventing additional retry assumptions. This is a clean-room
+retry boundary rather than a claim about Town's private retry classifier.

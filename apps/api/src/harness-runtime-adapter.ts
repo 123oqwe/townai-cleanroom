@@ -7,11 +7,12 @@ import type {
   PersistentThreadStore,
   ThreadSnapshot,
 } from "@town/harness";
-import type {
-  ApprovalDecisionRepository,
-  RuntimeAdapter,
-  RuntimeAdapterContext,
-  RuntimeAdapterEvent,
+import {
+  RetryableRuntimeError,
+  type ApprovalDecisionRepository,
+  type RuntimeAdapter,
+  type RuntimeAdapterContext,
+  type RuntimeAdapterEvent,
 } from "@town/runtime";
 
 export interface HarnessExecutionContext {
@@ -33,6 +34,45 @@ export function createHarnessRuntimeAdapter(input: {
   toolExecution?: ToolExecutionRepository;
   approvalDecisions?: ApprovalDecisionRepository;
 }): RuntimeAdapter {
+  const retryableErrorCodes = new Set([
+    "ECONNRESET",
+    "ECONNREFUSED",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "ETIMEDOUT",
+    "EPIPE",
+    "UND_ERR_CONNECT_TIMEOUT",
+    "UND_ERR_HEADERS_TIMEOUT",
+    "UND_ERR_READ_TIMEOUT",
+  ]);
+  const isRetryableError = (error: unknown): boolean => {
+    const asError =
+      error === null || typeof error !== "object" ? null : (error as Error & { code?: string });
+    if (asError === null) return false;
+    const code = asError.code;
+    if (code !== undefined && retryableErrorCodes.has(code)) return true;
+    const message = asError.message.toLowerCase();
+    return (
+      message.includes("timed out") ||
+      message.includes("timeout") ||
+      message.includes("network") ||
+      message.includes("fetch failed")
+    );
+  };
+  const dispatch = async (
+    server: AppServer,
+    request: Parameters<AppServer["dispatch"]>[0],
+    retryMessage: string,
+  ): Promise<AppServerResponse> => {
+    try {
+      return await server.dispatch(request);
+    } catch (error) {
+      if (isRetryableError(error))
+        throw new RetryableRuntimeError(retryMessage);
+      throw error;
+    }
+  };
+
   return {
     async *execute(
       context: RuntimeAdapterContext,
@@ -90,42 +130,54 @@ export function createHarnessRuntimeAdapter(input: {
               execution: input.toolExecution,
             },
       );
-      const initialized = await server.dispatch({
-        jsonrpc: "2.0",
-        id: "runtime-initialize",
-        method: "initialize",
-        params: {},
-      });
+      const initialized = await dispatch(
+        server,
+        {
+          jsonrpc: "2.0",
+          id: "runtime-initialize",
+          method: "initialize",
+          params: {},
+        },
+        "HARNESS_DISPATCH_RETRYABLE_INITIALIZE",
+      );
       assertResponse(initialized, "Harness initialization failed.");
       const response =
         pendingApproval !== undefined && approvalDecision !== null
-          ? await server.dispatch({
-              jsonrpc: "2.0",
-              id: context.run.id,
-              method: "approval/resolve",
-              params: {
-                threadId,
-                approvalId: pendingApproval.callId,
-                decision: approvalDecision.decision,
+          ? await dispatch(
+              server,
+              {
+                jsonrpc: "2.0",
+                id: context.run.id,
+                method: "approval/resolve",
+                params: {
+                  threadId,
+                  approvalId: pendingApproval.callId,
+                  decision: approvalDecision.decision,
+                },
               },
-            })
-          : await server.dispatch({
-              jsonrpc: "2.0",
-              id: context.run.id,
-              method: "turn/start",
-              params: {
-                threadId,
-                text:
-                  context.run.inputResponse ??
-                  (
-                    await input.turns.get({
-                      ownerId,
-                      threadId,
-                      turnId: context.run.triggeringTurnId,
-                    })
-                  ).text,
+              "HARNESS_DISPATCH_RETRYABLE_APPROVAL_RESOLVE",
+            )
+          : await dispatch(
+              server,
+              {
+                jsonrpc: "2.0",
+                id: context.run.id,
+                method: "turn/start",
+                params: {
+                  threadId,
+                  text:
+                    context.run.inputResponse ??
+                    (
+                      await input.turns.get({
+                        ownerId,
+                        threadId,
+                        turnId: context.run.triggeringTurnId,
+                      })
+                    ).text,
+                },
               },
-            });
+              "HARNESS_DISPATCH_RETRYABLE_TURN_START",
+            );
       assertResponse(response, "Harness turn failed.");
       if (pendingApproval !== undefined && approvalDecision !== null)
         await input.approvalDecisions?.consume({
@@ -168,6 +220,8 @@ export function createHarnessRuntimeAdapter(input: {
 
 function assertResponse(response: AppServerResponse, message: string): void {
   if (response.error !== undefined) {
+    if (response.error.code === -32603)
+      throw new RetryableRuntimeError(`${message} INTERNAL_ERROR`);
     throw new Error(`${message} ${response.error.message}`);
   }
 }

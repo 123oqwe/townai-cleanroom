@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { asId } from "@town/contracts";
 import { createHarnessRuntimeAdapter } from "../src/harness-runtime-adapter.js";
 import type { AppServer, PersistentThreadStore } from "@town/harness";
-import type { RuntimeAdapterContext } from "@town/runtime";
+import { RetryableRuntimeError, type RuntimeAdapterContext } from "@town/runtime";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const threadId = asId<"thread">("01900000-0000-7000-8000-000000000002");
@@ -173,5 +173,84 @@ describe("harness runtime adapter", () => {
       text: "Sent.",
       mentions: [],
     });
+  });
+
+  it("maps retryable transport failures into the runtime retry classifier", async () => {
+    const store = {
+      get: vi.fn(async () => ({
+        threadId,
+        items: [],
+        stepCount: 0,
+        revision: 0,
+      })),
+      set: vi.fn(async () => undefined),
+    } as unknown as PersistentThreadStore;
+    const adapter = createHarnessRuntimeAdapter({
+      createServer: async () =>
+        ({
+          dispatch: vi.fn().mockRejectedValue(() => {
+            const error = new Error("dial tcp") as Error & { code: string };
+            error.code = "ECONNREFUSED";
+            return error;
+          }()),
+        }) as unknown as AppServer,
+      createStore: () => store,
+      turns: {
+        get: vi.fn(async () => ({ text: "Run this" })),
+      } as never,
+    });
+    await expect(
+      (async () => {
+        const iterator = adapter.execute({
+          session: { ownerId, threadId, agentVersion: { id: agentVersionId } },
+          run: { id: runId, triggeringTurnId: turnId },
+          signal: new AbortController().signal,
+        } as unknown as RuntimeAdapterContext);
+        for await (const event of iterator) {
+          void event;
+        }
+      })(),
+    ).rejects.toBeInstanceOf(RetryableRuntimeError);
+  });
+
+  it("does not classify hard protocol errors as retryable", async () => {
+    const store = {
+      get: vi.fn(async () => ({
+        threadId,
+        items: [],
+        stepCount: 0,
+        revision: 0,
+      })),
+      set: vi.fn(async () => undefined),
+    } as unknown as PersistentThreadStore;
+    const adapter = createHarnessRuntimeAdapter({
+      createServer: async () =>
+        ({
+          dispatch: vi.fn().mockResolvedValue({
+            jsonrpc: "2.0",
+            id: "runtime-initialize",
+            error: {
+              code: 400,
+              message: "invalid method",
+            },
+          }),
+        }) as unknown as AppServer,
+      createStore: () => store,
+      turns: {
+        get: vi.fn(async () => ({ text: "Run this" })),
+      } as never,
+    });
+    await expect(
+      (async () => {
+        const iterator = adapter.execute({
+          session: { ownerId, threadId, agentVersion: { id: agentVersionId } },
+          run: { id: runId, triggeringTurnId: turnId },
+          signal: new AbortController().signal,
+        } as unknown as RuntimeAdapterContext);
+        for await (const event of iterator) {
+          void event;
+        }
+      })(),
+    ).rejects.not.toBeInstanceOf(RetryableRuntimeError);
   });
 });
