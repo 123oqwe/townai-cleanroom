@@ -373,6 +373,134 @@ describe("protected identity API", () => {
     expect(await denied.json()).toMatchObject({ code: "ADMIN_NOT_AUTHORIZED" });
   });
 
+  it("exposes admin reports by slug without leaking credentials", async () => {
+    const { app, owner } = await fixture();
+
+    const overviewResponse = await app.request("/v1/admin/reports/overview", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    const overview = (await overviewResponse.json()) as {
+      slug: string;
+      generatedAt: string;
+      readiness: {
+        api: boolean;
+        harness: boolean;
+        worker: boolean;
+        googleOAuth: boolean;
+      };
+      counts: Record<string, unknown>;
+    };
+
+    const runtimeResponse = await app.request("/v1/admin/reports/runtime", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    const runtime = (await runtimeResponse.json()) as {
+      slug: string;
+      generatedAt: string;
+      readiness: {
+        api: boolean;
+        harness: boolean;
+        worker: boolean;
+        googleOAuth: boolean;
+      };
+      period: { start: string; end: string };
+      totals: {
+        sessions: Record<string, unknown>;
+        runs: Record<string, unknown>;
+      };
+    };
+
+    const contentResponse = await app.request("/v1/admin/reports/content", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    const content = (await contentResponse.json()) as {
+      slug: string;
+      generatedAt: string;
+      readiness: {
+        api: boolean;
+        harness: boolean;
+        worker: boolean;
+        googleOAuth: boolean;
+      };
+      period: { start: string; end: string };
+      counts: {
+        items: Record<string, unknown>;
+        shares: Record<string, unknown>;
+      };
+    };
+
+    expect(overviewResponse.status).toBe(200);
+    expect(runtimeResponse.status).toBe(200);
+    expect(contentResponse.status).toBe(200);
+
+    expect(overview).toMatchObject({
+      slug: "overview",
+      readiness: {
+        api: true,
+        harness: false,
+        worker: false,
+        googleOAuth: false,
+      },
+      counts: { users: { total: 2, active: 2 }, connectedAccounts: 2 },
+    });
+    expect(runtime).toMatchObject({
+      slug: "runtime",
+      period: { start: expect.any(String), end: expect.any(String) },
+      totals: {
+        sessions: {
+          running: expect.any(Number),
+          waitingForApproval: expect.any(Number),
+          waitingForInput: expect.any(Number),
+          failed: expect.any(Number),
+          cancelled: expect.any(Number),
+        },
+        runs: {
+          queued: expect.any(Number),
+          running: expect.any(Number),
+          waitingApproval: expect.any(Number),
+          waitingInput: expect.any(Number),
+          failed: expect.any(Number),
+          cancelled: expect.any(Number),
+          succeeded: expect.any(Number),
+        },
+      },
+    });
+    expect(content).toMatchObject({
+      slug: "content",
+      period: { start: expect.any(String), end: expect.any(String) },
+      counts: {
+        items: {
+          total: expect.any(Number),
+          active: expect.any(Number),
+          archived: expect.any(Number),
+          deleted: expect.any(Number),
+          sessionItems: expect.any(Number),
+        },
+        shares: { total: expect.any(Number), active: expect.any(Number) },
+      },
+    });
+
+    const serializedOverview = JSON.stringify(overview);
+    const serializedRuntime = JSON.stringify(runtime);
+    const serializedContent = JSON.stringify(content);
+
+    expect(serializedOverview).not.toContain("credential");
+    expect(serializedRuntime).not.toContain("credential");
+    expect(serializedContent).not.toContain("credential");
+    expect(serializedOverview).not.toContain(owner.token);
+    expect(serializedRuntime).not.toContain(owner.token);
+    expect(serializedContent).not.toContain(owner.token);
+  });
+
+  it("rejects unknown admin report slug explicitly", async () => {
+    const { app, owner } = await fixture();
+    const response = await app.request("/v1/admin/reports/does-not-exist", {
+      headers: { Authorization: `Bearer ${owner.token}` },
+    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "REPORT_NOT_FOUND" });
+  });
+
   it("keeps admin billing reconciliation explicit when no external provider exists", async () => {
     const { app, owner, other } = await fixture();
     const response = await app.request(

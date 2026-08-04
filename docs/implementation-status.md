@@ -325,6 +325,13 @@ recent failed audit events, plus explicit readiness flags. It never returns
 credentials, prompts, or provider payloads; this is a clean-room operational
 surface rather than a claim about Town's private admin console.
 
+The admin report surface now exposes `GET /v1/admin/reports/:slug` as a read-only
+aggregate endpoint for operational and capacity snapshots (`overview`, `runtime`,
+`delivery`, `safety`, `teams`, `content`, `billing`). It resolves safe
+readiness flags and precomputed counts only. Unknown slugs return
+`REPORT_NOT_FOUND` with a 404, which keeps the endpoint explicit and avoids
+implicit schema leakage for unsupported report types.
+
 Harness now also exposes a provider-neutral model router with explicit
 `interactive`, `routine`, and `compaction` operation classes. Routes are sorted
 by configured priority, disabled routes are excluded, and fallback occurs only
