@@ -7,5 +7,6 @@
       "maxDuration": 60
     }
   },
+  "rewrites": [{ "source": "/v1/(.*)", "destination": "/api" }],
   "crons": [{ "path": "/v1/internal/worker", "schedule": "0 * * * *" }]
 }
