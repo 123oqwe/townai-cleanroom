@@ -10,3 +10,4 @@ export * from "./wiki-repository.js";
 export * from "./wiki-upkeep.js";
 export * from "./goals-projects-repository.js";
 export * from "./trusted-contacts-repository.js";
+export * from "./knowledge-graph-repository.js";

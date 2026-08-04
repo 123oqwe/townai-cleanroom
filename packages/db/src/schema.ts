@@ -2082,3 +2082,38 @@ export const trustedContacts = pgTable(
     ),
   ],
 );
+
+export const knowledgeGraphEdges = pgTable(
+  "knowledge_graph_edges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id").notNull(),
+    fromType: text("from_type").notNull(),
+    fromId: text("from_id").notNull(),
+    toType: text("to_type").notNull(),
+    toId: text("to_id").notNull(),
+    edgeType: text("edge_type").notNull(),
+    notes: text("notes"),
+    metadata: jsonb("metadata").notNull().default({}),
+    revision: integer("revision").notNull().default(1),
+    status: text("status").notNull().default("active"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("graph_edges_owner_from_to_type_unique").on(
+      table.ownerId,
+      table.fromType,
+      table.fromId,
+      table.toType,
+      table.toId,
+      table.edgeType,
+    ),
+    index("graph_edges_owner_idx").on(table.ownerId),
+    index("graph_edges_from_idx").on(table.fromType, table.fromId, table.status),
+    index("graph_edges_to_idx").on(table.toType, table.toId, table.status),
+    check(
+      "graph_edges_status_allowed",
+      sql`${table.status} in ('active','retired')`,
+    ),
+  ],
+);
