@@ -254,6 +254,44 @@ export function createKnowledgeSearchRepository(sql: Sql) {
             on kr.resource_type = 'wiki' and kr.resource_id = w.id
             and kr.revision = w.current_revision
           where w.owner_id = ${value.ownerId}
+
+          union all
+
+          select
+            g.owner_id,
+            'goal'::text,
+            g.id,
+            g.title,
+            g.title || ' ' || g.description,
+            g.status,
+            null::uuid,
+            g.status,
+            g.updated_at,
+            kr.id
+          from goals g
+          join knowledge_revisions kr
+            on kr.resource_type = 'goal' and kr.resource_id = g.id
+            and kr.revision = g.current_revision
+          where g.owner_id = ${value.ownerId}
+
+          union all
+
+          select
+            pr.owner_id,
+            'project'::text,
+            pr.id,
+            pr.title,
+            pr.title || ' ' || pr.description,
+            pr.status,
+            pr.goal_id,
+            pr.status,
+            pr.updated_at,
+            kr.id
+          from projects pr
+          join knowledge_revisions kr
+            on kr.resource_type = 'project' and kr.resource_id = pr.id
+            and kr.revision = pr.current_revision
+          where pr.owner_id = ${value.ownerId}
         ), ranked as (
           select
             candidates.*,
