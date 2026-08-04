@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import type { Context } from "hono";
 import { z } from "zod";
 
 import { asId } from "@town/contracts";
@@ -201,15 +202,47 @@ export function registerContentRoutes(
     );
     return context.json({ ok: true }, 201);
   });
-  app.get("/v1/content/:contentId", async (context) => {
+  const contentLookup = async (
+    context: Context<{ Variables: AuthVariables }>,
+  ) => {
     const ownerId = context.get("identity").user.id;
+    const contentId = asId<"content">(context.req.param("contentId"));
     return context.json({
-      content: await dependencies.repository.get(
-        ownerId,
-        asId<"content">(context.req.param("contentId")),
-      ),
+      content: await dependencies.repository.get(ownerId, contentId),
     });
-  });
+  };
+  const contentBlob = async (
+    context: Context<{ Variables: AuthVariables }>,
+  ) => {
+    const ownerId = context.get("identity").user.id;
+    if (dependencies.storage === undefined)
+      return context.json({ error: "CONTENT_STORAGE_NOT_CONFIGURED" }, 503);
+    const content = await dependencies.repository.get(
+      ownerId,
+      asId<"content">(context.req.param("contentId")),
+    );
+    if (content.storageKey === null)
+      return context.json({ error: "CONTENT_BLOB_NOT_AVAILABLE" }, 409);
+    const object = await dependencies.storage.read(content.storageKey);
+    if (object === null)
+      return context.json({ error: "CONTENT_BLOB_NOT_FOUND" }, 404);
+    return new Response(object.body, {
+      status: 200,
+      headers: {
+        "content-type":
+          object.contentType ?? content.mimeType ?? "application/octet-stream",
+        "cache-control": "private, no-store",
+      },
+    });
+  };
+  app.get("/v1/content/:contentId", contentLookup);
+  app.get("/v1/content/audio/:contentId", contentLookup);
+  app.get("/v1/content/document/:contentId", contentLookup);
+  app.get("/v1/content/file/:contentId", contentLookup);
+  app.get("/v1/content/image/:contentId", contentLookup);
+  app.get("/v1/content/recordings/:contentId", contentLookup);
+  app.get("/v1/content/briefing/:contentId", contentLookup);
+  app.get("/v1/content/session/:contentId", contentLookup);
   app.get("/v1/content/:contentId/blob", async (context) => {
     const ownerId = context.get("identity").user.id;
     if (dependencies.storage === undefined)
@@ -232,6 +265,13 @@ export function registerContentRoutes(
       },
     });
   });
+  app.get("/v1/content/audio/:contentId/blob", contentBlob);
+  app.get("/v1/content/document/:contentId/blob", contentBlob);
+  app.get("/v1/content/file/:contentId/blob", contentBlob);
+  app.get("/v1/content/image/:contentId/blob", contentBlob);
+  app.get("/v1/content/recordings/:contentId/blob", contentBlob);
+  app.get("/v1/content/briefing/:contentId/blob", contentBlob);
+  app.get("/v1/content/session/:contentId/blob", contentBlob);
   app.put("/v1/content/:contentId/blob", async (context) => {
     const ownerId = context.get("identity").user.id;
     if (dependencies.storage?.write === undefined)

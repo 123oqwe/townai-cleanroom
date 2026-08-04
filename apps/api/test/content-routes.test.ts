@@ -155,6 +155,91 @@ describe("content share route", () => {
     );
   });
 
+  it("exposes content by type-specific aliases", async () => {
+    const contentId = "01900000-0000-7000-8000-000000000017";
+    const repository = {
+      get: vi.fn().mockResolvedValue({
+        id: contentId,
+        storageKey: null,
+      }),
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", async (context, next) => {
+      context.set("identity", {
+        user: { id: "01900000-0000-7000-8000-000000000001" },
+      } as AuthVariables["identity"]);
+      await next();
+    });
+    registerContentRoutes(app, { repository });
+
+    const aliases = [
+      "audio",
+      "document",
+      "file",
+      "image",
+      "recordings",
+      "briefing",
+      "session",
+    ];
+    for (const alias of aliases) {
+      const response = await app.request(
+        `http://town.test/v1/content/${alias}/${contentId}`,
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        content: { id: contentId },
+      });
+    }
+    expect(repository.get).toHaveBeenCalledTimes(aliases.length);
+  });
+
+  it("serves blob content from type-specific aliases when storage is configured", async () => {
+    const contentId = "01900000-0000-7000-8000-000000000018";
+    const repository = {
+      get: vi.fn().mockResolvedValue({
+        id: contentId,
+        storageKey: "objects/blob.pdf",
+        mimeType: "application/pdf",
+      }),
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", async (context, next) => {
+      context.set("identity", {
+        user: { id: "01900000-0000-7000-8000-000000000001" },
+      } as AuthVariables["identity"]);
+      await next();
+    });
+    registerContentRoutes(app, {
+      repository,
+      storage: {
+        read: vi.fn().mockResolvedValue({
+          body: new Uint8Array([1, 2, 3, 4]),
+          contentType: "application/pdf",
+        }),
+      },
+    });
+
+    const aliases = [
+      "audio",
+      "document",
+      "file",
+      "image",
+      "recordings",
+      "briefing",
+      "session",
+    ];
+    for (const alias of aliases) {
+      const response = await app.request(
+        `http://town.test/v1/content/${alias}/${contentId}/blob`,
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("application/pdf");
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+        new Uint8Array([1, 2, 3, 4]),
+      );
+    }
+  });
+
   it("reads a shared stored blob without exposing its storage key", async () => {
     const repository = {
       resolveShare: vi.fn().mockResolvedValue({
