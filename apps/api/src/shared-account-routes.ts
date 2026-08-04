@@ -18,7 +18,9 @@ export function registerSharedAccountRoutes(
   app: Hono<{ Variables: AuthVariables }>,
   dependencies: SharedAccountDependencies,
 ): void {
-  app.get("/v1/squares/:squareId/accounts", async (context) => {
+  const listAccounts = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["get"]>[0],
+  ) => {
     const actorId = context.get("identity").user.id;
     return context.json({
       accounts: await dependencies.repository.list(
@@ -26,8 +28,10 @@ export function registerSharedAccountRoutes(
         asId<"square">(context.req.param("squareId")),
       ),
     });
-  });
-  app.post("/v1/squares/:squareId/accounts", async (context) => {
+  };
+  const grantAccount = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["post"]>[0],
+  ) => {
     const actorId = context.get("identity").user.id;
     const value = grantSchema.parse(await context.req.json());
     return context.json(
@@ -42,13 +46,22 @@ export function registerSharedAccountRoutes(
       },
       201,
     );
-  });
-  app.delete("/v1/square-account-shares/:shareId", async (context) => {
+  };
+  const revokeShare = async (
+    context: Parameters<Hono<{ Variables: AuthVariables }>["delete"]>[0],
+  ) => {
     const actorId = context.get("identity").user.id;
     await dependencies.repository.revoke(
       actorId,
       asId<"square-account-share">(context.req.param("shareId")),
     );
     return context.body(null, 204);
-  });
+  };
+
+  app.get("/v1/squares/:squareId/accounts", listAccounts);
+  app.post("/v1/squares/:squareId/accounts", grantAccount);
+  app.delete("/v1/square-account-shares/:shareId", revokeShare);
+  app.get("/squares/:squareId/accounts", listAccounts);
+  app.post("/squares/:squareId/accounts", grantAccount);
+  app.delete("/square-account-shares/:shareId", revokeShare);
 }

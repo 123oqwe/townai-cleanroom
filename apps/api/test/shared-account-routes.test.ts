@@ -119,6 +119,62 @@ describe("shared-account routes", () => {
     expect(repository.revoke).toHaveBeenCalledWith(ownerId, shareId);
   });
 
+  it("exposes legacy shared-account routes without the v1 prefix", async () => {
+    const granted = {
+      id: shareId,
+      squareId,
+      squareOwnerId: ownerId,
+      accountId,
+      accountOwnerId: ownerId,
+      provider: "gmail",
+      email: "owner@example.test",
+      capabilities: ["read", "write"],
+      status: "active" as const,
+      grantedBy: ownerId,
+      createdAt: new Date("2026-08-01T09:00:00.000Z"),
+      revokedAt: null,
+    };
+    const repository = {
+      list: vi.fn().mockResolvedValue([granted]),
+      grant: vi.fn().mockResolvedValue(granted),
+      revoke: vi.fn().mockResolvedValue(undefined),
+    } as unknown as SharedAccountRepository;
+
+    const app = buildSharedAccountApp(repository);
+    const list = await app.request(`/squares/${squareId}/accounts`);
+    const grant = await app.request(`/squares/${squareId}/accounts`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        accountId,
+        accountOwnerId: ownerId,
+        capabilities: ["read", "write"],
+      }),
+    });
+    const revoke = await app.request(`/square-account-shares/${shareId}`, {
+      method: "DELETE",
+    });
+
+    expect(list.status).toBe(200);
+    expect(grant.status).toBe(201);
+    expect(revoke.status).toBe(204);
+    expect(await list.json()).toMatchObject({
+      accounts: [{ id: shareId, squareId, email: "owner@example.test" }],
+    });
+    expect(await grant.json()).toMatchObject({
+      account: { id: shareId, accountId, accountOwnerId: ownerId },
+    });
+    expect(repository.list).toHaveBeenCalledWith(ownerId, squareId);
+    expect(repository.grant).toHaveBeenCalledWith({
+      actorId: ownerId,
+      squareId,
+      accountId,
+      accountOwnerId: ownerId,
+      capabilities: ["read", "write"],
+    });
+    expect(repository.revoke).toHaveBeenCalledWith(ownerId, shareId);
+  });
+
   it("validates schemas for list and grant calls", async () => {
     const app = buildSharedAccountApp({
       list: vi.fn(),
@@ -150,12 +206,33 @@ describe("shared-account routes", () => {
         }),
       },
     );
+    const legacyBadList = await app.request("/squares/not-a-uuid/accounts");
+    const legacyBadGrant = await app.request(
+      "/squares/00000000-0000-0000-0000-000000000000/accounts",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          accountId: "not-an-uuid",
+          accountOwnerId: ownerId,
+          capabilities: ["read", "write"],
+        }),
+      },
+    );
     expect(badList.status).toBe(400);
     expect(badGrant.status).toBe(400);
     expect(tooLongCapabilities.status).toBe(400);
+    expect(legacyBadList.status).toBe(400);
+    expect(legacyBadGrant.status).toBe(400);
     expect(await badList.json()).toMatchObject({ code: "INVALID_REQUEST" });
     expect(await badGrant.json()).toMatchObject({ code: "INVALID_REQUEST" });
     expect(await tooLongCapabilities.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await legacyBadList.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+    });
+    expect(await legacyBadGrant.json()).toMatchObject({
       code: "INVALID_REQUEST",
     });
   });

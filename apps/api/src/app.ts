@@ -886,6 +886,9 @@ export function createApp(dependencies?: AppDependencies) {
       registerSquareRoutes(app, { repository: dependencies.squareRepository });
     }
     if (dependencies.sharedAccountRepository !== undefined) {
+      app.use("/squares", authenticate);
+      app.use("/squares/*", authenticate);
+      app.use("/square-account-shares/*", authenticate);
       app.use("/v1/square-account-shares/*", authenticate);
       registerSharedAccountRoutes(app, {
         repository: dependencies.sharedAccountRepository,
