@@ -308,4 +308,44 @@ describe("content share route", () => {
       }),
     );
   });
+
+  it("rejects blob upload when storage is read-only", async () => {
+    const contentId = "01900000-0000-7000-8000-000000000016";
+    const repository = {
+      get: vi.fn().mockResolvedValue({
+        id: contentId,
+        title: "ReadOnly",
+        mimeType: null,
+        storageKey: null,
+        body: null,
+        metadata: {},
+        currentRevision: 1,
+      }),
+    } as unknown as ContentRepository;
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", async (context, next) => {
+      context.set("identity", {
+        user: { id: "01900000-0000-7000-8000-000000000001" },
+      } as AuthVariables["identity"]);
+      await next();
+    });
+    registerContentRoutes(app, {
+      repository,
+      storage: { read: vi.fn() },
+    });
+
+    const response = await app.request(
+      `http://town.test/v1/content/${contentId}/blob`,
+      {
+        method: "PUT",
+        headers: { "content-type": "text/plain" },
+        body: "upload blocked",
+      },
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      error: "CONTENT_STORAGE_NOT_CONFIGURED",
+    });
+  });
 });
