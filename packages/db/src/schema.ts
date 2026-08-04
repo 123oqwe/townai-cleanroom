@@ -2058,3 +2058,27 @@ export const projects = pgTable(
     ),
   ],
 );
+
+export const trustedContacts = pgTable(
+  "trusted_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id").notNull(),
+    scope: text("scope").notNull(),
+    value: text("value").notNull(),
+    label: text("label"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("trusted_contacts_owner_scope_value_unique").on(
+      table.ownerId,
+      table.scope,
+      table.value,
+    ),
+    index("trusted_contacts_owner_idx").on(table.ownerId),
+    check(
+      "trusted_contacts_scope_allowed",
+      sql`${table.scope} in ('email','domain','phone','handle')`,
+    ),
+  ],
+);

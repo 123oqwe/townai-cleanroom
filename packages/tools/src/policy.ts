@@ -20,12 +20,25 @@ export function evaluatePolicy(input: PolicyInput): PolicyResult {
   const destructive = input.sideEffect === "destructive";
   const privateData = input.dataSensitivity !== "public";
   const untrusted = input.inputTrust === "untrusted_data";
+  const restrictedData = input.dataSensitivity === "restricted";
 
   if (input.accountBound && !input.targetIsSelf && !input.targetIsTrusted) {
     riskFlags.push("untrusted_account_target");
   }
   if (privateData && untrusted && outbound) {
     riskFlags.push("private_data_untrusted_input_external_send");
+  }
+  // Prompt injection risk: restricted data flowing through untrusted input
+  // to an outbound action is the most dangerous combination in Town.
+  if (restrictedData && untrusted) {
+    riskFlags.push("restricted_data_untrusted_input");
+  }
+  if (restrictedData && outbound) {
+    riskFlags.push("restricted_data_external_send");
+  }
+  // Untrusted input reaching a destructive action without approval
+  if (untrusted && destructive) {
+    riskFlags.push("untrusted_input_destructive_action");
   }
   if (destructive) riskFlags.push("destructive_action");
   if (outbound) riskFlags.push("external_communication");
@@ -65,6 +78,22 @@ export function evaluatePolicy(input: PolicyInput): PolicyResult {
       riskFlags,
       rationale:
         "A safe private write is allowed for a self or trusted target.",
+    };
+  }
+  if (restrictedData && untrusted) {
+    return {
+      decision: "approval_required",
+      riskFlags,
+      rationale:
+        "Restricted data combined with untrusted input always requires approval.",
+    };
+  }
+  if (untrusted && destructive) {
+    return {
+      decision: "approval_required",
+      riskFlags,
+      rationale:
+        "Untrusted input reaching a destructive action requires approval.",
     };
   }
   if (privateData && untrusted && outbound) {
