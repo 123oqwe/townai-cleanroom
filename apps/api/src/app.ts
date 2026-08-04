@@ -106,12 +106,22 @@ import {
   registerGoogleOAuthRoutes,
   type GoogleOAuthDependencies,
 } from "./google-oauth-routes.js";
+import {
+  registerMicrosoftOAuthRoutes,
+  type MicrosoftOAuthDependencies,
+} from "./microsoft-oauth-routes.js";
 import { registerSuggestionRoutes } from "./suggestion-routes.js";
 import { registerScheduleRoutes } from "./schedule-routes.js";
 import type { SuggestionRepository } from "@town/suggestions";
 import { SuggestionError } from "@town/suggestions";
 import { registerA2ARoutes } from "./a2a-routes.js";
 import { registerSlackEventsRoute } from "./slack-events.js";
+import { registerTelegramEventsRoute } from "./telegram-events.js";
+import {
+  registerPipedreamRoutes,
+  type PipedreamDependencies,
+} from "./pipedream-routes.js";
+import { registerWhatsAppEventsRoute } from "./whatsapp-events.js";
 import { registerTwilioVoiceEventsRoute } from "./twilio-voice-events.js";
 import { registerVoiceRoutes } from "./voice-routes.js";
 import { registerVapiVoiceEventsRoute } from "./vapi-voice-events.js";
@@ -161,11 +171,17 @@ export interface AppDependencies {
   googleOAuth?: GoogleOAuthDependencies;
   googleTokenRefresher?: GoogleTokenRefresher;
   googleApi?: GoogleApiClient;
+  microsoftOAuth?: MicrosoftOAuthDependencies;
+ pipedream?: PipedreamDependencies;
+  e2bApiKey?: string;
   webOrigin?: string;
   workerEnabled?: boolean;
   workspaceTools?: boolean;
   codeRunner?: boolean;
-  slackSigningSecret?: string;
+ slackSigningSecret?: string;
+  telegramSecretToken?: string;
+  whatsappAppSecret?: string;
+  whatsappVerifyToken?: string;
   twilioAuthToken?: string;
   voiceProvider?: VoiceSynthesisProvider;
   vapiWebhookSecret?: string;
@@ -704,8 +720,10 @@ export function createApp(dependencies?: AppDependencies) {
       twilioVoice: dependencies?.twilioAuthToken !== undefined,
       vapiVoice: dependencies?.vapiWebhookSecret !== undefined,
       workspaceTools: dependencies?.workspaceTools === true,
-      codeRunner: dependencies?.codeRunner === true,
-      voiceSynthesis: dependencies?.voiceProvider !== undefined,
+     codeRunner: dependencies?.codeRunner === true,
+     e2bSandbox: dependencies?.e2bApiKey !== undefined,
+     pipedreamCatalog: dependencies?.pipedream !== undefined,
+     voiceSynthesis: dependencies?.voiceProvider !== undefined,
       googleOAuth: dependencies?.googleOAuth !== undefined,
       contentStorage:
         dependencies?.contentStorage === undefined
@@ -793,12 +811,39 @@ export function createApp(dependencies?: AppDependencies) {
       registerVapiVoiceEventsRoute(app, {
         sql: dependencies.sql,
         repository: dependencies.routineRepository,
-        webhookSecret: dependencies.vapiWebhookSecret,
-      });
-    if (dependencies.routineRepository !== undefined)
-      registerRoutineShareRoutes(app, {
+       webhookSecret: dependencies.vapiWebhookSecret,
+     });
+    if (
+      dependencies.sql !== undefined &&
+      dependencies.routineRepository !== undefined &&
+      dependencies.telegramSecretToken !== undefined
+    )
+      registerTelegramEventsRoute(app, {
+        sql: dependencies.sql,
         repository: dependencies.routineRepository,
+        secretToken: dependencies.telegramSecretToken,
       });
+    if (
+      dependencies.sql !== undefined &&
+      dependencies.routineRepository !== undefined &&
+      dependencies.whatsappAppSecret !== undefined &&
+      dependencies.whatsappVerifyToken !== undefined
+    )
+      registerWhatsAppEventsRoute(app, {
+        sql: dependencies.sql,
+        repository: dependencies.routineRepository,
+        appSecret: dependencies.whatsappAppSecret,
+       verifyToken: dependencies.whatsappVerifyToken,
+     });
+    if (dependencies.pipedream !== undefined) {
+      app.use("/v1/integrations/pipedream", authenticate);
+      app.use("/v1/integrations/pipedream/*", authenticate);
+      registerPipedreamRoutes(app, dependencies.pipedream);
+    }
+  if (dependencies.routineRepository !== undefined)
+  registerRoutineShareRoutes(app, {
+    repository: dependencies.routineRepository,
+  });
     app.use("/v1/me", authenticate);
     app.use("/v1/me/*", authenticate);
     app.use("/v1/accounts", authenticate);
@@ -826,6 +871,8 @@ export function createApp(dependencies?: AppDependencies) {
     });
     if (dependencies.googleOAuth !== undefined)
       registerGoogleOAuthRoutes(app, dependencies.googleOAuth);
+    if (dependencies.microsoftOAuth !== undefined)
+      registerMicrosoftOAuthRoutes(app, dependencies.microsoftOAuth);
     if (dependencies.a2aRepository !== undefined) {
       app.use("/v1/a2a", authenticate);
       app.use("/v1/a2a/*", authenticate);
@@ -963,10 +1010,15 @@ export function createApp(dependencies?: AppDependencies) {
           dependencies.harnessServerFactory !== undefined,
         workerEnabled: dependencies.workerEnabled === true,
         workspaceTools: dependencies.workspaceTools === true,
-        codeRunner: dependencies.codeRunner === true,
-        googleOAuthReady: dependencies.googleOAuth !== undefined,
-        slackEvents: dependencies.slackSigningSecret !== undefined,
-        twilioVoice: dependencies.twilioAuthToken !== undefined,
+       codeRunner: dependencies.codeRunner === true,
+       e2bSandbox: dependencies.e2bApiKey !== undefined,
+       pipedreamCatalog: dependencies.pipedream !== undefined,
+      googleOAuthReady: dependencies.googleOAuth !== undefined,
+       microsoftOAuthReady: dependencies.microsoftOAuth !== undefined,
+      slackEvents: dependencies.slackSigningSecret !== undefined,
+      telegramEvents: dependencies.telegramSecretToken !== undefined,
+      whatsappEvents: dependencies.whatsappAppSecret !== undefined,
+      twilioVoice: dependencies.twilioAuthToken !== undefined,
         vapiVoice: dependencies.vapiWebhookSecret !== undefined,
         voiceSynthesis: dependencies.voiceProvider !== undefined,
         contentStorage:

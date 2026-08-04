@@ -86,11 +86,13 @@ export interface IntegrationSyncRun {
     | "webhook"
     | "incoming_email"
     | "email_to_assistant"
-    | "calendar"
+   | "calendar"
     | "voice_transcribed"
-    | "slack_mention";
+    | "slack_mention"
+    | "telegram_message"
+    | "whatsapp_message";
   triggerData: Record<string, unknown>;
-  idempotencyKey: string | null;
+ idempotencyKey: string | null;
   replayOfRunId: Id<"integration-sync-run"> | null;
   replayKey: string | null;
   cursor: Record<string, unknown>;
@@ -123,8 +125,10 @@ export const routineTriggerKindSchema = z.enum([
   "calendar_rsvp",
   "calendar_changed",
   "voice_transcribed",
-  "slack_mention",
-  "webhook",
+ "slack_mention",
+ "webhook",
+  "telegram_message",
+  "whatsapp_message",
 ]);
 export interface RoutineTrigger {
   id: Id<"routine-trigger">;
@@ -217,9 +221,11 @@ type SyncRunRow = {
     | "webhook"
     | "incoming_email"
     | "email_to_assistant"
-    | "calendar"
+   | "calendar"
     | "voice_transcribed"
-    | "slack_mention";
+    | "slack_mention"
+    | "telegram_message"
+    | "whatsapp_message";
   trigger_data: Record<string, unknown>;
   idempotency_key: string | null;
   replay_of_run_id: string | null;
@@ -634,10 +640,12 @@ export function createRoutineRepository(sql: Sql) {
       | "manual"
       | "incoming_email"
       | "email_to_assistant"
-      | "calendar"
+     | "calendar"
       | "voice_transcribed"
       | "slack_mention"
-      | "webhook",
+      | "webhook"
+      | "telegram_message"
+      | "whatsapp_message",
     triggerData: Record<string, unknown>,
     idempotencyKey: string,
     connectedAccountId?: Id<"connected-account">,
@@ -648,11 +656,13 @@ export function createRoutineRepository(sql: Sql) {
         "incoming_email",
         "email_to_assistant",
         "calendar",
-        "voice_transcribed",
-        "slack_mention",
-        "webhook",
-      ])
-      .parse(triggerType);
+       "voice_transcribed",
+       "slack_mention",
+       "webhook",
+        "telegram_message",
+        "whatsapp_message",
+     ])
+     .parse(triggerType);
     const data = z.record(z.string(), z.json()).parse(triggerData);
     const key = z.string().trim().min(1).max(500).parse(idempotencyKey);
     const accountId =

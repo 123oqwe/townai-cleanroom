@@ -24,6 +24,43 @@ export interface CodeRunResult {
   truncated: boolean;
 }
 
+export async function runE2BCode(
+  code: string,
+  options: CodeRunOptions,
+  apiKey: string,
+): Promise<CodeRunResult> {
+  const { Sandbox } = await import("@e2b/code-interpreter");
+  const sandbox = await Sandbox.create({ apiKey });
+  try {
+    const execution = await sandbox.runCode(code, {
+      language: "javascript",
+      timeoutMs: options.timeoutMs,
+    });
+    const logs = execution.logs;
+    let output = "";
+    if (logs.stdout.length > 0) output += logs.stdout.join("\n");
+    if (logs.stderr.length > 0)
+      output += `${output.length > 0 ? "\n" : ""}${logs.stderr.join("\n")}`;
+    const text = execution.text;
+    if (text !== undefined) {
+      output += `${output.length > 0 ? "\n" : ""}${text}`;
+    }
+    let truncated = false;
+    if (output.length > options.maxOutputChars) {
+      truncated = true;
+      output = output.slice(0, options.maxOutputChars);
+    }
+    if (execution.error !== undefined) {
+      throw new Error(
+        `CODE_RUN_FAILED: ${execution.error.value}`,
+      );
+    }
+    return { output, truncated };
+  } finally {
+    await sandbox.kill();
+  }
+}
+
 /**
  * Runs a small JavaScript expression in a separate Node process with the
  * permission model enabled. This is an execution boundary, not a claim of
@@ -99,6 +136,7 @@ export function createTownCodeRunHarnessBinding(
     code: string,
     options: CodeRunOptions,
   ) => Promise<CodeRunResult> = runNodeCode,
+  e2bApiKey?: string,
 ): HarnessToolBinding {
   const definition = {
     name: "town_code_run",
@@ -125,7 +163,12 @@ export function createTownCodeRunHarnessBinding(
       const value = codeArguments.parse(arguments_);
       if (!context?.approvalGranted)
         throw new Error("HARNESS_TOOL_APPROVAL_REQUIRED");
-      const result = await run(value.code, {
+      const runner =
+        e2bApiKey !== undefined
+          ? (code: string, opts: CodeRunOptions) =>
+              runE2BCode(code, opts, e2bApiKey)
+          : run;
+      const result = await runner(value.code, {
         timeoutMs: value.timeoutMs,
         maxOutputChars: value.maxOutputChars,
       });

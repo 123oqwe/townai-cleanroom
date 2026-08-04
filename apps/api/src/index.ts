@@ -136,10 +136,11 @@ const environmentSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
-  CODEX_MODEL: z.string().min(1).optional(),
-  CODEX_SANDBOX_MODE: z
-    .enum(["read-only", "workspace-write", "danger-full-access"])
-    .default("read-only"),
+ CODEX_MODEL: z.string().min(1).optional(),
+  CODEX_CLI_PATH: z.string().min(1).optional(),
+ CODEX_SANDBOX_MODE: z
+   .enum(["read-only", "workspace-write", "danger-full-access"])
+   .default("read-only"),
   WEB_ORIGIN: z.string().url().default("http://localhost:4173"),
   CHANNEL_CREDENTIALS_JSON: z.string().default("{}"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
@@ -162,10 +163,16 @@ const environmentSchema = z.object({
   ELEVENLABS_API_KEY: z.string().min(1).optional(),
   ELEVENLABS_VOICE_ID: z.string().min(1).optional(),
   ELEVENLABS_MODEL_ID: z.string().min(1).default("eleven_multilingual_v2"),
-  VAPI_WEBHOOK_SECRET: z.string().min(1).optional(),
-  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
-  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-  GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+ VAPI_WEBHOOK_SECRET: z.string().min(1).optional(),
+  TELEGRAM_SECRET_TOKEN: z.string().min(1).optional(),
+  WHATSAPP_APP_SECRET: z.string().min(1).optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().min(1).optional(),
+GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+ GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+ GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  MICROSOFT_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  MICROSOFT_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  MICROSOFT_OAUTH_REDIRECT_URI: z.string().url().optional(),
   CONTENT_STORAGE_ROOT: z.string().min(1).optional(),
   CONTENT_STORAGE_S3_ENDPOINT: z.string().url().optional(),
   CONTENT_STORAGE_S3_BUCKET: z.string().min(1).optional(),
@@ -176,7 +183,13 @@ const environmentSchema = z.object({
   CODE_RUNNER_ENABLED: z
     .enum(["true", "false"])
     .default("false")
-    .transform((value) => value === "true"),
+   .transform((value) => value === "true"),
+  E2B_API_KEY: z.string().min(1).optional(),
+  PIPEDREAM_API_URL: z
+    .string()
+    .url()
+    .default("https://api.pipedream.com/v1/apps"),
+  PIPEDREAM_API_KEY: z.string().min(1).optional(),
   WEB_SEARCH_ENDPOINT: z.string().url().optional(),
   WEB_SEARCH_API_KEY: z.string().min(1).optional(),
   BROWSER_AUTOMATION_ENDPOINT: z.string().url().optional(),
@@ -590,15 +603,18 @@ const harnessServerFactory =
         return createAppServer({
           store: createHarnessThreadStore(database.db, ownerId),
           createAgent: environment.CODEX_EXEC_ENABLED
-            ? createCodexAgentFactory({
-                ...(environment.CODEX_MODEL === undefined
+           ? createCodexAgentFactory({
+               ...(environment.CODEX_MODEL === undefined
+                 ? {}
+                 : { model: environment.CODEX_MODEL }),
+                ...(environment.CODEX_CLI_PATH === undefined
                   ? {}
-                  : { model: environment.CODEX_MODEL }),
-                sandboxMode: environment.CODEX_SANDBOX_MODE,
-                ...(environment.WORKSPACE_ROOT === undefined
-                  ? {}
-                  : { workingDirectory: environment.WORKSPACE_ROOT }),
-                skipGitRepoCheck: true,
+                  : { codexPath: environment.CODEX_CLI_PATH }),
+               sandboxMode: environment.CODEX_SANDBOX_MODE,
+               ...(environment.WORKSPACE_ROOT === undefined
+                 ? {}
+                 : { workingDirectory: environment.WORKSPACE_ROOT }),
+               skipGitRepoCheck: true,
                 agentVersionForThread: (agentVersionId) =>
                   agentVersionId === undefined
                     ? undefined
@@ -653,12 +669,19 @@ const harnessServerFactory =
                             environment.WORKSPACE_ROOT,
                           ),
                         ]),
-                    ...(environment.CODE_RUNNER_ENABLED
-                      ? [createTownCodeRunHarnessBinding()]
-                      : []),
-                    ...(voiceProvider === undefined
-                      ? []
-                      : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
+                   ...(environment.CODE_RUNNER_ENABLED
+                     ? [
+                         createTownCodeRunHarnessBinding(
+                           undefined,
+                           ...(environment.E2B_API_KEY === undefined
+                             ? []
+                             : [environment.E2B_API_KEY]),
+                         ),
+                       ]
+                     : []),
+                   ...(voiceProvider === undefined
+                     ? []
+                     : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
                     createTownMemoryAddHarnessBinding(
                       typedOwnerId,
                       memoryRepository,
@@ -822,12 +845,19 @@ const harnessServerFactory =
                             environment.WORKSPACE_ROOT,
                           ),
                         ]),
-                    ...(environment.CODE_RUNNER_ENABLED
-                      ? [createTownCodeRunHarnessBinding()]
-                      : []),
-                    ...(voiceProvider === undefined
-                      ? []
-                      : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
+                   ...(environment.CODE_RUNNER_ENABLED
+                     ? [
+                         createTownCodeRunHarnessBinding(
+                           undefined,
+                           ...(environment.E2B_API_KEY === undefined
+                             ? []
+                             : [environment.E2B_API_KEY]),
+                         ),
+                       ]
+                     : []),
+                   ...(voiceProvider === undefined
+                     ? []
+                     : [createTownVoiceSpeakHarnessBinding(voiceProvider)]),
                     createTownMemoryAddHarnessBinding(
                       typedOwnerId,
                       memoryRepository,
@@ -957,8 +987,22 @@ const app = createApp({
       ? {}
       : { redirectUri: environment.GOOGLE_OAUTH_REDIRECT_URI }),
   },
-  googleTokenRefresher,
-  webOrigin: environment.WEB_ORIGIN,
+ googleTokenRefresher,
+ webOrigin: environment.WEB_ORIGIN,
+  microsoftOAuth: {
+    sql,
+    accounts: accountRepository,
+    webOrigin: environment.WEB_ORIGIN,
+    ...(environment.MICROSOFT_OAUTH_CLIENT_ID === undefined
+      ? {}
+      : { clientId: environment.MICROSOFT_OAUTH_CLIENT_ID }),
+    ...(environment.MICROSOFT_OAUTH_CLIENT_SECRET === undefined
+      ? {}
+      : { clientSecret: environment.MICROSOFT_OAUTH_CLIENT_SECRET }),
+    ...(environment.MICROSOFT_OAUTH_REDIRECT_URI === undefined
+      ? {}
+      : { redirectUri: environment.MICROSOFT_OAUTH_REDIRECT_URI }),
+  },
   ...(environment.SLACK_SIGNING_SECRET === undefined
     ? {}
     : { slackSigningSecret: environment.SLACK_SIGNING_SECRET }),
@@ -966,9 +1010,24 @@ const app = createApp({
     ? {}
     : { twilioAuthToken: environment.TWILIO_AUTH_TOKEN }),
   ...(voiceProvider === undefined ? {} : { voiceProvider }),
-  ...(environment.VAPI_WEBHOOK_SECRET === undefined
+ ...(environment.VAPI_WEBHOOK_SECRET === undefined
+   ? {}
+   : { vapiWebhookSecret: environment.VAPI_WEBHOOK_SECRET }),
+  ...(environment.TELEGRAM_SECRET_TOKEN === undefined
     ? {}
-    : { vapiWebhookSecret: environment.VAPI_WEBHOOK_SECRET }),
+    : { telegramSecretToken: environment.TELEGRAM_SECRET_TOKEN }),
+  ...(environment.WHATSAPP_APP_SECRET === undefined
+    ? {}
+    : { whatsappAppSecret: environment.WHATSAPP_APP_SECRET }),
+  ...(environment.WHATSAPP_VERIFY_TOKEN === undefined
+    ? {}
+   : { whatsappVerifyToken: environment.WHATSAPP_VERIFY_TOKEN }),
+  pipedream: {
+    apiUrl: environment.PIPEDREAM_API_URL,
+    ...(environment.PIPEDREAM_API_KEY === undefined
+      ? {}
+      : { apiKey: environment.PIPEDREAM_API_KEY }),
+  },
   workerEnabled:
     harnessServerFactory !== undefined &&
     (environment.WORKER_ENABLED ||
@@ -976,7 +1035,10 @@ const app = createApp({
         (environment.WORKER_SECRET !== undefined ||
           environment.CRON_SECRET !== undefined))),
   workspaceTools: environment.WORKSPACE_ROOT !== undefined,
-  codeRunner: environment.CODE_RUNNER_ENABLED,
+codeRunner: environment.CODE_RUNNER_ENABLED,
+...(environment.E2B_API_KEY === undefined
+  ? {}
+  : { e2bApiKey: environment.E2B_API_KEY }),
   ...(harnessServerFactory === undefined ? {} : { harnessServerFactory }),
 });
 

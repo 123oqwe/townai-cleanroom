@@ -1323,9 +1323,9 @@ export const integrationSyncRuns = pgTable(
       sql`${table.status} in ('queued','running','succeeded','failed','blocked')`,
     ),
     check(
-      "integration_sync_runs_trigger_type_allowed",
-      sql`${table.triggerType} in ('schedule','manual','webhook','incoming_email','email_to_assistant','calendar','voice_transcribed','slack_mention')`,
-    ),
+     "integration_sync_runs_trigger_type_allowed",
+  sql`${table.triggerType} in ('schedule','manual','webhook','incoming_email','email_to_assistant','calendar','voice_transcribed','slack_mention','telegram_message','whatsapp_message')`,
+   ),
     check(
       "integration_sync_runs_trigger_data_object",
       sql`jsonb_typeof(${table.triggerData}) = 'object'`,

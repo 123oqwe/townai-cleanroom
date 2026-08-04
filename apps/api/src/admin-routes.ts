@@ -14,15 +14,20 @@ export interface AdminDependencies {
   operations: OperationsRepository;
   harnessReady: boolean;
   workerEnabled: boolean;
-  googleOAuthReady: boolean;
-  slackEvents: boolean;
-  twilioVoice: boolean;
+ googleOAuthReady: boolean;
+  microsoftOAuthReady: boolean;
+ slackEvents: boolean;
+  telegramEvents: boolean;
+  whatsappEvents: boolean;
+ twilioVoice: boolean;
   vapiVoice: boolean;
   voiceSynthesis: boolean;
   contentStorage: ContentStorageReadiness;
   workspaceTools: boolean;
-  codeRunner: boolean;
-  billing?: BillingRepository;
+ codeRunner: boolean;
+  e2bSandbox: boolean;
+  pipedreamCatalog: boolean;
+ billing?: BillingRepository;
 }
 
 const userIdSchema = z.uuidv7();
@@ -91,15 +96,20 @@ function reportReadiness(dependencies: AdminDependencies) {
     api: true,
     harness: dependencies.harnessReady,
     worker: dependencies.workerEnabled,
-    googleOAuth: dependencies.googleOAuthReady,
-    slackEvents: dependencies.slackEvents,
-    twilioVoice: dependencies.twilioVoice,
+   googleOAuth: dependencies.googleOAuthReady,
+   microsoftOAuth: dependencies.microsoftOAuthReady,
+   slackEvents: dependencies.slackEvents,
+   telegramEvents: dependencies.telegramEvents,
+   whatsappEvents: dependencies.whatsappEvents,
+   twilioVoice: dependencies.twilioVoice,
     vapiVoice: dependencies.vapiVoice,
     voiceSynthesis: dependencies.voiceSynthesis,
     contentStorage: dependencies.contentStorage,
-    workspaceTools: dependencies.workspaceTools,
-    codeRunner: dependencies.codeRunner,
-  };
+   workspaceTools: dependencies.workspaceTools,
+   codeRunner: dependencies.codeRunner,
+   e2bSandbox: dependencies.e2bSandbox,
+   pipedreamCatalog: dependencies.pipedreamCatalog,
+ };
 }
 
 async function collectOverviewReport(dependencies: AdminDependencies) {

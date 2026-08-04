@@ -17,6 +17,8 @@
  */
 import { randomUUID } from "node:crypto";
 
+import { execFileSync } from "node:child_process";
+
 import type {
   HarnessItem,
   ModelPort,
@@ -99,6 +101,23 @@ Parameters: ${params}`;
   return `You have access to the following tools:\n\n${descriptions.join("\n\n")}`;
 }
 
+// Resolves an explicit codex binary path, falling back to a system-installed
+// `codex` CLI on PATH. Returns undefined to let the SDK resolve its vendored
+// binary (the default where the platform package installed).
+function resolveCodexPathOverride(explicit?: string): string | undefined {
+  if (explicit !== undefined && explicit.length > 0) return explicit;
+  try {
+    const which = execFileSync("which", ["codex"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (which.length > 0) return which;
+  } catch {
+    // codex not on PATH; let the SDK try its vendored binary.
+  }
+  return undefined;
+}
+
 /**
  * Creates a ModelPort backed by the official @openai/codex-sdk.
  *
@@ -111,6 +130,7 @@ Parameters: ${params}`;
  */
 export function createCodexModel(input: {
   apiKey?: string;
+  codexPath?: string;
   baseUrl?: string;
   model?: string;
   instructions?: string;
@@ -124,6 +144,10 @@ export function createCodexModel(input: {
 }): ModelPort {
   const codex = new Codex({
     ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
+    ...(() => {
+      const override = resolveCodexPathOverride(input.codexPath);
+      return override === undefined ? {} : { codexPathOverride: override };
+    })(),
     ...(input.baseUrl === undefined ? {} : { baseUrl: input.baseUrl }),
   });
 
@@ -316,6 +340,7 @@ function parseStructuredOutput(text: string): ParsedOutput | null {
  */
 export function createCodexAgentFactory(input: {
   apiKey?: string;
+  codexPath?: string;
   baseUrl?: string;
   model?: string;
   instructions?: string;
@@ -335,12 +360,14 @@ export function createCodexAgentFactory(input: {
   threadId: string,
   agentVersionId?: string,
 ) => { model: ModelPort; tools: readonly ToolPort[] } {
+  const codexPath = resolveCodexPathOverride(input.codexPath);
   return (threadId, agentVersionId) => {
     const selected = input.agentVersionForThread?.(agentVersionId);
     const bindings = input.tools?.(threadId, agentVersionId) ?? [];
     return {
       model: createCodexModel({
         ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
+        ...(codexPath === undefined ? {} : { codexPath: codexPath }),
         ...(input.baseUrl === undefined ? {} : { baseUrl: input.baseUrl }),
         ...(input.model === undefined ? {} : { model: input.model }),
         ...((selected?.instructions ?? input.instructions) === undefined

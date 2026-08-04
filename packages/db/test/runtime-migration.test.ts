@@ -144,8 +144,9 @@ describe("persistent runtime and tool-policy migrations", () => {
       "0044_presence_sessions.sql",
       "0045_public_analytics_events.sql",
       "0046_goals_projects.sql",
-      "0047_trusted_contacts.sql",
-      "0048_knowledge_graph.sql",
-    ]);
+     "0047_trusted_contacts.sql",
+     "0048_knowledge_graph.sql",
+      "0049_telegram_whatsapp_triggers.sql",
+   ]);
   });
 });
