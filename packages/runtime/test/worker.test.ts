@@ -187,4 +187,55 @@ describe("runtime worker", () => {
     });
     expect(transitions.fail).not.toHaveBeenCalled();
   });
+
+  it("fails when retryable errors exhaust the attempt budget", async () => {
+    const queue = {
+      claim: vi.fn(async () => ({
+        ownerId,
+        sessionId,
+        runId,
+        runState: "queued" as const,
+        workerId: "worker-1",
+        leaseToken,
+        attempt: 3,
+        leasedAt: new Date(),
+        leaseExpiresAt: new Date(Date.now() + 30_000),
+      })),
+      heartbeat: vi.fn(async (value) => value),
+      retry: vi.fn(async () => undefined),
+    };
+    const transitions = {
+      start: vi.fn(async () => undefined),
+      recordPhase: vi.fn(async () => undefined),
+      recordAssistantOutput: vi.fn(async () => undefined),
+      complete: vi.fn(async () => undefined),
+      fail: vi.fn(async () => undefined),
+      requeue: vi.fn(async () => undefined),
+      wait: vi.fn(async () => undefined),
+    };
+    const dependencies = {
+      queue,
+      sessions: {
+        get: vi.fn(async () => ({ ownerId }) as never),
+        getRun: vi.fn(async () => ({}) as never),
+      },
+      transitions,
+      adapter: {
+        async *execute() {
+          throw new RetryableRuntimeError("provider unavailable");
+        },
+      },
+    } as unknown as RuntimeWorkerDependencies;
+    const result = await createRuntimeWorker(dependencies, {
+      workerId: "worker-1",
+      retryPolicy: { maxAttempts: 3, baseDelayMs: 250 },
+    }).runOnce();
+    expect(result).toMatchObject({ claimed: true, state: "failed", runId });
+    expect(transitions.requeue).not.toHaveBeenCalled();
+    expect(transitions.fail).toHaveBeenCalledWith({
+      runId,
+      leaseToken,
+      errorCode: "RetryableRuntimeError",
+    });
+  });
 });
