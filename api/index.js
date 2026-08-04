@@ -64,7 +64,7 @@ function isValidContentStorageConfig() {
 }
 
 function isEnabled(value) {
-  return value === "true" || value === "1" || value === "yes";
+  return value === "true";
 }
 
 const app = new Hono();
