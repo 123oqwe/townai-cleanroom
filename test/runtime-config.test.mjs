@@ -89,6 +89,88 @@ describe("runtime configuration preflight", () => {
     expect(result.missingRequired).toEqual([]);
   });
 
+  it("validates content storage mode as either root path or full S3 config", () => {
+    const withLocalRoot = inspectRuntimeConfig({
+      DATABASE_URL: "postgres://user:pass@localhost/db",
+      CREDENTIAL_MASTER_KEY_BASE64URL:
+        "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE",
+      WEB_ORIGIN: "https://app.example",
+      CONTENT_STORAGE_ROOT: "/tmp/content",
+    });
+    expect(withLocalRoot.checks).toEqual(
+      expect.arrayContaining([
+        { name: "CONTENT_STORAGE_ROOT", status: "configured" },
+        { name: "CONTENT_STORAGE_S3_ENDPOINT", status: "missing" },
+        { name: "CONTENT_STORAGE_S3_BUCKET", status: "missing" },
+        { name: "CONTENT_STORAGE_S3_REGION", status: "missing" },
+        { name: "CONTENT_STORAGE_S3_ACCESS_KEY_ID", status: "missing" },
+        { name: "CONTENT_STORAGE_S3_SECRET_ACCESS_KEY", status: "missing" },
+      ]),
+    );
+
+    const partialS3 = inspectRuntimeConfig({
+      DATABASE_URL: "postgres://user:pass@localhost/db",
+      CREDENTIAL_MASTER_KEY_BASE64URL:
+        "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE",
+      WEB_ORIGIN: "https://app.example",
+      CONTENT_STORAGE_S3_ENDPOINT: "https://storage.example",
+      CONTENT_STORAGE_S3_REGION: "us-east-1",
+    });
+    expect(partialS3.checks).toEqual(
+      expect.arrayContaining([
+        { name: "CONTENT_STORAGE_ROOT", status: "missing" },
+        { name: "CONTENT_STORAGE_S3_ENDPOINT", status: "invalid" },
+        { name: "CONTENT_STORAGE_S3_REGION", status: "invalid" },
+        { name: "CONTENT_STORAGE_S3_BUCKET", status: "missing" },
+      ]),
+    );
+
+    const completeS3 = inspectRuntimeConfig({
+      DATABASE_URL: "postgres://user:pass@localhost/db",
+      CREDENTIAL_MASTER_KEY_BASE64URL:
+        "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE",
+      WEB_ORIGIN: "https://app.example",
+      CONTENT_STORAGE_S3_ENDPOINT: "https://storage.example",
+      CONTENT_STORAGE_S3_BUCKET: "town-bucket",
+      CONTENT_STORAGE_S3_REGION: "us-east-1",
+      CONTENT_STORAGE_S3_ACCESS_KEY_ID: "akid",
+      CONTENT_STORAGE_S3_SECRET_ACCESS_KEY: "secret",
+    });
+    expect(completeS3.checks).toEqual(
+      expect.arrayContaining([
+        { name: "CONTENT_STORAGE_ROOT", status: "missing" },
+        { name: "CONTENT_STORAGE_S3_ENDPOINT", status: "configured" },
+        { name: "CONTENT_STORAGE_S3_BUCKET", status: "configured" },
+        { name: "CONTENT_STORAGE_S3_REGION", status: "configured" },
+        { name: "CONTENT_STORAGE_S3_ACCESS_KEY_ID", status: "configured" },
+        { name: "CONTENT_STORAGE_S3_SECRET_ACCESS_KEY", status: "configured" },
+      ]),
+    );
+
+    const mixedStorage = inspectRuntimeConfig({
+      DATABASE_URL: "postgres://user:pass@localhost/db",
+      CREDENTIAL_MASTER_KEY_BASE64URL:
+        "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE",
+      WEB_ORIGIN: "https://app.example",
+      CONTENT_STORAGE_ROOT: "/tmp/content",
+      CONTENT_STORAGE_S3_ENDPOINT: "https://storage.example",
+      CONTENT_STORAGE_S3_BUCKET: "town-bucket",
+      CONTENT_STORAGE_S3_REGION: "us-east-1",
+      CONTENT_STORAGE_S3_ACCESS_KEY_ID: "akid",
+      CONTENT_STORAGE_S3_SECRET_ACCESS_KEY: "secret",
+    });
+    expect(mixedStorage.checks).toEqual(
+      expect.arrayContaining([
+        { name: "CONTENT_STORAGE_ROOT", status: "invalid" },
+        { name: "CONTENT_STORAGE_S3_ENDPOINT", status: "invalid" },
+        { name: "CONTENT_STORAGE_S3_BUCKET", status: "invalid" },
+        { name: "CONTENT_STORAGE_S3_REGION", status: "invalid" },
+        { name: "CONTENT_STORAGE_S3_ACCESS_KEY_ID", status: "invalid" },
+        { name: "CONTENT_STORAGE_S3_SECRET_ACCESS_KEY", status: "invalid" },
+      ]),
+    );
+  });
+
   it("keeps optional integration settings as missing instead of required", () => {
     const result = inspectRuntimeConfig({
       DATABASE_URL: "postgres://user:pass@localhost/db",

@@ -54,6 +54,57 @@ function inspectJsonObject(name, value) {
   }
 }
 
+function inspectOptionalStorageConfig(environment = process.env) {
+  const storageRoot = environment.CONTENT_STORAGE_ROOT;
+  const s3Fields = [
+    { name: "CONTENT_STORAGE_S3_ENDPOINT", value: environment.CONTENT_STORAGE_S3_ENDPOINT },
+    { name: "CONTENT_STORAGE_S3_BUCKET", value: environment.CONTENT_STORAGE_S3_BUCKET },
+    { name: "CONTENT_STORAGE_S3_REGION", value: environment.CONTENT_STORAGE_S3_REGION },
+    {
+      name: "CONTENT_STORAGE_S3_ACCESS_KEY_ID",
+      value: environment.CONTENT_STORAGE_S3_ACCESS_KEY_ID,
+    },
+    {
+      name: "CONTENT_STORAGE_S3_SECRET_ACCESS_KEY",
+      value: environment.CONTENT_STORAGE_S3_SECRET_ACCESS_KEY,
+    },
+  ];
+  const hasRoot = storageRoot !== undefined;
+  const hasAnyS3 = s3Fields.some(({ value }) => value !== undefined);
+  const hasAllS3 = s3Fields.every(({ value }) => value !== undefined);
+
+  if (hasRoot && hasAnyS3) {
+    return [
+      { name: "CONTENT_STORAGE_ROOT", status: "invalid" },
+      ...s3Fields.map(({ name, value }) => ({
+        name,
+        status: value === undefined ? "missing" : "invalid",
+      })),
+    ];
+  }
+
+  if (!hasRoot && hasAnyS3 && !hasAllS3) {
+    return [
+      { name: "CONTENT_STORAGE_ROOT", status: "missing" },
+      ...s3Fields.map(({ name, value }) => ({
+        name,
+        status: value === undefined ? "missing" : "invalid",
+      })),
+    ];
+  }
+
+  return [
+    {
+      name: "CONTENT_STORAGE_ROOT",
+      status: hasRoot ? "configured" : "missing",
+    },
+    ...s3Fields.map(({ name, value }) => ({
+      name,
+      status: value === undefined ? "missing" : "configured",
+    })),
+  ];
+}
+
 function inspectEnvVar(name, value) {
   return { name, status: value ? "configured" : "missing" };
 }
@@ -103,6 +154,7 @@ export function inspectRuntimeConfig(environment = process.env) {
       "CHANNEL_CREDENTIALS_JSON",
       environment.CHANNEL_CREDENTIALS_JSON,
     ),
+    ...inspectOptionalStorageConfig(environment),
   ];
   const missingRequired = checks
     .filter(
