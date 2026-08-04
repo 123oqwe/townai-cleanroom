@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { asId } from "@town/contracts";
 import { createHarnessRuntimeAdapter } from "../src/harness-runtime-adapter.js";
 import type { AppServer, PersistentThreadStore } from "@town/harness";
-import { RetryableRuntimeError, type RuntimeAdapterContext } from "@town/runtime";
+import {
+  RetryableRuntimeError,
+  type RuntimeAdapterContext,
+} from "@town/runtime";
 
 const ownerId = asId<"user">("01900000-0000-7000-8000-000000000001");
 const threadId = asId<"thread">("01900000-0000-7000-8000-000000000002");
@@ -134,7 +137,11 @@ describe("harness runtime adapter", () => {
             {
               jsonrpc: "2.0",
               method: "approval/resolved",
-              params: { threadId, approvalId: "approval-1", decision: "approve" },
+              params: {
+                threadId,
+                approvalId: "approval-1",
+                decision: "approve",
+              },
             },
             {
               jsonrpc: "2.0",
@@ -199,7 +206,11 @@ describe("harness runtime adapter", () => {
     expect(events).toEqual([
       { type: "phase", phase: "context_building" },
       { type: "phase", phase: "model_running" },
-      { type: "policy_decided", callId: "approval-1", decision: "approval_required" },
+      {
+        type: "policy_decided",
+        callId: "approval-1",
+        decision: "approval_required",
+      },
       {
         type: "approval_resolved",
         approvalId: "approval-1",
@@ -390,7 +401,11 @@ describe("harness runtime adapter", () => {
         arguments: { to: "a@b.com" },
         stepKey: "tool-call:call-2",
       },
-      { type: "policy_decided", callId: "call-2", decision: "approval_required" },
+      {
+        type: "policy_decided",
+        callId: "call-2",
+        decision: "approval_required",
+      },
       {
         type: "waiting_approval",
         reason: "Approval required for google_gmail_send.",

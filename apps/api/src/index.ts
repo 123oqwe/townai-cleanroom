@@ -134,12 +134,7 @@ const environmentSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   WORKER_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(10),
-  WORKER_RETRY_MAX_ATTEMPTS: z.coerce
-    .number()
-    .int()
-    .min(2)
-    .max(10)
-    .optional(),
+  WORKER_RETRY_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(10).optional(),
   WORKER_RETRY_BASE_DELAY_MS: z.coerce
     .number()
     .int()

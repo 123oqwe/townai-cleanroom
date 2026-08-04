@@ -231,17 +231,16 @@ export function createRuntimeWorker(
             3_600_000,
             retryPolicy.baseDelayMs * 2 ** Math.max(0, lease.attempt - 1),
           );
-          let requeued = false;
-          try {
-            await dependencies.transitions.requeue({
+          const requeued = await dependencies.transitions
+            .requeue({
               runId: lease.runId,
               leaseToken: lease.leaseToken,
               delayMs,
-            });
-            requeued = true;
-          } catch {
-            requeued = false;
-          }
+            })
+            .then(
+              () => true,
+              () => false,
+            );
           if (requeued) {
             return { claimed: true, state: "queued", runId: lease.runId };
           }

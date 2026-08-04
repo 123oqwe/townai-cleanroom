@@ -209,15 +209,17 @@ describe("runtime transitions", () => {
       outcome: { summary: "Tooling complete" },
     });
 
-    const events = await sql<{
-      kind: string;
-      payload: {
-        callId?: string;
-        toolName?: string;
-        approvalId?: string;
-        output?: string;
-      };
-    }[]>`
+    const events = await sql<
+      {
+        kind: string;
+        payload: {
+          callId?: string;
+          toolName?: string;
+          approvalId?: string;
+          output?: string;
+        };
+      }[]
+    >`
       select kind, payload
       from session_events
       where session_id = ${submitted.session.id}
@@ -235,7 +237,9 @@ describe("runtime transitions", () => {
       "approval_resolved",
       "run_completed",
     ]);
-    const toolSucceeded = events.find((entry) => entry.kind === "tool_succeeded");
+    const toolSucceeded = events.find(
+      (entry) => entry.kind === "tool_succeeded",
+    );
     expect(toolSucceeded).toMatchObject({
       payload: {
         callId: "tool-1",
@@ -492,14 +496,16 @@ describe("runtime transitions", () => {
       attempt: 1,
     });
 
-    const [job] = await sql<{
-      state: string;
-      availableAt: Date;
-      leaseTokenHash: Buffer | null;
-      leasedBy: string | null;
-      leasedAt: Date | null;
-      leaseExpiresAt: Date | null;
-    }[]>`
+    const [job] = await sql<
+      {
+        state: string;
+        availableAt: Date;
+        leaseTokenHash: Buffer | null;
+        leasedBy: string | null;
+        leasedAt: Date | null;
+        leaseExpiresAt: Date | null;
+      }[]
+    >`
       select
         state,
         available_at as "availableAt",
@@ -520,10 +526,12 @@ describe("runtime transitions", () => {
     expect(job?.availableAt.getTime() - beforeMs).toBeGreaterThanOrEqual(0);
     expect(job?.availableAt.getTime() - beforeMs).toBeLessThan(5_000);
 
-    const events = await sql<{
-      kind: string;
-      payload: { runId?: string; retry?: boolean; delayMs?: number };
-    }[]>`
+    const events = await sql<
+      {
+        kind: string;
+        payload: { runId?: string; retry?: boolean; delayMs?: number };
+      }[]
+    >`
       select kind, payload
       from session_events
       where session_id = ${submitted.session.id}

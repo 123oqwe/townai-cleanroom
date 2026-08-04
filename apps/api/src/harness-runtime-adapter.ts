@@ -47,7 +47,9 @@ export function createHarnessRuntimeAdapter(input: {
   ]);
   const isRetryableError = (error: unknown): boolean => {
     const asError =
-      error === null || typeof error !== "object" ? null : (error as Error & { code?: string });
+      error === null || typeof error !== "object"
+        ? null
+        : (error as Error & { code?: string });
     if (asError === null) return false;
     const code = asError.code;
     if (code !== undefined && retryableErrorCodes.has(code)) return true;
@@ -217,9 +219,7 @@ export function createHarnessRuntimeAdapter(input: {
         const params = asRecord(notification.params) ?? {};
         if (method === "approval/requested") {
           const approvalId =
-            asString(params["approvalId"]) ??
-            asString(params["callId"]) ??
-            "";
+            asString(params["approvalId"]) ?? asString(params["callId"]) ?? "";
           const toolName = asString(params["toolName"]);
           if (approvalId === "") {
             continue;
@@ -378,12 +378,12 @@ export function createHarnessRuntimeAdapter(input: {
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+  return typeof value === "string" && value.trim().length > 0
+    ? value
+    : undefined;
 }
 
-function asRecord(
-  value: unknown,
-): Record<string, unknown> | undefined {
+function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value === null || Array.isArray(value) || typeof value !== "object"
     ? undefined
     : (value as Record<string, unknown>);

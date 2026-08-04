@@ -357,6 +357,13 @@ describe("runtime worker", () => {
       transitions,
       adapter: {
         async *execute() {
+          if (Math.random() > 1) {
+            yield {
+              type: "assistant_output" as const,
+              text: "unreachable",
+              mentions: [],
+            };
+          }
           throw new RetryableRuntimeError("provider unavailable");
         },
       },
