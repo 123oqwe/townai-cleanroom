@@ -606,7 +606,7 @@ describe("routine routes", () => {
 });
 
 describe("routine shared route aliases", () => {
-  it("exposes shared routine page and JSON at /content/routines/shared/:token", async () => {
+  it("exposes shared routine page and JSON at /v1/routine-shares/:token and legacy alias", async () => {
     const routine = {
       id: routineId,
       name: "Daily routine",
@@ -632,8 +632,14 @@ describe("routine shared route aliases", () => {
     const json = await app.request(
       "http://town.test/content/routines/shared/rtnshare_valid_token_12345",
     );
+    const legacyJson = await app.request(
+      "http://town.test/v1/routine-shares/rtnshare_valid_token_12345",
+    );
     expect(json.status).toBe(200);
     expect(await json.json()).toMatchObject({
+      share: { routine: { name: "Daily routine" }, version: { version: 1 } },
+    });
+    expect(await legacyJson.json()).toMatchObject({
       share: { routine: { name: "Daily routine" }, version: { version: 1 } },
     });
 
@@ -643,5 +649,31 @@ describe("routine shared route aliases", () => {
     );
     expect(page.status).toBe(200);
     expect(await page.text()).toContain("Shared routine");
+
+    const legacyPage = await app.request(
+      "http://town.test/v1/routine-shares/rtnshare_valid_token_12345",
+      { headers: { accept: "text/html" } },
+    );
+    expect(legacyPage.status).toBe(200);
+    expect(await legacyPage.text()).toContain("Shared routine");
+  });
+
+  it("returns 404 for unknown routine share tokens", async () => {
+    const repository = {
+      getPublicShare: vi.fn().mockResolvedValue(null),
+    } as unknown as RoutineDependencies["repository"];
+    const app = new Hono<{ Variables: AuthVariables }>();
+    registerRoutineShareRoutes(app, { repository });
+
+    const json = await app.request(
+      "http://town.test/content/routines/shared/rtnshare_unknown",
+    );
+    const legacy = await app.request(
+      "http://town.test/v1/routine-shares/rtnshare_unknown",
+    );
+    expect(json.status).toBe(404);
+    expect(await json.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
+    expect(legacy.status).toBe(404);
+    expect(await legacy.json()).toMatchObject({ error: "SHARE_NOT_FOUND" });
   });
 });
