@@ -169,3 +169,261 @@ export interface ListOptions {
   cursor?: string;
   limit?: number;
 }
+
+// ── Knowledge domain ──
+
+export type KnowledgeJsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | KnowledgeJsonValue[]
+  | { [key: string]: KnowledgeJsonValue };
+
+export type ResourceType =
+  "profile" | "memory" | "person" | "wiki" | "goal" | "project";
+
+export type KnowledgeAuthorType = "user" | "assistant" | "system";
+
+export interface KnowledgeCitation {
+  id: Id<"knowledge-citation">;
+  sourceType: "account" | "user" | "session" | "web" | "system";
+  sourceRef: string;
+  sourceLabel: string | null;
+  accountId: Id<"connected-account"> | null;
+  observedAt: string;
+}
+
+export interface KnowledgeRevision {
+  id: Id<"knowledge-revision">;
+  ownerId: Id<"user">;
+  resourceType: ResourceType;
+  resourceId: string;
+  revision: number;
+  baseRevision: number;
+  authorType: KnowledgeAuthorType;
+  snapshot: Record<string, KnowledgeJsonValue>;
+  changeReason: string | null;
+  createdAt: string;
+  citations: KnowledgeCitation[];
+}
+
+export interface KnowledgeConflict {
+  id: Id<"knowledge-conflict">;
+  ownerId: Id<"user">;
+  resourceType: ResourceType;
+  resourceId: string;
+  baseRevision: number;
+  currentRevision: number;
+  proposedAuthorType: "assistant" | "system";
+  proposedSnapshot: Record<string, KnowledgeJsonValue>;
+  status: "pending" | "resolved" | "rejected";
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+/** `PUT` update results carry either the applied entity or a conflict. */
+export type ProfileUpdateResult =
+  | { kind: "applied"; profile: Profile }
+  | { kind: "conflict"; conflict: KnowledgeConflict };
+
+export type MemoryUpdateResult =
+  | { kind: "applied"; memory: Memory }
+  | { kind: "conflict"; conflict: KnowledgeConflict };
+
+export type PersonUpdateResult =
+  | { kind: "applied"; person: Person }
+  | { kind: "conflict"; conflict: KnowledgeConflict };
+
+export type WikiUpdateResult =
+  | { kind: "applied"; document: WikiDocument }
+  | { kind: "conflict"; conflict: KnowledgeConflict };
+
+export type ConflictResolveResult =
+  | { kind: "resolved"; revision: KnowledgeRevision }
+  | { kind: "rejected"; conflict: KnowledgeConflict };
+
+// ── Profile ──
+
+export type ProfileContent = Record<string, KnowledgeJsonValue>;
+
+export interface Profile {
+  id: Id<"profile">;
+  ownerId: Id<"user">;
+  content: ProfileContent;
+  currentRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Memories ──
+
+export type MemoryScope = "global" | "routine";
+export type MemoryStatus = "active" | "stale" | "superseded" | "retired";
+
+export interface Memory {
+  id: Id<"memory">;
+  ownerId: Id<"user">;
+  scope: MemoryScope;
+  routineId: Id<"routine"> | null;
+  content: string;
+  status: MemoryStatus;
+  confidence: number | null;
+  observedAt: string;
+  expiresAt: string | null;
+  currentRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MemoryCreateInput =
+  | {
+      scope: "global";
+      content: string;
+      confidence?: number;
+      expiresAt?: string;
+    }
+  | {
+      scope: "routine";
+      routineId: Id<"routine">;
+      content: string;
+      confidence?: number;
+      expiresAt?: string;
+    };
+
+export type MemoryUpdateInput =
+  | {
+      scope: "global";
+      content: string;
+      status: MemoryStatus;
+      confidence?: number;
+      expiresAt?: string;
+      expectedRevision: number;
+    }
+  | {
+      scope: "routine";
+      routineId: Id<"routine">;
+      content: string;
+      status: MemoryStatus;
+      confidence?: number;
+      expiresAt?: string;
+      expectedRevision: number;
+    };
+
+// ── People ──
+
+export type PersonCategory =
+  "uncategorized" | "coworker" | "family" | "personal";
+
+export interface Person {
+  id: Id<"person">;
+  ownerId: Id<"user">;
+  displayName: string;
+  primaryEmail: string | null;
+  category: PersonCategory;
+  organization: string | null;
+  role: string | null;
+  notes: string;
+  status: "active" | "retired";
+  currentRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonRelationship {
+  id: Id<"person-relationship">;
+  ownerId: Id<"user">;
+  personId: Id<"person">;
+  relatedPersonId: Id<"person">;
+  relationshipType: string;
+  notes: string;
+  status: "active" | "retired";
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonCreateInput {
+  displayName: string;
+  primaryEmail?: string;
+  category: PersonCategory;
+  organization?: string;
+  role?: string;
+  notes: string;
+}
+
+export interface PersonUpdateInput {
+  displayName: string;
+  primaryEmail?: string;
+  category: PersonCategory;
+  organization?: string;
+  role?: string;
+  notes: string;
+  expectedRevision: number;
+}
+
+export interface RelationshipCreateInput {
+  relatedPersonId: Id<"person">;
+  relationshipType: string;
+  notes?: string;
+}
+
+// ── Wiki ──
+
+export type WikiKind = "profile" | "goal" | "project" | "page";
+
+export interface WikiDocument {
+  id: Id<"wiki">;
+  ownerId: Id<"user">;
+  kind: WikiKind;
+  slug: string;
+  title: string;
+  body: string;
+  status: "active" | "retired";
+  currentRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WikiCreateInput {
+  kind: WikiKind;
+  slug: string;
+  title: string;
+  body: string;
+}
+
+export interface WikiUpdateInput {
+  kind: WikiKind;
+  slug: string;
+  title: string;
+  body: string;
+  expectedRevision: number;
+}
+
+// ── Search ──
+
+export interface KnowledgeSearchResult {
+  ownerId: Id<"user">;
+  resourceType: ResourceType;
+  resourceId: string;
+  title: string | null;
+  text: string;
+  subtype: string | null;
+  status: string;
+  score: number;
+  updatedAt: string;
+}
+
+export interface KnowledgeSearchPage {
+  items: KnowledgeSearchResult[];
+  nextCursor: string | null;
+}
+
+export interface SearchOptions {
+  types?: ResourceType[];
+  memoryScope?: "global" | "routine";
+  routineId?: Id<"routine">;
+  includeInactive?: boolean;
+  cursor?: string;
+  limit?: number;
+}

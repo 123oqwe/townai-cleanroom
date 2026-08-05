@@ -12,6 +12,28 @@ import type {
   ThreadCreateInput,
   ThreadPage,
   TurnPage,
+  ConflictResolveResult,
+  KnowledgeConflict,
+  KnowledgeRevision,
+  KnowledgeSearchPage,
+  Memory,
+  MemoryCreateInput,
+  MemoryUpdateInput,
+  MemoryUpdateResult,
+  Person,
+  PersonCreateInput,
+  PersonRelationship,
+  PersonUpdateInput,
+  PersonUpdateResult,
+  Profile,
+  ProfileContent,
+  ProfileUpdateResult,
+  RelationshipCreateInput,
+  SearchOptions,
+  WikiCreateInput,
+  WikiDocument,
+  WikiUpdateInput,
+  WikiUpdateResult,
 } from "./types.js";
 
 export interface TownClientOptions {
@@ -55,6 +77,79 @@ export interface SessionsApi {
   ): AsyncIterable<ServerEvent>;
 }
 
+export interface ProfileApi {
+  get(): Promise<Profile>;
+  create(content: ProfileContent): Promise<Profile>;
+  update(
+    content: ProfileContent,
+    expectedRevision: number,
+  ): Promise<ProfileUpdateResult>;
+  history(): Promise<KnowledgeRevision[]>;
+}
+
+export interface MemoriesApi {
+  list(): Promise<Memory[]>;
+  get(id: Id<"memory">): Promise<Memory>;
+  create(input: MemoryCreateInput): Promise<Memory>;
+  update(
+    id: Id<"memory">,
+    input: MemoryUpdateInput,
+  ): Promise<MemoryUpdateResult>;
+  delete(id: Id<"memory">, expectedRevision: number): Promise<Memory>;
+}
+
+export interface PeopleApi {
+  list(): Promise<Person[]>;
+  get(id: Id<"person">): Promise<Person>;
+  create(input: PersonCreateInput): Promise<Person>;
+  update(
+    id: Id<"person">,
+    input: PersonUpdateInput,
+  ): Promise<PersonUpdateResult>;
+  relationships(
+    personId: Id<"person">,
+    options?: { includeRetired?: boolean },
+  ): Promise<PersonRelationship[]>;
+  addRelationship(
+    personId: Id<"person">,
+    input: RelationshipCreateInput,
+  ): Promise<PersonRelationship>;
+  deleteRelationship(
+    relationshipId: Id<"person-relationship">,
+    expectedRevision: number,
+  ): Promise<void>;
+}
+
+export interface WikiApi {
+  list(): Promise<WikiDocument[]>;
+  get(id: Id<"wiki">): Promise<WikiDocument>;
+  create(input: WikiCreateInput): Promise<WikiDocument>;
+  update(id: Id<"wiki">, input: WikiUpdateInput): Promise<WikiUpdateResult>;
+  history(id: Id<"wiki">): Promise<KnowledgeRevision[]>;
+}
+
+export interface SearchApi {
+  search(query: string, options?: SearchOptions): Promise<KnowledgeSearchPage>;
+}
+
+export interface ConflictsApi {
+  list(): Promise<KnowledgeConflict[]>;
+  resolve(
+    id: Id<"knowledge-conflict">,
+    expectedRevision: number,
+    resolution: "accept" | "reject",
+  ): Promise<ConflictResolveResult>;
+}
+
+export interface KnowledgeApi {
+  readonly profile: ProfileApi;
+  readonly memories: MemoriesApi;
+  readonly people: PeopleApi;
+  readonly wiki: WikiApi;
+  readonly search: SearchApi;
+  readonly conflicts: ConflictsApi;
+}
+
 interface RequestOptions {
   readonly method: string;
   readonly body?: unknown;
@@ -77,6 +172,7 @@ export class TownClient {
   readonly me: MeApi;
   readonly threads: ThreadsApi;
   readonly sessions: SessionsApi;
+  readonly knowledge: KnowledgeApi;
 
   constructor(options: TownClientOptions) {
     if (options.baseUrl.length === 0)
@@ -118,6 +214,126 @@ export class TownClient {
         options?: StreamOptions,
       ) => this.eventStream(sessionId, options),
     };
+    this.knowledge = {
+      profile: {
+        get: () =>
+          this.getJson<{ profile: Profile }>("/v1/profile").then(
+            (r) => r.profile,
+          ),
+        create: (content: ProfileContent) =>
+          this.postJson<{ profile: Profile }>("/v1/profile", {
+            content,
+          }).then((r) => r.profile),
+        update: (content: ProfileContent, expectedRevision: number) =>
+          this.putJson<ProfileUpdateResult>("/v1/profile", {
+            content,
+            expectedRevision,
+          }),
+        history: () =>
+          this.getJson<{ revisions: KnowledgeRevision[] }>(
+            "/v1/profile/history",
+          ).then((r) => r.revisions),
+      },
+      memories: {
+        list: () =>
+          this.getJson<{ memories: Memory[] }>("/v1/memories").then(
+            (r) => r.memories,
+          ),
+        get: (id: Id<"memory">) =>
+          this.getJson<{ memory: Memory }>(`/v1/memories/${id}`).then(
+            (r) => r.memory,
+          ),
+        create: (input: MemoryCreateInput) =>
+          this.postJson<{ memory: Memory }>("/v1/memories", input).then(
+            (r) => r.memory,
+          ),
+        update: (id: Id<"memory">, input: MemoryUpdateInput) =>
+          this.putJson<MemoryUpdateResult>(`/v1/memories/${id}`, input),
+        delete: (id: Id<"memory">, expectedRevision: number) =>
+          this.deleteJson<{ memory: Memory }>(
+            `/v1/memories/${id}?expectedRevision=${expectedRevision}`,
+          ).then((r) => r.memory),
+      },
+      people: {
+        list: () =>
+          this.getJson<{ people: Person[] }>("/v1/people").then(
+            (r) => r.people,
+          ),
+        get: (id: Id<"person">) =>
+          this.getJson<{ person: Person }>(`/v1/people/${id}`).then(
+            (r) => r.person,
+          ),
+        create: (input: PersonCreateInput) =>
+          this.postJson<{ person: Person }>("/v1/people", input).then(
+            (r) => r.person,
+          ),
+        update: (id: Id<"person">, input: PersonUpdateInput) =>
+          this.putJson<PersonUpdateResult>(`/v1/people/${id}`, input),
+        relationships: (
+          personId: Id<"person">,
+          options?: { includeRetired?: boolean },
+        ) =>
+          this.getJson<{ relationships: PersonRelationship[] }>(
+            `/v1/people/${personId}/relationships${this.flagQuery("includeRetired", options?.includeRetired)}`,
+          ).then((r) => r.relationships),
+        addRelationship: (
+          personId: Id<"person">,
+          input: RelationshipCreateInput,
+        ) =>
+          this.postJson<{ relationship: PersonRelationship }>(
+            `/v1/people/${personId}/relationships`,
+            input,
+          ).then((r) => r.relationship),
+        deleteRelationship: (
+          relationshipId: Id<"person-relationship">,
+          expectedRevision: number,
+        ) =>
+          this.delete(
+            `/v1/people/relationships/${relationshipId}?expectedRevision=${expectedRevision}`,
+          ),
+      },
+      wiki: {
+        list: () =>
+          this.getJson<{ documents: WikiDocument[] }>("/v1/wiki").then(
+            (r) => r.documents,
+          ),
+        get: (id: Id<"wiki">) =>
+          this.getJson<{ document: WikiDocument }>(`/v1/wiki/${id}`).then(
+            (r) => r.document,
+          ),
+        create: (input: WikiCreateInput) =>
+          this.postJson<{ document: WikiDocument }>("/v1/wiki", input).then(
+            (r) => r.document,
+          ),
+        update: (id: Id<"wiki">, input: WikiUpdateInput) =>
+          this.putJson<WikiUpdateResult>(`/v1/wiki/${id}`, input),
+        history: (id: Id<"wiki">) =>
+          this.getJson<{ revisions: KnowledgeRevision[] }>(
+            `/v1/wiki/${id}/revisions`,
+          ).then((r) => r.revisions),
+      },
+      search: {
+        search: (query: string, options?: SearchOptions) =>
+          this.getJson<KnowledgeSearchPage>(
+            `/v1/knowledge/search${this.searchQuery(query, options)}`,
+          ),
+      },
+      conflicts: {
+        list: () =>
+          this.getJson<{ conflicts: KnowledgeConflict[] }>(
+            "/v1/knowledge/conflicts",
+          ).then((r) => r.conflicts),
+        resolve: (
+          id: Id<"knowledge-conflict">,
+          expectedRevision: number,
+          resolution: "accept" | "reject",
+        ) =>
+          this.postJson<ConflictResolveResult>(
+            `/v1/knowledge/conflicts/${id}/resolve`,
+            { expectedRevision, resolution },
+          ),
+      },
+    };
   }
 
   private url(path: string): string {
@@ -131,6 +347,31 @@ export class TownClient {
     if (options.limit !== undefined) params.set("limit", String(options.limit));
     const search = params.toString();
     return search === "" ? "" : `?${search}`;
+  }
+
+  private flagQuery(name: string, value: boolean | undefined): string {
+    return value === true ? `?${name}=true` : "";
+  }
+
+  private searchQuery(
+    query: string,
+    options: SearchOptions | undefined,
+  ): string {
+    const params = new URLSearchParams({ q: query });
+    if (options?.types !== undefined && options.types.length > 0)
+      params.set("types", options.types.join(","));
+    if (options?.memoryScope === "global") params.set("memoryScope", "global");
+    if (options?.memoryScope === "routine") {
+      params.set("memoryScope", "routine");
+      if (options.routineId !== undefined)
+        params.set("routineId", options.routineId);
+    }
+    if (options?.includeInactive === true)
+      params.set("includeInactive", "true");
+    if (options?.cursor !== undefined) params.set("cursor", options.cursor);
+    if (options?.limit !== undefined)
+      params.set("limit", String(options.limit));
+    return `?${params.toString()}`;
   }
 
   private buildHeaders(init: RequestOptions): Record<string, string> {
@@ -174,6 +415,16 @@ export class TownClient {
         ? { idempotencyKey: extra.idempotencyKey }
         : {}),
     });
+    return this.parseJson<T>(response);
+  }
+
+  private async putJson<T>(path: string, body: unknown): Promise<T> {
+    const response = await this.request(path, { method: "PUT", body });
+    return this.parseJson<T>(response);
+  }
+
+  private async deleteJson<T>(path: string): Promise<T> {
+    const response = await this.request(path, { method: "DELETE" });
     return this.parseJson<T>(response);
   }
 
