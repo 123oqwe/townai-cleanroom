@@ -157,3 +157,54 @@ pnpm check:runtime-config --strict # fails on missing required config
 pnpm check:source-only             # verifies no reports/credentials in repo
 pnpm check:build-entries           # verifies all build exports exist
 ```
+
+## Gmail Pub/Sub email inbound
+
+Gmail Pub/Sub push notifications trigger `email_to_assistant` routines when
+an email arrives at a watched inbox. The flow:
+
+1. Gmail sends a push notification to `POST /v1/internal/gmail/pubsub`.
+2. The endpoint verifies the Google OIDC JWT in the `Authorization` header
+   (signature checked against Google's JWKS, plus `iss`, `aud`, `exp`
+   validation).
+3. The push payload is base64-decoded to `{ historyId, emailAddress }`.
+4. The Gmail History API fetches new messages since `historyId`.
+5. If `emailAddress` matches a routine's `email_to_assistant` trigger
+   `assistantAddress`, a RoutineRun is queued.
+
+### Google Cloud Console setup
+
+1. **Create a Pub/Sub topic** in Google Cloud Console (Pub/Sub > Topics >
+   Create). Note the full topic name, e.g.
+   `projects/your-project/topics/gmail-inbox`.
+
+2. **Create a push subscription** on that topic. Set the push endpoint URL to
+   `https://api.your-domain.com/v1/internal/gmail/pubsub`. Under
+   Authentication, select "Google OIDC token" and set the service account
+   email. The audience (`aud`) claim will be your OAuth Client ID.
+
+3. **Configure environment variables**:
+
+   ```
+   GOOGLE_OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_OAUTH_CLIENT_SECRET=your-client-secret
+   GOOGLE_OAUTH_REDIRECT_URI=https://api.your-domain.com/auth/google/callback
+   GOOGLE_PUBSUB_TOPIC=projects/your-project/topics/gmail-inbox
+   ```
+
+4. **Grant Gmail publish permission**: in Gmail API settings (Google Cloud
+   Console > APIs & Services > Gmail API > Push), register the Pub/Sub topic.
+   Each connected Google account must call `users.watch` — the worker loop
+   does this automatically once a day for all accounts with an
+   `email_to_assistant` trigger.
+
+5. **Verify**: check `GET /v1/health/capabilities` — `gmailPubsub` should be
+   `true` when `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_PUBSUB_TOPIC` are set.
+
+### Notes
+
+- Gmail watches expire after ~7 days. The worker loop renews them daily.
+- Unmatched emails (no routine with a matching `assistantAddress`) return
+  200 silently to avoid Google retry storms.
+- Without `GOOGLE_OAUTH_CLIENT_ID` configured, the endpoint returns a
+  `503 GMAIL_PUBSUB_NOT_CONFIGURED` response.

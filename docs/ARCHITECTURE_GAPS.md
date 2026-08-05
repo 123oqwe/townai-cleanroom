@@ -46,25 +46,27 @@ a macOS relay host, which is environment-dependent.
 
 ### 4. Email-to-Townie inbound
 
-The trigger type `email_to_assistant` exists in the schema and routine engine,
-but there is no Gmail push-notification listener (Gmail Pub/Sub or polling) that
-creates a RoutineRun from an incoming email. The Google Calendar poller and
-routine poller exist, but email inbound triggering is not wired.
+**Closed.** Gmail Pub/Sub push listener is implemented. The endpoint
+`POST /v1/internal/gmail/pubsub` verifies the Google OIDC JWT in the
+Authorization header, decodes the push payload, fetches new messages via the
+Gmail History API, matches the email address to a routine's
+`email_to_assistant` trigger, and queues a RoutineRun. Watch renewal runs
+daily from the worker loop. See `docs/deployment.md` for configuration.
 
 ## Functional parity summary (9 architecture layers)
 
-| Layer                     | Status                                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Channels & Triggers    | Web, Slack, Telegram, WhatsApp, Twilio voice, Vapi voice, Schedule, Calendar — implemented. iMessage + email-to-Townie inbound — gap. |
-| 2. Web & Realtime         | Vanilla JS + SSE/polling. Convex WebSocket — gap (platform rewrite).                                                                  |
-| 3. Identity & Accounts    | Google OAuth + Microsoft OAuth + multi-account + token encryption — implemented.                                                      |
-| 4. Personal Knowledge     | Profile, Memory, People, Wiki, Goals/Projects, Knowledge Graph, Trusted Contacts — implemented.                                       |
-| 5. Context Builder        | Retrieval planning, federated search, dedup, compression, citations — implemented.                                                    |
-| 6. Agent Runtime          | Durable session, Codex SDK harness, model loop, tool execution, pause/resume, version snapshots — implemented + verified end-to-end.  |
-| 7. Durable Routine Engine | Triggers, step cache, idempotency, pause/resume, version history — implemented.                                                       |
-| 8. Tools & Integration    | Town tools, MCP, web search, browser, E2B sandbox, Pipedream catalog, code runner — implemented.                                      |
-| 9. Trust & Policy         | Read-only/approval/autonomous modes, per-tool override, trusted contacts, prompt-injection detection — implemented.                   |
-| Content Library           | All 10 content types, collections, share, search — implemented.                                                                       |
-| Tasks & Suggestions       | Task projection, suggestion engine, need-to-know — implemented.                                                                       |
-| Squares & Teams           | Membership, shared integrations, team routines, A2A — implemented.                                                                    |
-| Platform Ops              | Credits, usage ledger, model routing, admin health — implemented.                                                                     |
+| Layer                     | Status                                                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Channels & Triggers    | Web, Slack, Telegram, WhatsApp, Twilio voice, Vapi voice, Schedule, Calendar, Gmail Pub/Sub email inbound — implemented. iMessage — gap. |
+| 2. Web & Realtime         | Vanilla JS + SSE/polling. Convex WebSocket — gap (platform rewrite).                                                                     |
+| 3. Identity & Accounts    | Google OAuth + Microsoft OAuth + multi-account + token encryption — implemented.                                                         |
+| 4. Personal Knowledge     | Profile, Memory, People, Wiki, Goals/Projects, Knowledge Graph, Trusted Contacts — implemented.                                          |
+| 5. Context Builder        | Retrieval planning, federated search, dedup, compression, citations — implemented.                                                       |
+| 6. Agent Runtime          | Durable session, Codex SDK harness, model loop, tool execution, pause/resume, version snapshots — implemented + verified end-to-end.     |
+| 7. Durable Routine Engine | Triggers, step cache, idempotency, pause/resume, version history — implemented.                                                          |
+| 8. Tools & Integration    | Town tools, MCP, web search, browser, E2B sandbox, Pipedream catalog, code runner — implemented.                                         |
+| 9. Trust & Policy         | Read-only/approval/autonomous modes, per-tool override, trusted contacts, prompt-injection detection — implemented.                      |
+| Content Library           | All 10 content types, collections, share, search — implemented.                                                                          |
+| Tasks & Suggestions       | Task projection, suggestion engine, need-to-know — implemented.                                                                          |
+| Squares & Teams           | Membership, shared integrations, team routines, A2A — implemented.                                                                       |
+| Platform Ops              | Credits, usage ledger, model routing, admin health — implemented.                                                                        |
