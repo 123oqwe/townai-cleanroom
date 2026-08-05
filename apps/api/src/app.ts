@@ -131,6 +131,7 @@ import { registerWhatsAppEventsRoute } from "./webhooks/whatsapp-events.js";
 import { registerTwilioVoiceEventsRoute } from "./webhooks/twilio-voice-events.js";
 import { registerVoiceRoutes } from "./lib/voice-routes.js";
 import { registerVapiVoiceEventsRoute } from "./webhooks/vapi-voice-events.js";
+import { registerGmailPubsubEventsRoute } from "./routes/gmail-pubsub-events.js";
 import type { VoiceSynthesisProvider } from "./lib/elevenlabs-voice.js";
 import type { A2ARepository } from "@town/a2a";
 import { A2AError } from "@town/a2a";
@@ -177,6 +178,7 @@ export interface AppDependencies {
   googleOAuth?: GoogleOAuthDependencies;
   googleTokenRefresher?: GoogleTokenRefresher;
   googleApi?: GoogleApiClient;
+  gmailPubsubClientId?: string;
   microsoftOAuth?: MicrosoftOAuthDependencies;
   pipedream?: PipedreamDependencies;
   e2bApiKey?: string;
@@ -735,6 +737,7 @@ export function createApp(dependencies?: AppDependencies) {
       pipedreamCatalog: dependencies?.pipedream !== undefined,
       voiceSynthesis: dependencies?.voiceProvider !== undefined,
       googleOAuth: dependencies?.googleOAuth !== undefined,
+      gmailPubsub: dependencies?.gmailPubsubClientId !== undefined,
       contentStorage:
         dependencies?.contentStorage === undefined
           ? false
@@ -845,6 +848,19 @@ export function createApp(dependencies?: AppDependencies) {
         appSecret: dependencies.whatsappAppSecret,
         verifyToken: dependencies.whatsappVerifyToken,
       });
+    if (
+      dependencies.sql !== undefined &&
+      dependencies.routineRepository !== undefined &&
+      dependencies.googleApi !== undefined &&
+      dependencies.gmailPubsubClientId !== undefined
+    )
+      registerGmailPubsubEventsRoute(app, {
+        sql: dependencies.sql,
+        repository: dependencies.routineRepository,
+        google: dependencies.googleApi,
+        clientId: dependencies.gmailPubsubClientId,
+      });
+
     if (dependencies.pipedream !== undefined) {
       app.use("/v1/integrations/pipedream", authenticate);
       app.use("/v1/integrations/pipedream/*", authenticate);

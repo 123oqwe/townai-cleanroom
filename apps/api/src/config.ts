@@ -47,6 +47,8 @@ export const environmentSchema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  GOOGLE_PUBSUB_TOPIC: z.string().min(1).optional(),
+  GOOGLE_PUBSUB_VERIFICATION_TOKEN: z.string().min(1).optional(),
   MICROSOFT_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   MICROSOFT_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   MICROSOFT_OAUTH_REDIRECT_URI: z.string().url().optional(),
