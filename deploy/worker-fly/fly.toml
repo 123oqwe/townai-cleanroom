@@ -1,0 +1,30 @@
+# Fly.io configuration for the Town durable worker process.
+# Deploy with: fly deploy --config deploy/worker-fly/fly.toml --dockerfile deploy/worker-fly/Dockerfile
+
+app = "townai-cleanroom-worker"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "deploy/worker-fly/Dockerfile"
+
+[deploy]
+  strategy = "rolling"
+
+[env]
+  TOWN_PROCESS_ROLE = "worker"
+  NODE_ENV = "production"
+
+# The worker is a long-running process, not an HTTP service.
+# No service ports are exposed.
+[processes]
+  worker = "node apps/worker/dist/index.js"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# Scaling: 1-2 worker instances is sufficient for most workloads.
+# The lease mechanism (FOR UPDATE SKIP LOCKED) ensures no double-processing.
+[[scale]]
+  min = 1
+  max = 2

@@ -18,6 +18,8 @@ for (const packagePath of packagePaths) {
 }
 if (!existsSync("apps/api/dist/index.js"))
   missing.push("apps/api/dist/index.js");
+if (!existsSync("apps/worker/dist/index.js"))
+  missing.push("apps/worker/dist/index.js");
 
 if (missing.length > 0) {
   console.error("Build entrypoint check failed:");

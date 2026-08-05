@@ -107,6 +107,12 @@ importers:
 
   apps/web: {}
 
+  apps/worker:
+    dependencies:
+      '@town/api':
+        specifier: file:../api
+        version: link:../api
+
   packages/a2a:
     dependencies:
       '@town/contracts':
