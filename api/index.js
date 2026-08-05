@@ -135,6 +135,9 @@ app.get("/v1/health/capabilities", (context) =>
       process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
       process.env.GOOGLE_OAUTH_REDIRECT_URI,
     ),
+    gmailPubsub: Boolean(
+      process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_PUBSUB_TOPIC,
+    ),
     contentStorage: isValidContentStorageConfig(),
   }),
 );

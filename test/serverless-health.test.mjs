@@ -44,6 +44,7 @@ describe("serverless health probes", () => {
         vapiVoice: false,
         voiceSynthesis: false,
         googleOAuth: false,
+        gmailPubsub: false,
         contentStorage: false,
       });
     } finally {

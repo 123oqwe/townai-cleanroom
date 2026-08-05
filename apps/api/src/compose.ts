@@ -101,6 +101,7 @@ import { finalizeRoutineRun } from "./lib/routine-finalizer.js";
 import { createSuggestionRepository } from "@town/suggestions";
 import { createA2ARepository } from "@town/a2a";
 import { createGoogleApiClient } from "@town/google";
+import { createGmailWatchManager, type GmailWatchManager } from "@town/google";
 import { createElevenLabsVoiceProvider } from "./lib/elevenlabs-voice.js";
 import {
   createFileContentStorage,
@@ -282,6 +283,12 @@ export async function composeRuntime(
   const googleApi = createGoogleApiClient({
     accounts: accountRepository,
     refresher: googleTokenRefresher,
+  });
+  const gmailWatchManager = createGmailWatchManager({
+    google: googleApi,
+    ...(environment.GOOGLE_PUBSUB_TOPIC === undefined
+      ? {}
+      : { topicName: environment.GOOGLE_PUBSUB_TOPIC }),
   });
   const googleRoutinePoller = createGoogleRoutinePoller({
     listTargets: async () => {
@@ -937,6 +944,9 @@ export async function composeRuntime(
     googleApi,
     suggestionRepository,
     a2aRepository,
+    ...(environment.GOOGLE_OAUTH_CLIENT_ID === undefined
+      ? {}
+      : { gmailPubsubClientId: environment.GOOGLE_OAUTH_CLIENT_ID }),
     googleOAuth: {
       sql,
       accounts: accountRepository,
@@ -1071,6 +1081,7 @@ export async function composeRuntime(
     channelRepository,
     channelCredentials,
     googleApi,
+    gmailWatchManager,
     knowledgeUpkeepScanner,
     sql,
     environment,
@@ -1105,6 +1116,7 @@ interface WorkerLoopContext {
   channelCredentials: Record<string, string>;
   googleApi: ReturnType<typeof createGoogleApiClient>;
   knowledgeUpkeepScanner: ReturnType<typeof createWikiUpkeepScanner>;
+  gmailWatchManager: GmailWatchManager;
   sql: Sql;
   environment: Environment;
   workerId: string;
@@ -1114,6 +1126,7 @@ function createWorkerLoop(ctx: WorkerLoopContext): WorkerLoop | undefined {
   if (process.env["VERCEL"] === "1") return undefined;
   let workerTimer: ReturnType<typeof setTimeout> | undefined;
   let lastWikiUpkeepDate: string | null = null;
+  let lastGmailWatchRenewDate: string | null = null;
 
   async function deliverChannels(): Promise<void> {
     await ctx.channelRepository.deliverNext({
@@ -1151,6 +1164,32 @@ function createWorkerLoop(ctx: WorkerLoopContext): WorkerLoop | undefined {
         } catch {
           // Per-user upkeep failures should not block the worker loop.
         }
+      }
+    }
+    // Daily Gmail Pub/Sub watch renewal: Gmail watch expires after ~7 days.
+    if (today !== lastGmailWatchRenewDate) {
+      lastGmailWatchRenewDate = today;
+      try {
+        await ctx.gmailWatchManager.renewAll(async () => {
+          const rows = await ctx.sql<
+            { owner_id: string; account_id: string }[]
+          >`
+            select distinct t.owner_id, ca.id as account_id
+            from routine_triggers t
+            join routine_schedules s
+              on s.owner_id=t.owner_id and s.id=t.routine_schedule_id and s.enabled=true
+            join connected_accounts ca
+              on ca.owner_id=t.owner_id and ca.provider='google' and ca.is_active=true
+            where t.enabled=true and t.kind='email_to_assistant'
+            limit 200
+          `;
+          return rows.map((row) => ({
+            ownerId: asId<"user">(row.owner_id),
+            accountId: asId<"connected-account">(row.account_id),
+          }));
+        });
+      } catch {
+        // Watch renewal failures should not block the worker loop.
       }
     }
     if (ctx.runtimeWorker !== undefined)
