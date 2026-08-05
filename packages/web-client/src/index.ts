@@ -1,4 +1,5 @@
 export { TownApiError } from "./errors.js";
+export type { Id } from "@town/contracts";
 export {
   TownClient,
   type AuthApi,

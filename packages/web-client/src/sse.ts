@@ -1,4 +1,4 @@
-import { serverEventSchema, type ServerEvent } from "@town/contracts";
+import type { ServerEvent, ServerEventKind } from "@town/contracts";
 
 import { TownApiError } from "./errors.js";
 
@@ -7,6 +7,57 @@ type FrameResult =
   | { readonly kind: "end" }
   | { readonly kind: "error"; readonly error: TownApiError }
   | { readonly kind: "skip" };
+
+// Mirrors `serverEventKindSchema` in @town/contracts. Inlined (rather than
+// importing the zod schema) so the compiled dist has no @town/contracts
+// runtime dependency and stays bundler-friendly.
+const SERVER_EVENT_KINDS: ReadonlySet<ServerEventKind> =
+  new Set<ServerEventKind>([
+    "run_queued",
+    "run_started",
+    "phase_changed",
+    "input_observed",
+    "assistant_output_recorded",
+    "run_waiting",
+    "run_resumed",
+    "run_completed",
+    "run_failed",
+    "run_cancelled",
+    "tool_call_proposed",
+    "policy_decided",
+    "approval_requested",
+    "approval_resolved",
+    "tool_started",
+    "tool_succeeded",
+    "tool_failed",
+  ]);
+
+/** Structurally validate a parsed `data` payload as a `ServerEvent`. */
+function parseServerEvent(value: unknown): ServerEvent | null {
+  if (typeof value !== "object" || value === null) return null;
+  const obj = value as Record<string, unknown>;
+  const sequence = obj["sequence"];
+  const kind = obj["kind"];
+  const payload = obj["payload"];
+  if (typeof obj["id"] !== "string") return null;
+  if (typeof obj["sessionId"] !== "string") return null;
+  if (typeof obj["runId"] !== "string") return null;
+  if (
+    typeof sequence !== "number" ||
+    !Number.isInteger(sequence) ||
+    sequence <= 0
+  )
+    return null;
+  if (
+    typeof kind !== "string" ||
+    !SERVER_EVENT_KINDS.has(kind as ServerEventKind)
+  )
+    return null;
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload))
+    return null;
+  if (typeof obj["createdAt"] !== "string") return null;
+  return value as ServerEvent;
+}
 
 /** Parse a single `text/event-stream` frame (block terminated by `\n\n`). */
 function parseFrame(frame: string): FrameResult {
@@ -50,9 +101,9 @@ function parseFrame(frame: string): FrameResult {
   } catch {
     return { kind: "skip" };
   }
-  const parsed = serverEventSchema.safeParse(json);
-  if (!parsed.success) return { kind: "skip" };
-  return { kind: "event", event: parsed.data };
+  const event = parseServerEvent(json);
+  if (event === null) return { kind: "skip" };
+  return { kind: "event", event };
 }
 
 /**
