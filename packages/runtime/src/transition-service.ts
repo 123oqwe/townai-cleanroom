@@ -16,6 +16,7 @@ import {
 } from "./queue-repository.js";
 import { createSessionRepository } from "./session-repository.js";
 import { deriveRuntimeSessionStateInTransaction } from "./session-state.js";
+import { withSpan } from "./telemetry.js";
 import {
   runtimePayloadSchema,
   sessionEventKindSchema,
@@ -260,44 +261,47 @@ export function createRuntimeTransitionService(sql: Sql) {
   async function start(
     input: z.input<typeof leasedRunSchema>,
   ): Promise<SessionRun> {
-    const value = leasedRunSchema.parse(input);
-    const runId = asId<"session-run">(value.runId);
-    const lease = await sql.begin(async (transaction) => {
-      const current = await verifyRuntimeLeaseInTransaction(transaction, {
-        runId,
-        leaseToken: value.leaseToken,
+    return withSpan("runtime.transition.start", async (span) => {
+      const value = leasedRunSchema.parse(input);
+      const runId = asId<"session-run">(value.runId);
+      span.setAttribute("run.id", value.runId);
+      const lease = await sql.begin(async (transaction) => {
+        const current = await verifyRuntimeLeaseInTransaction(transaction, {
+          runId,
+          leaseToken: value.leaseToken,
+        });
+        const run = await lockRun(transaction, {
+          ownerId: current.owner_id,
+          sessionId: current.session_id,
+          runId,
+        });
+        requireState(run, "queued");
+        await transaction`
+            update session_runs
+            set state = 'running', attempt = ${current.attempt},
+                started_at = clock_timestamp(), updated_at = clock_timestamp()
+            where id = ${runId}
+          `;
+        await appendEvent(transaction, {
+          ownerId: current.owner_id,
+          sessionId: current.session_id,
+          runId,
+          kind: "run_started",
+          payload: { attempt: current.attempt, workerId: current.leased_by },
+          sessionState: await deriveRuntimeSessionStateInTransaction(
+            transaction,
+            current.owner_id,
+            current.session_id,
+          ),
+        });
+        return current;
       });
-      const run = await lockRun(transaction, {
-        ownerId: current.owner_id,
-        sessionId: current.session_id,
+      return sessions.getRun(
+        asId<"user">(lease.owner_id),
+        asId<"runtime-session">(lease.session_id),
         runId,
-      });
-      requireState(run, "queued");
-      await transaction`
-        update session_runs
-        set state = 'running', attempt = ${current.attempt},
-            started_at = clock_timestamp(), updated_at = clock_timestamp()
-        where id = ${runId}
-      `;
-      await appendEvent(transaction, {
-        ownerId: current.owner_id,
-        sessionId: current.session_id,
-        runId,
-        kind: "run_started",
-        payload: { attempt: current.attempt, workerId: current.leased_by },
-        sessionState: await deriveRuntimeSessionStateInTransaction(
-          transaction,
-          current.owner_id,
-          current.session_id,
-        ),
-      });
-      return current;
+      );
     });
-    return sessions.getRun(
-      asId<"user">(lease.owner_id),
-      asId<"runtime-session">(lease.session_id),
-      runId,
-    );
   }
 
   async function recordPhase(
@@ -369,50 +373,56 @@ export function createRuntimeTransitionService(sql: Sql) {
     outcome?: RuntimePayload;
     errorCode?: string;
   }): Promise<SessionRun> {
-    if (input.state === "failed" && input.errorCode === undefined) {
-      throw new Error("Failed Runs require an error code.");
-    }
-    const result = await sql.begin(async (transaction) => {
-      const lease = await verifyRuntimeLeaseInTransaction(transaction, input);
-      const run = await lockRun(transaction, {
-        ownerId: lease.owner_id,
-        sessionId: lease.session_id,
-        runId: input.runId,
+    return withSpan(`runtime.transition.${input.state}`, async (span) => {
+      span.setAttribute("run.id", input.runId);
+      span.setAttribute("run.state", input.state);
+      if (input.state === "failed" && input.errorCode === undefined) {
+        throw new Error("Failed Runs require an error code.");
+      }
+      const result = await sql.begin(async (transaction) => {
+        const lease = await verifyRuntimeLeaseInTransaction(transaction, input);
+        const run = await lockRun(transaction, {
+          ownerId: lease.owner_id,
+          sessionId: lease.session_id,
+          runId: input.runId,
+        });
+        requireState(run, "running");
+        await transaction`
+            update session_runs
+            set state = ${input.state}, outcome = ${
+              input.outcome === undefined
+                ? null
+                : transaction.json(input.outcome)
+            }, error_code = ${input.errorCode ?? null},
+                finished_at = clock_timestamp(), updated_at = clock_timestamp()
+            where id = ${input.runId}
+          `;
+        await transaction`
+            delete from runtime_jobs where run_id = ${input.runId}
+          `;
+        await appendEvent(transaction, {
+          ownerId: run.owner_id,
+          sessionId: run.session_id,
+          runId: input.runId,
+          kind: input.state === "completed" ? "run_completed" : "run_failed",
+          payload:
+            input.state === "completed"
+              ? { outcome: input.outcome ?? {} }
+              : { errorCode: input.errorCode ?? "UNKNOWN_RUNTIME_FAILURE" },
+          sessionState: await deriveRuntimeSessionStateInTransaction(
+            transaction,
+            run.owner_id,
+            run.session_id,
+          ),
+        });
+        return run;
       });
-      requireState(run, "running");
-      await transaction`
-        update session_runs
-        set state = ${input.state}, outcome = ${
-          input.outcome === undefined ? null : transaction.json(input.outcome)
-        }, error_code = ${input.errorCode ?? null},
-            finished_at = clock_timestamp(), updated_at = clock_timestamp()
-        where id = ${input.runId}
-      `;
-      await transaction`
-        delete from runtime_jobs where run_id = ${input.runId}
-      `;
-      await appendEvent(transaction, {
-        ownerId: run.owner_id,
-        sessionId: run.session_id,
-        runId: input.runId,
-        kind: input.state === "completed" ? "run_completed" : "run_failed",
-        payload:
-          input.state === "completed"
-            ? { outcome: input.outcome ?? {} }
-            : { errorCode: input.errorCode ?? "UNKNOWN_RUNTIME_FAILURE" },
-        sessionState: await deriveRuntimeSessionStateInTransaction(
-          transaction,
-          run.owner_id,
-          run.session_id,
-        ),
-      });
-      return run;
+      return sessions.getRun(
+        asId<"user">(result.owner_id),
+        asId<"runtime-session">(result.session_id),
+        input.runId,
+      );
     });
-    return sessions.getRun(
-      asId<"user">(result.owner_id),
-      asId<"runtime-session">(result.session_id),
-      input.runId,
-    );
   }
 
   function complete(

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { asId, idSchema, type Id } from "@town/contracts";
 
 import { RuntimeError } from "./errors.js";
+import { withSpan } from "./telemetry.js";
 import type { SessionRunState } from "./types.js";
 
 const workerIdSchema = z.string().trim().min(1).max(200);
@@ -184,150 +185,161 @@ export function createRuntimeQueueRepository(sql: Sql) {
   async function claim(
     input: z.input<typeof claimSchema>,
   ): Promise<RuntimeLease | null> {
-    const value = claimSchema.parse(input);
-    const leaseToken = randomBytes(32).toString("base64url");
-    const leaseTokenHash = hashLeaseToken(leaseToken);
-    return sql.begin(async (transaction) => {
-      const [candidate] = await transaction<CandidateRow[]>`
-        select
-          candidate.owner_id, session.id as session_id, candidate.run_id,
-          candidate.run_state
-        from runtime_sessions session
-        join lateral (
+    return withSpan("runtime.lease.claim", async (span) => {
+      const value = claimSchema.parse(input);
+      span.setAttribute("worker.id", value.workerId);
+      const leaseToken = randomBytes(32).toString("base64url");
+      const leaseTokenHash = hashLeaseToken(leaseToken);
+      return sql.begin(async (transaction) => {
+        const [candidate] = await transaction<CandidateRow[]>`
           select
-            job.owner_id, job.run_id, job.available_at, job.created_at,
-            run.state as run_state
-          from runtime_jobs job
-          join session_runs run
-            on run.owner_id = job.owner_id
-            and run.session_id = job.session_id
-            and run.id = job.run_id
-          where job.owner_id = session.owner_id
-            and job.session_id = session.id
-            and run.state in ('queued', 'running')
-            and job.available_at <= clock_timestamp()
-            and (
-              job.state = 'queued' or
-              (job.state = 'leased'
-                and job.lease_expires_at <= clock_timestamp())
+            candidate.owner_id, session.id as session_id, candidate.run_id,
+            candidate.run_state
+          from runtime_sessions session
+          join lateral (
+            select
+              job.owner_id, job.run_id, job.available_at, job.created_at,
+              run.state as run_state
+            from runtime_jobs job
+            join session_runs run
+              on run.owner_id = job.owner_id
+              and run.session_id = job.session_id
+              and run.id = job.run_id
+            where job.owner_id = session.owner_id
+              and job.session_id = session.id
+              and run.state in ('queued', 'running')
+              and job.available_at <= clock_timestamp()
+              and (
+                job.state = 'queued' or
+                (job.state = 'leased'
+                  and job.lease_expires_at <= clock_timestamp())
+              )
+            order by job.available_at, job.created_at, job.run_id
+            limit 1
+          ) candidate on true
+          where session.state <> 'cancelled'
+            and not exists (
+              select 1 from runtime_jobs active
+              where active.owner_id = session.owner_id
+                and active.session_id = session.id
+                and active.state = 'leased'
+                and active.lease_expires_at > clock_timestamp()
             )
-          order by job.available_at, job.created_at, job.run_id
+          order by candidate.available_at, candidate.created_at, candidate.run_id
+          for update of session skip locked
           limit 1
-        ) candidate on true
-        where session.state <> 'cancelled'
-          and not exists (
-            select 1 from runtime_jobs active
-            where active.owner_id = session.owner_id
-              and active.session_id = session.id
-              and active.state = 'leased'
-              and active.lease_expires_at > clock_timestamp()
-          )
-        order by candidate.available_at, candidate.created_at, candidate.run_id
-        for update of session skip locked
-        limit 1
-      `;
-      if (candidate === undefined) return null;
+        `;
+        if (candidate === undefined) return null;
 
-      const [claimed] = await transaction<
-        {
-          attempt: number;
-          leased_at: Date;
-          lease_expires_at: Date;
-        }[]
-      >`
-        update runtime_jobs
-        set state = 'leased', attempt = attempt + 1,
-            lease_token_hash = ${leaseTokenHash}, leased_by = ${value.workerId},
-            leased_at = clock_timestamp(),
-            lease_expires_at = clock_timestamp()
-              + ${value.leaseMs} * interval '1 millisecond',
-            updated_at = clock_timestamp()
-        where owner_id = ${candidate.owner_id}
-          and session_id = ${candidate.session_id}
-          and run_id = ${candidate.run_id}
-          and available_at <= clock_timestamp()
-          and (
-            state = 'queued' or
-            (state = 'leased' and lease_expires_at <= clock_timestamp())
-          )
-        returning attempt, leased_at, lease_expires_at
-      `;
-      if (claimed === undefined) return null;
-      if (candidate.run_state === "running") {
-        await transaction`
-          update session_runs
-          set attempt = ${claimed.attempt}, updated_at = clock_timestamp()
+        const [claimed] = await transaction<
+          {
+            attempt: number;
+            leased_at: Date;
+            lease_expires_at: Date;
+          }[]
+        >`
+          update runtime_jobs
+          set state = 'leased', attempt = attempt + 1,
+              lease_token_hash = ${leaseTokenHash}, leased_by = ${value.workerId},
+              leased_at = clock_timestamp(),
+              lease_expires_at = clock_timestamp()
+                + ${value.leaseMs} * interval '1 millisecond',
+              updated_at = clock_timestamp()
           where owner_id = ${candidate.owner_id}
             and session_id = ${candidate.session_id}
-            and id = ${candidate.run_id} and state = 'running'
+            and run_id = ${candidate.run_id}
+            and available_at <= clock_timestamp()
+            and (
+              state = 'queued' or
+              (state = 'leased' and lease_expires_at <= clock_timestamp())
+            )
+          returning attempt, leased_at, lease_expires_at
         `;
-      }
-      return {
-        ownerId: asId<"user">(candidate.owner_id),
-        sessionId: asId<"runtime-session">(candidate.session_id),
-        runId: asId<"session-run">(candidate.run_id),
-        runState: candidate.run_state,
-        workerId: value.workerId,
-        leaseToken,
-        attempt: claimed.attempt,
-        leasedAt: claimed.leased_at,
-        leaseExpiresAt: claimed.lease_expires_at,
-      };
+        if (claimed === undefined) return null;
+        span.setAttribute("run.id", candidate.run_id);
+        span.setAttribute("run.attempt", claimed.attempt);
+        if (candidate.run_state === "running") {
+          await transaction`
+            update session_runs
+            set attempt = ${claimed.attempt}, updated_at = clock_timestamp()
+            where owner_id = ${candidate.owner_id}
+              and session_id = ${candidate.session_id}
+              and id = ${candidate.run_id} and state = 'running'
+          `;
+        }
+        return {
+          ownerId: asId<"user">(candidate.owner_id),
+          sessionId: asId<"runtime-session">(candidate.session_id),
+          runId: asId<"session-run">(candidate.run_id),
+          runState: candidate.run_state,
+          workerId: value.workerId,
+          leaseToken,
+          attempt: claimed.attempt,
+          leasedAt: claimed.leased_at,
+          leaseExpiresAt: claimed.lease_expires_at,
+        };
+      });
     });
   }
 
   async function heartbeat(
     input: z.input<typeof heartbeatSchema>,
   ): Promise<RuntimeLease> {
-    const value = heartbeatSchema.parse(input);
-    const runId = asId<"session-run">(value.runId);
-    const tokenHash = hashLeaseToken(value.leaseToken);
-    return sql.begin(async (transaction) => {
-      const row = await lockJob(transaction, runId);
-      assertCurrentLease(row, tokenHash);
-      const [updated] = await transaction<
-        {
-          lease_expires_at: Date;
-        }[]
-      >`
-        update runtime_jobs
-        set lease_expires_at = clock_timestamp()
-              + ${value.leaseMs} * interval '1 millisecond',
-            updated_at = clock_timestamp()
-        where run_id = ${runId}
-        returning lease_expires_at
-      `;
-      if (updated === undefined)
-        throw new Error("Lease heartbeat returned no row.");
-      return {
-        ownerId: asId<"user">(row.owner_id),
-        sessionId: asId<"runtime-session">(row.session_id),
-        runId,
-        runState: row.run_state,
-        workerId: row.leased_by,
-        leaseToken: value.leaseToken,
-        attempt: row.attempt,
-        leasedAt: row.leased_at,
-        leaseExpiresAt: updated.lease_expires_at,
-      };
+    return withSpan("runtime.lease.heartbeat", async (span) => {
+      const value = heartbeatSchema.parse(input);
+      const runId = asId<"session-run">(value.runId);
+      span.setAttribute("run.id", value.runId);
+      const tokenHash = hashLeaseToken(value.leaseToken);
+      return sql.begin(async (transaction) => {
+        const row = await lockJob(transaction, runId);
+        assertCurrentLease(row, tokenHash);
+        const [updated] = await transaction<
+          {
+            lease_expires_at: Date;
+          }[]
+        >`
+          update runtime_jobs
+          set lease_expires_at = clock_timestamp()
+                + ${value.leaseMs} * interval '1 millisecond',
+              updated_at = clock_timestamp()
+          where run_id = ${runId}
+          returning lease_expires_at
+        `;
+        if (updated === undefined)
+          throw new Error("Lease heartbeat returned no row.");
+        return {
+          ownerId: asId<"user">(row.owner_id),
+          sessionId: asId<"runtime-session">(row.session_id),
+          runId,
+          runState: row.run_state,
+          workerId: row.leased_by,
+          leaseToken: value.leaseToken,
+          attempt: row.attempt,
+          leasedAt: row.leased_at,
+          leaseExpiresAt: updated.lease_expires_at,
+        };
+      });
     });
   }
 
   async function retry(input: z.input<typeof retrySchema>): Promise<void> {
-    const value = retrySchema.parse(input);
-    const runId = asId<"session-run">(value.runId);
-    const tokenHash = hashLeaseToken(value.leaseToken);
-    await sql.begin(async (transaction) => {
-      const row = await lockJob(transaction, runId);
-      assertCurrentLease(row, tokenHash);
-      await transaction`
-        update runtime_jobs set state = 'queued',
-            available_at = clock_timestamp()
-              + ${value.delayMs} * interval '1 millisecond',
-            lease_token_hash = null, leased_by = null, leased_at = null,
-            lease_expires_at = null, updated_at = clock_timestamp()
-        where run_id = ${runId}
-      `;
+    return withSpan("runtime.lease.retry", async (span) => {
+      const value = retrySchema.parse(input);
+      const runId = asId<"session-run">(value.runId);
+      span.setAttribute("run.id", value.runId);
+      const tokenHash = hashLeaseToken(value.leaseToken);
+      await sql.begin(async (transaction) => {
+        const row = await lockJob(transaction, runId);
+        assertCurrentLease(row, tokenHash);
+        await transaction`
+          update runtime_jobs set state = 'queued',
+              available_at = clock_timestamp()
+                + ${value.delayMs} * interval '1 millisecond',
+              lease_token_hash = null, leased_by = null, leased_at = null,
+              lease_expires_at = null, updated_at = clock_timestamp()
+          where run_id = ${runId}
+        `;
+      });
     });
   }
 

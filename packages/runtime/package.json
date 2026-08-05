@@ -20,6 +20,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
     "@town/agents": "file:../agents",
     "@town/contracts": "file:../contracts",
     "@town/db": "file:../db",

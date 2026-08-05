@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export * from "./model-router.js";
+export * from "./telemetry.js";
+import { withSpan } from "./telemetry.js";
 
 const toolArgumentsSchema = z.record(z.string(), z.unknown());
 const toolResultSchema = z
@@ -253,38 +255,56 @@ export function createHarness(input: {
       callId?: string;
     } = { approvalGranted: false },
   ): Promise<void> {
-    await add({
-      type: "tool_started",
-      callId,
-      toolName: tool.name,
-      arguments: arguments_,
-    });
-    let output: string;
-    try {
-      const result = toolResultSchema.parse(
-        await tool.execute(arguments_, { ...context, callId }),
-      );
-      output = result.output;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Tool execution failed.";
-      items = [
-        ...items,
-        { type: "tool_result", callId, toolName: tool.name, output: message },
-      ];
-      await add({
-        type: "tool_failed",
-        callId,
-        toolName: tool.name,
-        error: message,
-      });
-      return;
-    }
-    items = [
-      ...items,
-      { type: "tool_result", callId, toolName: tool.name, output },
-    ];
-    await add({ type: "tool_succeeded", callId, toolName: tool.name, output });
+    await withSpan(
+      `tool.execute`,
+      async (span) => {
+        span.setAttribute("tool.name", tool.name);
+        span.setAttribute("tool.callId", callId);
+        await add({
+          type: "tool_started",
+          callId,
+          toolName: tool.name,
+          arguments: arguments_,
+        });
+        let output: string;
+        try {
+          const result = toolResultSchema.parse(
+            await tool.execute(arguments_, { ...context, callId }),
+          );
+          output = result.output;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Tool execution failed.";
+          items = [
+            ...items,
+            {
+              type: "tool_result",
+              callId,
+              toolName: tool.name,
+              output: message,
+            },
+          ];
+          await add({
+            type: "tool_failed",
+            callId,
+            toolName: tool.name,
+            error: message,
+          });
+          return;
+        }
+        items = [
+          ...items,
+          { type: "tool_result", callId, toolName: tool.name, output },
+        ];
+        await add({
+          type: "tool_succeeded",
+          callId,
+          toolName: tool.name,
+          output,
+        });
+      },
+      { attributes: { "tool.name": tool.name, "tool.callId": callId } },
+    );
   }
 
   async function recordToolFailure(
