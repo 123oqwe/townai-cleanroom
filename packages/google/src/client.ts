@@ -58,6 +58,39 @@ const calendarListSchema = z
     nextPageToken: z.string().optional(),
   })
   .passthrough();
+const gmailWatchSchema = z
+  .object({
+    historyId: z.string(),
+    expiration: z.string().optional(),
+  })
+  .passthrough();
+const gmailHistorySchema = z
+  .object({
+    history: z
+      .array(
+        z
+          .object({
+            id: z.string().optional(),
+            type: z.string().optional(),
+            messageId: z.string().optional(),
+            threadId: z.string().optional(),
+            messages: z
+              .array(
+                z
+                  .object({ id: z.string(), threadId: z.string() })
+                  .passthrough(),
+              )
+              .optional(),
+            labelsAdded: z.array(z.record(z.string(), z.json())).optional(),
+            labelsRemoved: z.array(z.record(z.string(), z.json())).optional(),
+          })
+          .passthrough(),
+      )
+      .default([]),
+    nextPageToken: z.string().optional(),
+    historyId: z.string().optional(),
+  })
+  .passthrough();
 const freeBusySchema = z
   .object({
     calendars: z.record(
@@ -249,6 +282,62 @@ export function createGoogleApiClient(input: {
           "Gmail returned an unexpected send response.",
         );
       return parsed.data;
+    },
+    async gmailWatch(input_: {
+      ownerId: Id<"user">;
+      accountId: Id<"connected-account">;
+      topicName: string;
+      labelIds?: string[];
+    }): Promise<z.infer<typeof gmailWatchSchema>> {
+      const response = await request(
+        "https://gmail.googleapis.com/gmail/v1/users/me/watch",
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            authorization: `Bearer ${await accessToken(input_.ownerId, input_.accountId)}`,
+          },
+          body: JSON.stringify({
+            topicName: input_.topicName,
+            labelIds: input_.labelIds ?? ["INBOX"],
+          }),
+        },
+      );
+      if (!response.ok)
+        throw new GoogleApiError(
+          "GOOGLE_API_HTTP",
+          `Gmail API returned HTTP ${response.status}.`,
+          response.status,
+        );
+      const parsed = gmailWatchSchema.safeParse(await response.json());
+      if (!parsed.success)
+        throw new GoogleApiError(
+          "GOOGLE_API_INVALID",
+          "Gmail returned an unexpected watch response.",
+        );
+      return parsed.data;
+    },
+    async gmailListHistory(input_: {
+      ownerId: Id<"user">;
+      accountId: Id<"connected-account">;
+      startHistoryId: string;
+      maxResults?: number;
+      pageToken?: string;
+    }): Promise<z.infer<typeof gmailHistorySchema>> {
+      const params = new URLSearchParams({
+        startHistoryId: input_.startHistoryId,
+      });
+      if (input_.maxResults !== undefined)
+        params.set("maxResults", String(input_.maxResults));
+      if (input_.pageToken !== undefined)
+        params.set("pageToken", input_.pageToken);
+      return json(
+        input_.ownerId,
+        input_.accountId,
+        `https://gmail.googleapis.com/gmail/v1/users/me/history?${params}`,
+        gmailHistorySchema,
+      );
     },
     async calendarFreeBusy(input_: {
       ownerId: Id<"user">;
