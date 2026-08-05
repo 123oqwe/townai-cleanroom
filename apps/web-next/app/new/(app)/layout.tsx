@@ -63,6 +63,50 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               Threads
             </Link>
           </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <p
+              className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "var(--muted)" }}
+            >
+              Knowledge
+            </p>
+            <Link
+              href="/new/knowledge/profile"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Profile
+            </Link>
+            <Link
+              href="/new/knowledge/memories"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Memories
+            </Link>
+            <Link
+              href="/new/knowledge/people"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              People
+            </Link>
+            <Link
+              href="/new/knowledge/wiki"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Wiki
+            </Link>
+            <Link
+              href="/new/knowledge/search"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Search
+            </Link>
+            <Link
+              href="/new/knowledge/conflicts"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Conflicts
+            </Link>
+          </nav>
           <button
             type="button"
             onClick={() => {

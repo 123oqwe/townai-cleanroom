@@ -1,35 +1,71 @@
-# @town/web-next (Stage 1 Next.js skeleton)
+# @town/web-next
 
-Next.js 15 App Router + React 19 + TypeScript + Tailwind v4 skeleton for the
-Town frontend. This coexists with the legacy vanilla app (`apps/web`); it lives
+Next.js 15 App Router + React 19 + TypeScript + Tailwind v4 frontend for the
+Town platform. This coexists with the legacy vanilla app (`apps/web`); it lives
 under the `/new/*` URL prefix and does not replace the old UI.
 
 ## What is implemented
 
-Three pages, all behind route protection:
+All pages are behind route protection (`middleware.ts`).
 
-- `/new/login` — email sign-in. Submits to `POST /v1/auth/session`, stores the
+### Threads & realtime (Stage 1)
+
+- `/new/login` - email sign-in. Submits to `POST /v1/auth/session`, stores the
   bearer token in a `town-token` cookie, redirects to `/new/threads`. Shows
   allowlist (403) and rate-limit (429) errors.
-- `/new/threads` — thread list via SWR (`client.threads.list`). Empty, loading,
+- `/new/threads` - thread list via SWR (`client.threads.list`). Empty, loading,
   and error states. "New thread" button calls `client.threads.create` and jumps
   into the thread.
-- `/new/threads/[id]` — single thread. Top half renders thread metadata + the
-  turn transcript (`client.threads.turns`). Bottom half submits a message
+- `/new/threads/[id]` - single thread. Renders thread metadata + the turn
+  transcript (`client.threads.turns`). Submits a message
   (`client.sessions.create`) and opens an SSE stream
-  (`client.sessions.eventsStream`) that renders live runtime events
-  (`run_started`, `tool_call_proposed`, `tool_succeeded`, `assistant_output`,
-  `run_completed`, …). The stream uses an `AbortController`, is aborted on
-  unmount, and retries with exponential backoff (up to 3 attempts) on 5xx.
+  (`client.sessions.eventsStream`) that renders live runtime events. The stream
+  uses an `AbortController`, is aborted on unmount, and retries with exponential
+  backoff (up to 3 attempts) on 5xx.
+
+### Knowledge domain (Stage 2a)
+
+Seven knowledge pages under `/new/knowledge/*`, powered by the
+`client.knowledge.*` namespace (`@town/web-client`). Each uses SWR for data
+fetching with loading/error/empty states, controlled forms, and SWR cache
+mutation after writes:
+
+- `/new/knowledge/profile` - profile JSON editor with create (POST) and update
+  (PUT) using optimistic-revision concurrency; 404 means no profile yet.
+  Collapsible revision history from `GET /v1/profile/history`.
+- `/new/knowledge/memories` - active memory list. Edit (Drawer) calls
+  `memories.update` (PUT); retire (ConfirmDialog) calls `memories.delete`
+  (DELETE with `expectedRevision` query).
+- `/new/knowledge/people` - contact list with an add-person Drawer
+  (`people.create`). Each card links to the detail page.
+- `/new/knowledge/people/[id]` - single contact with edit Drawer and a
+  relationships panel (list + add + archive). Relationship create uses
+  `people.addRelationship`; archive uses `people.deleteRelationship`.
+- `/new/knowledge/wiki` - wiki page list. New page and edit via Drawers
+  (`wiki.create` / `wiki.update`). Per-document revision history via a Drawer
+  loading `wiki.history` (`GET /v1/wiki/:id/revisions`).
+- `/new/knowledge/search` - federated knowledge search
+  (`knowledge.search.search`) rendered in a `DataTable`; supports `limit` and
+  `cursor` pagination params.
+- `/new/knowledge/conflicts` - pending knowledge conflicts with accept/reject
+  (`conflicts.resolve`, POST `/v1/knowledge/conflicts/:id/resolve`).
+
+### Shared components (`apps/web-next/components/`)
+
+- `DataTable` - generic table with column config and empty-state fallback.
+- `Drawer` - right-side sliding panel for edit/create forms (Esc to close).
+- `ConfirmDialog` - modal confirmation for destructive actions.
+- `ErrorBoundary` - class-based page-level error boundary.
+- `EmptyState` / `LoadingState` - three-state rendering helpers.
 
 ## Architecture
 
-- `app/api-client.tsx` — `ApiClientProvider` + `useApiClient()` hook; builds a
+- `app/api-client.tsx` - `ApiClientProvider` + `useApiClient()` hook; builds a
   `TownClient` from `@town/web-client` pointed at the same-origin `/v1` path.
-- `middleware.ts` — gates `/new/*` (except `/new/login`): no `town-token`
-  cookie → 302 to `/new/login`; authenticated users hitting `/new/login` bounce
-  to `/new/threads`.
-- `next.config.ts` — `rewrites` proxy `/v1/*` to the API
+- `middleware.ts` - gates `/new/*` (except `/new/login`): no `town-token`
+  cookie redirects to `/new/login`; authenticated users hitting `/new/login`
+  bounce to `/new/threads`.
+- `next.config.ts` - `rewrites` proxy `/v1/*` to the API
   (`NEXT_PUBLIC_API_BASE_URL`, default `http://localhost:3000`) and
   `transpilePackages` for `@town/web-client` (the workspace client ships
   compiled, self-contained `dist` under its `import` export condition).
@@ -63,24 +99,43 @@ Three pages, all behind route protection:
    and the "Live events" panel renders SSE events as the run progresses; on
    completion the transcript refreshes with the assistant turn.
 
-6. Production build check (does not require a running API):
+### Knowledge pages
+
+1. With the API and dev server running (steps 1-2 above), sign in.
+
+2. The sidebar has a **Knowledge** group with links to Profile, Memories,
+   People, Wiki, Search, and Conflicts.
+
+3. Verify list + create/update against the local API for at least:
+   - **Profile** (`/new/knowledge/profile`): edit the JSON, Save. If no profile
+     exists yet the page shows "New profile" and Save creates it; otherwise it
+     updates with the current revision. Reload to confirm persistence.
+   - **Memories** (`/new/knowledge/memories`): the list loads from
+     `GET /v1/memories`. Use the legacy app or API to create one, then verify it
+     appears. Edit a memory (Edit drawer) and Retire it (confirm dialog).
+   - **People** (`/new/knowledge/people`): click "Add person", fill the form,
+     Save. The new contact appears in the list. Click into it to edit and add a
+     relationship.
+
+4. The remaining pages (Wiki, Search, Conflicts) render their loading/empty
+   states and exercise the matching `client.knowledge.*` methods; verify they
+   load without errors and that wiki create/edit and conflict resolve work.
+
+5. Production build check (does not require a running API):
 
    ```sh
    pnpm --filter @town/web-next build
    ```
 
-```
-
 ## Notes
 
 - `vercel.json` `outputDirectory` is intentionally left on `apps/web`; the
-Next.js app is dev-validated only in Stage 1 and is not wired into CI `verify`
-to avoid slowing the gate. Stage 3 flips the output directory.
+  Next.js app is dev-validated and not yet wired into CI `verify` to avoid
+  slowing the gate. Stage 3 flips the output directory.
 - The token is stored in a non-httpOnly cookie set from the client because the
-API issues the token directly to the browser; `middleware.ts` reads the cookie
-server-side to gate routes.
+  API issues the token directly to the browser; `middleware.ts` reads the cookie
+  server-side to gate routes.
 - `@town/web-client` has no `development` export condition and its `dist` is
-self-contained (no `@town/contracts` runtime import), so Turbopack dev and
-the webpack build both consume the compiled `dist`. `dev:web` prebuilds the
-client before starting `next dev`.
-```
+  self-contained (no `@town/contracts` runtime import), so Turbopack dev and
+  the webpack build both consume the compiled `dist`. `dev:web` prebuilds the
+  client before starting `next dev`.
