@@ -406,3 +406,4 @@ export * from "./agent-factory.js";
 export * from "./policy-tools.js";
 export * from "./codex-exec.js";
 export * from "./persistent-thread-store.js";
+export * from "./codex-resolve.js";
