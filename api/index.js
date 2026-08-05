@@ -7,6 +7,8 @@
 // The application module intentionally requires real database/crypto
 // configuration at startup. Lazy loading keeps an unconfigured preview
 // diagnosable: it returns a structured 503 instead of an opaque import crash.
+import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { Hono } from "hono";
 
 function isValidWebOrigin(value) {
@@ -67,6 +69,25 @@ function isEnabled(value) {
   return value === "true";
 }
 
+function codexBinaryResolvable(explicitPath) {
+  if (explicitPath !== undefined && explicitPath.length > 0) {
+    try {
+      return existsSync(explicitPath);
+    } catch {
+      return false;
+    }
+  }
+  try {
+    const which = execFileSync("which", ["codex"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return which.length > 0 && existsSync(which);
+  } catch {
+    return false;
+  }
+}
+
 const app = new Hono();
 let runtimePromise;
 let runtimeError;
@@ -93,7 +114,13 @@ app.get("/v1/health/capabilities", (context) =>
   context.json({
     api: hasRequiredRuntimeConfig(),
     auth: hasRequiredRuntimeConfig(),
-    harness: Boolean(process.env.RESPONSES_API_KEY),
+    harness: Boolean(
+      process.env.RESPONSES_API_KEY ||
+      (isEnabled(process.env.CODEX_EXEC_ENABLED) && codexBinaryResolvable()),
+    ),
+    harnessResponses: Boolean(process.env.RESPONSES_API_KEY),
+    harnessCodex:
+      isEnabled(process.env.CODEX_EXEC_ENABLED) && codexBinaryResolvable(),
     worker: Boolean(process.env.WORKER_SECRET || process.env.CRON_SECRET),
     workspaceTools: Boolean(process.env.WORKSPACE_ROOT),
     codeRunner: isEnabled(process.env.CODE_RUNNER_ENABLED),

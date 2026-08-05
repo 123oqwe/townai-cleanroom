@@ -34,6 +34,8 @@ describe("serverless health probes", () => {
         api: false,
         auth: false,
         harness: false,
+        harnessResponses: false,
+        harnessCodex: false,
         worker: false,
         workspaceTools: false,
         codeRunner: false,

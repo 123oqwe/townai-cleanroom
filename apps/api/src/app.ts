@@ -196,6 +196,8 @@ export interface AppDependencies {
     ownerId: string,
     executionContext?: HarnessExecutionContext,
   ) => AppServer | Promise<AppServer>;
+  harnessResponses?: boolean;
+  harnessCodex?: boolean;
 }
 
 function runtimeDependencies(
@@ -721,6 +723,8 @@ export function createApp(dependencies?: AppDependencies) {
       harness:
         dependencies?.harnessServer !== undefined ||
         dependencies?.harnessServerFactory !== undefined,
+      harnessResponses: dependencies?.harnessResponses === true,
+      harnessCodex: dependencies?.harnessCodex === true,
       worker: dependencies?.workerEnabled === true,
       slackEvents: dependencies?.slackSigningSecret !== undefined,
       twilioVoice: dependencies?.twilioAuthToken !== undefined,
