@@ -428,6 +428,15 @@ importers:
         specifier: 3.4.9
         version: 3.4.9
 
+  packages/web-client:
+    dependencies:
+      '@town/contracts':
+        specifier: file:../contracts
+        version: link:../contracts
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
 packages:
 
   '@balena/dockerignore@1.0.2':
