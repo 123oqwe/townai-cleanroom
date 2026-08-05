@@ -76,6 +76,14 @@ export const environmentSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   WORKSPACE_ROOT: z.string().min(1).optional(),
+  RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(3_600_000)
+    .default(60_000),
+  RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10_000).default(60),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;

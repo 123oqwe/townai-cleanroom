@@ -66,6 +66,11 @@ import {
 
 import { createAuthMiddleware, type AuthVariables } from "./lib/auth.js";
 import {
+  createRateLimiter,
+  createRateLimitMiddleware,
+  type RateLimiter,
+} from "./lib/rate-limit.js";
+import {
   registerAgentRoutes,
   type AgentDependencies,
 } from "./routes/agent-routes.js";
@@ -138,6 +143,7 @@ import { A2AError } from "@town/a2a";
 import type { HarnessExecutionContext } from "./lib/harness-runtime-adapter.js";
 
 export interface AppDependencies {
+  rateLimiter?: RateLimiter;
   sql?: Sql;
   identityService: IdentityService;
   accountRepository: AccountRepository;
@@ -324,6 +330,20 @@ export function createApp(dependencies?: AppDependencies) {
       "HARNESS_CONFIGURATION_CONFLICT: provide harnessServer or harnessServerFactory, not both.",
     );
   const app = new Hono<{ Variables: AuthVariables }>();
+
+  const rateLimiter =
+    dependencies?.rateLimiter ??
+    createRateLimiter({
+      windowMs:
+        Number(process.env["RATE_LIMIT_WINDOW_MS"]) > 0
+          ? Number(process.env["RATE_LIMIT_WINDOW_MS"])
+          : 60_000,
+      max:
+        Number(process.env["RATE_LIMIT_MAX"]) > 0
+          ? Number(process.env["RATE_LIMIT_MAX"])
+          : 60,
+    });
+  const rateLimit = createRateLimitMiddleware(rateLimiter);
   if (dependencies?.webOrigin !== undefined)
     app.use(
       "/v1/*",
@@ -748,6 +768,23 @@ export function createApp(dependencies?: AppDependencies) {
   );
 
   if (dependencies !== undefined) {
+    // Rate-limit unauthenticated entry points: session establishment,
+    // OAuth flows, and webhook receivers. Authenticated /v1/* business
+    // routes have their own per-resource limits.
+    app.use("/v1/auth/session", rateLimit);
+    app.use("/v1/auth/oauth/*", rateLimit);
+    app.use("/v1/accounts/google/oauth/*", rateLimit);
+    app.use("/auth/google/*", rateLimit);
+    app.use("/v1/accounts/microsoft/oauth/*", rateLimit);
+    app.use("/auth/microsoft/*", rateLimit);
+    app.use("/v1/integrations/telegram/events/*", rateLimit);
+    app.use("/integrations/telegram/events/*", rateLimit);
+    app.use("/v1/integrations/whatsapp/events/*", rateLimit);
+    app.use("/integrations/whatsapp/events/*", rateLimit);
+    app.use("/v1/integrations/slack/events/*", rateLimit);
+    app.use("/integrations/slack/events/*", rateLimit);
+    app.use("/v1/internal/gmail/pubsub", rateLimit);
+
     const establishSessionSchema = z
       .object({
         email: z.email(),
