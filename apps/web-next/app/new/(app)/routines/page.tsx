@@ -92,7 +92,9 @@ export default function RoutinesPage() {
               >
                 <div className="flex items-center justify-between">
                   <strong className="text-sm">{routine.name}</strong>
-                  <StatusBadge status={routine.enabled ? "enabled" : "disabled"} />
+                  <StatusBadge
+                    status={routine.enabled ? "enabled" : "disabled"}
+                  />
                 </div>
                 <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
                   {routine.cron} - {routine.timezone}

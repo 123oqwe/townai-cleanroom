@@ -8,7 +8,10 @@ export function CodeBlock({
   label?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--panel-border)" }}>
+    <div
+      className="overflow-hidden rounded-lg border"
+      style={{ borderColor: "var(--panel-border)" }}
+    >
       {label !== undefined && (
         <div
           className="border-b px-3 py-1.5 text-xs font-medium"

@@ -47,14 +47,20 @@ export default function VersionsPage() {
           {error.message}
         </p>
       ) : versions.length === 0 ? (
-        <EmptyState title="No versions returned." hint="Version history appears after the routine agent is updated." />
+        <EmptyState
+          title="No versions returned."
+          hint="Version history appears after the routine agent is updated."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {versions.map((version) => (
             <li
               key={version.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <strong className="text-sm">Version {version.version}</strong>
@@ -65,7 +71,10 @@ export default function VersionsPage() {
               <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
                 {version.snapshot.displayName}
               </p>
-              <p className="mt-1 text-xs font-mono" style={{ color: "var(--muted)" }}>
+              <p
+                className="mt-1 text-xs font-mono"
+                style={{ color: "var(--muted)" }}
+              >
                 {version.snapshot.defaultApprovalMode}
               </p>
             </li>

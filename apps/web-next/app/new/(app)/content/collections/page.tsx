@@ -32,7 +32,10 @@ export default function CollectionsPage() {
     isLoading: itemsLoading,
   } = useSWR<ContentItem[], TownApiError>(
     openId !== null ? `content/collections/${openId}` : null,
-    () => (openId !== null ? client.content.collections.get(openId as Id<"content-collection">) : Promise.resolve([])),
+    () =>
+      openId !== null
+        ? client.content.collections.get(openId as Id<"content-collection">)
+        : Promise.resolve([]),
   );
 
   async function handleCreate() {
@@ -42,13 +45,17 @@ export default function CollectionsPage() {
     try {
       await client.content.collections.create({
         name: name.trim(),
-        ...(description.trim() !== "" ? { description: description.trim() } : {}),
+        ...(description.trim() !== ""
+          ? { description: description.trim() }
+          : {}),
       });
       setName("");
       setDescription("");
       void mutate();
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : "Could not create collection.");
+      setAddError(
+        err instanceof Error ? err.message : "Could not create collection.",
+      );
     } finally {
       setAdding(false);
     }
@@ -71,7 +78,10 @@ export default function CollectionsPage() {
 
       <div
         className="mb-6 rounded-lg border p-4"
-        style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
       >
         <h2 className="mb-3 text-sm font-semibold">New collection</h2>
         <div className="flex flex-col gap-3">
@@ -102,7 +112,9 @@ export default function CollectionsPage() {
             />
           </label>
           {addError !== null && (
-            <p className="text-sm" style={{ color: "var(--danger)" }}>{addError}</p>
+            <p className="text-sm" style={{ color: "var(--danger)" }}>
+              {addError}
+            </p>
           )}
           <button
             type="button"
@@ -126,20 +138,29 @@ export default function CollectionsPage() {
           {error.message}
         </p>
       ) : collections.length === 0 ? (
-        <EmptyState title="No collections yet." hint="Create a collection to organize content." />
+        <EmptyState
+          title="No collections yet."
+          hint="Create a collection to organize content."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {collections.map((collection) => (
             <li
               key={collection.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <strong className="text-sm">{collection.name}</strong>
                   {collection.description && (
-                    <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                    <p
+                      className="mt-0.5 text-xs"
+                      style={{ color: "var(--muted)" }}
+                    >
                       {collection.description}
                     </p>
                   )}
@@ -156,13 +177,22 @@ export default function CollectionsPage() {
                 </button>
               </div>
               {openId === collection.id && (
-                <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--panel-border)" }}>
+                <div
+                  className="mt-3 border-t pt-3"
+                  style={{ borderColor: "var(--panel-border)" }}
+                >
                   {itemsLoading ? (
-                    <p className="text-xs" style={{ color: "var(--muted)" }}>Loading items...</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      Loading items...
+                    </p>
                   ) : itemsError !== undefined ? (
-                    <p className="text-xs" style={{ color: "var(--danger)" }}>{itemsError.message}</p>
+                    <p className="text-xs" style={{ color: "var(--danger)" }}>
+                      {itemsError.message}
+                    </p>
                   ) : (items ?? []).length === 0 ? (
-                    <p className="text-xs" style={{ color: "var(--muted)" }}>No content in this collection.</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      No content in this collection.
+                    </p>
                   ) : (
                     <DataTable
                       rows={items ?? []}
@@ -184,7 +214,10 @@ export default function CollectionsPage() {
                           key: "kind",
                           header: "Kind",
                           render: (item) => (
-                            <span className="text-xs font-mono" style={{ color: "var(--muted)" }}>
+                            <span
+                              className="text-xs font-mono"
+                              style={{ color: "var(--muted)" }}
+                            >
                               {item.kind}
                             </span>
                           ),

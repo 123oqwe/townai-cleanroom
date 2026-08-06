@@ -33,12 +33,16 @@ export default function ContentSharesPage() {
     setCreating(true);
     setActionError(null);
     try {
-      const result = await client.content.shares.create(selectedId as Id<"content">);
+      const result = await client.content.shares.create(
+        selectedId as Id<"content">,
+      );
       const url = `${typeof window !== "undefined" ? window.location.origin : ""}/v1/content-shares/${result.token}`;
       setShareUrl(url);
       setShareId(result.share.id);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not create share.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not create share.",
+      );
     } finally {
       setCreating(false);
     }
@@ -52,7 +56,9 @@ export default function ContentSharesPage() {
       setShareUrl(null);
       setShareId(null);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not revoke share.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not revoke share.",
+      );
     }
   }
 
@@ -70,7 +76,11 @@ export default function ContentSharesPage() {
       </div>
 
       {actionError !== null && (
-        <p className="mb-4 text-sm" style={{ color: "var(--danger)" }} role="alert">
+        <p
+          className="mb-4 text-sm"
+          style={{ color: "var(--danger)" }}
+          role="alert"
+        >
           {actionError}
         </p>
       )}
@@ -78,16 +88,26 @@ export default function ContentSharesPage() {
       {shareUrl !== null && shareId !== null && (
         <div
           className="mb-6 rounded-lg border p-4"
-          style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+          style={{
+            background: "var(--panel)",
+            borderColor: "var(--panel-border)",
+          }}
         >
           <h2 className="mb-3 text-sm font-semibold">Active share link</h2>
           <div className="flex flex-col gap-3">
-            <SecretField label="Share URL (shown once)" value={shareUrl} revealed={true} />
+            <SecretField
+              label="Share URL (shown once)"
+              value={shareUrl}
+              revealed={true}
+            />
             <button
               type="button"
               onClick={handleRevoke}
               className="self-start rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-[color:var(--background)]"
-              style={{ borderColor: "var(--panel-border)", color: "var(--danger)" }}
+              style={{
+                borderColor: "var(--panel-border)",
+                color: "var(--danger)",
+              }}
             >
               Revoke
             </button>
@@ -97,16 +117,24 @@ export default function ContentSharesPage() {
 
       <div
         className="mb-6 rounded-lg border p-4"
-        style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
       >
         <h2 className="mb-3 text-sm font-semibold">Create share link</h2>
         <div className="flex flex-col gap-3">
           {isLoading ? (
             <LoadingState label="Loading content..." />
           ) : error !== undefined ? (
-            <p className="text-sm" style={{ color: "var(--danger)" }}>{error.message}</p>
+            <p className="text-sm" style={{ color: "var(--danger)" }}>
+              {error.message}
+            </p>
           ) : items.length === 0 ? (
-            <EmptyState title="No content to share." hint="Save content first to create share links." />
+            <EmptyState
+              title="No content to share."
+              hint="Save content first to create share links."
+            />
           ) : (
             <>
               <label className="flex flex-col gap-1 text-sm">

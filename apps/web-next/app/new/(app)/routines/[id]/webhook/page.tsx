@@ -22,7 +22,9 @@ export default function WebhookPage() {
     RoutineWebhook,
     TownApiError
   >(`routines/${params.id as Id<"routine-schedule">}/webhook`, () =>
-    client.routines.webhooks.get(params.id as Id<"routine-schedule"> as Id<"routine-schedule">),
+    client.routines.webhooks.get(
+      params.id as Id<"routine-schedule"> as Id<"routine-schedule">,
+    ),
   );
 
   const [secret, setSecret] = useState<string | null>(null);
@@ -39,11 +41,15 @@ export default function WebhookPage() {
     setCreating(true);
     setActionError(null);
     try {
-      const result = await client.routines.webhooks.create(params.id as Id<"routine-schedule"> as Id<"routine-schedule">);
+      const result = await client.routines.webhooks.create(
+        params.id as Id<"routine-schedule"> as Id<"routine-schedule">,
+      );
       setSecret(result.secret);
       void mutate();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not create webhook.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not create webhook.",
+      );
     } finally {
       setCreating(false);
     }
@@ -54,10 +60,15 @@ export default function WebhookPage() {
     setToggling(true);
     setActionError(null);
     try {
-      await client.routines.webhooks.setEnabled(params.id as Id<"routine-schedule">, !data.enabled);
+      await client.routines.webhooks.setEnabled(
+        params.id as Id<"routine-schedule">,
+        !data.enabled,
+      );
       void mutate();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not update webhook.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not update webhook.",
+      );
     } finally {
       setToggling(false);
     }
@@ -78,7 +89,11 @@ export default function WebhookPage() {
       </div>
 
       {actionError !== null && (
-        <p className="mb-4 text-sm" style={{ color: "var(--danger)" }} role="alert">
+        <p
+          className="mb-4 text-sm"
+          style={{ color: "var(--danger)" }}
+          role="alert"
+        >
           {actionError}
         </p>
       )}
@@ -111,7 +126,10 @@ export default function WebhookPage() {
       ) : data !== undefined ? (
         <div
           className="rounded-lg border p-4"
-          style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+          style={{
+            background: "var(--panel)",
+            borderColor: "var(--panel-border)",
+          }}
         >
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -144,7 +162,8 @@ export default function WebhookPage() {
               />
             </label>
             <p className="text-xs" style={{ color: "var(--muted)" }}>
-              Send a POST request with the secret as a Bearer token and an X-Town-Idempotency-Key header.
+              Send a POST request with the secret as a Bearer token and an
+              X-Town-Idempotency-Key header.
             </p>
 
             {secret !== null && (
@@ -157,7 +176,8 @@ export default function WebhookPage() {
             )}
             {secret === null && (
               <p className="text-xs" style={{ color: "var(--muted)" }}>
-                The secret was shown when the webhook was created. Create a new webhook to get a new secret.
+                The secret was shown when the webhook was created. Create a new
+                webhook to get a new secret.
               </p>
             )}
 

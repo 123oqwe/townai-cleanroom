@@ -18,7 +18,9 @@ export default function ContentLibraryPage() {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ContentItem[] | null>(null);
+  const [searchResults, setSearchResults] = useState<ContentItem[] | null>(
+    null,
+  );
   const [searching, setSearching] = useState(false);
   const { data, error, isLoading } = useSWR<ContentPage, TownApiError>(
     ["content", cursor],
@@ -49,23 +51,21 @@ export default function ContentLibraryPage() {
     setSearching(true);
     try {
       const page = await client.knowledge.search.search(q, { limit: 20 });
-      const contentItems = page.items
-        
-        .map((r) => ({
-          id: r.resourceId as ContentItem["id"],
-          ownerId: "" as ContentItem["ownerId"],
-          kind: "document" as ContentItem["kind"],
-          title: r.title ?? r.text.slice(0, 60),
-          mimeType: null,
-          storageKey: null,
-          body: r.text,
-          metadata: {},
-          sourceSessionId: null,
-          status: r.status as ContentItem["status"],
-          currentRevision: 0,
-          createdAt: r.updatedAt,
-          updatedAt: r.updatedAt,
-        }));
+      const contentItems = page.items.map((r) => ({
+        id: r.resourceId as ContentItem["id"],
+        ownerId: "" as ContentItem["ownerId"],
+        kind: "document" as ContentItem["kind"],
+        title: r.title ?? r.text.slice(0, 60),
+        mimeType: null,
+        storageKey: null,
+        body: r.text,
+        metadata: {},
+        sourceSessionId: null,
+        status: r.status as ContentItem["status"],
+        currentRevision: 0,
+        createdAt: r.updatedAt,
+        updatedAt: r.updatedAt,
+      }));
       setSearchResults(contentItems);
     } catch {
       setSearchResults([]);
@@ -79,7 +79,9 @@ export default function ContentLibraryPage() {
   return (
     <section className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold tracking-tight">Content Library</h1>
+        <h1 className="text-xl font-semibold tracking-tight">
+          Content Library
+        </h1>
         <div className="flex gap-2">
           <Link
             href="/new/content/collections"
@@ -148,8 +150,16 @@ export default function ContentLibraryPage() {
         </p>
       ) : displayItems.length === 0 ? (
         <EmptyState
-          title={searchResults !== null ? "No matching content found." : "No saved content yet."}
-          hint={searchResults !== null ? "Try a different search term." : "Content saved by routines will appear here."}
+          title={
+            searchResults !== null
+              ? "No matching content found."
+              : "No saved content yet."
+          }
+          hint={
+            searchResults !== null
+              ? "Try a different search term."
+              : "Content saved by routines will appear here."
+          }
         />
       ) : (
         <>
@@ -169,7 +179,10 @@ export default function ContentLibraryPage() {
                     <StatusBadge status={item.status} />
                   </div>
                   {item.body !== null && (
-                    <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                    <p
+                      className="mt-1 text-xs"
+                      style={{ color: "var(--muted)" }}
+                    >
                       {item.body.slice(0, 120)}
                       {item.body.length > 120 ? "..." : ""}
                     </p>

@@ -44,7 +44,9 @@ export default function ContentDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not download file.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not download file.",
+      );
     } finally {
       setDownloading(false);
     }
@@ -59,7 +61,9 @@ export default function ContentDetailPage() {
       setArchiveOpen(false);
       void mutate();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not archive content.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not archive content.",
+      );
       setArchiveOpen(false);
     } finally {
       setArchiving(false);
@@ -73,8 +77,7 @@ export default function ContentDetailPage() {
         {error.message}
       </p>
     );
-  if (data === undefined)
-    return <EmptyState title="Content not found." />;
+  if (data === undefined) return <EmptyState title="Content not found." />;
 
   return (
     <section className="mx-auto max-w-3xl">
@@ -114,7 +117,10 @@ export default function ContentDetailPage() {
             type="button"
             onClick={() => setArchiveOpen(true)}
             className="rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-[color:var(--background)]"
-            style={{ borderColor: "var(--panel-border)", color: "var(--danger)" }}
+            style={{
+              borderColor: "var(--panel-border)",
+              color: "var(--danger)",
+            }}
           >
             Archive
           </button>
@@ -122,14 +128,21 @@ export default function ContentDetailPage() {
       </div>
 
       {actionError !== null && (
-        <p className="mb-4 text-sm" style={{ color: "var(--danger)" }} role="alert">
+        <p
+          className="mb-4 text-sm"
+          style={{ color: "var(--danger)" }}
+          role="alert"
+        >
           {actionError}
         </p>
       )}
 
       <div
         className="mb-6 rounded-lg border p-4"
-        style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
       >
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div>
@@ -138,7 +151,9 @@ export default function ContentDetailPage() {
           </div>
           <div>
             <dt style={{ color: "var(--muted)" }}>Status</dt>
-            <dd><StatusBadge status={data.status} /></dd>
+            <dd>
+              <StatusBadge status={data.status} />
+            </dd>
           </div>
           <div>
             <dt style={{ color: "var(--muted)" }}>MIME type</dt>
@@ -159,9 +174,7 @@ export default function ContentDetailPage() {
         </dl>
       </div>
 
-      {data.body !== null && (
-        <CodeBlock label="body">{data.body}</CodeBlock>
-      )}
+      {data.body !== null && <CodeBlock label="body">{data.body}</CodeBlock>}
 
       {data.storageKey !== null && (
         <p className="mt-4 text-xs" style={{ color: "var(--muted)" }}>

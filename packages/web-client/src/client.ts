@@ -33,7 +33,7 @@ import type {
   WikiCreateInput,
   WikiDocument,
   WikiUpdateInput,
- WikiUpdateResult,
+  WikiUpdateResult,
 } from "./types.js";
 import type {
   ContentCollection,
@@ -208,7 +208,9 @@ export interface RoutineRunsApi {
 
 export interface RoutineWebhooksApi {
   get(routineId: Id<"routine-schedule">): Promise<RoutineWebhook>;
-  create(routineId: Id<"routine-schedule">): Promise<RoutineWebhookCreateResult>;
+  create(
+    routineId: Id<"routine-schedule">,
+  ): Promise<RoutineWebhookCreateResult>;
   setEnabled(
     routineId: Id<"routine-schedule">,
     enabled: boolean,
@@ -217,9 +219,9 @@ export interface RoutineWebhooksApi {
 
 export interface RoutineTemplatesApi {
   list(): Promise<RoutineTemplate[]>;
- install(
-   templateId: string,
-   input: RoutineTemplateInstallInput,
+  install(
+    templateId: string,
+    input: RoutineTemplateInstallInput,
   ): Promise<Routine>;
 }
 
@@ -240,10 +242,7 @@ export interface RoutinesApi {
     input: RoutineUpdateInput,
   ): Promise<Routine>;
   delete(id: Id<"routine-schedule">, expectedRevision: number): Promise<void>;
-  run(
-    id: Id<"routine-schedule">,
-    input: string,
-  ): Promise<{ run: RoutineRun }>;
+  run(id: Id<"routine-schedule">, input: string): Promise<{ run: RoutineRun }>;
   trigger(
     id: Id<"routine-schedule">,
     input: ExternalTriggerInput,
@@ -260,7 +259,7 @@ export interface RoutinesApi {
   readonly runs: RoutineRunsApi;
   readonly webhooks: RoutineWebhooksApi;
   readonly templates: RoutineTemplatesApi;
- readonly shares: RoutineSharesApi;
+  readonly shares: RoutineSharesApi;
   installShared(input: RoutineShareInstallInput): Promise<Routine>;
 }
 
@@ -321,7 +320,7 @@ export class TownClient {
   readonly me: MeApi;
   readonly threads: ThreadsApi;
   readonly sessions: SessionsApi;
- readonly knowledge: KnowledgeApi;
+  readonly knowledge: KnowledgeApi;
   readonly routines: RoutinesApi;
   readonly content: ContentApi;
 
@@ -481,10 +480,10 @@ export class TownClient {
         ) =>
           this.postJson<ConflictResolveResult>(
             `/v1/knowledge/conflicts/${id}/resolve`,
-         { expectedRevision, resolution },
-       ),
-     },
-   };
+            { expectedRevision, resolution },
+          ),
+      },
+    };
     this.routines = {
       list: () =>
         this.getJson<{ routines: Routine[] }>("/v1/routines").then(
@@ -494,7 +493,11 @@ export class TownClient {
         this.getJson<{ routines: Routine[] }>("/v1/routines").then((r) => {
           const found = r.routines.find((item) => item.id === id);
           if (found === undefined)
-            throw new TownApiError(404, "ROUTINE_NOT_FOUND", "Routine not found.");
+            throw new TownApiError(
+              404,
+              "ROUTINE_NOT_FOUND",
+              "Routine not found.",
+            );
           return found;
         }),
       create: (input) =>
@@ -502,14 +505,11 @@ export class TownClient {
           (r) => r.routine,
         ),
       update: (id, input) =>
-        this.patchJson<{ routine: Routine }>(
-          `/v1/routines/${id}`,
-          input,
-        ).then((r) => r.routine),
-      delete: (id, expectedRevision) =>
-        this.delete(
-          `/v1/routines/${id}?expectedRevision=${expectedRevision}`,
+        this.patchJson<{ routine: Routine }>(`/v1/routines/${id}`, input).then(
+          (r) => r.routine,
         ),
+      delete: (id, expectedRevision) =>
+        this.delete(`/v1/routines/${id}?expectedRevision=${expectedRevision}`),
       run: (id, input) =>
         this.postJson<{ run: RoutineRun }>(
           `/v1/routines/${id}/run`,
@@ -532,10 +532,9 @@ export class TownClient {
           `/v1/routines/${id}/versions${limit !== undefined ? `?limit=${limit}` : ""}`,
         ),
       installShared: (input) =>
-        this.postJson<{ routine: Routine }>(
-          "/v1/routines/install",
-          input,
-        ).then((r) => r.routine),
+        this.postJson<{ routine: Routine }>("/v1/routines/install", input).then(
+          (r) => r.routine,
+        ),
       triggers: {
         list: (routineId) =>
           this.getJson<{ triggers: RoutineTrigger[] }>(
@@ -603,8 +602,7 @@ export class TownClient {
             `/v1/routines/${routineId}/shares`,
             expiresAt === undefined ? {} : { expiresAt },
           ),
-        delete: (shareId) =>
-          this.delete(`/v1/routines/shares/${shareId}`),
+        delete: (shareId) => this.delete(`/v1/routines/shares/${shareId}`),
       },
     };
     this.content = {
@@ -654,10 +652,9 @@ export class TownClient {
             input,
           ).then((r) => r.collection),
         addItem: (collectionId, contentId) =>
-          this.postJson(
-            `/v1/content/collections/${collectionId}/items`,
-            { contentId },
-          ).then(() => undefined),
+          this.postJson(`/v1/content/collections/${collectionId}/items`, {
+            contentId,
+          }).then(() => undefined),
       },
       shares: {
         create: (contentId, expiresAt) =>
@@ -665,8 +662,7 @@ export class TownClient {
             `/v1/content/${contentId}/shares`,
             expiresAt === undefined ? {} : { expiresAt },
           ).then((r) => r.share),
-        delete: (shareId) =>
-          this.delete(`/v1/content/shares/${shareId}`),
+        delete: (shareId) => this.delete(`/v1/content/shares/${shareId}`),
       },
     };
   }
@@ -675,14 +671,14 @@ export class TownClient {
     return `${this.baseUrl}${path}`;
   }
 
- private query(options: ListOptions | undefined): string {
-   if (options === undefined) return "";
-   const params = new URLSearchParams();
-   if (options.cursor !== undefined) params.set("cursor", options.cursor);
-   if (options.limit !== undefined) params.set("limit", String(options.limit));
-   const search = params.toString();
-   return search === "" ? "" : `?${search}`;
- }
+  private query(options: ListOptions | undefined): string {
+    if (options === undefined) return "";
+    const params = new URLSearchParams();
+    if (options.cursor !== undefined) params.set("cursor", options.cursor);
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    const search = params.toString();
+    return search === "" ? "" : `?${search}`;
+  }
 
   private contentQuery(options: ContentListOptions | undefined): string {
     if (options === undefined) return "";

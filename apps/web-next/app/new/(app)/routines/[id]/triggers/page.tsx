@@ -40,7 +40,9 @@ export default function TriggersPage() {
     RoutineTrigger[],
     TownApiError
   >(`routines/${params.id as Id<"routine-schedule">}/triggers`, () =>
-    client.routines.triggers.list(params.id as Id<"routine-schedule"> as Id<"routine-schedule">),
+    client.routines.triggers.list(
+      params.id as Id<"routine-schedule"> as Id<"routine-schedule">,
+    ),
   );
 
   const [kind, setKind] = useState<RoutineTriggerKind>("webhook");
@@ -61,12 +63,17 @@ export default function TriggersPage() {
     setAdding(true);
     setActionError(null);
     try {
-      await client.routines.triggers.create(params.id as Id<"routine-schedule">, { kind, config: parsed });
+      await client.routines.triggers.create(
+        params.id as Id<"routine-schedule">,
+        { kind, config: parsed },
+      );
       setConfig("{}");
       setConfigError(null);
       void mutate();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not add trigger.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not add trigger.",
+      );
     } finally {
       setAdding(false);
     }
@@ -82,18 +89,25 @@ export default function TriggersPage() {
       });
       void mutate();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not update trigger.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not update trigger.",
+      );
     }
   }
 
   async function handleDelete() {
     if (deleteTarget === null) return;
     try {
-      await client.routines.triggers.delete(deleteTarget.id, deleteTarget.revision);
+      await client.routines.triggers.delete(
+        deleteTarget.id,
+        deleteTarget.revision,
+      );
       setDeleteTarget(null);
       void mutate();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not remove trigger.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not remove trigger.",
+      );
       setDeleteTarget(null);
     }
   }
@@ -121,19 +135,27 @@ export default function TriggersPage() {
           {error.message}
         </p>
       ) : triggers.length === 0 ? (
-        <EmptyState title="No triggers configured." hint="Add a trigger to automate this routine." />
+        <EmptyState
+          title="No triggers configured."
+          hint="Add a trigger to automate this routine."
+        />
       ) : (
         <ul className="mb-6 flex flex-col gap-2">
           {triggers.map((trigger) => (
             <li
               key={trigger.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <strong className="text-sm font-mono">{trigger.kind}</strong>
-                  <StatusBadge status={trigger.enabled ? "enabled" : "disabled"} />
+                  <StatusBadge
+                    status={trigger.enabled ? "enabled" : "disabled"}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -148,7 +170,10 @@ export default function TriggersPage() {
                     type="button"
                     onClick={() => setDeleteTarget(trigger)}
                     className="rounded-md border px-2 py-1 text-xs transition-colors hover:bg-[color:var(--background)]"
-                    style={{ borderColor: "var(--panel-border)", color: "var(--danger)" }}
+                    style={{
+                      borderColor: "var(--panel-border)",
+                      color: "var(--danger)",
+                    }}
                   >
                     Remove
                   </button>
@@ -166,7 +191,10 @@ export default function TriggersPage() {
 
       <div
         className="rounded-lg border p-4"
-        style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
       >
         <h2 className="mb-3 text-sm font-semibold">Add trigger</h2>
         <div className="flex flex-col gap-3">
@@ -182,7 +210,9 @@ export default function TriggersPage() {
               }}
             >
               {TRIGGER_KINDS.map((k) => (
-                <option key={k} value={k}>{k}</option>
+                <option key={k} value={k}>
+                  {k}
+                </option>
               ))}
             </select>
           </label>
@@ -200,10 +230,14 @@ export default function TriggersPage() {
             />
           </label>
           {configError !== null && (
-            <p className="text-sm" style={{ color: "var(--danger)" }}>{configError}</p>
+            <p className="text-sm" style={{ color: "var(--danger)" }}>
+              {configError}
+            </p>
           )}
           {actionError !== null && (
-            <p className="text-sm" style={{ color: "var(--danger)" }}>{actionError}</p>
+            <p className="text-sm" style={{ color: "var(--danger)" }}>
+              {actionError}
+            </p>
           )}
           <button
             type="button"

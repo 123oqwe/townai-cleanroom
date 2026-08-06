@@ -54,7 +54,9 @@ export default function TemplatesPage() {
       setInstalled(true);
       setSelected(null);
     } catch (err) {
-      setInstallError(err instanceof Error ? err.message : "Could not install template.");
+      setInstallError(
+        err instanceof Error ? err.message : "Could not install template.",
+      );
     } finally {
       setInstalling(false);
     }
@@ -76,8 +78,14 @@ export default function TemplatesPage() {
       </div>
 
       {installed && (
-        <p className="mb-4 rounded-md border px-3 py-2 text-sm" style={{ color: "#16a34a", borderColor: "#16a34a" }}>
-          Template installed. <Link href="/new/routines" className="underline">View routines</Link>
+        <p
+          className="mb-4 rounded-md border px-3 py-2 text-sm"
+          style={{ color: "#16a34a", borderColor: "#16a34a" }}
+        >
+          Template installed.{" "}
+          <Link href="/new/routines" className="underline">
+            View routines
+          </Link>
         </p>
       )}
 
@@ -95,12 +103,18 @@ export default function TemplatesPage() {
             <li
               key={template.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <strong className="text-sm">{template.name}</strong>
-                  <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                  <p
+                    className="mt-0.5 text-xs"
+                    style={{ color: "var(--muted)" }}
+                  >
                     {template.summary}
                   </p>
                 </div>
@@ -181,7 +195,11 @@ export default function TemplatesPage() {
                 />
               </label>
               {installError !== null && (
-                <p className="text-sm" style={{ color: "var(--danger)" }} role="alert">
+                <p
+                  className="text-sm"
+                  style={{ color: "var(--danger)" }}
+                  role="alert"
+                >
                   {installError}
                 </p>
               )}

@@ -47,17 +47,25 @@ export default function ContentHistoryPage() {
           {error.message}
         </p>
       ) : revisions.length === 0 ? (
-        <EmptyState title="No revisions yet." hint="Revisions appear after content is updated." />
+        <EmptyState
+          title="No revisions yet."
+          hint="Revisions appear after content is updated."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {revisions.map((revision) => (
             <li
               key={revision.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
-                <strong className="text-sm">Revision {revision.revision}</strong>
+                <strong className="text-sm">
+                  Revision {revision.revision}
+                </strong>
                 <span className="text-xs" style={{ color: "var(--muted)" }}>
                   {formatTime(revision.createdAt)}
                 </span>
@@ -69,7 +77,10 @@ export default function ContentHistoryPage() {
                 </p>
               )}
               {revision.mimeType !== null && (
-                <p className="mt-1 text-xs font-mono" style={{ color: "var(--muted)" }}>
+                <p
+                  className="mt-1 text-xs font-mono"
+                  style={{ color: "var(--muted)" }}
+                >
                   {revision.mimeType}
                 </p>
               )}

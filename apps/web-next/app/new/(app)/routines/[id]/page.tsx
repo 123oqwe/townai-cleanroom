@@ -23,7 +23,10 @@ export default function RoutineDetailPage() {
   const client = useApiClient();
   const { data, error, isLoading, mutate } = useSWR<Routine, TownApiError>(
     `routines/${params.id as Id<"routine-schedule">}`,
-    () => client.routines.get(params.id as Id<"routine-schedule"> as Id<"routine-schedule">),
+    () =>
+      client.routines.get(
+        params.id as Id<"routine-schedule"> as Id<"routine-schedule">,
+      ),
   );
 
   const [editing, setEditing] = useState(false);
@@ -66,7 +69,9 @@ export default function RoutineDetailPage() {
       setEditing(false);
       void mutate();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Could not save routine.");
+      setSaveError(
+        err instanceof Error ? err.message : "Could not save routine.",
+      );
     } finally {
       setSaving(false);
     }
@@ -79,7 +84,9 @@ export default function RoutineDetailPage() {
       setDeleteOpen(false);
       window.location.href = "/new/routines";
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Could not delete routine.");
+      setSaveError(
+        err instanceof Error ? err.message : "Could not delete routine.",
+      );
       setDeleteOpen(false);
     }
   }
@@ -91,7 +98,9 @@ export default function RoutineDetailPage() {
       setRunStatus(`Queued ${result.run.status}`);
       setRunInput("");
     } catch (err) {
-      setRunStatus(err instanceof Error ? err.message : "Could not run routine.");
+      setRunStatus(
+        err instanceof Error ? err.message : "Could not run routine.",
+      );
     }
   }
 
@@ -102,8 +111,7 @@ export default function RoutineDetailPage() {
         {error.message}
       </p>
     );
-  if (data === undefined)
-    return <EmptyState title="Routine not found." />;
+  if (data === undefined) return <EmptyState title="Routine not found." />;
 
   return (
     <section className="mx-auto max-w-3xl">
@@ -134,7 +142,10 @@ export default function RoutineDetailPage() {
             style={{
               background: tab.href === "" ? "var(--panel)" : "transparent",
               borderColor: "var(--panel-border)",
-              border: tab.href === "" ? "1px solid var(--panel-border)" : "1px solid transparent",
+              border:
+                tab.href === ""
+                  ? "1px solid var(--panel-border)"
+                  : "1px solid transparent",
             }}
           >
             {tab.label}
@@ -144,7 +155,10 @@ export default function RoutineDetailPage() {
 
       <div
         className="mb-6 rounded-lg border p-4"
-        style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
       >
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div>
@@ -191,7 +205,10 @@ export default function RoutineDetailPage() {
 
       <div
         className="mb-6 rounded-lg border p-4"
-        style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
       >
         <h2 className="mb-3 text-sm font-semibold">Run now</h2>
         <div className="flex gap-2">
@@ -307,7 +324,11 @@ export default function RoutineDetailPage() {
                 Enabled
               </label>
               {saveError !== null && (
-                <p className="text-sm" style={{ color: "var(--danger)" }} role="alert">
+                <p
+                  className="text-sm"
+                  style={{ color: "var(--danger)" }}
+                  role="alert"
+                >
                   {saveError}
                 </p>
               )}

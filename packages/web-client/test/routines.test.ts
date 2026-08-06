@@ -72,11 +72,9 @@ describe("TownClient routines namespace", () => {
   it("lists routines via GET /v1/routines", async () => {
     const routine = routineFixture();
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse({ routines: [routine] })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse({ routines: [routine] })], calls, {
+      token: "t",
+    });
 
     const result = await client.routines.list();
 
@@ -130,11 +128,9 @@ describe("TownClient routines namespace", () => {
   it("updates a routine via PATCH /v1/routines/:id", async () => {
     const routine = routineFixture({ revision: 2 });
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse({ routine })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse({ routine })], calls, {
+      token: "t",
+    });
 
     const result = await client.routines.update(routine.id, {
       agentId: routine.agentId,
@@ -157,11 +153,9 @@ describe("TownClient routines namespace", () => {
   it("deletes a routine with expectedRevision query", async () => {
     const id = newId<"routine-schedule">();
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse(null, { status: 204 })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse(null, { status: 204 })], calls, {
+      token: "t",
+    });
 
     await client.routines.delete(id, 3);
 
@@ -226,11 +220,9 @@ describe("TownClient routines namespace", () => {
       updatedAt: "2026-08-06T00:00:00.000Z",
     };
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse({ runs: [run] })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse({ runs: [run] })], calls, {
+      token: "t",
+    });
 
     const result = await client.routines.runs.list(id, 8);
 
@@ -254,11 +246,9 @@ describe("TownClient routines namespace", () => {
       updatedAt: "2026-08-06T00:00:00.000Z",
     };
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse({ triggers: [trigger] })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse({ triggers: [trigger] })], calls, {
+      token: "t",
+    });
 
     const result = await client.routines.triggers.list(id);
 
@@ -362,9 +352,7 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.templates.list();
 
     expect(result).toHaveLength(1);
-    expect(calls[0].url).toBe(
-      "https://api.example.test/v1/routine-templates",
-    );
+    expect(calls[0].url).toBe("https://api.example.test/v1/routine-templates");
   });
 
   it("installs a template via POST /v1/routine-templates/:id/install", async () => {
@@ -438,7 +426,10 @@ describe("TownClient routines namespace", () => {
       { token: "t" },
     );
 
-    const result = await client.routines.shares.create(id, "2026-08-07T00:00:00.000Z");
+    const result = await client.routines.shares.create(
+      id,
+      "2026-08-07T00:00:00.000Z",
+    );
 
     expect(result.token).toBe("rtnshare_test");
     expect(result.share.routineScheduleId).toBe(id);
@@ -477,9 +468,9 @@ describe("TownClient routines namespace", () => {
     expect(calls[0].init.headers["Idempotency-Key"]).toBeDefined();
   });
 
- it("throws TownApiError on 404 for missing routine", async () => {
-   const calls: FetchCall[] = [];
-   const client = makeClient(
+  it("throws TownApiError on 404 for missing routine", async () => {
+    const calls: FetchCall[] = [];
+    const client = makeClient(
       [
         jsonResponse({ error: "ROUTINE_NOT_FOUND" }, { status: 404 }),
         jsonResponse({ error: "ROUTINE_NOT_FOUND" }, { status: 404 }),
@@ -488,10 +479,10 @@ describe("TownClient routines namespace", () => {
       { token: "t" },
     );
 
-   await expect(client.routines.list()).rejects.toMatchObject({
-     status: 404,
-     code: "ROUTINE_NOT_FOUND",
-   });
+    await expect(client.routines.list()).rejects.toMatchObject({
+      status: 404,
+      code: "ROUTINE_NOT_FOUND",
+    });
     await expect(client.routines.list()).rejects.toBeInstanceOf(TownApiError);
   });
 

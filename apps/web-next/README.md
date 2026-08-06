@@ -124,8 +124,12 @@ mutation after writes:
 5. Production build check (does not require a running API):
 
    ```sh
-  pnpm --filter @town/web-next build
-  ```
+
+   ```
+
+pnpm --filter @town/web-next build
+
+````
 
 ### Routines domain (Stage 2b)
 
@@ -133,25 +137,25 @@ Seven routines pages under `/new/routines/*`, powered by the
 `client.routines.*` namespace:
 
 - `/new/routines` - routine list with filter, status badges, and links to each
-  routine detail. Links to templates.
+routine detail. Links to templates.
 - `/new/routines/[id]` - single routine config (cron, timezone, enabled,
-  next run, revision). Edit form (PATCH), delete (DELETE with expectedRevision),
-  and "Run now" (POST /v1/routines/:id/run). Sub-tabs for Triggers, Runs,
-  Webhook, Versions.
+next run, revision). Edit form (PATCH), delete (DELETE with expectedRevision),
+and "Run now" (POST /v1/routines/:id/run). Sub-tabs for Triggers, Runs,
+Webhook, Versions.
 - `/new/routines/[id]/triggers` - trigger management. List, add (POST), toggle
-  enable/disable (PATCH), remove (DELETE with expectedRevision). Config shown
-  as JSON in a CodeBlock.
+enable/disable (PATCH), remove (DELETE with expectedRevision). Config shown
+as JSON in a CodeBlock.
 - `/new/routines/[id]/runs` - run history via DataTable with StatusBadge
-  (queued/running/succeeded/failed/blocked). Replay terminal runs (POST
-  /v1/routine-runs/:runId/replay).
+(queued/running/succeeded/failed/blocked). Replay terminal runs (POST
+/v1/routine-runs/:runId/replay).
 - `/new/routines/[id]/webhook` - webhook config. Create (POST, secret shown
-  once via SecretField), enable/disable (PATCH), rotate (create new). Webhook
-  URL displayed. 404 means no webhook configured (shows create CTA).
+once via SecretField), enable/disable (PATCH), rotate (create new). Webhook
+URL displayed. 404 means no webhook configured (shows create CTA).
 - `/new/routines/[id]/versions` - immutable version history (GET
-  /v1/routines/:id/versions) with snapshot details.
+/v1/routines/:id/versions) with snapshot details.
 - `/new/routines/templates` - template library (GET /v1/routine-templates).
-  Install modal with cron, timezone, first-run fields (POST
-  /v1/routine-templates/:id/install).
+Install modal with cron, timezone, first-run fields (POST
+/v1/routine-templates/:id/install).
 
 ### Content domain (Stage 2b)
 
@@ -159,25 +163,25 @@ Five content pages under `/new/content/*`, powered by the
 `client.content.*` namespace:
 
 - `/new/content` - content library list with search (delegates to
-  knowledge.search) and "Load more" cursor pagination (GET /v1/content). Each
-  item links to detail page.
+knowledge.search) and "Load more" cursor pagination (GET /v1/content). Each
+item links to detail page.
 - `/new/content/[id]` - single content detail with metadata, body (CodeBlock),
-  blob download (fetch + object URL), and archive action. Links to history.
+blob download (fetch + object URL), and archive action. Links to history.
 - `/new/content/[id]/history` - revision history (GET
-  /v1/content/:id/revisions).
+/v1/content/:id/revisions).
 - `/new/content/collections` - collection management. Create (POST), list, and
-  expand to view items (DataTable) via GET /v1/content/collections/:id.
+expand to view items (DataTable) via GET /v1/content/collections/:id.
 - `/new/content/shares` - share management. Select content, create share link
-  (POST /v1/content/:id/shares, URL shown once via SecretField), revoke
-  (DELETE /v1/content/shares/:id).
+(POST /v1/content/:id/shares, URL shown once via SecretField), revoke
+(DELETE /v1/content/shares/:id).
 
 ### Local verification for Stage 2b
 
 1. Start the dev server:
 
-   ```sh
-   pnpm dev:web
-   ```
+ ```sh
+ pnpm dev:web
+````
 
 2. Open `http://localhost:3001/new/login`, sign in.
 

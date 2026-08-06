@@ -94,18 +94,14 @@ describe("TownClient content namespace", () => {
   it("gets a single content via GET /v1/content/:id", async () => {
     const item = contentFixture();
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse({ content: item })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse({ content: item })], calls, {
+      token: "t",
+    });
 
     const result = await client.content.get(item.id);
 
     expect(result.title).toBe("Meeting Notes");
-    expect(calls[0].url).toBe(
-      `https://api.example.test/v1/content/${item.id}`,
-    );
+    expect(calls[0].url).toBe(`https://api.example.test/v1/content/${item.id}`);
   });
 
   it("creates content via POST /v1/content", async () => {
@@ -231,11 +227,9 @@ describe("TownClient content namespace", () => {
   it("deletes a content share via DELETE /v1/content/shares/:id", async () => {
     const shareId = newId<"content-share">();
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse(null, { status: 204 })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse(null, { status: 204 })], calls, {
+      token: "t",
+    });
 
     await client.content.shares.delete(shareId);
 
@@ -262,9 +256,7 @@ describe("TownClient content namespace", () => {
     const blob = await client.content.blob(id);
 
     expect(blob.size).toBeGreaterThan(0);
-    expect(calls[0].url).toBe(
-      `https://api.example.test/v1/content/${id}/blob`,
-    );
+    expect(calls[0].url).toBe(`https://api.example.test/v1/content/${id}/blob`);
     expect(calls[0].init.headers["Accept"]).toBe("*/*");
   });
 
@@ -272,11 +264,9 @@ describe("TownClient content namespace", () => {
     const id = newId<"content">();
     const archived = contentFixture({ status: "archived" });
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse({ content: archived })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse({ content: archived })], calls, {
+      token: "t",
+    });
 
     const result = await client.content.archive(id);
 
@@ -327,9 +317,10 @@ describe("TownClient content namespace", () => {
       { token: "t" },
     );
 
-    await expect(
-      client.content.get(newId<"content">()),
-    ).rejects.toMatchObject({ status: 404, code: "CONTENT_NOT_FOUND" });
+    await expect(client.content.get(newId<"content">())).rejects.toMatchObject({
+      status: 404,
+      code: "CONTENT_NOT_FOUND",
+    });
   });
 
   it("throws TownApiError on 409 conflict for stale revision", async () => {
@@ -357,11 +348,9 @@ describe("TownClient content namespace", () => {
     const collectionId = newId<"content-collection">();
     const item = contentFixture();
     const calls: FetchCall[] = [];
-    const client = makeClient(
-      [jsonResponse({ items: [item] })],
-      calls,
-      { token: "t" },
-    );
+    const client = makeClient([jsonResponse({ items: [item] })], calls, {
+      token: "t",
+    });
 
     const result = await client.content.collections.get(collectionId);
 

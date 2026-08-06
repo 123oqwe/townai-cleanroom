@@ -104,9 +104,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               href="/new/knowledge/conflicts"
               className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
             >
-             Conflicts
-           </Link>
-         </nav>
+              Conflicts
+            </Link>
+          </nav>
           <nav className="flex flex-col gap-1 text-sm">
             <p
               className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"

@@ -166,8 +166,8 @@ export interface ThreadCreateInput {
 }
 
 export interface ListOptions {
- cursor?: string;
- limit?: number;
+  cursor?: string;
+  limit?: number;
 }
 
 // ── Routines domain ──
@@ -189,11 +189,7 @@ export type RoutineTriggerKind =
   | "whatsapp_message";
 
 export type RoutineRunStatus =
-  | "queued"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "blocked";
+  "queued" | "running" | "succeeded" | "failed" | "blocked";
 
 export type RoutineTriggerType =
   | "schedule"
@@ -379,7 +375,12 @@ export interface RoutineEmailIngestResult {
 }
 
 export interface ExternalTriggerInput {
-  kind: "incoming_email" | "calendar" | "voice_transcribed" | "slack_mention" | "webhook";
+  kind:
+    | "incoming_email"
+    | "calendar"
+    | "voice_transcribed"
+    | "slack_mention"
+    | "webhook";
   data: Record<string, unknown>;
 }
 

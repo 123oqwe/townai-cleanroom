@@ -38,7 +38,9 @@ export default function RunsPage() {
       await client.routines.runs.replay(runId);
       void mutate();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not replay run.");
+      setActionError(
+        err instanceof Error ? err.message : "Could not replay run.",
+      );
     } finally {
       setReplaying(null);
     }
@@ -69,13 +71,20 @@ export default function RunsPage() {
       </div>
 
       {actionError !== null && (
-        <p className="mb-4 text-sm" style={{ color: "var(--danger)" }} role="alert">
+        <p
+          className="mb-4 text-sm"
+          style={{ color: "var(--danger)" }}
+          role="alert"
+        >
           {actionError}
         </p>
       )}
 
       {runs.length === 0 ? (
-        <EmptyState title="No runs recorded yet." hint="Runs appear here after the routine executes." />
+        <EmptyState
+          title="No runs recorded yet."
+          hint="Runs appear here after the routine executes."
+        />
       ) : (
         <DataTable
           rows={runs}
