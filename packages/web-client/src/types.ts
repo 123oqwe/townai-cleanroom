@@ -743,3 +743,500 @@ export interface SearchOptions {
   cursor?: string;
   limit?: number;
 }
+
+// ── Tasks domain ──
+
+export type TaskStatus = "open" | "completed" | "deleted";
+export type TaskApprovalMode =
+  | "respect_tool_setting"
+  | "require_approval"
+  | "autonomous";
+
+export interface Task {
+  id: Id<"task">;
+  ownerId: Id<"user">;
+  agentId: Id<"agent">;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  approvalMode: TaskApprovalMode;
+  unread: boolean;
+  scheduledFor: string | null;
+  sourceThreads: Id<"thread">[];
+  currentRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskPage {
+  items: Task[];
+  nextCursor: string | null;
+}
+
+export interface TaskListOptions {
+  status?: TaskStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface TaskCreateInput {
+  title: string;
+  description?: string;
+  approvalMode?: TaskApprovalMode;
+  sourceThreads?: Id<"thread">[];
+  scheduledFor?: string | null;
+}
+
+export interface TaskUpdateInput {
+  expectedRevision: number;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  scheduledFor: string | null;
+}
+
+// ── Suggestions domain ──
+
+export type SuggestionStatus = "open" | "dismissed" | "converted";
+
+export interface Suggestion {
+  id: Id<"suggestion">;
+  ownerId: Id<"user">;
+  kind: string;
+  sourceType: string;
+  sourceRef: string;
+  title: string;
+  body: string;
+  status: SuggestionStatus;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SuggestionPage {
+  items: Suggestion[];
+  nextCursor: string | null;
+}
+
+export interface SuggestionListOptions {
+  status?: SuggestionStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface SuggestionUpdateInput {
+  expectedRevision: number;
+  status: SuggestionStatus;
+}
+
+// ── Approvals domain ──
+
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
+
+export interface Approval {
+  id: Id<"approval">;
+  ownerId: Id<"user">;
+  toolCallId: Id<"tool-call">;
+  status: ApprovalStatus;
+  arguments: Record<string, unknown>;
+  expiresAt: string | null;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApprovalPage {
+  items: Approval[];
+  nextCursor: string | null;
+}
+
+export interface ApprovalListOptions {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ApprovalDecisionInput {
+  expectedRevision: number;
+  decision: "approve" | "reject";
+  reason?: string;
+}
+
+// ── Tools domain ──
+
+export interface Tool {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  sideEffect: boolean;
+  dataSensitivity: string;
+}
+
+export interface ToolPolicyEvaluateInput {
+  toolName: string;
+  arguments: Record<string, unknown>;
+  approvalMode?: string;
+  agentVersionId?: string;
+}
+
+export interface ToolPolicyResult {
+  decision: string;
+  reason: string;
+  approvalRequired: boolean;
+}
+
+export interface ToolCall {
+  id: Id<"tool-call">;
+  ownerId: Id<"user">;
+  name: string;
+  status: string;
+  sideEffect: boolean;
+  dataSensitivity: string;
+  accountBinding: string | null;
+  arguments: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+  errorCode: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+// ── MCP domain ──
+
+export type McpServerStatus = "active" | "disabled";
+export type McpTransport = "stdio" | "sse" | "streamable_http";
+
+export interface McpServer {
+  id: Id<"mcp-server">;
+  ownerId: Id<"user">;
+  name: string;
+  url: string;
+  transport: McpTransport;
+  authRef: string | null;
+  status: McpServerStatus;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface McpServerCreateInput {
+  name: string;
+  url: string;
+  transport: McpTransport;
+  authRef?: string | null;
+}
+
+export interface McpBinding {
+  id: Id<"mcp-binding">;
+  ownerId: Id<"user">;
+  serverId: Id<"mcp-server">;
+  agentVersionId: Id<"agent-version">;
+  modeOverride: string | null;
+  accountScope: string[];
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface McpBindingListOptions {
+  agentVersionId?: string;
+}
+
+export interface McpBindingCreateInput {
+  agentVersionId: Id<"agent-version">;
+  modeOverride?: string;
+  accountScope?: string[];
+}
+
+// ── Channels domain ──
+
+export type ChannelKind =
+  | "email"
+  | "sms"
+  | "push"
+  | "telegram"
+  | "whatsapp"
+  | "slack";
+export type ChannelStatus = "active" | "disabled";
+
+export interface Channel {
+  id: Id<"channel">;
+  ownerId: Id<"user">;
+  kind: ChannelKind;
+  address: string;
+  config: Record<string, unknown>;
+  status: ChannelStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChannelCreateInput {
+  kind: ChannelKind;
+  address: string;
+  config?: Record<string, unknown>;
+}
+
+export type DeliveryStatus =
+  | "pending"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "cancelled";
+
+export interface NotificationDelivery {
+  id: Id<"notification-delivery">;
+  ownerId: Id<"user">;
+  channelId: Id<"channel">;
+  eventType: string;
+  status: DeliveryStatus;
+  attempts: number;
+  lastError: string | null;
+  nextAttemptAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeliveryPage {
+  items: NotificationDelivery[];
+  nextCursor: string | null;
+}
+
+export interface DeliveryListOptions {
+  status?: DeliveryStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface TimelineEntry {
+  id: string;
+  kind: string;
+  data: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface TimelinePage {
+  items: TimelineEntry[];
+  nextCursor: string | null;
+}
+
+export interface TimelineListOptions {
+  limit?: number;
+  cursor?: string;
+}
+
+// ── Accounts domain ──
+
+export interface ConnectedAccount {
+  id: Id<"connected-account">;
+  ownerId: Id<"user">;
+  provider: string;
+  email: string;
+  capabilities: Record<string, boolean>;
+  needsReauth: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountCredentialInput {
+  accessToken: string;
+  refreshToken?: string;
+  scopes?: string[];
+}
+
+// ── Voice domain ──
+
+export interface VoiceSynthesizeInput {
+  text: string;
+  voiceId?: string;
+}
+
+// ── Billing domain ──
+
+export interface BillingState {
+  planName: string;
+  creditBand: string;
+  isBlocked: boolean;
+}
+
+export interface BillingUsageItem {
+  category: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface BillingPeriod {
+  start: string;
+  end: string;
+}
+
+export interface BillingResponse {
+  status: "configured" | "not_configured";
+  billing?: BillingState;
+  usage?: BillingUsageItem[];
+  period?: BillingPeriod;
+}
+
+export interface BillingListOptions {
+  start?: string;
+  end?: string;
+}
+
+// ── Squares domain ──
+
+export type SquareStatus = "active" | "archived";
+export type SquareMemberRole = "owner" | "admin" | "member";
+export type SquareMemberStatus = "active" | "invited" | "suspended";
+
+export interface Square {
+  id: Id<"square">;
+  ownerId: Id<"user">;
+  name: string;
+  slug: string;
+  description: string;
+  status: SquareStatus;
+  membership: {
+    role: SquareMemberRole;
+    status: SquareMemberStatus;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SquareCreateInput {
+  name: string;
+  slug: string;
+  description?: string;
+  settings?: Record<string, unknown>;
+}
+
+export interface SquareMember {
+  userId: Id<"user">;
+  role: SquareMemberRole;
+  status: SquareMemberStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SquareMemberAddInput {
+  userId: Id<"user">;
+  role: SquareMemberRole;
+  status?: SquareMemberStatus;
+}
+
+export interface SquareMemberUpdateInput {
+  role: SquareMemberRole;
+  status: SquareMemberStatus;
+}
+
+export interface SquarePolicy {
+  defaultMode: string;
+  allowedDomains: string[];
+  allowedToolNames: string[];
+  settings: Record<string, unknown>;
+  revision: number;
+}
+
+export interface SquarePolicyUpdateInput {
+  expectedRevision: number;
+  defaultMode: string;
+  allowedDomains: string[];
+  allowedToolNames: string[];
+  settings?: Record<string, unknown>;
+}
+
+export interface SquareAccountShare {
+  id: Id<"square-account-share">;
+  provider: string;
+  email: string;
+  capabilities: string[];
+}
+
+export interface SquareAccountGrantInput {
+  accountId: Id<"connected-account">;
+  accountOwnerId: Id<"user">;
+  capabilities: string[];
+}
+
+// ── Operations domain ──
+
+export interface AuditEvent {
+  id: string;
+  ownerId: Id<"user">;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  outcome: string;
+  createdAt: string;
+}
+
+export interface AuditPage {
+  items: AuditEvent[];
+  nextCursor: string | null;
+}
+
+export interface AuditListOptions {
+  action?: string;
+  outcome?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface OperationsSummary {
+  summary: Record<string, number>;
+}
+
+export interface ScheduleItem {
+  id: string;
+  kind: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  calendarId: string;
+}
+
+export interface ScheduleResult {
+  items: ScheduleItem[];
+  calendars: Array<{ id: string; name: string }>;
+  calendarErrors: string[];
+}
+
+export interface ScheduleListOptions {
+  limit?: number;
+}
+
+// ── Admin domain ──
+
+export interface AdminOverview {
+  users: number;
+  activeSessions: number;
+  routines: number;
+  squares: number;
+}
+
+export interface AdminReport {
+  slug: string;
+  data: Record<string, unknown>;
+}
+
+export interface AdminAgentHealth {
+  userId: Id<"user">;
+  status: string;
+  lastActiveAt: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface AdminUser {
+  id: Id<"user">;
+  email: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface AdminTeam {
+  squareId: Id<"square">;
+  members: Array<{
+    userId: Id<"user">;
+    role: SquareMemberRole;
+    status: SquareMemberStatus;
+  }>;
+}
