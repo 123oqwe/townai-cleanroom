@@ -33,7 +33,38 @@ import type {
   WikiCreateInput,
   WikiDocument,
   WikiUpdateInput,
-  WikiUpdateResult,
+ WikiUpdateResult,
+} from "./types.js";
+import type {
+  ContentCollection,
+  ContentCollectionCreateInput,
+  ContentCreateInput,
+  ContentItem,
+  ContentListOptions,
+  ContentPage,
+  ContentRevision,
+  ContentShare,
+  ContentShareCreateResult,
+  ContentUpdateInput,
+  ExternalTriggerInput,
+  Routine,
+  RoutineCreateInput,
+  RoutineEmailIngestInput,
+  RoutineEmailIngestResult,
+  RoutineRun,
+  RoutineRunDetail,
+  RoutineShare,
+  RoutineShareCreateResult,
+  RoutineShareInstallInput,
+  RoutineTemplate,
+  RoutineTemplateInstallInput,
+  RoutineTrigger,
+  RoutineTriggerCreateInput,
+  RoutineTriggerUpdateInput,
+  RoutineUpdateInput,
+  RoutineVersionPage,
+  RoutineWebhook,
+  RoutineWebhookCreateResult,
 } from "./types.js";
 
 export interface TownClientOptions {
@@ -150,6 +181,124 @@ export interface KnowledgeApi {
   readonly conflicts: ConflictsApi;
 }
 
+export interface RoutineTriggersApi {
+  list(routineId: Id<"routine-schedule">): Promise<RoutineTrigger[]>;
+  create(
+    routineId: Id<"routine-schedule">,
+    input: RoutineTriggerCreateInput,
+  ): Promise<RoutineTrigger>;
+  update(
+    triggerId: Id<"routine-trigger">,
+    input: RoutineTriggerUpdateInput,
+  ): Promise<RoutineTrigger>;
+  delete(
+    triggerId: Id<"routine-trigger">,
+    expectedRevision: number,
+  ): Promise<void>;
+}
+
+export interface RoutineRunsApi {
+  list(
+    routineId: Id<"routine-schedule">,
+    limit?: number,
+  ): Promise<RoutineRun[]>;
+  get(runId: Id<"integration-sync-run">): Promise<RoutineRunDetail>;
+  replay(runId: Id<"integration-sync-run">): Promise<RoutineRun>;
+}
+
+export interface RoutineWebhooksApi {
+  get(routineId: Id<"routine-schedule">): Promise<RoutineWebhook>;
+  create(routineId: Id<"routine-schedule">): Promise<RoutineWebhookCreateResult>;
+  setEnabled(
+    routineId: Id<"routine-schedule">,
+    enabled: boolean,
+  ): Promise<RoutineWebhook>;
+}
+
+export interface RoutineTemplatesApi {
+  list(): Promise<RoutineTemplate[]>;
+ install(
+   templateId: string,
+   input: RoutineTemplateInstallInput,
+  ): Promise<Routine>;
+}
+
+export interface RoutineSharesApi {
+  create(
+    routineId: Id<"routine-schedule">,
+    expiresAt?: string | null,
+  ): Promise<RoutineShareCreateResult>;
+  delete(shareId: Id<"routine-share">): Promise<void>;
+}
+
+export interface RoutinesApi {
+  list(): Promise<Routine[]>;
+  get(id: Id<"routine-schedule">): Promise<Routine>;
+  create(input: RoutineCreateInput): Promise<Routine>;
+  update(
+    id: Id<"routine-schedule">,
+    input: RoutineUpdateInput,
+  ): Promise<Routine>;
+  delete(id: Id<"routine-schedule">, expectedRevision: number): Promise<void>;
+  run(
+    id: Id<"routine-schedule">,
+    input: string,
+  ): Promise<{ run: RoutineRun }>;
+  trigger(
+    id: Id<"routine-schedule">,
+    input: ExternalTriggerInput,
+  ): Promise<{ run: RoutineRun }>;
+  ingestEmail(
+    id: Id<"routine-schedule">,
+    input: RoutineEmailIngestInput,
+  ): Promise<RoutineEmailIngestResult>;
+  versions(
+    id: Id<"routine-schedule">,
+    limit?: number,
+  ): Promise<RoutineVersionPage>;
+  readonly triggers: RoutineTriggersApi;
+  readonly runs: RoutineRunsApi;
+  readonly webhooks: RoutineWebhooksApi;
+  readonly templates: RoutineTemplatesApi;
+ readonly shares: RoutineSharesApi;
+  installShared(input: RoutineShareInstallInput): Promise<Routine>;
+}
+
+export interface ContentCollectionsApi {
+  list(): Promise<ContentCollection[]>;
+  get(id: Id<"content-collection">): Promise<ContentItem[]>;
+  create(input: ContentCollectionCreateInput): Promise<ContentCollection>;
+  addItem(
+    collectionId: Id<"content-collection">,
+    contentId: Id<"content">,
+  ): Promise<void>;
+}
+
+export interface ContentSharesApi {
+  create(
+    contentId: Id<"content">,
+    expiresAt?: string | null,
+  ): Promise<ContentShareCreateResult>;
+  delete(shareId: Id<"content-share">): Promise<void>;
+}
+
+export interface ContentApi {
+  list(options?: ContentListOptions): Promise<ContentPage>;
+  get(id: Id<"content">): Promise<ContentItem>;
+  create(input: ContentCreateInput): Promise<ContentItem>;
+  update(id: Id<"content">, input: ContentUpdateInput): Promise<ContentItem>;
+  archive(id: Id<"content">): Promise<ContentItem>;
+  history(id: Id<"content">): Promise<ContentRevision[]>;
+  blob(id: Id<"content">): Promise<Blob>;
+  uploadBlob(
+    id: Id<"content">,
+    body: Uint8Array,
+    contentType?: string,
+  ): Promise<ContentItem>;
+  readonly collections: ContentCollectionsApi;
+  readonly shares: ContentSharesApi;
+}
+
 interface RequestOptions {
   readonly method: string;
   readonly body?: unknown;
@@ -172,7 +321,9 @@ export class TownClient {
   readonly me: MeApi;
   readonly threads: ThreadsApi;
   readonly sessions: SessionsApi;
-  readonly knowledge: KnowledgeApi;
+ readonly knowledge: KnowledgeApi;
+  readonly routines: RoutinesApi;
+  readonly content: ContentApi;
 
   constructor(options: TownClientOptions) {
     if (options.baseUrl.length === 0)
@@ -330,8 +481,192 @@ export class TownClient {
         ) =>
           this.postJson<ConflictResolveResult>(
             `/v1/knowledge/conflicts/${id}/resolve`,
-            { expectedRevision, resolution },
+         { expectedRevision, resolution },
+       ),
+     },
+   };
+    this.routines = {
+      list: () =>
+        this.getJson<{ routines: Routine[] }>("/v1/routines").then(
+          (r) => r.routines,
+        ),
+      get: (id) =>
+        this.getJson<{ routines: Routine[] }>("/v1/routines").then((r) => {
+          const found = r.routines.find((item) => item.id === id);
+          if (found === undefined)
+            throw new TownApiError(404, "ROUTINE_NOT_FOUND", "Routine not found.");
+          return found;
+        }),
+      create: (input) =>
+        this.postJson<{ routine: Routine }>("/v1/routines", input).then(
+          (r) => r.routine,
+        ),
+      update: (id, input) =>
+        this.patchJson<{ routine: Routine }>(
+          `/v1/routines/${id}`,
+          input,
+        ).then((r) => r.routine),
+      delete: (id, expectedRevision) =>
+        this.delete(
+          `/v1/routines/${id}?expectedRevision=${expectedRevision}`,
+        ),
+      run: (id, input) =>
+        this.postJson<{ run: RoutineRun }>(
+          `/v1/routines/${id}/run`,
+          { input },
+          { idempotencyKey: crypto.randomUUID() },
+        ),
+      trigger: (id, input) =>
+        this.postJson<{ run: RoutineRun }>(
+          `/v1/routines/${id}/trigger`,
+          input,
+          { idempotencyKey: crypto.randomUUID() },
+        ),
+      ingestEmail: (id, input) =>
+        this.postJson<RoutineEmailIngestResult>(
+          `/v1/routines/${id}/ingest/email`,
+          input,
+        ),
+      versions: (id, limit) =>
+        this.getJson<RoutineVersionPage>(
+          `/v1/routines/${id}/versions${limit !== undefined ? `?limit=${limit}` : ""}`,
+        ),
+      installShared: (input) =>
+        this.postJson<{ routine: Routine }>(
+          "/v1/routines/install",
+          input,
+        ).then((r) => r.routine),
+      triggers: {
+        list: (routineId) =>
+          this.getJson<{ triggers: RoutineTrigger[] }>(
+            `/v1/routines/${routineId}/triggers`,
+          ).then((r) => r.triggers),
+        create: (routineId, input) =>
+          this.postJson<{ trigger: RoutineTrigger }>(
+            `/v1/routines/${routineId}/triggers`,
+            input,
+          ).then((r) => r.trigger),
+        update: (triggerId, input) =>
+          this.patchJson<{ trigger: RoutineTrigger }>(
+            `/v1/routine-triggers/${triggerId}`,
+            input,
+          ).then((r) => r.trigger),
+        delete: (triggerId, expectedRevision) =>
+          this.delete(
+            `/v1/routine-triggers/${triggerId}?expectedRevision=${expectedRevision}`,
           ),
+      },
+      runs: {
+        list: (routineId, limit) =>
+          this.getJson<{ runs: RoutineRun[] }>(
+            `/v1/routines/${routineId}/runs${limit !== undefined ? `?limit=${limit}` : ""}`,
+          ).then((r) => r.runs),
+        get: (runId) =>
+          this.getJson<RoutineRunDetail>(`/v1/routine-runs/${runId}`),
+        replay: (runId) =>
+          this.postJson<{ run: RoutineRun }>(
+            `/v1/routine-runs/${runId}/replay`,
+            {},
+            { idempotencyKey: crypto.randomUUID() },
+          ).then((r) => r.run),
+      },
+      webhooks: {
+        get: (routineId) =>
+          this.getJson<{ webhook: RoutineWebhook }>(
+            `/v1/routines/${routineId}/webhook`,
+          ).then((r) => r.webhook),
+        create: (routineId) =>
+          this.postJson<RoutineWebhookCreateResult>(
+            `/v1/routines/${routineId}/webhook`,
+            {},
+          ),
+        setEnabled: (routineId, enabled) =>
+          this.patchJson<{ webhook: RoutineWebhook }>(
+            `/v1/routines/${routineId}/webhook`,
+            { enabled },
+          ).then((r) => r.webhook),
+      },
+      templates: {
+        list: () =>
+          this.getJson<{ templates: RoutineTemplate[] }>(
+            "/v1/routine-templates",
+          ).then((r) => r.templates),
+        install: (templateId, input) =>
+          this.postJson<{ routine: Routine }>(
+            `/v1/routine-templates/${templateId}/install`,
+            input,
+          ).then((r) => r.routine),
+      },
+      shares: {
+        create: (routineId, expiresAt) =>
+          this.postJson<RoutineShareCreateResult>(
+            `/v1/routines/${routineId}/shares`,
+            expiresAt === undefined ? {} : { expiresAt },
+          ),
+        delete: (shareId) =>
+          this.delete(`/v1/routines/shares/${shareId}`),
+      },
+    };
+    this.content = {
+      list: (options) =>
+        this.getJson<ContentPage>(`/v1/content${this.contentQuery(options)}`),
+      get: (id) =>
+        this.getJson<{ content: ContentItem }>(`/v1/content/${id}`).then(
+          (r) => r.content,
+        ),
+      create: (input) =>
+        this.postJson<{ content: ContentItem }>("/v1/content", input).then(
+          (r) => r.content,
+        ),
+      update: (id, input) =>
+        this.patchJson<{ content: ContentItem }>(
+          `/v1/content/${id}`,
+          input,
+        ).then((r) => r.content),
+      archive: (id) =>
+        this.postJson<{ content: ContentItem }>(
+          `/v1/content/${id}/archive`,
+          {},
+        ).then((r) => r.content),
+      history: (id) =>
+        this.getJson<{ revisions: ContentRevision[] }>(
+          `/v1/content/${id}/revisions`,
+        ).then((r) => r.revisions),
+      blob: (id) => this.getBlob(`/v1/content/${id}/blob`),
+      uploadBlob: (id, body, contentType) =>
+        this.putRaw<{ content: ContentItem }>(
+          `/v1/content/${id}/blob`,
+          body,
+          contentType,
+        ).then((r) => r.content),
+      collections: {
+        list: () =>
+          this.getJson<{ collections: ContentCollection[] }>(
+            "/v1/content/collections",
+          ).then((r) => r.collections),
+        get: (collectionId) =>
+          this.getJson<{ items: ContentItem[] }>(
+            `/v1/content/collections/${collectionId}`,
+          ).then((r) => r.items),
+        create: (input) =>
+          this.postJson<{ collection: ContentCollection }>(
+            "/v1/content/collections",
+            input,
+          ).then((r) => r.collection),
+        addItem: (collectionId, contentId) =>
+          this.postJson(
+            `/v1/content/collections/${collectionId}/items`,
+            { contentId },
+          ).then(() => undefined),
+      },
+      shares: {
+        create: (contentId, expiresAt) =>
+          this.postJson<{ share: { share: ContentShare; token: string } }>(
+            `/v1/content/${contentId}/shares`,
+            expiresAt === undefined ? {} : { expiresAt },
+          ).then((r) => r.share),
+        delete: (shareId) =>
+          this.delete(`/v1/content/shares/${shareId}`),
       },
     };
   }
@@ -340,11 +675,21 @@ export class TownClient {
     return `${this.baseUrl}${path}`;
   }
 
-  private query(options: ListOptions | undefined): string {
+ private query(options: ListOptions | undefined): string {
+   if (options === undefined) return "";
+   const params = new URLSearchParams();
+   if (options.cursor !== undefined) params.set("cursor", options.cursor);
+   if (options.limit !== undefined) params.set("limit", String(options.limit));
+   const search = params.toString();
+   return search === "" ? "" : `?${search}`;
+ }
+
+  private contentQuery(options: ContentListOptions | undefined): string {
     if (options === undefined) return "";
     const params = new URLSearchParams();
-    if (options.cursor !== undefined) params.set("cursor", options.cursor);
+    if (options.status !== undefined) params.set("status", options.status);
     if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor !== undefined) params.set("cursor", options.cursor);
     const search = params.toString();
     return search === "" ? "" : `?${search}`;
   }
@@ -420,6 +765,35 @@ export class TownClient {
 
   private async putJson<T>(path: string, body: unknown): Promise<T> {
     const response = await this.request(path, { method: "PUT", body });
+    return this.parseJson<T>(response);
+  }
+
+  private async patchJson<T>(path: string, body: unknown): Promise<T> {
+    const response = await this.request(path, { method: "PATCH", body });
+    return this.parseJson<T>(response);
+  }
+
+  private async getBlob(path: string): Promise<Blob> {
+    const response = await this.request(path, {
+      method: "GET",
+      accept: "*/*",
+    });
+    if (!response.ok) throw await this.toError(response);
+    return response.blob();
+  }
+
+  private async putRaw<T>(
+    path: string,
+    body: Uint8Array,
+    contentType?: string,
+  ): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (contentType !== undefined) headers["Content-Type"] = contentType;
+    const response = await this.request(path, {
+      method: "PUT",
+      headers,
+      body,
+    });
     return this.parseJson<T>(response);
   }
 

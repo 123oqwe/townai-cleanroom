@@ -166,8 +166,323 @@ export interface ThreadCreateInput {
 }
 
 export interface ListOptions {
-  cursor?: string;
+ cursor?: string;
+ limit?: number;
+}
+
+// ── Routines domain ──
+
+export type RoutineTriggerKind =
+  | "manual"
+  | "schedule"
+  | "incoming_email"
+  | "outgoing_email"
+  | "email_to_assistant"
+  | "calendar_start"
+  | "calendar_end"
+  | "calendar_rsvp"
+  | "calendar_changed"
+  | "voice_transcribed"
+  | "slack_mention"
+  | "webhook"
+  | "telegram_message"
+  | "whatsapp_message";
+
+export type RoutineRunStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "blocked";
+
+export type RoutineTriggerType =
+  | "schedule"
+  | "manual"
+  | "webhook"
+  | "incoming_email"
+  | "email_to_assistant"
+  | "calendar"
+  | "voice_transcribed"
+  | "slack_mention"
+  | "telegram_message"
+  | "whatsapp_message";
+
+/** A routine schedule, as returned by `GET /v1/routines`. */
+export interface Routine {
+  id: Id<"routine-schedule">;
+  ownerId: Id<"user">;
+  agentId: Id<"agent">;
+  agentVersionId: Id<"agent-version">;
+  name: string;
+  cron: string;
+  timezone: string;
+  enabled: boolean;
+  nextRunAt: string;
+  lastRunAt: string | null;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoutineCreateInput {
+  agentId: Id<"agent">;
+  agentVersionId: Id<"agent-version">;
+  name: string;
+  cron: string;
+  timezone?: string;
+  nextRunAt: string;
+  enabled?: boolean;
+}
+
+export interface RoutineUpdateInput extends RoutineCreateInput {
+  expectedRevision: number;
+}
+
+export interface RoutineVersion {
+  id: Id<"agent-version">;
+  agentId: Id<"agent">;
+  version: number;
+  snapshot: {
+    displayName: string;
+    instructions: string;
+    defaultApprovalMode: ApprovalMode;
+    callableRoutineIds: string[];
+  };
+  changeReason: string | null;
+  createdBy: "user" | "system";
+  createdAt: string;
+}
+
+export interface RoutineVersionPage {
+  items: RoutineVersion[];
+  nextCursor: string | null;
+}
+
+export interface RoutineRun {
+  id: Id<"integration-sync-run">;
+  ownerId: Id<"user">;
+  accountId: Id<"connected-account">;
+  routineScheduleId: Id<"routine-schedule"> | null;
+  provider: string;
+  status: RoutineRunStatus;
+  triggerType: RoutineTriggerType;
+  triggerData: Record<string, unknown>;
+  idempotencyKey: string | null;
+  replayOfRunId: Id<"integration-sync-run"> | null;
+  replayKey: string | null;
+  cursor: Record<string, unknown>;
+  errorCode: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  runtimeRunId: Id<"session-run"> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Detail returned by `GET /v1/routine-runs/:runId`. */
+export interface RoutineRunDetail {
+  run: RoutineRun;
+  result: {
+    status: string;
+    subject: string | null;
+    [key: string]: unknown;
+  } | null;
+}
+
+export interface RoutineTrigger {
+  id: Id<"routine-trigger">;
+  ownerId: Id<"user">;
+  routineScheduleId: Id<"routine-schedule">;
+  kind: RoutineTriggerKind;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoutineTriggerCreateInput {
+  kind: RoutineTriggerKind;
+  config?: Record<string, unknown>;
+  enabled?: boolean;
+}
+
+export interface RoutineTriggerUpdateInput {
+  expectedRevision: number;
+  config: Record<string, unknown>;
+  enabled: boolean;
+}
+
+export interface RoutineWebhook {
+  id: Id<"routine-webhook">;
+  ownerId: Id<"user">;
+  routineScheduleId: Id<"routine-schedule">;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Result of creating a webhook; the secret is shown only once. */
+export interface RoutineWebhookCreateResult {
+  webhook: RoutineWebhook;
+  secret: string;
+}
+
+export interface RoutineTemplate {
+  id: string;
+  name: string;
+  summary: string;
+  setupPrompt: string;
+  defaultApprovalMode: ApprovalMode;
+}
+
+export interface RoutineTemplateInstallInput {
+  name?: string;
+  cron: string;
+  timezone?: string;
+  nextRunAt: string;
+  enabled?: boolean;
+}
+
+export interface RoutineShareInstallInput {
+  token: string;
+  name?: string;
+  nextRunAt: string;
+  enabled?: boolean;
+}
+
+export interface RoutineShare {
+  id: Id<"routine-share">;
+  ownerId: Id<"user">;
+  routineScheduleId: Id<"routine-schedule">;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+/** Result of creating a share; the token is shown only once. */
+export interface RoutineShareCreateResult {
+  share: RoutineShare;
+  token: string;
+}
+
+export interface RoutineEmailIngestInput {
+  accountId: Id<"connected-account">;
+  query?: string;
+  maxResults?: number;
+}
+
+export interface RoutineEmailIngestResult {
+  query: string;
+  runs: RoutineRun[];
+  nextPageToken: string | null;
+}
+
+export interface ExternalTriggerInput {
+  kind: "incoming_email" | "calendar" | "voice_transcribed" | "slack_mention" | "webhook";
+  data: Record<string, unknown>;
+}
+
+// ── Content domain ──
+
+export type ContentKind =
+  | "document"
+  | "email_draft"
+  | "spreadsheet"
+  | "deck"
+  | "file"
+  | "image"
+  | "video"
+  | "audio"
+  | "recording"
+  | "briefing"
+  | "link"
+  | "session";
+
+export type ContentStatus = "active" | "archived" | "deleted";
+
+export interface ContentItem {
+  id: Id<"content">;
+  ownerId: Id<"user">;
+  kind: ContentKind;
+  title: string;
+  mimeType: string | null;
+  storageKey: string | null;
+  body: string | null;
+  metadata: Record<string, unknown>;
+  sourceSessionId: Id<"runtime-session"> | null;
+  status: ContentStatus;
+  currentRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContentPage {
+  items: ContentItem[];
+  nextCursor: string | null;
+}
+
+export interface ContentListOptions {
+  status?: ContentStatus;
   limit?: number;
+  cursor?: string;
+}
+
+export interface ContentCreateInput {
+  kind: ContentKind;
+  title: string;
+  mimeType?: string | null;
+  storageKey?: string | null;
+  body?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ContentUpdateInput {
+  expectedRevision: number;
+  title: string;
+  mimeType: string | null;
+  storageKey: string | null;
+  body: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ContentRevision {
+  id: Id<"content-revision">;
+  contentId: Id<"content">;
+  revision: number;
+  title: string;
+  mimeType: string | null;
+  storageKey: string | null;
+  body: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ContentCollection {
+  id: Id<"content-collection">;
+  ownerId: Id<"user">;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContentCollectionCreateInput {
+  name: string;
+  description?: string;
+}
+
+export interface ContentShare {
+  id: Id<"content-share">;
+  contentId: Id<"content">;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+/** Result of creating a content share; the token is shown only once. */
+export interface ContentShareCreateResult {
+  share: ContentShare;
+  token: string;
 }
 
 // ── Knowledge domain ──
