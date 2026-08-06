@@ -101,7 +101,9 @@ describe("TownClient content namespace", () => {
     const result = await client.content.get(item.id);
 
     expect(result.title).toBe("Meeting Notes");
-    expect(calls[0]!.url).toBe(`https://api.example.test/v1/content/${item.id}`);
+    expect(calls[0]!.url).toBe(
+      `https://api.example.test/v1/content/${item.id}`,
+    );
   });
 
   it("creates content via POST /v1/content", async () => {
@@ -256,7 +258,9 @@ describe("TownClient content namespace", () => {
     const blob = await client.content.blob(id);
 
     expect(blob.size).toBeGreaterThan(0);
-    expect(calls[0]!.url).toBe(`https://api.example.test/v1/content/${id}/blob`);
+    expect(calls[0]!.url).toBe(
+      `https://api.example.test/v1/content/${id}/blob`,
+    );
     expect(calls[0]!.init.headers["Accept"]).toBe("*/*");
   });
 
