@@ -53,7 +53,6 @@ import type {
   RoutineEmailIngestResult,
   RoutineRun,
   RoutineRunDetail,
-  RoutineShare,
   RoutineShareCreateResult,
   RoutineShareInstallInput,
   RoutineTemplate,

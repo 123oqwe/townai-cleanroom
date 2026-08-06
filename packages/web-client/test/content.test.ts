@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { newId } from "@town/contracts";
 
-import { TownApiError, TownClient } from "../src/index.js";
+import { TownClient } from "../src/index.js";
 
 type FetchCall = {
   url: string;
