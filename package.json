@@ -25,7 +25,6 @@
     "check:source": "node scripts/check-source-only.mjs",
     "check:runtime-config": "node scripts/check-runtime-config.mjs",
     "check:build-entries": "node scripts/check-build-entries.mjs",
-    "check:web": "node scripts/check-web.mjs",
     "verify": "pnpm check:source && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:build-entries",
     "dev:web": "pnpm --filter @town/web-client build && pnpm --filter @town/web-next dev --port 3001"
   },
