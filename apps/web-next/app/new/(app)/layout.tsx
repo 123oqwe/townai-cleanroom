@@ -147,18 +147,120 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               Collections
             </Link>
             <Link
-              href="/new/content/shares"
+            href="/new/content/shares"
+            className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+          >
+            Shares
+          </Link>
+        </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <p
+              className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "var(--muted)" }}
+            >
+              Tasks & Suggestions
+            </p>
+            <Link
+              href="/new/tasks"
               className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
             >
-              Shares
+              Tasks
+            </Link>
+            <Link
+              href="/new/suggestions"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Suggestions
             </Link>
           </nav>
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              void router.replace("/new/login");
-            }}
+          <nav className="flex flex-col gap-1 text-sm">
+            <Link
+              href="/new/approvals"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Approvals
+            </Link>
+          </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <p
+              className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "var(--muted)" }}
+            >
+              Integrations
+            </p>
+            <Link
+              href="/new/mcp"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              MCP
+            </Link>
+            <Link
+              href="/new/tools"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Tools
+            </Link>
+            <Link
+              href="/new/channels"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Channels
+            </Link>
+            <Link
+              href="/new/accounts"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Accounts
+            </Link>
+            <Link
+              href="/new/voice"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Voice
+            </Link>
+          </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <Link
+              href="/new/billing"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Billing
+            </Link>
+          </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <Link
+              href="/new/squares"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Squares
+            </Link>
+          </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <p
+              className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "var(--muted)" }}
+            >
+              Operations & Admin
+            </p>
+            <Link
+              href="/new/operations"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Operations
+            </Link>
+            <Link
+              href="/new/admin"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Admin
+            </Link>
+          </nav>
+         <button
+           type="button"
+           onClick={() => {
+             logout();
+             void router.replace("/new/login");
+           }}
             className="mt-auto rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-[color:var(--background)]"
             style={{ color: "var(--muted)" }}
           >
