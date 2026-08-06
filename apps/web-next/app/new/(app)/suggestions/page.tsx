@@ -3,7 +3,11 @@
 import { useState } from "react";
 import useSWR from "swr";
 
-import { TownApiError, type Suggestion, type SuggestionPage } from "@town/web-client";
+import {
+  TownApiError,
+  type Suggestion,
+  type SuggestionPage,
+} from "@town/web-client";
 
 import { useApiClient } from "@/app/api-client";
 import { EmptyState } from "@/components/states";
@@ -12,9 +16,11 @@ import { LoadingState } from "@/components/states";
 export default function SuggestionsPage() {
   const client = useApiClient();
   const [refreshing, setRefreshing] = useState(false);
-  const { data, error, isLoading, mutate } = useSWR<SuggestionPage, TownApiError>(
-    ["suggestions"],
-    () => client.suggestions.list({ status: "open", limit: 20 }),
+  const { data, error, isLoading, mutate } = useSWR<
+    SuggestionPage,
+    TownApiError
+  >(["suggestions"], () =>
+    client.suggestions.list({ status: "open", limit: 20 }),
   );
 
   const suggestions = data?.items ?? [];
@@ -54,7 +60,10 @@ export default function SuggestionsPage() {
           onClick={handleRefresh}
           disabled={refreshing}
           className="rounded-md px-3 py-1.5 text-sm font-medium transition-opacity disabled:opacity-60"
-          style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-foreground)",
+          }}
         >
           {refreshing ? "Refreshing..." : "Refresh"}
         </button>
@@ -67,14 +76,20 @@ export default function SuggestionsPage() {
           {error.message}
         </p>
       ) : suggestions.length === 0 ? (
-        <EmptyState title="Nothing needs your attention right now." hint="Suggestions from routines and email will appear here." />
+        <EmptyState
+          title="Nothing needs your attention right now."
+          hint="Suggestions from routines and email will appear here."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {suggestions.map((s) => (
             <li
               key={s.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -99,7 +114,10 @@ export default function SuggestionsPage() {
                     type="button"
                     onClick={() => convertToTask(s)}
                     className="rounded-md px-2 py-1 text-xs font-medium transition-opacity"
-                    style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+                    style={{
+                      background: "var(--accent)",
+                      color: "var(--accent-foreground)",
+                    }}
                   >
                     Make task
                   </button>

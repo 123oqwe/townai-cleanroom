@@ -34,7 +34,7 @@ only one worker claims a given run at a time, even across processes.
 
 The project deploys to Vercel as a monorepo:
 
-- `vercel.json` builds the workspace and serves `apps/web` as static assets
+- `vercel.json` builds the workspace and serves `apps/web-next` (Next.js 15)
 - `api/index.js` is the serverless entrypoint that re-exports the built Hono app
 - The `/v1/(.*)` rewrite rule routes all API paths to the serverless function
 
@@ -125,6 +125,22 @@ node apps/api/dist/index.js
 
 The API applies pending migrations on startup. Set `WORKER_ENABLED=true`
 for local single-process development (API + inline worker).
+
+### Next.js frontend (apps/web-next)
+
+The production frontend is Next.js 15 (App Router, React 19, TypeScript, Tailwind v4).
+All pages live under `/new/*` behind route protection middleware.
+
+Start the dev server:
+
+```bash
+pnpm dev:web   # prebuilds @town/web-client, then runs next dev on port 3001
+```
+
+This opens `http://localhost:3001/new/login`. The `next.config.ts` rewrites
+`/v1/*` to the API (`NEXT_PUBLIC_API_BASE_URL`, default `http://localhost:3000`).
+The production build runs via `pnpm --filter @town/web-next build` and is included
+in `pnpm verify` through `pnpm -r build`.
 
 ### Local dual-process verification
 

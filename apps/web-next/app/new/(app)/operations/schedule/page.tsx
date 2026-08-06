@@ -25,7 +25,11 @@ export default function SchedulePage() {
       {calendars.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-2">
           {calendars.map((cal) => (
-            <span key={cal.id} className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--panel)", color: "var(--muted)" }}>
+            <span
+              key={cal.id}
+              className="rounded-full px-2 py-0.5 text-xs"
+              style={{ background: "var(--panel)", color: "var(--muted)" }}
+            >
               {cal.name}
             </span>
           ))}
@@ -35,16 +39,30 @@ export default function SchedulePage() {
       {isLoading ? (
         <LoadingState label="Loading schedule..." />
       ) : error !== undefined ? (
-        <p className="text-sm" style={{ color: "var(--danger)" }} role="alert">{error.message}</p>
+        <p className="text-sm" style={{ color: "var(--danger)" }} role="alert">
+          {error.message}
+        </p>
       ) : items.length === 0 ? (
-        <EmptyState title="Nothing scheduled." hint="Connect a calendar to see upcoming events." />
+        <EmptyState
+          title="Nothing scheduled."
+          hint="Connect a calendar to see upcoming events."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item) => (
-            <li key={item.id} className="rounded-lg border p-3" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
+            <li
+              key={item.id}
+              className="rounded-lg border p-3"
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs" style={{ color: "var(--muted)" }}>{item.kind}</span>
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>
+                    {item.kind}
+                  </span>
                   <strong className="block text-sm">{item.title}</strong>
                 </div>
                 <time className="text-xs" style={{ color: "var(--muted)" }}>

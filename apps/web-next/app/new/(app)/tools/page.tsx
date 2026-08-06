@@ -3,7 +3,11 @@
 import { useState } from "react";
 import useSWR from "swr";
 
-import { TownApiError, type Tool, type ToolPolicyResult } from "@town/web-client";
+import {
+  TownApiError,
+  type Tool,
+  type ToolPolicyResult,
+} from "@town/web-client";
 
 import { useApiClient } from "@/app/api-client";
 import { EmptyState } from "@/components/states";
@@ -33,7 +37,11 @@ export default function ToolsPage() {
       });
       setResult(r);
     } catch (e) {
-      setResult({ decision: "error", reason: e instanceof Error ? e.message : "Invalid JSON", approvalRequired: false });
+      setResult({
+        decision: "error",
+        reason: e instanceof Error ? e.message : "Invalid JSON",
+        approvalRequired: false,
+      });
     } finally {
       setEvaluating(false);
     }
@@ -43,7 +51,13 @@ export default function ToolsPage() {
     <section className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-xl font-semibold tracking-tight">Tools</h1>
 
-      <div className="mb-6 rounded-lg border p-4" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
+      <div
+        className="mb-6 rounded-lg border p-4"
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
+      >
         <h2 className="mb-3 text-sm font-medium">Policy Evaluation</h2>
         <div className="flex flex-col gap-2">
           <input
@@ -52,7 +66,10 @@ export default function ToolsPage() {
             value={toolName}
             onChange={(e) => setToolName(e.target.value)}
             className="rounded-md border p-2 text-sm"
-            style={{ borderColor: "var(--panel-border)", background: "var(--background)" }}
+            style={{
+              borderColor: "var(--panel-border)",
+              background: "var(--background)",
+            }}
           />
           <textarea
             placeholder="Arguments (JSON)"
@@ -60,23 +77,39 @@ export default function ToolsPage() {
             onChange={(e) => setArgs(e.target.value)}
             rows={4}
             className="rounded-md border p-2 font-mono text-xs"
-            style={{ borderColor: "var(--panel-border)", background: "var(--background)" }}
+            style={{
+              borderColor: "var(--panel-border)",
+              background: "var(--background)",
+            }}
           />
           <button
             type="button"
             onClick={handleEvaluate}
             disabled={evaluating || toolName.trim() === ""}
             className="rounded-md px-3 py-2 text-sm font-medium transition-opacity disabled:opacity-60"
-            style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground)",
+            }}
           >
             {evaluating ? "Evaluating..." : "Evaluate Policy"}
           </button>
         </div>
         {result && (
-          <div className="mt-3 rounded-md border p-3" style={{ borderColor: "var(--panel-border)" }}>
-            <p className="text-sm"><strong>Decision:</strong> {result.decision}</p>
-            <p className="text-sm"><strong>Reason:</strong> {result.reason}</p>
-            <p className="text-sm"><strong>Approval required:</strong> {result.approvalRequired ? "Yes" : "No"}</p>
+          <div
+            className="mt-3 rounded-md border p-3"
+            style={{ borderColor: "var(--panel-border)" }}
+          >
+            <p className="text-sm">
+              <strong>Decision:</strong> {result.decision}
+            </p>
+            <p className="text-sm">
+              <strong>Reason:</strong> {result.reason}
+            </p>
+            <p className="text-sm">
+              <strong>Approval required:</strong>{" "}
+              {result.approvalRequired ? "Yes" : "No"}
+            </p>
           </div>
         )}
       </div>
@@ -95,14 +128,20 @@ export default function ToolsPage() {
             <li
               key={tool.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <strong className="text-sm">{tool.name}</strong>
-                  <p className="text-xs" style={{ color: "var(--muted)" }}>{tool.description}</p>
                   <p className="text-xs" style={{ color: "var(--muted)" }}>
-                    side effect: {tool.sideEffect ? "yes" : "no"} - sensitivity: {tool.dataSensitivity}
+                    {tool.description}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--muted)" }}>
+                    side effect: {tool.sideEffect ? "yes" : "no"} - sensitivity:{" "}
+                    {tool.dataSensitivity}
                   </p>
                 </div>
                 <StatusBadge status={tool.enabled ? "active" : "disabled"} />

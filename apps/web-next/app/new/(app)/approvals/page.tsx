@@ -3,7 +3,11 @@
 import { useState } from "react";
 import useSWR from "swr";
 
-import { TownApiError, type Approval, type ApprovalPage } from "@town/web-client";
+import {
+  TownApiError,
+  type Approval,
+  type ApprovalPage,
+} from "@town/web-client";
 
 import { useApiClient } from "@/app/api-client";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -59,18 +63,26 @@ export default function ApprovalsPage() {
           {error.message}
         </p>
       ) : approvals.length === 0 ? (
-        <EmptyState title="No pending approvals." hint="Tool calls requiring approval will appear here." />
+        <EmptyState
+          title="No pending approvals."
+          hint="Tool calls requiring approval will appear here."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {approvals.map((a) => (
             <li
               key={a.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <strong className="text-sm">Tool call {a.toolCallId.slice(0, 8)}</strong>
+                  <strong className="text-sm">
+                    Tool call {a.toolCallId.slice(0, 8)}
+                  </strong>
                   <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
                     {JSON.stringify(a.arguments)}
                   </p>
@@ -94,23 +106,38 @@ export default function ApprovalsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setSelected(a); setDecision("reject"); }}
+                  onClick={() => {
+                    setSelected(a);
+                    setDecision("reject");
+                  }}
                   className="rounded-md border px-2 py-1 text-xs transition-colors"
-                  style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+                  style={{
+                    borderColor: "var(--danger)",
+                    color: "var(--danger)",
+                  }}
                 >
                   Reject
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setSelected(a); setDecision("approve"); }}
+                  onClick={() => {
+                    setSelected(a);
+                    setDecision("approve");
+                  }}
                   className="rounded-md px-2 py-1 text-xs font-medium transition-opacity"
-                  style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+                  style={{
+                    background: "var(--accent)",
+                    color: "var(--accent-foreground)",
+                  }}
                 >
                   Approve
                 </button>
               </div>
               {detail && detail["id"] === a.id && (
-                <pre className="mt-2 overflow-auto rounded-md p-2 text-xs" style={{ background: "var(--background)" }}>
+                <pre
+                  className="mt-2 overflow-auto rounded-md p-2 text-xs"
+                  style={{ background: "var(--background)" }}
+                >
                   {JSON.stringify(detail, null, 2)}
                 </pre>
               )}
@@ -121,12 +148,17 @@ export default function ApprovalsPage() {
 
       <ConfirmDialog
         open={selected !== null && decision !== null}
-        title={decision === "approve" ? "Approve tool call?" : "Reject tool call?"}
+        title={
+          decision === "approve" ? "Approve tool call?" : "Reject tool call?"
+        }
         message={`Are you sure you want to ${decision} this tool call?`}
         confirmLabel={decision === "approve" ? "Approve" : "Reject"}
         destructive={decision === "reject"}
         onConfirm={handleDecision}
-        onCancel={() => { setSelected(null); setDecision(null); }}
+        onCancel={() => {
+          setSelected(null);
+          setDecision(null);
+        }}
       />
     </section>
   );

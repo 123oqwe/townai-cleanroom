@@ -11,8 +11,7 @@ type FetchCall = {
 
 function jsonResponse(body: unknown, init: { status?: number } = {}): Response {
   const status = init.status ?? 200;
-  if (body === null || status === 204)
-    return new Response(null, { status });
+  if (body === null || status === 204) return new Response(null, { status });
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -27,7 +26,10 @@ function makeClient(
   const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
     calls.push({
       url,
-      init: { ...init, headers: (init.headers ?? {}) as Record<string, string> },
+      init: {
+        ...init,
+        headers: (init.headers ?? {}) as Record<string, string>,
+      },
     });
     const response = responses.shift();
     if (response === undefined) throw new Error("no mock response queued");

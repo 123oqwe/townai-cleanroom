@@ -34,9 +34,13 @@ layer.
 
 ### 2. Next.js / React frontend
 
-Real Town.ai uses Next.js 16.2.3 with App Router, RSC, and Turbopack. The
-clean-room frontend is vanilla JavaScript (`apps/web/app.js`). A frontend
-rewrite to Next.js + React + Convex React Client is a separate project scope.
+**Closed.** The production frontend is now Next.js 15 (App Router, React 19,
+TypeScript, Tailwind v4) at `apps/web-next`, served from `/new/*`. The legacy
+vanilla JavaScript app (`apps/web/app.js`) has been deleted. The
+`@town/web-client` typed API client covers all 18 namespaces
+(auth, me, threads, sessions, knowledge, routines, content, tasks, suggestions,
+approvals, tools, mcp, channels, accounts, voice, billing, squares, operations,
+admin) with 131 unit tests. Vercel `outputDirectory` is `apps/web-next`.
 
 ### 3. iMessage channel
 
@@ -58,7 +62,7 @@ daily from the worker loop. See `docs/deployment.md` for configuration.
 | Layer                     | Status                                                                                                                                   |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | 1. Channels & Triggers    | Web, Slack, Telegram, WhatsApp, Twilio voice, Vapi voice, Schedule, Calendar, Gmail Pub/Sub email inbound — implemented. iMessage — gap. |
-| 2. Web & Realtime         | Vanilla JS + SSE/polling. Convex WebSocket — gap (platform rewrite).                                                                     |
+| 2. Web & Realtime         | Next.js 15 + React 19 + SSE. Vanilla JS app deleted. Convex WebSocket — gap (platform rewrite).                                          |
 | 3. Identity & Accounts    | Google OAuth + Microsoft OAuth + multi-account + token encryption — implemented.                                                         |
 | 4. Personal Knowledge     | Profile, Memory, People, Wiki, Goals/Projects, Knowledge Graph, Trusted Contacts — implemented.                                          |
 | 5. Context Builder        | Retrieval planning, federated search, dedup, compression, citations — implemented.                                                       |

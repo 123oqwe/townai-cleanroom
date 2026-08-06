@@ -12,15 +12,21 @@ import { StatusBadge } from "@/components/status-badge";
 
 export default function McpPage() {
   const client = useApiClient();
-  const { data: serversData, error, isLoading, mutate } = useSWR<McpServer[], TownApiError>(
-    ["mcp-servers"],
-    () => client.mcp.servers.list(),
+  const {
+    data: serversData,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<McpServer[], TownApiError>(["mcp-servers"], () =>
+    client.mcp.servers.list(),
   );
 
   const servers = serversData ?? [];
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [transport, setTransport] = useState<"stdio" | "sse" | "streamable_http">("sse");
+  const [transport, setTransport] = useState<
+    "stdio" | "sse" | "streamable_http"
+  >("sse");
   const [authRef, setAuthRef] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -52,7 +58,13 @@ export default function McpPage() {
     <section className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-xl font-semibold tracking-tight">MCP Servers</h1>
 
-      <div className="mb-6 rounded-lg border p-4" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
+      <div
+        className="mb-6 rounded-lg border p-4"
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
+      >
         <h2 className="mb-3 text-sm font-medium">Add Server</h2>
         <div className="flex flex-col gap-2">
           <input
@@ -61,7 +73,10 @@ export default function McpPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="rounded-md border p-2 text-sm"
-            style={{ borderColor: "var(--panel-border)", background: "var(--background)" }}
+            style={{
+              borderColor: "var(--panel-border)",
+              background: "var(--background)",
+            }}
           />
           <input
             type="text"
@@ -69,13 +84,19 @@ export default function McpPage() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="rounded-md border p-2 text-sm"
-            style={{ borderColor: "var(--panel-border)", background: "var(--background)" }}
+            style={{
+              borderColor: "var(--panel-border)",
+              background: "var(--background)",
+            }}
           />
           <select
             value={transport}
             onChange={(e) => setTransport(e.target.value as typeof transport)}
             className="rounded-md border p-2 text-sm"
-            style={{ borderColor: "var(--panel-border)", background: "var(--background)" }}
+            style={{
+              borderColor: "var(--panel-border)",
+              background: "var(--background)",
+            }}
           >
             <option value="sse">SSE</option>
             <option value="stdio">Stdio</option>
@@ -87,14 +108,20 @@ export default function McpPage() {
             value={authRef}
             onChange={(e) => setAuthRef(e.target.value)}
             className="rounded-md border p-2 text-sm"
-            style={{ borderColor: "var(--panel-border)", background: "var(--background)" }}
+            style={{
+              borderColor: "var(--panel-border)",
+              background: "var(--background)",
+            }}
           />
           <button
             type="button"
             onClick={handleCreate}
             disabled={saving}
             className="rounded-md px-3 py-2 text-sm font-medium transition-opacity disabled:opacity-60"
-            style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground)",
+            }}
           >
             {saving ? "Saving..." : "Add Server"}
           </button>
@@ -108,21 +135,30 @@ export default function McpPage() {
           {error.message}
         </p>
       ) : servers.length === 0 ? (
-        <EmptyState title="No MCP servers configured." hint="Add a server to connect external tools." />
+        <EmptyState
+          title="No MCP servers configured."
+          hint="Add a server to connect external tools."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {servers.map((server) => (
             <li
               key={server.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <strong className="text-sm">{server.name}</strong>
-                  <p className="text-xs" style={{ color: "var(--muted)" }}>{server.url}</p>
                   <p className="text-xs" style={{ color: "var(--muted)" }}>
-                    {server.transport} - auth {server.authRef ? "configured" : "not configured"}
+                    {server.url}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--muted)" }}>
+                    {server.transport} - auth{" "}
+                    {server.authRef ? "configured" : "not configured"}
                   </p>
                 </div>
                 <StatusBadge status={server.status} />
@@ -132,7 +168,10 @@ export default function McpPage() {
                   type="button"
                   onClick={() => handleDelete(server)}
                   className="mt-2 rounded-md border px-2 py-1 text-xs transition-colors"
-                  style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+                  style={{
+                    borderColor: "var(--danger)",
+                    color: "var(--danger)",
+                  }}
                 >
                   Disable
                 </button>

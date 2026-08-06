@@ -147,12 +147,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               Collections
             </Link>
             <Link
-            href="/new/content/shares"
-            className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
-          >
-            Shares
-          </Link>
-        </nav>
+              href="/new/content/shares"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Shares
+            </Link>
+          </nav>
           <nav className="flex flex-col gap-1 text-sm">
             <p
               className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"
@@ -255,12 +255,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               Admin
             </Link>
           </nav>
-         <button
-           type="button"
-           onClick={() => {
-             logout();
-             void router.replace("/new/login");
-           }}
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              void router.replace("/new/login");
+            }}
             className="mt-auto rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-[color:var(--background)]"
             style={{ color: "var(--muted)" }}
           >

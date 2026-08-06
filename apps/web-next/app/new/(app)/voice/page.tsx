@@ -30,28 +30,46 @@ export default function VoicePage() {
 
   return (
     <section className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold tracking-tight">Voice Synthesis</h1>
+      <h1 className="mb-6 text-xl font-semibold tracking-tight">
+        Voice Synthesis
+      </h1>
 
-      <div className="rounded-lg border p-4" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
+      <div
+        className="rounded-lg border p-4"
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--panel-border)",
+        }}
+      >
         <textarea
           placeholder="Enter text to synthesize..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
           className="mb-3 w-full rounded-md border p-2 text-sm"
-          style={{ borderColor: "var(--panel-border)", background: "var(--background)" }}
+          style={{
+            borderColor: "var(--panel-border)",
+            background: "var(--background)",
+          }}
         />
         <button
           type="button"
           onClick={handleSynthesize}
           disabled={synthesizing || text.trim() === ""}
           className="rounded-md px-3 py-2 text-sm font-medium transition-opacity disabled:opacity-60"
-          style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-foreground)",
+          }}
         >
           {synthesizing ? "Synthesizing..." : "Synthesize"}
         </button>
         {error !== null && (
-          <p className="mt-2 text-sm" style={{ color: "var(--danger)" }} role="alert">
+          <p
+            className="mt-2 text-sm"
+            style={{ color: "var(--danger)" }}
+            role="alert"
+          >
             {error}
           </p>
         )}

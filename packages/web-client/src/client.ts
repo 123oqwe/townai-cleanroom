@@ -381,10 +381,7 @@ export interface SuggestionsApi {
 export interface ApprovalsApi {
   list(options?: ApprovalListOptions): Promise<ApprovalPage>;
   get(id: Id<"approval">): Promise<Approval>;
-  decide(
-    id: Id<"approval">,
-    input: ApprovalDecisionInput,
-  ): Promise<Approval>;
+  decide(id: Id<"approval">, input: ApprovalDecisionInput): Promise<Approval>;
 }
 
 // ── Tools API ──
@@ -467,10 +464,7 @@ export interface SquaresApi {
   create(input: SquareCreateInput): Promise<Square>;
   members: {
     list(id: Id<"square">): Promise<SquareMember[]>;
-    add(
-      id: Id<"square">,
-      input: SquareMemberAddInput,
-    ): Promise<SquareMember>;
+    add(id: Id<"square">, input: SquareMemberAddInput): Promise<SquareMember>;
     update(
       id: Id<"square">,
       userId: Id<"user">,
@@ -905,9 +899,7 @@ export class TownClient {
           (r) => r.task,
         ),
       delete: (id: Id<"task">, expectedRevision: number) =>
-        this.delete(
-          `/v1/tasks/${id}?expectedRevision=${expectedRevision}`,
-        ),
+        this.delete(`/v1/tasks/${id}?expectedRevision=${expectedRevision}`),
       markRead: (id: Id<"task">) =>
         this.postVoid(`/v1/tasks/${id}/mark-read`, {}),
     };
@@ -916,8 +908,7 @@ export class TownClient {
         this.getJson<SuggestionPage>(
           `/v1/suggestions${this.suggestionQuery(options)}`,
         ),
-      refresh: () =>
-        this.postVoid("/v1/suggestions/refresh", {}),
+      refresh: () => this.postVoid("/v1/suggestions/refresh", {}),
       update: (id: Id<"suggestion">, input: SuggestionUpdateInput) =>
         this.patchJson<{ suggestion: Suggestion }>(
           `/v1/suggestions/${id}`,
@@ -926,9 +917,7 @@ export class TownClient {
     };
     this.approvals = {
       list: (options?: ApprovalListOptions) =>
-        this.getJson<ApprovalPage>(
-          `/v1/approvals${this.query(options)}`,
-        ),
+        this.getJson<ApprovalPage>(`/v1/approvals${this.query(options)}`),
       get: (id: Id<"approval">) =>
         this.getJson<{ approval: Approval }>(`/v1/approvals/${id}`).then(
           (r) => r.approval,
@@ -944,10 +933,7 @@ export class TownClient {
         this.getJson<{ tools: Tool[] }>("/v1/tools").then((r) => r.tools),
       policy: {
         evaluate: (input: ToolPolicyEvaluateInput) =>
-          this.postJson<ToolPolicyResult>(
-            "/v1/tools/policy/evaluate",
-            input,
-          ),
+          this.postJson<ToolPolicyResult>("/v1/tools/policy/evaluate", input),
       },
       calls: {
         get: (id: Id<"tool-call">) =>
@@ -1041,8 +1027,7 @@ export class TownClient {
         this.delete(`/v1/accounts/${id}`),
       google: {
         oauth: {
-          start: () =>
-            this.getRedirectUrl("/v1/accounts/google/oauth/start"),
+          start: () => this.getRedirectUrl("/v1/accounts/google/oauth/start"),
         },
       },
     };
@@ -1121,8 +1106,7 @@ export class TownClient {
             `/v1/operations/audit${this.auditQuery(options)}`,
           ),
       },
-      summary: () =>
-        this.getJson<OperationsSummary>("/v1/operations/summary"),
+      summary: () => this.getJson<OperationsSummary>("/v1/operations/summary"),
       schedule: (options?: ScheduleListOptions) => {
         const qs =
           options?.limit !== undefined ? `?limit=${options.limit}` : "";
@@ -1130,20 +1114,16 @@ export class TownClient {
       },
     };
     this.admin = {
-      overview: () =>
-        this.getJson<AdminOverview>("/v1/admin/overview"),
+      overview: () => this.getJson<AdminOverview>("/v1/admin/overview"),
       reports: (slug: string) =>
         this.getJson<AdminReport>(`/v1/admin/reports/${slug}`),
       agentHealth: (userId: Id<"user">) =>
-        this.getJson<AdminAgentHealth>(
-          `/v1/admin/agent-health/${userId}`,
-        ),
+        this.getJson<AdminAgentHealth>(`/v1/admin/agent-health/${userId}`),
       users: (userId: Id<"user">) =>
         this.getJson<AdminUser>(`/v1/admin/users/${userId}`),
       teams: (squareId: Id<"square">) =>
         this.getJson<AdminTeam>(`/v1/admin/teams/${squareId}`),
     };
-
   }
 
   private url(path: string): string {
@@ -1183,9 +1163,7 @@ export class TownClient {
     return search === "" ? "" : `?${search}`;
   }
 
-  private suggestionQuery(
-    options: SuggestionListOptions | undefined,
-  ): string {
+  private suggestionQuery(options: SuggestionListOptions | undefined): string {
     if (options === undefined) return "";
     const params = new URLSearchParams();
     if (options.status !== undefined) params.set("status", options.status);

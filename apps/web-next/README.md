@@ -1,8 +1,9 @@
 # @town/web-next
 
 Next.js 15 App Router + React 19 + TypeScript + Tailwind v4 frontend for the
-Town platform. This coexists with the legacy vanilla app (`apps/web`); it lives
-under the `/new/*` URL prefix and does not replace the old UI.
+Town platform. This is the production frontend, served from `/new/*` via
+Vercel (`vercel.json` `outputDirectory` = `apps/web-next`). The legacy vanilla
+JS app (`apps/web`) has been removed.
 
 ## What is implemented
 
@@ -201,11 +202,40 @@ expand to view items (DataTable) via GET /v1/content/collections/:id.
 7. Navigate to Content > Shares (`/new/content/shares`): select content,
    create a share link, copy it, then revoke.
 
+## Stage 3: remaining domains (Tasks, Suggestions, Approvals, MCP, Tools, Channels, Accounts, Voice, Billing, Squares, Operations, Admin)
+
+Sixteen new pages under `/new/*`, powered by the corresponding
+`@town/web-client` namespaces:
+
+- `/new/tasks` - task list with status filter, mark-read, complete, delete.
+- `/new/suggestions` - suggestion inbox with refresh, dismiss, convert-to-task.
+- `/new/approvals` - approval queue with inspect, approve, reject (confirm dialog).
+- `/new/mcp` - MCP server management (list, create, disable/delete).
+- `/new/tools` - tool catalog and policy evaluation (POST /v1/tools/policy/evaluate).
+- `/new/channels` - notification channels, delivery timeline, delivery records.
+- `/new/channels/[id]` - single channel configuration.
+- `/new/accounts` - connected accounts list with Google OAuth connect, refresh, remove.
+- `/new/accounts/[id]` - account detail with credential rotation.
+- `/new/voice` - voice synthesis via POST /v1/voice/synthesize with `<audio>` playback.
+- `/new/billing` - billing status, plan, credits, usage breakdown.
+- `/new/squares` - team (Square) list with create.
+- `/new/squares/[id]` - square detail with members, policy, shared accounts.
+- `/new/operations` - audit log with cursor pagination and operations summary.
+- `/new/operations/schedule` - schedule view from GET /v1/schedule.
+- `/new/admin` - admin overview with report viewer (admin allowlist gated).
+
+The sidebar navigation now includes all top-level groups: Threads, Knowledge,
+Routines, Content, Tasks & Suggestions, Approvals, Integrations (MCP, Tools,
+Channels, Accounts, Voice), Billing, Squares, and Operations & Admin.
+
+## Production deployment
+
+`vercel.json` sets `outputDirectory` to `apps/web-next` and `buildCommand`
+to `pnpm build`. The `pnpm -r build` step compiles `@town/web-client` then
+runs `next build`, producing the `.next` output directory that Vercel serves.
+
 ## Notes
 
-- `vercel.json` `outputDirectory` is intentionally left on `apps/web`; the
-  Next.js app is dev-validated and not yet wired into CI `verify` to avoid
-  slowing the gate. Stage 3 flips the output directory.
 - The token is stored in a non-httpOnly cookie set from the client because the
   API issues the token directly to the browser; `middleware.ts` reads the cookie
   server-side to gate routes.
@@ -213,3 +243,7 @@ expand to view items (DataTable) via GET /v1/content/collections/:id.
   self-contained (no `@town/contracts` runtime import), so Turbopack dev and
   the webpack build both consume the compiled `dist`. `dev:web` prebuilds the
   client before starting `next dev`.
+- `@town/web-client` now has 18 namespaces (auth, me, threads, sessions,
+  knowledge, routines, content, tasks, suggestions, approvals, tools, mcp,
+  channels, accounts, voice, billing, squares, operations, admin) with 131 unit
+  tests covering every public method.

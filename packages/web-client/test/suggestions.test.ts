@@ -103,7 +103,11 @@ describe("TownClient suggestions namespace", () => {
     const client = makeClient(
       [
         jsonResponse({
-          suggestion: suggestionFixture({ id, status: "dismissed", revision: 2 }),
+          suggestion: suggestionFixture({
+            id,
+            status: "dismissed",
+            revision: 2,
+          }),
         }),
       ],
       calls,

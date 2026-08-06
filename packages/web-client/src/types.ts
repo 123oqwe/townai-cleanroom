@@ -748,9 +748,7 @@ export interface SearchOptions {
 
 export type TaskStatus = "open" | "completed" | "deleted";
 export type TaskApprovalMode =
-  | "respect_tool_setting"
-  | "require_approval"
-  | "autonomous";
+  "respect_tool_setting" | "require_approval" | "autonomous";
 
 export interface Task {
   id: Id<"task">;
@@ -950,12 +948,7 @@ export interface McpBindingCreateInput {
 // ── Channels domain ──
 
 export type ChannelKind =
-  | "email"
-  | "sms"
-  | "push"
-  | "telegram"
-  | "whatsapp"
-  | "slack";
+  "email" | "sms" | "push" | "telegram" | "whatsapp" | "slack";
 export type ChannelStatus = "active" | "disabled";
 
 export interface Channel {
@@ -976,11 +969,7 @@ export interface ChannelCreateInput {
 }
 
 export type DeliveryStatus =
-  | "pending"
-  | "sent"
-  | "delivered"
-  | "failed"
-  | "cancelled";
+  "pending" | "sent" | "delivered" | "failed" | "cancelled";
 
 export interface NotificationDelivery {
   id: Id<"notification-delivery">;

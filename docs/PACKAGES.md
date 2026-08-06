@@ -46,10 +46,10 @@ This document describes the responsibility of each workspace package.
 
 ## Apps
 
-| App        | Responsibility                                                                                                                                                                                                  |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api` | Hono REST API: 90+ authenticated routes, durable worker, Slack/Telegram/WhatsApp/Twilio/Vapi webhook receivers, Google/Microsoft OAuth, E2B sandbox, Pipedream catalog, ElevenLabs TTS, Vercel serverless entry |
-| `apps/web` | Vanilla JS command center: threads, knowledge search, content library, people, routines, tasks, approvals, channels, billing, squares, A2A                                                                      |
+| App             | Responsibility                                                                                                                                                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`      | Hono REST API: 90+ authenticated routes, durable worker, Slack/Telegram/WhatsApp/Twilio/Vapi webhook receivers, Google/Microsoft OAuth, E2B sandbox, Pipedream catalog, ElevenLabs TTS, Vercel serverless entry                  |
+| `apps/web-next` | Next.js 15 production frontend (App Router, React 19, TypeScript, Tailwind v4): threads, knowledge, routines, content, tasks, suggestions, approvals, MCP, tools, channels, accounts, voice, billing, squares, operations, admin |
 
 ## Dependency Flow
 

@@ -25,7 +25,10 @@ function makeClient(
   const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
     calls.push({
       url,
-      init: { ...init, headers: (init.headers ?? {}) as Record<string, string> },
+      init: {
+        ...init,
+        headers: (init.headers ?? {}) as Record<string, string>,
+      },
     });
     const response = responses.shift();
     if (response === undefined) throw new Error("no mock response queued");
@@ -42,7 +45,14 @@ describe("TownClient admin namespace", () => {
   it("gets admin overview via GET /v1/admin/overview", async () => {
     const calls: FetchCall[] = [];
     const client = makeClient(
-      [jsonResponse({ users: 42, activeSessions: 3, routines: 15, squares: 2 })],
+      [
+        jsonResponse({
+          users: 42,
+          activeSessions: 3,
+          routines: 15,
+          squares: 2,
+        }),
+      ],
       calls,
       { token: "t" },
     );

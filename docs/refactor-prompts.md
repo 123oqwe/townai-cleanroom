@@ -343,7 +343,7 @@ harness-thread-store.ts 的实际消费者：
 2. 在 index.html 中用 <script type="module" src="src/main.js">。
 3. 每个视图文件导出 init/destroy 函数，由 main.js 在路由切换时调用。
 4. 拆分时保持完全相同的视觉和行为。
-5. 完成后运行 pnpm check:web 确认。
+5. 完成后运行 pnpm --filter @town/web-next build 确认。
 ```
 
 ---
@@ -357,7 +357,7 @@ harness-thread-store.ts 的实际消费者：
 提示词 4 (拆 admin-routes)  → pnpm verify
 提示词 5 (修 db→harness)    → pnpm verify
 提示词 6 (拆单文件包)       → pnpm verify
-提示词 7 (web 模块化)       → pnpm check:web
+提示词 7 (web 模块化)       → pnpm --filter @town/web-next build
 ```
 
 每个提示词完成后 commit 一次，这样如果出问题可以回滚。

@@ -15,7 +15,10 @@ function makeClient(
   const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
     calls.push({
       url,
-      init: { ...init, headers: (init.headers ?? {}) as Record<string, string> },
+      init: {
+        ...init,
+        headers: (init.headers ?? {}) as Record<string, string>,
+      },
     });
     const response = responses.shift();
     if (response === undefined) throw new Error("no mock response queued");

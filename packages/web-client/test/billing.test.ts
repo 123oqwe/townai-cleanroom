@@ -23,7 +23,10 @@ function makeClient(
   const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
     calls.push({
       url,
-      init: { ...init, headers: (init.headers ?? {}) as Record<string, string> },
+      init: {
+        ...init,
+        headers: (init.headers ?? {}) as Record<string, string>,
+      },
     });
     const response = responses.shift();
     if (response === undefined) throw new Error("no mock response queued");
@@ -48,9 +51,7 @@ describe("TownClient billing namespace", () => {
             creditBand: "A",
             isBlocked: false,
           },
-          usage: [
-            { category: "api_calls", quantity: 1500, unit: "requests" },
-          ],
+          usage: [{ category: "api_calls", quantity: 1500, unit: "requests" }],
           period: {
             start: "2026-07-01T00:00:00.000Z",
             end: "2026-08-01T00:00:00.000Z",

@@ -12,10 +12,13 @@ import { StatusBadge } from "@/components/status-badge";
 
 export default function TasksPage() {
   const client = useApiClient();
-  const [filter, setFilter] = useState<"open" | "completed" | undefined>("open");
+  const [filter, setFilter] = useState<"open" | "completed" | undefined>(
+    "open",
+  );
   const { data, error, isLoading, mutate } = useSWR<TaskPage, TownApiError>(
     ["tasks", filter],
-    () => client.tasks.list(filter ? { status: filter, limit: 50 } : { limit: 50 }),
+    () =>
+      client.tasks.list(filter ? { status: filter, limit: 50 } : { limit: 50 }),
   );
 
   const tasks = data?.items ?? [];
@@ -71,14 +74,20 @@ export default function TasksPage() {
           {error.message}
         </p>
       ) : tasks.length === 0 ? (
-        <EmptyState title="No tasks found." hint="Tasks created from threads or suggestions will appear here." />
+        <EmptyState
+          title="No tasks found."
+          hint="Tasks created from threads or suggestions will appear here."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {tasks.map((task) => (
             <li
               key={task.id}
               className="rounded-lg border p-4"
-              style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--panel-border)",
+              }}
             >
               <div className="flex items-center justify-between">
                 <strong className="text-sm">{task.title}</strong>
@@ -114,7 +123,10 @@ export default function TasksPage() {
                   type="button"
                   onClick={() => deleteTask(task.id, task.currentRevision)}
                   className="rounded-md border px-2 py-1 text-xs transition-colors hover:bg-[color:var(--background)]"
-                  style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+                  style={{
+                    borderColor: "var(--danger)",
+                    color: "var(--danger)",
+                  }}
                 >
                   Delete
                 </button>
