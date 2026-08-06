@@ -86,7 +86,7 @@ describe("TownClient content namespace", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.nextCursor).toBe("c1");
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.url).toBe(
       "https://api.example.test/v1/content?status=active&limit=20&cursor=c0",
     );
   });
@@ -101,7 +101,7 @@ describe("TownClient content namespace", () => {
     const result = await client.content.get(item.id);
 
     expect(result.title).toBe("Meeting Notes");
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/content/${item.id}`,
     );
   });
@@ -122,8 +122,8 @@ describe("TownClient content namespace", () => {
     });
 
     expect(result.kind).toBe("document");
-    expect(calls[0]!.init.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.init.body as string).kind).toBe("document");
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(JSON.parse(calls[0]?.init.body as string).kind).toBe("document");
   });
 
   it("fetches content history via GET /v1/content/:id/revisions", async () => {
@@ -149,8 +149,8 @@ describe("TownClient content namespace", () => {
     const result = await client.content.history(id);
 
     expect(result).toHaveLength(1);
-    expect(result[0]!.revision).toBe(1);
-    expect(calls[0]!.url).toBe(
+    expect(result[0]?.revision).toBe(1);
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/content/${id}/revisions`,
     );
   });
@@ -174,8 +174,8 @@ describe("TownClient content namespace", () => {
     const result = await client.content.collections.list();
 
     expect(result).toHaveLength(1);
-    expect(result[0]!.name).toBe("Research");
-    expect(calls[0]!.url).toBe(
+    expect(result[0]?.name).toBe("Research");
+    expect(calls[0]?.url).toBe(
       "https://api.example.test/v1/content/collections",
     );
   });
@@ -202,7 +202,7 @@ describe("TownClient content namespace", () => {
     });
 
     expect(result.name).toBe("Research");
-    expect(calls[0]!.init.method).toBe("POST");
+    expect(calls[0]?.init.method).toBe("POST");
   });
 
   it("creates a content share via POST /v1/content/:id/shares", async () => {
@@ -235,8 +235,8 @@ describe("TownClient content namespace", () => {
 
     await client.content.shares.delete(shareId);
 
-    expect(calls[0]!.init.method).toBe("DELETE");
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.init.method).toBe("DELETE");
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/content/shares/${shareId}`,
     );
   });
@@ -258,10 +258,10 @@ describe("TownClient content namespace", () => {
     const blob = await client.content.blob(id);
 
     expect(blob.size).toBeGreaterThan(0);
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/content/${id}/blob`,
     );
-    expect(calls[0]!.init.headers["Accept"]).toBe("*/*");
+    expect(calls[0]?.init.headers["Accept"]).toBe("*/*");
   });
 
   it("archives content via POST /v1/content/:id/archive", async () => {
@@ -275,8 +275,8 @@ describe("TownClient content namespace", () => {
     const result = await client.content.archive(id);
 
     expect(result.status).toBe("archived");
-    expect(calls[0]!.init.method).toBe("POST");
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/content/${id}/archive`,
     );
   });
@@ -293,9 +293,9 @@ describe("TownClient content namespace", () => {
 
     await client.content.collections.addItem(collectionId, contentId);
 
-    expect(calls[0]!.init.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.init.body as string).contentId).toBe(contentId);
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(JSON.parse(calls[0]?.init.body as string).contentId).toBe(contentId);
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/content/collections/${collectionId}/items`,
     );
   });
@@ -359,8 +359,8 @@ describe("TownClient content namespace", () => {
     const result = await client.content.collections.get(collectionId);
 
     expect(result).toHaveLength(1);
-    expect(result[0]!.title).toBe("Meeting Notes");
-    expect(calls[0]!.url).toBe(
+    expect(result[0]?.title).toBe("Meeting Notes");
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/content/collections/${collectionId}`,
     );
   });

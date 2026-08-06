@@ -79,10 +79,10 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.list();
 
     expect(result).toHaveLength(1);
-    expect(result[0]!.name).toBe("Morning Briefing");
-    expect(calls[0]!.url).toBe("https://api.example.test/v1/routines");
-    expect(calls[0]!.init.method).toBe("GET");
-    expect(calls[0]!.init.headers["Authorization"]).toBe("Bearer t");
+    expect(result[0]?.name).toBe("Morning Briefing");
+    expect(calls[0]?.url).toBe("https://api.example.test/v1/routines");
+    expect(calls[0]?.init.method).toBe("GET");
+    expect(calls[0]?.init.headers["Authorization"]).toBe("Bearer t");
   });
 
   it("gets a single routine by listing and filtering", async () => {
@@ -98,7 +98,7 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.get(target.id);
 
     expect(result.id).toBe(target.id);
-    expect(calls[0]!.url).toBe("https://api.example.test/v1/routines");
+    expect(calls[0]?.url).toBe("https://api.example.test/v1/routines");
   });
 
   it("creates a routine via POST /v1/routines", async () => {
@@ -119,8 +119,8 @@ describe("TownClient routines namespace", () => {
     });
 
     expect(result.name).toBe("Morning Briefing");
-    expect(calls[0]!.init.method).toBe("POST");
-    expect(JSON.parse(calls[0]!.init.body as string).name).toBe(
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(JSON.parse(calls[0]?.init.body as string).name).toBe(
       "Morning Briefing",
     );
   });
@@ -144,8 +144,8 @@ describe("TownClient routines namespace", () => {
     });
 
     expect(result.revision).toBe(2);
-    expect(calls[0]!.init.method).toBe("PATCH");
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.init.method).toBe("PATCH");
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/routines/${routine.id}`,
     );
   });
@@ -159,8 +159,8 @@ describe("TownClient routines namespace", () => {
 
     await client.routines.delete(id, 3);
 
-    expect(calls[0]!.init.method).toBe("DELETE");
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.init.method).toBe("DELETE");
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/routines/${id}?expectedRevision=3`,
     );
   });
@@ -192,7 +192,7 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.versions(id, 20);
 
     expect(result.items).toHaveLength(1);
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/routines/${id}/versions?limit=20`,
     );
   });
@@ -227,7 +227,7 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.runs.list(id, 8);
 
     expect(result).toHaveLength(1);
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/routines/${id}/runs?limit=8`,
     );
   });
@@ -253,8 +253,8 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.triggers.list(id);
 
     expect(result).toHaveLength(1);
-    expect(result[0]!.kind).toBe("webhook");
-    expect(calls[0]!.url).toBe(
+    expect(result[0]?.kind).toBe("webhook");
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/routines/${id}/triggers`,
     );
   });
@@ -285,7 +285,7 @@ describe("TownClient routines namespace", () => {
     });
 
     expect(result.kind).toBe("webhook");
-    expect(calls[0]!.init.method).toBe("POST");
+    expect(calls[0]?.init.method).toBe("POST");
   });
 
   it("gets a webhook via GET /v1/routines/:id/webhook", async () => {
@@ -306,7 +306,7 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.webhooks.get(id);
 
     expect(result.enabled).toBe(true);
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.url).toBe(
       `https://api.example.test/v1/routines/${id}/webhook`,
     );
   });
@@ -352,7 +352,7 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.templates.list();
 
     expect(result).toHaveLength(1);
-    expect(calls[0]!.url).toBe("https://api.example.test/v1/routine-templates");
+    expect(calls[0]?.url).toBe("https://api.example.test/v1/routine-templates");
   });
 
   it("installs a template via POST /v1/routine-templates/:id/install", async () => {
@@ -370,7 +370,7 @@ describe("TownClient routines namespace", () => {
     });
 
     expect(result.name).toBe("Morning Briefing");
-    expect(calls[0]!.url).toBe(
+    expect(calls[0]?.url).toBe(
       "https://api.example.test/v1/routine-templates/morning-briefing/install",
     );
   });
@@ -405,8 +405,8 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.run(id, "hello");
 
     expect(result.run.status).toBe("queued");
-    expect(calls[0]!.init.headers["Idempotency-Key"]).toBeDefined();
-    expect(JSON.parse(calls[0]!.init.body as string).input).toBe("hello");
+    expect(calls[0]?.init.headers["Idempotency-Key"]).toBeDefined();
+    expect(JSON.parse(calls[0]?.init.body as string).input).toBe("hello");
   });
 
   it("creates a share link via POST /v1/routines/:id/shares", async () => {
@@ -465,7 +465,7 @@ describe("TownClient routines namespace", () => {
     const result = await client.routines.runs.replay(runId);
 
     expect(result.status).toBe("queued");
-    expect(calls[0]!.init.headers["Idempotency-Key"]).toBeDefined();
+    expect(calls[0]?.init.headers["Idempotency-Key"]).toBeDefined();
   });
 
   it("throws TownApiError on 404 for missing routine", async () => {
