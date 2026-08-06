@@ -909,7 +909,7 @@ export class TownClient {
           `/v1/tasks/${id}?expectedRevision=${expectedRevision}`,
         ),
       markRead: (id: Id<"task">) =>
-        this.postJson(`/v1/tasks/${id}/mark-read`, {}).then(() => undefined),
+        this.postVoid(`/v1/tasks/${id}/mark-read`, {}),
     };
     this.suggestions = {
       list: (options?: SuggestionListOptions) =>
@@ -917,7 +917,7 @@ export class TownClient {
           `/v1/suggestions${this.suggestionQuery(options)}`,
         ),
       refresh: () =>
-        this.postJson("/v1/suggestions/refresh", {}).then(() => undefined),
+        this.postVoid("/v1/suggestions/refresh", {}),
       update: (id: Id<"suggestion">, input: SuggestionUpdateInput) =>
         this.patchJson<{ suggestion: Suggestion }>(
           `/v1/suggestions/${id}`,
@@ -1005,11 +1005,13 @@ export class TownClient {
       deliveries: {
         list: (options?: DeliveryListOptions) =>
           this.getJson<DeliveryPage>(
-            `/v1/notification-deliveries${this.query(options)}`,
+            `/v1/notification-deliveries${this.deliveryQuery(options)}`,
           ),
         replay: (id: Id<"notification-delivery">) =>
-          this.postJson(`/v1/notification-deliveries/${id}/replay`, {}).then(
-            () => undefined,
+          this.postVoid(
+            `/v1/notification-deliveries/${id}/replay`,
+            {},
+            { idempotencyKey: `delivery-replay:${id}:${crypto.randomUUID()}` },
           ),
       },
       timeline: (options?: TimelineListOptions) =>
@@ -1213,6 +1215,16 @@ export class TownClient {
     return search === "" ? "" : `?${search}`;
   }
 
+  private deliveryQuery(options: DeliveryListOptions | undefined): string {
+    if (options === undefined) return "";
+    const params = new URLSearchParams();
+    if (options.status !== undefined) params.set("status", options.status);
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor !== undefined) params.set("cursor", options.cursor);
+    const search = params.toString();
+    return search === "" ? "" : `?${search}`;
+  }
+
   private async postBlob(path: string, body: unknown): Promise<Blob> {
     const response = await this.request(path, {
       method: "POST",
@@ -1286,6 +1298,21 @@ export class TownClient {
         : {}),
     });
     return this.parseJson<T>(response);
+  }
+
+  private async postVoid(
+    path: string,
+    body: unknown,
+    extra: { readonly idempotencyKey?: string } | undefined = undefined,
+  ): Promise<void> {
+    const response = await this.request(path, {
+      method: "POST",
+      body,
+      ...(extra?.idempotencyKey !== undefined
+        ? { idempotencyKey: extra.idempotencyKey }
+        : {}),
+    });
+    if (!response.ok) throw await this.toError(response);
   }
 
   private async putJson<T>(path: string, body: unknown): Promise<T> {
