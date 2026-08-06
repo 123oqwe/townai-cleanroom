@@ -104,7 +104,53 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               href="/new/knowledge/conflicts"
               className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
             >
-              Conflicts
+             Conflicts
+           </Link>
+         </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <p
+              className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "var(--muted)" }}
+            >
+              Routines
+            </p>
+            <Link
+              href="/new/routines"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              All
+            </Link>
+            <Link
+              href="/new/routines/templates"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Templates
+            </Link>
+          </nav>
+          <nav className="flex flex-col gap-1 text-sm">
+            <p
+              className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "var(--muted)" }}
+            >
+              Content
+            </p>
+            <Link
+              href="/new/content"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Library
+            </Link>
+            <Link
+              href="/new/content/collections"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Collections
+            </Link>
+            <Link
+              href="/new/content/shares"
+              className="rounded-md px-3 py-2 transition-colors hover:bg-[color:var(--background)]"
+            >
+              Shares
             </Link>
           </nav>
           <button
