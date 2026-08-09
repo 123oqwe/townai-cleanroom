@@ -146,9 +146,9 @@ Phase 9
 - [x] all unit + PG integration tests PASS (115 tests, 17 files)
 - [x] production config tests PASS (21 tests) (fail-fast cases)
 - [x] commit feat(auth): replace email-only production login with verified Google OIDC
-- [ ] push branch + create Draft PR (no merge)
-- [ ] output final A-N report; Auth Code Gate = GO; Public Beta Gate = NO-GO
-- **Status:** in_progress
+- [x] push branch + create Draft PR (no merge)
+- [x] output final A-N report; Auth Code Gate = GO; Public Beta Gate = NO-GO
+- **Status:** complete
 
 ## Decisions Made
 
