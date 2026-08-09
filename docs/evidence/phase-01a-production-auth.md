@@ -14,7 +14,8 @@
 
 ## 2. End SHA
 
-- WIP commit: `3f78a54` (first checkpoint; final SHA updated on completion)
+- Final SHA: `f54c261` (HEAD of branch `codex/phase-01a-production-auth-complete`)
+- PR: https://github.com/123oqwe/townai-cleanroom/pull/1 (Draft, not merged)
 
 ## 3. Files Reviewed (Audit)
 
