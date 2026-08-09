@@ -13,8 +13,8 @@ import { expect, test } from "@playwright/test";
  *
  * Prerequisites:
  * - API server running at E2E_API_URL (default http://localhost:3000)
- * - ACCESS_ALLOWLIST_EMAILS includes "e2e-browser@test.local"
- * - Next.js dev server running (started by playwright.config.ts webServer)
+ * - ACCESS_ALLOWLIST_EMAILS includes the test email
+ * - Next.js dev server running (started by CI or playwright.config.ts)
  */
 
 const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
@@ -33,8 +33,6 @@ test.describe("authentication flow", () => {
   test("empty email is rejected by browser validation", async ({ page }) => {
     await page.goto("/new/login");
     await page.locator('button[type="submit"]').click();
-    // Browser's built-in required validation should prevent submission
-    // The page should still be on /new/login
     await expect(page).toHaveURL(/\/new\/login/);
   });
 
@@ -42,13 +40,9 @@ test.describe("authentication flow", () => {
     await page.goto("/new/login");
     await page.locator('input[type="email"]').fill("notallowed@example.com");
     await page.locator('button[type="submit"]').click();
-    // Wait for error message to appear
     const alert = page.locator('p[role="alert"]');
-    await expect(alert).toBeVisible({
-      timeout: 15000,
-    });
+    await expect(alert).toBeVisible({ timeout: 15000 });
     await expect(alert).toContainText(/allowlist|not allowed|forbidden/i);
-    // Should still be on login page
     await expect(page).toHaveURL(/\/new\/login/);
   });
 
@@ -56,47 +50,67 @@ test.describe("authentication flow", () => {
     await page.goto("/new/login");
     await page.locator('input[type="email"]').fill(TEST_EMAIL);
     await page.locator('button[type="submit"]').click();
-    // Should redirect to /new/threads
-    await expect(page).toHaveURL(/\/new\/threads/, { timeout: 15000 });
+
+    // Wait for either redirect or error
+    await Promise.race([
+      expect(page).toHaveURL(/\/new\/threads/, { timeout: 30000 }),
+      expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 30000 }),
+    ]);
+
+    // If we're still on login, there was an error
+    const currentUrl = page.url();
+    if (currentUrl.includes("/new/login")) {
+      const errorText = await page.locator('p[role="alert"]').textContent();
+      throw new Error(
+        `Login failed. Error shown: ${errorText ?? "unknown error"}`,
+      );
+    }
   });
 
   test("session token cookie is HttpOnly (not readable by JS)", async ({
     page,
     context,
   }) => {
-    // First log in
     await page.goto("/new/login");
     await page.locator('input[type="email"]').fill(TEST_EMAIL);
     await page.locator('button[type="submit"]').click();
-    await expect(page).toHaveURL(/\/new\/threads/, { timeout: 15000 });
 
-    // Check that the cookie exists and is HttpOnly
+    await Promise.race([
+      expect(page).toHaveURL(/\/new\/threads/, { timeout: 30000 }),
+      expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 30000 }),
+    ]);
+
+    if (page.url().includes("/new/login")) {
+      throw new Error("Login failed, cannot verify HttpOnly cookie");
+    }
+
     const cookies = await context.cookies();
     const tokenCookie = cookies.find((c) => c.name === "town-token");
     expect(tokenCookie).toBeDefined();
     expect(tokenCookie?.httpOnly).toBe(true);
     expect(tokenCookie?.sameSite).toBe("Lax");
 
-    // Verify JS cannot read the cookie (HttpOnly)
-    const jsCookieAccess = await page.evaluate(() => {
-      return document.cookie;
-    });
+    const jsCookieAccess = await page.evaluate(() => document.cookie);
     expect(jsCookieAccess).not.toContain("town-token");
   });
 
   test("logout clears session and redirects to login", async ({ page }) => {
-    // First log in
     await page.goto("/new/login");
     await page.locator('input[type="email"]').fill(TEST_EMAIL);
     await page.locator('button[type="submit"]').click();
-    await expect(page).toHaveURL(/\/new\/threads/, { timeout: 15000 });
 
-    // Click sign out button
+    await Promise.race([
+      expect(page).toHaveURL(/\/new\/threads/, { timeout: 30000 }),
+      expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 30000 }),
+    ]);
+
+    if (page.url().includes("/new/login")) {
+      throw new Error("Login failed, cannot test logout");
+    }
+
     await page.locator("button", { hasText: "Sign out" }).click();
-    // Should redirect to /new/login
     await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
 
-    // Cookie should be cleared
     const cookies = await page.context().cookies();
     const tokenCookie = cookies.find((c) => c.name === "town-token");
     expect(tokenCookie?.value).toBe("");

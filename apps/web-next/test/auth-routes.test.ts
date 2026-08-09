@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Mock NEXT_PUBLIC_API_BASE_URL before importing the route handlers.
-process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:3000";
+process.env.NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:3000";
 
 // We must import the route handlers after setting env. Since these are
 // Next.js route handlers, they use NextRequest/NextResponse. We test by

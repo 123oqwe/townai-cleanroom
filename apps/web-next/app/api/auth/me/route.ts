@@ -4,7 +4,7 @@ import { TownApiError, TownClient } from "@town/web-client";
 
 const TOWN_TOKEN_COOKIE = "town-token";
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(TOWN_TOKEN_COOKIE)?.value;

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:3000";
+process.env.NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:3000";
 
 import {
   GET as proxyGET,
@@ -97,7 +97,7 @@ describe("proxy route — request forwarding", () => {
     const call = fetchSpy.mock.calls[0];
     expect(call).toBeDefined();
     const [calledUrl, calledInit] = call as [string, RequestInit];
-    expect(String(calledUrl)).toBe("http://localhost:3000/v1/threads?limit=10");
+    expect(String(calledUrl)).toBe("http://127.0.0.1:3000/v1/threads?limit=10");
     expect(calledInit.method).toBe("GET");
     expect(calledInit.headers).toMatchObject({
       Authorization: "Bearer town_session_testtoken",
@@ -123,7 +123,7 @@ describe("proxy route — request forwarding", () => {
     const call = fetchSpy.mock.calls[0];
     expect(call).toBeDefined();
     const [calledUrl, calledInit] = call as [string, RequestInit];
-    expect(String(calledUrl)).toBe("http://localhost:3000/v1/threads");
+    expect(String(calledUrl)).toBe("http://127.0.0.1:3000/v1/threads");
     expect(calledInit.method).toBe("POST");
     expect(calledInit.headers).toMatchObject({
       Authorization: "Bearer town_session_testtoken",

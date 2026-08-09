@@ -47,7 +47,7 @@ export default defineConfig({
         timeout: 120_000,
         env: {
           NEXT_PUBLIC_API_BASE_URL:
-            process.env.E2E_API_URL ?? "http://localhost:3000",
+            process.env.E2E_API_URL ?? "http://127.0.0.1:3000",
         },
       },
 });

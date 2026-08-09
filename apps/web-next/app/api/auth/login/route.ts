@@ -5,7 +5,7 @@ import { TownApiError, TownClient } from "@town/web-client";
 const TOWN_TOKEN_COOKIE = "town-token";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
 
 export async function POST(request: NextRequest) {
   let email: string;
