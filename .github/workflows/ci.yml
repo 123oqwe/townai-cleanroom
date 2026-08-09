@@ -87,7 +87,7 @@ jobs:
 
       - name: Start API server
         run: |
-          node apps/api/dist/index.js &
+          node apps/api/dist/index.js > /tmp/api.log 2>&1 &
           sleep 5
           # Wait for API to be ready
           curl --retry 10 --retry-delay 2 --retry-connrefused http://127.0.0.1:3000/v1/health
@@ -95,9 +95,17 @@ jobs:
       - name: Start Next.js dev server
         run: |
           pnpm --filter @town/web-client build
-          pnpm --filter @town/web-next dev --port 3001 &
+          pnpm --filter @town/web-next dev --port 3001 > /tmp/web.log 2>&1 &
           sleep 10
           curl --retry 10 --retry-delay 2 --retry-connrefused http://127.0.0.1:3001/new/login
 
       - name: Run browser E2E tests
         run: pnpm test:e2e:browser
+
+      - name: Print API logs
+        if: always()
+        run: cat /tmp/api.log || true
+
+      - name: Print Web logs
+        if: always()
+        run: cat /tmp/web.log || true
