@@ -103,9 +103,9 @@ jobs:
         run: pnpm test:e2e:browser
 
       - name: Print API logs
-        if: always()
+        if: failure()
         run: cat /tmp/api.log || true
 
       - name: Print Web logs
-        if: always()
+        if: failure()
         run: cat /tmp/web.log || true

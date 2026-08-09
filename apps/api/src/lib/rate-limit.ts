@@ -96,8 +96,8 @@ export function createRateLimiter(options: RateLimitOptions) {
 }
 
 export type RateLimiter = ReturnType<typeof createRateLimiter>;
-export type AsyncRateLimiter = ReturnType<typeof createDatabaseRateLimiter>;
-export type AnyRateLimiter = RateLimiter | AsyncRateLimiter;
+export type AnyRateLimiter =
+  RateLimiter | ReturnType<typeof createDatabaseRateLimiter>;
 
 export function createRateLimitMiddleware(
   limiter: AnyRateLimiter,
@@ -216,5 +216,3 @@ export function createDatabaseRateLimiter(options: DatabaseRateLimiterOptions) {
 
   return { check, cleanup, reset, startCleanup, stopCleanup };
 }
-
-export type DatabaseRateLimiter = ReturnType<typeof createDatabaseRateLimiter>;

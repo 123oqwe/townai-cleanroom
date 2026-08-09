@@ -112,6 +112,22 @@ mechanism: if the Fly worker is down or slow, the cron triggers a single
 batch on the Vercel API process. The primary execution path is always the
 Fly worker.
 
+## Rate limiting
+
+The API uses a sliding-window rate limiter for unauthenticated entry points
+(session establishment, OAuth flows, webhook receivers). Two backends are
+available:
+
+| `RATE_LIMIT_BACKEND` | Description                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `memory` (default)   | In-process `Map`. Fast, but each process has its own limit. Suitable for single-instance dev.        |
+| `db`                 | PostgreSQL-backed. All processes share the same limit table. Required for multi-instance production. |
+
+| Variable               | Default | Description                              |
+| ---------------------- | ------- | ---------------------------------------- |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Sliding window duration in milliseconds  |
+| `RATE_LIMIT_MAX`       | `60`    | Maximum requests per window per identity |
+
 ## Local development
 
 ```bash
