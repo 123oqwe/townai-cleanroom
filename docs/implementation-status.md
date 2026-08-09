@@ -106,6 +106,19 @@ Only S6 qualifies as "Production Ready" in external documentation.
 | Vapi voice       | S2       | `api/vapi-voice-events`   | Bearer-validated transcript callback; tested                       |
 | Gmail Pub/Sub    | S2       | `api/gmail-pubsub-events` | OIDC JWT verification + History API; `gmail-pubsub-events.test.ts` |
 
+### Rate Limiting
+
+| Area                 | Maturity | Package   | Evidence                                                                                          |
+| -------------------- | -------- | --------- | ------------------------------------------------------------------------------------------------- |
+| Memory limiter       | S2       | `api`     | Sliding-window Map; `rate-limit.test.ts`                                                          |
+| Database limiter     | S2       | `api`     | Per-key `FOR UPDATE` lock; bigint-safe; `rate-limit-db.test.ts` (10 concurrency regression tests) |
+| Production fail-fast | S2       | `api`     | Memory backend rejected in production; config + runtime-config checks                             |
+| Concurrency smoke    | S2       | `scripts` | `rate-limit-concurrency-smoke.mjs` (1000 concurrent, 10 instances, P50/P95/P99)                   |
+
+Rate limiting is S2 (code + automated tests). S3 requires staging with
+`RATE_LIMIT_BACKEND=db` configured. S4 requires multi-instance staging
+verification. S6 requires monitoring, alerting, and production fault drills.
+
 ## Summary
 
 - **S2 (Tested):** 33 areas — code exists and passes automated tests

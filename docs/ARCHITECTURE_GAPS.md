@@ -160,6 +160,10 @@ user data. They are ordered by priority:
    data access is possible through any API endpoint.
 4. **Rate Limiting** — Resolved in this session: database-backed limiter
    option. Still needed: per-tenant, per-tool, per-model dimension limits.
+   Phase 01B hotfix: fixed integer overflow (`timestamp::int`), added
+   real per-key `FOR UPDATE` locking, SHA-256 key hashing, production
+   fail-fast for memory backend, real cleanup, and concurrency tests with
+   pool max>=20. Still needed: per-tenant, per-tool, per-model limits.
 5. **Audit Logging** — Exists in `operations` package. Needs verification
    that all sensitive actions (credential access, tool execution, approval
    decisions) are logged with sufficient detail.

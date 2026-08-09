@@ -87,9 +87,46 @@ export const environmentSchema = z.object({
     .enum(["memory", "db"])
     .default("memory")
     .transform((value) => value),
+  RATE_LIMIT_RETENTION_MS: z.coerce
+    .number()
+    .int()
+    .min(60_000)
+    .max(604_800_000)
+    .default(300_000),
+  RATE_LIMIT_CLEANUP_BATCH_SIZE: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(50_000)
+    .default(5_000),
+  ALLOW_UNSAFE_MEMORY_RATE_LIMIT_IN_PRODUCTION: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value),
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
 
 export const environment = environmentSchema.parse(process.env);
+
+// Production fail-fast: reject memory backend in production unless an
+// explicit emergency escape hatch is set. This prevents silent fallback to
+// a single-process Map that cannot enforce limits across instances.
+const ALLOW_UNSAFE_MEMORY_RATE_LIMIT_IN_PRODUCTION =
+  environment.ALLOW_UNSAFE_MEMORY_RATE_LIMIT_IN_PRODUCTION === "true";
+
+if (
+  environment.NODE_ENV === "production" &&
+  environment.RATE_LIMIT_BACKEND === "memory" &&
+  !ALLOW_UNSAFE_MEMORY_RATE_LIMIT_IN_PRODUCTION
+) {
+  throw new Error(
+    "RATE_LIMIT_BACKEND=memory is not allowed in production. " +
+      "Set RATE_LIMIT_BACKEND=db, or set " +
+      "ALLOW_UNSAFE_MEMORY_RATE_LIMIT_IN_PRODUCTION=true for emergency only.",
+  );
+}

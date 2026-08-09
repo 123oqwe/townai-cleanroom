@@ -120,13 +120,46 @@ available:
 
 | `RATE_LIMIT_BACKEND` | Description                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------- |
-| `memory` (default)   | In-process `Map`. Fast, but each process has its own limit. Suitable for single-instance dev.        |
+| `memory` (default)   | In-process `Map`. Fast, but each process has its own limit. Suitable for single-instance dev only.   |
 | `db`                 | PostgreSQL-backed. All processes share the same limit table. Required for multi-instance production. |
 
-| Variable               | Default | Description                              |
-| ---------------------- | ------- | ---------------------------------------- |
-| `RATE_LIMIT_WINDOW_MS` | `60000` | Sliding window duration in milliseconds  |
-| `RATE_LIMIT_MAX`       | `60`    | Maximum requests per window per identity |
+| Variable                        | Default  | Description                                  |
+| ------------------------------- | -------- | -------------------------------------------- |
+| `RATE_LIMIT_WINDOW_MS`          | `60000`  | Sliding window duration in milliseconds      |
+| `RATE_LIMIT_MAX`                | `60`     | Maximum requests per window per identity     |
+| `RATE_LIMIT_RETENTION_MS`       | `300000` | How long bucket rows are kept before cleanup |
+| `RATE_LIMIT_CLEANUP_BATCH_SIZE` | `5000`   | Batch size for cleanup deletes               |
+
+### Production fail-fast
+
+`RATE_LIMIT_BACKEND=memory` is **rejected** in production (`NODE_ENV=production`)
+unless the emergency escape hatch `ALLOW_UNSAFE_MEMORY_RATE_LIMIT_IN_PRODUCTION=true`
+is explicitly set. This prevents silent fallback to a single-process Map that
+cannot enforce limits across instances.
+
+### Concurrency design
+
+The database backend (`RATE_LIMIT_BACKEND=db`) uses per-key row-level locking
+via a `rate_limit_keys` table. Each check acquires a `SELECT ... FOR UPDATE`
+lock on the key hash row, serializing concurrent checks for the same key
+while allowing different keys to execute in parallel. Timestamps are stored
+and returned as `bigint`/`text` to avoid PostgreSQL `int` overflow with
+real `Date.now()` millisecond timestamps.
+
+### Key hashing
+
+Rate-limit keys are SHA-256 hashed before storage. The raw key (which may
+contain user IDs, IP addresses, or route prefixes) is never persisted as
+the hash. This prevents raw PII from being stored in the database and limits
+row size to a fixed 64-character hex digest.
+
+### IP extraction trust boundary
+
+The rate limiter extracts client IPs from `x-forwarded-for` (first entry)
+and `x-real-ip` headers. Header values are truncated to 512 characters and
+stripped of control characters. This assumes a trusted reverse proxy
+(Vercel, nginx, etc.) that overwrites `x-forwarded-for` before forwarding.
+If you run without a trusted proxy, clients can spoof this header.
 
 ## Local development
 

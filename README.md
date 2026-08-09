@@ -136,6 +136,10 @@ Vercel hourly cron in `vercel.json`.
 | `E2B_API_KEY`                     | E2B sandbox code runner (falls back to local Node runner)  |
 | `PIPEDREAM_API_KEY`               | Pipedream integration catalog proxy                        |
 
+`RATE_LIMIT_BACKEND=db` is required for production (multi-instance). The
+`memory` backend is rejected when `NODE_ENV=production` unless the explicit
+escape hatch is set. See [deployment docs](docs/deployment.md#rate-limiting).
+
 See [`.env.example`](.env.example) for the full list. Missing credentials
 produce explicit `not_configured` states — the system never fabricates data.
 

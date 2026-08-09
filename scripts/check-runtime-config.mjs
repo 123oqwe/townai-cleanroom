@@ -171,7 +171,22 @@ export function inspectRuntimeConfig(environment = process.env) {
       ({ name, status }) => required.includes(name) && status !== "configured",
     )
     .map(({ name }) => name);
-  return { checks, missingRequired };
+  // Production fail-fast: RATE_LIMIT_BACKEND=memory is not allowed in
+  // production unless the explicit escape hatch is set.
+  const configErrors = [];
+  const isProduction = environment.NODE_ENV === "production";
+  const allowUnsafeMemory =
+    environment.ALLOW_UNSAFE_MEMORY_RATE_LIMIT_IN_PRODUCTION === "true";
+  if (
+    isProduction &&
+    environment.RATE_LIMIT_BACKEND === "memory" &&
+    !allowUnsafeMemory
+  ) {
+    configErrors.push(
+      "RATE_LIMIT_BACKEND=memory is not allowed in production. Set RATE_LIMIT_BACKEND=db.",
+    );
+  }
+  return { checks, missingRequired, configErrors };
 }
 
 const isMain =
@@ -181,6 +196,12 @@ if (isMain) {
   const result = inspectRuntimeConfig();
   console.log(JSON.stringify(result, null, 2));
   if (process.argv.includes("--strict") && result.missingRequired.length > 0) {
+    process.exitCode = 1;
+  }
+  if (process.argv.includes("--strict") && result.configErrors.length > 0) {
+    for (const msg of result.configErrors) {
+      console.error(msg);
+    }
     process.exitCode = 1;
   }
 }
