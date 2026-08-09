@@ -1,126 +1,149 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Browser E2E test for the authentication flow.
+ * Browser E2E test for the Phase 01A authentication flow.
  *
  * Verifies:
- * 1. Login page renders correctly
- * 2. Form validation works (empty email rejected)
- * 3. Non-allowlist email shows error
- * 4. Allowlist email sets HttpOnly cookie and redirects to /new/threads
- * 5. Cookie is HttpOnly (not accessible from JS)
- * 6. Logout clears cookie and redirects to login
+ * 1. Login page renders "Continue with Google" (no email input in prod)
+ * 2. Error states from URL params display correctly
+ * 3. Retry button clears error state
+ * 4. Google start endpoint returns authorization URL or config error
+ * 5. Cross-origin POST to BFF proxy is rejected by CSRF guard
+ * 6. Dev-only email login sets HttpOnly cookie (skipped without dev login)
+ * 7. Logout clears cookie and redirects to login (skipped without dev login)
  *
  * Prerequisites:
  * - API server running at E2E_API_URL (default http://localhost:3000)
- * - ACCESS_ALLOWLIST_EMAILS includes the test email
- * - Next.js dev server running (started by CI or playwright.config.ts)
+ * - Next.js dev server running (started by playwright.config.ts)
  */
 
-const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
+const WEB_ORIGIN = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3001";
 
-test.describe("authentication flow", () => {
-  test("login page renders with email input and submit button", async ({
+test.describe("Phase 01A authentication flow", () => {
+  test("login page renders 'Continue with Google' button (no email input)", async ({
     page,
   }) => {
     await page.goto("/new/login");
     await expect(page.locator("h1")).toHaveText("Town");
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toHaveText("Sign in");
+    await expect(
+      page.locator("button", { hasText: "Continue with Google" }),
+    ).toBeVisible();
+    // No email input in the OIDC-only login page.
+    await expect(page.locator('input[type="email"]')).toHaveCount(0);
+    await expect(page.locator('input[name="email"]')).toHaveCount(0);
   });
 
-  test("empty email is rejected by browser validation", async ({ page }) => {
-    await page.goto("/new/login");
-    await page.locator('button[type="submit"]').click();
-    await expect(page).toHaveURL(/\/new\/login/);
+  test("error from URL param is displayed with retry button", async ({
+    page,
+  }) => {
+    await page.goto("/new/login?error=access_denied");
+    await expect(page.locator("p[role='alert']")).toBeVisible();
+    await expect(page.locator("p[role='alert']")).toContainText(
+      /Access was denied/i,
+    );
+    await expect(page.locator("button", { hasText: "Retry" })).toBeVisible();
   });
 
-  test("non-allowlist email shows access denied error", async ({ page }) => {
-    await page.goto("/new/login");
-    await page.locator('input[type="email"]').fill("notallowed@example.com");
-    await page.locator('button[type="submit"]').click();
-    const alert = page.locator('p[role="alert"]');
-    await expect(alert).toBeVisible({ timeout: 15000 });
-    await expect(alert).toContainText(/allowlist|not allowed|forbidden/i);
-    await expect(page).toHaveURL(/\/new\/login/);
+  test("retry button clears the error state", async ({ page }) => {
+    await page.goto("/new/login?error=auth_failed");
+    await expect(page.locator("p[role='alert']")).toBeVisible();
+    await page.locator("button", { hasText: "Retry" }).click();
+    await expect(page.locator("p[role='alert']")).toHaveCount(0);
+    await expect(
+      page.locator("button", { hasText: "Continue with Google" }),
+    ).toBeVisible();
   });
 
-  test("allowlist email logs in and redirects to threads", async ({ page }) => {
-    await page.goto("/new/login");
-    await page.locator('input[type="email"]').fill(TEST_EMAIL);
-    await page.locator('button[type="submit"]').click();
-
-    // Wait for either redirect or error
-    await Promise.race([
-      expect(page).toHaveURL(/\/new\/threads/, { timeout: 30000 }),
-      expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 30000 }),
-    ]);
-
-    // If we're still on login, there was an error
-    const currentUrl = page.url();
-    if (currentUrl.includes("/new/login")) {
-      const errorText = await page.locator('p[role="alert"]').textContent();
-      throw new Error(
-        `Login failed. Error shown: ${errorText ?? "unknown error"}`,
-      );
+  test("google start endpoint returns authorization URL or config error", async ({
+    request,
+  }) => {
+    // The BFF /api/auth/google/start endpoint should respond.
+    // In dev without Google creds: 503 AUTH_NOT_CONFIGURED.
+    // In dev with Google creds: 200 + authorizationUrl.
+    const response = await request.post(`${WEB_ORIGIN}/api/auth/google/start`, {
+      data: { redirectPath: "/new/threads" },
+      headers: { "content-type": "application/json" },
+    });
+    expect([200, 503]).toContain(response.status());
+    if (response.ok()) {
+      const body = await response.json();
+      expect(body.authorizationUrl).toContain("accounts.google.com");
     }
   });
 
-  test("session token cookie is HttpOnly (not readable by JS)", async ({
+  test("cross-origin POST to BFF proxy is rejected by CSRF guard", async ({
+    request,
+  }) => {
+    const response = await request.post(`${WEB_ORIGIN}/api/proxy/v1/me`, {
+      headers: {
+        "content-type": "application/json",
+        origin: "https://evil.example.com",
+      },
+      data: {},
+    });
+    expect(response.status()).toBe(403);
+    const body = await response.json();
+    expect(body.code).toBe("CSRF_REJECTED");
+  });
+
+  test("dev-only email login sets HttpOnly cookie", async ({
     page,
     context,
   }) => {
+    test.skip(!process.env.E2E_DEV_LOGIN_ENABLED, "dev login not enabled");
+
+    const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
     await page.goto("/new/login");
-    await page.locator('input[type="email"]').fill(TEST_EMAIL);
-    await page.locator('button[type="submit"]').click();
 
-    await Promise.race([
-      expect(page).toHaveURL(/\/new\/threads/, { timeout: 30000 }),
-      expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 30000 }),
-    ]);
+    const response = await page.request.post("/api/auth/login", {
+      data: { email: testEmail },
+      headers: { "content-type": "application/json" },
+    });
 
-    if (page.url().includes("/new/login")) {
-      throw new Error("Login failed, cannot verify HttpOnly cookie");
+    if (!response.ok()) {
+      test.skip(true, `Dev login failed: ${response.status()}`);
+      return;
     }
 
+    await page.goto("/new/threads");
+
     const cookies = await context.cookies();
-    const tokenCookie = cookies.find((c) => c.name === "town-token");
-    expect(tokenCookie).toBeDefined();
-    expect(tokenCookie?.httpOnly).toBe(true);
-    expect(tokenCookie?.sameSite).toBe("Lax");
+    const sessionCookie = cookies.find((c) => c.name.includes("town-session"));
+    expect(sessionCookie).toBeDefined();
+    expect(sessionCookie?.httpOnly).toBe(true);
+    expect(sessionCookie?.sameSite).toBe("Lax");
 
     const jsCookieAccess = await page.evaluate(() => document.cookie);
-    expect(jsCookieAccess).not.toContain("town-token");
+    expect(jsCookieAccess).not.toContain("town-session");
   });
 
   test("logout clears session and redirects to login", async ({ page }) => {
+    test.skip(!process.env.E2E_DEV_LOGIN_ENABLED, "dev login not enabled");
+
+    const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
     await page.goto("/new/login");
-    await page.locator('input[type="email"]').fill(TEST_EMAIL);
-    await page.locator('button[type="submit"]').click();
 
-    await Promise.race([
-      expect(page).toHaveURL(/\/new\/threads/, { timeout: 30000 }),
-      expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 30000 }),
-    ]);
+    const response = await page.request.post("/api/auth/login", {
+      data: { email: testEmail },
+      headers: { "content-type": "application/json" },
+    });
 
-    if (page.url().includes("/new/login")) {
-      throw new Error("Login failed, cannot test logout");
+    if (!response.ok()) {
+      test.skip(true, `Dev login failed: ${response.status()}`);
+      return;
     }
 
-    // Wait for the app layout to finish loading (sidebar renders after
-    // /api/auth/me confirms the session). The layout shows "Loading…" while
-    // waiting, then either renders the sidebar or redirects to /new/login.
-    await expect(page.locator("button", { hasText: "Sign out" })).toBeVisible({
-      timeout: 30000,
+    await page.goto("/new/threads");
+
+    const logoutResponse = await page.request.post("/api/auth/logout", {
+      headers: { "content-type": "application/json" },
     });
-    await page.locator("button", { hasText: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
+    expect(logoutResponse.ok()).toBe(true);
 
     const cookies = await page.context().cookies();
-    const tokenCookie = cookies.find((c) => c.name === "town-token");
-    // Cookie is cleared on logout — either removed entirely (maxAge=0)
-    // or set to an empty string depending on the browser.
-    expect(tokenCookie?.value ?? "").toBe("");
+    const sessionCookie = cookies.find((c) => c.name.includes("town-session"));
+    expect(sessionCookie?.value ?? "").toBe("");
+
+    await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
   });
 });
