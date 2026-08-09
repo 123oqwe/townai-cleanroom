@@ -108,11 +108,19 @@ test.describe("authentication flow", () => {
       throw new Error("Login failed, cannot test logout");
     }
 
+    // Wait for the app layout to finish loading (sidebar renders after
+    // /api/auth/me confirms the session). The layout shows "Loading…" while
+    // waiting, then either renders the sidebar or redirects to /new/login.
+    await expect(page.locator("button", { hasText: "Sign out" })).toBeVisible({
+      timeout: 30000,
+    });
     await page.locator("button", { hasText: "Sign out" }).click();
     await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
 
     const cookies = await page.context().cookies();
     const tokenCookie = cookies.find((c) => c.name === "town-token");
-    expect(tokenCookie?.value).toBe("");
+    // Cookie is cleared on logout — either removed entirely (maxAge=0)
+    // or set to an empty string depending on the browser.
+    expect(tokenCookie?.value ?? "").toBe("");
   });
 });

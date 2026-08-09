@@ -356,6 +356,35 @@ export function createApp(dependencies?: AppDependencies) {
     );
 
   app.onError((error, context) => {
+    // Log unexpected errors so they are diagnosable. Known error types
+    // below are handled with specific HTTP responses; anything that falls
+    // through to the 500 response is logged at error level.
+    if (
+      !(
+        error instanceof IdentityError ||
+        error instanceof AccountError ||
+        error instanceof KnowledgeSearchError ||
+        error instanceof PeopleError ||
+        error instanceof TaskError ||
+        error instanceof TurnError ||
+        error instanceof InputRequestError ||
+        error instanceof RuntimeError ||
+        error instanceof AgentError ||
+        error instanceof ThreadError ||
+        error instanceof RevisionError ||
+        error instanceof WikiError ||
+        error instanceof MemoryError ||
+        error instanceof ProfileError ||
+        error instanceof ToolRegistryError ||
+        error instanceof ToolExecutionError ||
+        error instanceof McpRepositoryError ||
+        error instanceof GoogleTokenError ||
+        error instanceof SuggestionError ||
+        error instanceof ChannelError
+      )
+    ) {
+      console.error("[unhandled-error]", error);
+    }
     if (error instanceof GoogleTokenError) {
       const status = error.code === "GOOGLE_TOKEN_NOT_CONFIGURED" ? 503 : 502;
       return context.json(

@@ -14,3 +14,4 @@ output/
 *reverse-engineering*.md
 *逆向工程报告*.md
 .vercel
+test-results/

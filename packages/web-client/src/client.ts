@@ -544,8 +544,9 @@ export class TownClient {
   readonly admin: AdminApi;
 
   constructor(options: TownClientOptions) {
-    if (options.baseUrl.length === 0)
-      throw new TypeError("TownClient requires a baseUrl.");
+    // An empty baseUrl means same-origin requests (used when API calls go
+    // through a server-side proxy via Next.js rewrites). A non-empty baseUrl
+    // targets a backend directly.
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.token = options.token;
     this.fetchImpl = options.fetch ?? globalThis.fetch;
