@@ -3,14 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { TownApiError, TownClient } from "@town/web-client";
-
-import { TOWN_TOKEN_COOKIE } from "@/app/api-client";
-
-function setCookie(name: string, value: string, maxAgeSeconds: number) {
-  document.cookie = `${name}=${value}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -22,22 +14,28 @@ export default function LoginPage() {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
-    const client = new TownClient({ baseUrl: "" });
     try {
-      const result = await client.auth.createSession(email.trim());
-      // Store the token client-side (httpOnly is not available from the
-      // browser; middleware reads this cookie to gate /new/* routes).
-      setCookie(TOWN_TOKEN_COOKIE, result.token, 60 * 60 * 24 * 7);
-      router.replace("/new/threads");
-    } catch (err) {
-      if (err instanceof TownApiError) {
-        if (err.status === 403) setError("This email is not on the allowlist.");
-        else if (err.status === 429)
-          setError("Too many attempts. Please slow down and retry.");
-        else setError(err.message);
-      } else {
-        setError("Could not connect to the API.");
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (response.ok) {
+        router.replace("/new/threads");
+        return;
       }
+      const body = (await response.json()) as {
+        code?: string;
+        detail?: string;
+      };
+      if (response.status === 403)
+        setError("This email is not on the allowlist.");
+      else if (response.status === 429)
+        setError("Too many attempts. Please slow down and retry.");
+      else setError(body.detail ?? "Could not sign in.");
+      setSubmitting(false);
+    } catch {
+      setError("Could not connect to the API.");
       setSubmitting(false);
     }
   }

@@ -5,6 +5,8 @@ import { NextResponse, type NextRequest } from "next/server";
 const TOWN_TOKEN_COOKIE = "town-token";
 
 // Protect /new/* (except /new/login). No token cookie -> redirect to /new/login.
+// The cookie is HttpOnly, so middleware (running on the edge/server) can read
+// it, but client-side JavaScript cannot.
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(TOWN_TOKEN_COOKIE)?.value ?? "";

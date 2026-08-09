@@ -4,43 +4,54 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { ApiClientProvider, TOWN_TOKEN_COOKIE } from "@/app/api-client";
+import { ApiClientProvider } from "@/app/api-client";
 
-function readToken(): string | null {
-  const match = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith(`${TOWN_TOKEN_COOKIE}=`));
-  return match === undefined ? null : match.slice(TOWN_TOKEN_COOKIE.length + 1);
-}
+type AuthState =
+  | { status: "loading" }
+  | { status: "authenticated" }
+  | { status: "unauthenticated" };
 
-function logout() {
-  document.cookie = `${TOWN_TOKEN_COOKIE}=; path=/; max-age=0`;
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" });
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [auth, setAuth] = useState<AuthState>({ status: "loading" });
 
   useEffect(() => {
-    setToken(readToken());
-    setReady(true);
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) {
+          setAuth({ status: "authenticated" });
+        } else {
+          setAuth({ status: "unauthenticated" });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAuth({ status: "unauthenticated" });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (!ready)
+  if (auth.status === "loading")
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p style={{ color: "var(--muted)" }}>Loading…</p>
       </main>
     );
 
-  if (token === null) {
+  if (auth.status === "unauthenticated") {
     void router.replace("/new/login");
     return null;
   }
 
   return (
-    <ApiClientProvider token={token}>
+    <ApiClientProvider>
       <div className="flex min-h-screen">
         <aside
           className="flex w-56 flex-col gap-1 border-r p-4"
@@ -257,8 +268,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </nav>
           <button
             type="button"
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               void router.replace("/new/login");
             }}
             className="mt-auto rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-[color:var(--background)]"

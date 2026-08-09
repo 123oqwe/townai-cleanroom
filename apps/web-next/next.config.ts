@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
-
 const nextConfig: NextConfig = {
   // The workspace client ships compiled JS under the `import` export
   // condition; transpile it for the bundler. (The package has no `development`
@@ -10,8 +8,12 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        // Route all /v1/* API calls through the authenticated server-side
+        // proxy at /api/proxy/* instead of hitting the backend directly.
+        // The proxy reads the HttpOnly session cookie and injects the
+        // Bearer token — the token is never exposed to client-side JS.
         source: "/v1/:path*",
-        destination: `${apiBase.replace(/\/$/, "")}/v1/:path*`,
+        destination: "/api/proxy/v1/:path*",
       },
     ];
   },
