@@ -31,3 +31,72 @@ jobs:
 
       - name: Verify source
         run: pnpm verify
+
+  browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: town_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/town_test
+      CREDENTIAL_MASTER_KEY_BASE64URL: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      ACCESS_ALLOWLIST_EMAILS: "e2e-browser@test.local"
+      ADMIN_ALLOWLIST_EMAILS: "e2e-browser@test.local"
+      WEB_ORIGIN: "http://localhost:3001"
+      PORT: "3000"
+      E2E_TEST_EMAIL: "e2e-browser@test.local"
+      E2E_API_URL: "http://localhost:3000"
+      E2E_WEB_URL: "http://localhost:3001"
+      E2E_SKIP_WEB_SERVER: "1"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start API server
+        run: |
+          node apps/api/dist/index.js &
+          sleep 5
+          # Wait for API to be ready
+          curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000/v1/health
+
+      - name: Start Next.js dev server
+        run: |
+          pnpm --filter @town/web-client build
+          pnpm --filter @town/web-next dev --port 3001 &
+          sleep 10
+          curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3001/new/login
+
+      - name: Run browser E2E tests
+        run: pnpm test:e2e:browser

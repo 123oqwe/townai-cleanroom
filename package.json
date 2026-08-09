@@ -26,12 +26,14 @@
     "check:runtime-config": "node scripts/check-runtime-config.mjs",
     "check:build-entries": "node scripts/check-build-entries.mjs",
     "verify": "pnpm check:source && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:build-entries",
-    "dev:web": "pnpm --filter @town/web-client build && pnpm --filter @town/web-next dev --port 3001"
+    "dev:web": "pnpm --filter @town/web-client build && pnpm --filter @town/web-next dev --port 3001",
+    "test:e2e:browser": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/sdk-trace-base": "^2.10.0",
+    "@playwright/test": "^1.62.1",
     "@testcontainers/postgresql": "12.0.4",
     "@types/node": "24.13.3",
     "eslint": "10.0.0",
