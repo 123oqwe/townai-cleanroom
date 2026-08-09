@@ -43,12 +43,11 @@ test.describe("authentication flow", () => {
     await page.locator('input[type="email"]').fill("notallowed@example.com");
     await page.locator('button[type="submit"]').click();
     // Wait for error message to appear
-    await expect(page.locator('[role="alert"]')).toBeVisible({
+    const alert = page.locator('p[role="alert"]');
+    await expect(alert).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.locator('[role="alert"]')).toContainText(
-      /allowlist|not allowed|forbidden/i,
-    );
+    await expect(alert).toContainText(/allowlist|not allowed|forbidden/i);
     // Should still be on login page
     await expect(page).toHaveURL(/\/new\/login/);
   });
