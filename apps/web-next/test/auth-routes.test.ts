@@ -2,6 +2,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Mock NEXT_PUBLIC_API_BASE_URL before importing the route handlers.
 process.env.NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:3000";
+process.env.AUTH_ALLOWED_ORIGINS = "http://localhost:3001";
+process.env.AUTH_BFF_SHARED_SECRET = "test-bff-secret-at-least-32-chars-long";
+process.env.INTERNAL_API_BASE_URL = "http://127.0.0.1:3000";
 
 // We must import the route handlers after setting env. Since these are
 // Next.js route handlers, they use NextRequest/NextResponse. We test by
@@ -15,7 +18,9 @@ function makeRequest(
   url: string,
   init: { method: string; body?: unknown; cookies?: Record<string, string> },
 ) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    origin: "http://localhost:3001",
+  };
   if (init.body !== undefined) headers["content-type"] = "application/json";
   const req = new Request(`http://localhost:3001${url}`, {
     method: init.method,
@@ -63,7 +68,10 @@ describe("auth login route", () => {
   it("returns 400 for invalid JSON", async () => {
     const req = new Request("http://localhost:3001/api/auth/login", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: "http://localhost:3001",
+      },
       body: "not json",
     }) as unknown as Parameters<typeof loginPOST>[0];
     // Override json() to throw
@@ -109,7 +117,7 @@ describe("auth login route", () => {
     const setCookie = res.headers.get("set-cookie");
     expect(setCookie).not.toBeNull();
     expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("town-token=town_session_testtoken123");
+    expect(setCookie).toContain("town-session=town_session_testtoken123");
     expect(setCookie).toContain("SameSite=lax");
     const body = (await res.json()) as { user: { email: string } };
     expect(body.user.email).toBe("test@example.com");
@@ -171,7 +179,7 @@ describe("auth me route", () => {
     );
     const req = makeRequest("/api/auth/me", {
       method: "GET",
-      cookies: { "town-token": "town_session_validtoken" },
+      cookies: { "town-session": "town_session_validtoken" },
     });
     const res = await meGET(req);
     expect(res.status).toBe(200);
@@ -197,7 +205,7 @@ describe("auth me route", () => {
     );
     const req = makeRequest("/api/auth/me", {
       method: "GET",
-      cookies: { "town-token": "town_session_expired" },
+      cookies: { "town-session": "town_session_expired" },
     });
     const res = await meGET(req);
     expect(res.status).toBe(401);
@@ -228,7 +236,7 @@ describe("auth logout route", () => {
       .mockResolvedValue(new Response(null, { status: 204 }));
     const req = makeRequest("/api/auth/logout", {
       method: "POST",
-      cookies: { "town-token": "town_session_validtoken" },
+      cookies: { "town-session": "town_session_validtoken" },
     });
     const res = await logoutPOST(req);
     expect(res.status).toBe(200);
@@ -254,7 +262,7 @@ describe("auth logout route", () => {
     );
     const req = makeRequest("/api/auth/logout", {
       method: "POST",
-      cookies: { "town-token": "town_session_expired" },
+      cookies: { "town-session": "town_session_expired" },
     });
     const res = await logoutPOST(req);
     expect(res.status).toBe(200);

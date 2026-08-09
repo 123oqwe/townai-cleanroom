@@ -15,12 +15,11 @@ Live Verification. Auth Code Gate = GO; Public Beta Gate = NO-GO
 
 ## Next Step
 
-Phase 4: API config (AUTH_* vars) + jose OIDC verification + OIDC routes +
-session routes + seal email login + runtime config checks.
+Phase 7: full test suite (unit, PG integration, browser E2E) + Phase 8 CI/docs.
 
 ## Current Phase
 
-Phase 4
+Phase 7
 
 ## Baseline
 
@@ -71,45 +70,45 @@ Phase 4
 
 ### Phase 4: API OIDC Service + Email-Login Sealing
 
-- [ ] apps/api/src/config.ts: add AUTH_GOOGLE_*, AUTH_BFF_SHARED_SECRET,
+- [x] apps/api/src/config.ts: add AUTH_GOOGLE_*, AUTH_BFF_SHARED_SECRET,
       AUTH_FLOW_ENCRYPTION_KEY_BASE64URL, AUTH_ALLOWED_ORIGINS,
       AUTH_SIGNUP_MODE, DEV_EMAIL_LOGIN_ENABLED, INTERNAL_API_BASE_URL
-- [ ] apps/api/src/lib/google-oidc.ts: full ID-token verification with jose
+- [x] apps/api/src/lib/google-oidc.ts: full ID-token verification with jose
       (iss/aud/azp/exp/iat/nonce/email_verified/sub)
-- [ ] apps/api/src/auth/oidc-routes.ts: POST /v1/auth/oidc/google/start,
+- [x] apps/api/src/auth/oidc-routes.ts: POST /v1/auth/oidc/google/start,
       POST /v1/auth/oidc/google/callback (BFF-secret gated, not browser-direct)
-- [ ] apps/api/src/auth/session-routes.ts: GET /v1/me/sessions,
+- [x] apps/api/src/auth/session-routes.ts: GET /v1/me/sessions,
       DELETE /v1/me/sessions/:id, DELETE /v1/me/sessions,
       POST /v1/me/session/rotate
-- [ ] Seal email login: DEV_EMAIL_LOGIN_ENABLED gate; rename dev route to
+- [x] Seal email login: DEV_EMAIL_LOGIN_ENABLED gate; rename dev route to
       /v1/auth/dev-session; production 404 + fail-fast startup
-- [ ] scripts/check-runtime-config.mjs: production auth var validation
-- [ ] unit tests; run pnpm verify; update progress.md
-- **Status:** in_progress
+- [x] scripts/check-runtime-config.mjs: production auth var validation
+- [x] unit tests; run pnpm verify; update progress.md
+- **Status:** complete
 
 ### Phase 5: Next.js BFF Layer
 
-- [ ] apps/web-next lib/server cookies module (__Host-town-session / town-session)
-- [ ] apps/web-next lib/server same-origin CSRF guard (assertSameOriginRequest)
-- [ ] BFF routes: /api/auth/google/start, /api/auth/google/callback,
+- [x] apps/web-next lib/server cookies module (__Host-town-session / town-session)
+- [x] apps/web-next lib/server same-origin CSRF guard (assertSameOriginRequest)
+- [x] BFF routes: /api/auth/google/start, /api/auth/google/callback,
       /api/auth/me, /api/auth/logout, /api/auth/logout-all,
       /api/auth/session/rotate
-- [ ] Refactor /api/proxy/[...path]: INTERNAL_API_BASE_URL, no NEXT_PUBLIC_,
+- [x] Refactor /api/proxy/[...path]: INTERNAL_API_BASE_URL, no NEXT_PUBLIC_,
       header allowlist, no cookie forwarding, path normalization, CSRF on
       mutations
-- [ ] middleware.ts: cookie name sync
-- [ ] run pnpm verify; update progress.md
-- **Status:** pending
+- [x] middleware.ts: cookie name sync
+- [x] run pnpm verify; update progress.md
+- **Status:** complete
 
 ### Phase 6: UI -- Login + Session Management
 
-- [ ] Login page: only "Continue with Google", error/access-denied/expired
+- [x] Login page: only "Continue with Google", error/access-denied/expired
       states, retry, no email input in prod
-- [ ] dev-only login path (inaccessible in prod build)
-- [ ] Session management page: devices, created/last-seen, revoke, logout-all
-- [ ] privacy-minimized IP/UA display
-- [ ] run pnpm verify + build; update progress.md
-- **Status:** pending
+- [x] dev-only login path (inaccessible in prod build)
+- [x] Session management page: devices, created/last-seen, revoke, logout-all
+- [x] privacy-minimized IP/UA display
+- [x] run pnpm verify + build; update progress.md
+- **Status:** complete
 
 ### Phase 7: Test Suite -- Unit, PG Integration, Browser E2E
 
@@ -125,7 +124,7 @@ Phase 4
       callback, HttpOnly cookie, logout, logout-all, revoked session blocked,
       dev login test-env-only
 - [ ] run full CI locally; update progress.md
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 8: CI + Runtime Config Gates + Docs + Evidence
 

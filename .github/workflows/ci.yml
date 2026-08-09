@@ -32,6 +32,68 @@ jobs:
       - name: Verify source
         run: pnpm verify
 
+  production-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Production config must fail when dev login is enabled
+        run: |
+          # NODE_ENV=production + DEV_EMAIL_LOGIN_ENABLED=true must FAIL.
+          if NODE_ENV=production DEV_EMAIL_LOGIN_ENABLED=true \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict; then
+            echo "ERROR: production config incorrectly passed with dev login enabled"
+            exit 1
+          else
+            echo "OK: production config correctly rejected dev login"
+          fi
+
+      - name: Production config must fail when AUTH_* vars are missing
+        run: |
+          if NODE_ENV=production \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict; then
+            echo "ERROR: production config incorrectly passed without AUTH_* vars"
+            exit 1
+          else
+            echo "OK: production config correctly rejected missing AUTH_* vars"
+          fi
+
+      - name: Production config passes when all AUTH_* vars configured
+        run: |
+          NODE_ENV=production \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            AUTH_GOOGLE_CLIENT_ID=id \
+            AUTH_GOOGLE_CLIENT_SECRET=secret \
+            AUTH_GOOGLE_REDIRECT_URI=https://app.example.com/api/auth/google/callback \
+            AUTH_BFF_SHARED_SECRET=$(openssl rand -hex 32) \
+            AUTH_FLOW_ENCRYPTION_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            AUTH_ALLOWED_ORIGINS=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict
+
   browser-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -61,6 +123,11 @@ jobs:
       E2E_WEB_URL: "http://localhost:3001"
       E2E_SKIP_WEB_SERVER: "1"
       NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:3000"
+      INTERNAL_API_BASE_URL: "http://127.0.0.1:3000"
+      DEV_EMAIL_LOGIN_ENABLED: "true"
+      AUTH_ALLOWED_ORIGINS: "http://localhost:3001"
+      AUTH_BFF_SHARED_SECRET: "ci-bff-secret-not-used-for-dev-login"
+      AUTH_FLOW_ENCRYPTION_KEY_BASE64URL: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     steps:
       - name: Check out source
         uses: actions/checkout@v4

@@ -55,6 +55,32 @@
   AUTH_* gates; auth-config.test.ts (12) + google-oidc-login.test.ts (9) pass;
   API typecheck PASS; running pnpm verify.
 
+### Phase 5: Next.js BFF Layer
+
+- **Status:** complete
+- Built lib/server/cookies.ts (__Host-town-session prod / town-session dev,
+  HttpOnly+Secure+SameSite=Lax+Path=/+Priority=High+Expires).
+- Built lib/server/csrf.ts (assertSameOriginRequest for POST/PUT/PATCH/DELETE;
+  getBffSharedSecret; getInternalApiBaseUrl with SSRF guard).
+- BFF routes: /api/auth/google/start, /api/auth/google/callback,
+  /api/auth/me, /api/auth/logout, /api/auth/logout-all,
+  /api/auth/session/rotate, /api/auth/sessions (GET list + DELETE revoke).
+- Refactored /api/proxy/[...path]: INTERNAL_API_BASE_URL (no NEXT_PUBLIC_),
+  header allowlist, no cookie forwarding, path normalization (no traversal),
+  CSRF on mutations, SSE streaming preserved.
+- middleware.ts: cookie name sync.
+- lint + typecheck + web-next build all PASS.
+
+### Phase 6: UI -- Login + Session Management
+
+- **Status:** complete
+- Login page: only "Continue with Google", error/access-denied/expired states,
+  Retry button, no email input (Suspense-wrapped for useSearchParams).
+- Dev login route /api/auth/login returns 404 in production build.
+- Session management page /new/sessions: devices, created/last-seen, revoke,
+  logout-all, privacy-minimized device label (UA hash prefix only).
+- Sidebar "Sessions" link added to layout.
+
 ## Test Results
 
 | Test                      | Input              | Expected               | Actual                                                                                          | Status |

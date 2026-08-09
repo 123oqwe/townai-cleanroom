@@ -15,6 +15,15 @@ async function startPostgres(
 }
 
 export default async function globalPostgres({ provide }: GlobalSetupContext) {
+  // Allow reusing an existing Postgres instance (e.g. local dev) instead of
+  // spinning up a testcontainer. Set POSTGRES_URL to a connection string.
+  if (
+    process.env.POSTGRES_URL !== undefined &&
+    process.env.POSTGRES_URL !== ""
+  ) {
+    provide("postgresUrl", process.env.POSTGRES_URL);
+    return async () => {};
+  }
   const imagePrimary = "postgres:16-alpine";
   const imageFallback = "postgres:16";
   const startupTimeoutMs = Number.parseInt(
