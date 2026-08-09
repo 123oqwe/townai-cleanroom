@@ -199,3 +199,27 @@
 - Files modified:
   - LICENSE (rewritten to Apache 2.0)
   - README.md (license section updated)
+
+### Phase 7: Final Verification & Push — COMPLETE
+
+- **Status:** complete
+- **Started:** 2026-08-09 20:28
+- **Completed:** 2026-08-09 22:30
+- Actions taken:
+  - Root-caused browser E2E failure: drizzle-orm's construct() replaces
+    date/timestamp serializers with passthrough, breaking raw sql tagged
+    template queries that pass Date objects
+  - Fixed createDatabase() in packages/db/src/client.ts: restores date
+    serializers after drizzle initialization
+  - Verified fix locally: API successfully creates sessions with Date objects
+  - Ran full pnpm verify: PASSED (format, lint, typecheck, 651 tests, build)
+  - Pushed to GitHub: both CI jobs pass:
+    - verify: success
+    - browser-e2e: success (6/6 browser tests pass)
+  - All commits use existing commit message style
+- Files modified:
+  - packages/db/src/client.ts (drizzle serializer fix)
+  - .github/workflows/ci.yml (log capture steps, 127.0.0.1, env vars)
+  - test/browser/auth-flow.spec.ts (improved error diagnostics)
+  - apps/web-next route handlers (127.0.0.1 for server-side calls)
+  - playwright.config.ts
