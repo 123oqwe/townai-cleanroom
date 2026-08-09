@@ -718,6 +718,7 @@ export function createApp(dependencies?: AppDependencies) {
         422,
       );
     }
+    console.error("[API] Unhandled error:", error);
     return context.json(
       {
         type: "https://town.local/problems/internal",
