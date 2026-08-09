@@ -68,7 +68,7 @@ import { createAuthMiddleware, type AuthVariables } from "./lib/auth.js";
 import {
   createRateLimiter,
   createRateLimitMiddleware,
-  type RateLimiter,
+  type AnyRateLimiter,
 } from "./lib/rate-limit.js";
 import {
   registerAgentRoutes,
@@ -143,7 +143,7 @@ import { A2AError } from "@town/a2a";
 import type { HarnessExecutionContext } from "./lib/harness-runtime-adapter.js";
 
 export interface AppDependencies {
-  rateLimiter?: RateLimiter;
+  rateLimiter?: AnyRateLimiter;
   sql?: Sql;
   identityService: IdentityService;
   accountRepository: AccountRepository;

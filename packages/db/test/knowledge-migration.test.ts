@@ -132,6 +132,7 @@ describe("knowledge migration", () => {
       "0047_trusted_contacts.sql",
       "0048_knowledge_graph.sql",
       "0049_telegram_whatsapp_triggers.sql",
+      "0050_rate_limit_buckets.sql",
     ]);
   });
 });

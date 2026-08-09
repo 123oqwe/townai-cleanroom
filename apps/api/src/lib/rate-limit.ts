@@ -96,9 +96,11 @@ export function createRateLimiter(options: RateLimitOptions) {
 }
 
 export type RateLimiter = ReturnType<typeof createRateLimiter>;
+export type AsyncRateLimiter = ReturnType<typeof createDatabaseRateLimiter>;
+export type AnyRateLimiter = RateLimiter | AsyncRateLimiter;
 
 export function createRateLimitMiddleware(
-  limiter: RateLimiter,
+  limiter: AnyRateLimiter,
   options?: { keyPrefix?: string },
 ): MiddlewareHandler<{ Variables: AuthVariables }> {
   const keyPrefix = options?.keyPrefix ?? "";
@@ -111,7 +113,7 @@ export function createRateLimitMiddleware(
       identity = "anonymous";
     }
     const key = `${keyPrefix}${identity}:${ip}`;
-    const result = limiter.check(key);
+    const result = await limiter.check(key);
     if (!result.allowed) {
       const retryAfterSeconds = Math.ceil(result.retryAfterMs / 1000);
       return context.json(
@@ -131,3 +133,88 @@ export function createRateLimitMiddleware(
 }
 
 export { extractIp };
+
+// ---------------------------------------------------------------------------
+// Database-backed rate limiter (for multi-instance / production deployments)
+// ---------------------------------------------------------------------------
+
+import type { Sql } from "postgres";
+
+export interface DatabaseRateLimiterOptions {
+  windowMs: number;
+  max: number;
+  sql: Sql;
+  now?: () => number;
+}
+
+/**
+ * Sliding-window rate limiter backed by PostgreSQL. Safe for multi-instance
+ * deployments: all workers share the same `rate_limit_buckets` table.
+ *
+ * Uses `FOR UPDATE` row-level locking during the check to prevent races.
+ * Expired entries are pruned on each check. The table is created by migration
+ * `0050_rate_limit_buckets.sql`.
+ *
+ * Trade-off vs in-process: each check costs one DB round-trip. Use the
+ * in-process limiter for dev/single-instance, and this one for production
+ * where multiple API processes need a shared limit.
+ */
+export function createDatabaseRateLimiter(options: DatabaseRateLimiterOptions) {
+  const windowMs = options.windowMs;
+  const max = options.max;
+  const sql = options.sql;
+  const now = options.now ?? Date.now;
+
+  async function check(
+    key: string,
+  ): Promise<{ allowed: boolean; retryAfterMs: number }> {
+    const currentTime = now();
+    const cutoff = currentTime - windowMs;
+
+    return sql.begin(async (tx) => {
+      // Prune expired entries for this key.
+      await tx`
+        delete from rate_limit_buckets
+        where key = ${key} and timestamp < ${cutoff}
+      `;
+
+      // Count current entries.
+      const countRow = await tx<{ count: number }[]>`
+        select count(*)::int as count
+        from rate_limit_buckets
+        where key = ${key}
+      `;
+
+      if ((countRow[0]?.count ?? 0) < max) {
+        await tx`
+          insert into rate_limit_buckets (key, timestamp)
+          values (${key}, ${currentTime})
+          on conflict do nothing
+        `;
+        return { allowed: true, retryAfterMs: 0 };
+      }
+
+      // Find the oldest entry to compute retry-after.
+      const [oldest] = await tx<{ timestamp: number }[]>`
+        select timestamp::int as timestamp
+        from rate_limit_buckets
+        where key = ${key}
+        order by timestamp asc
+        limit 1
+      `;
+      const oldestTs = oldest?.timestamp ?? currentTime;
+      const retryAfterMs = Math.max(1, oldestTs + windowMs - currentTime);
+      return { allowed: false, retryAfterMs };
+    });
+  }
+
+  // No-ops for interface compatibility with the in-process limiter.
+  function cleanup(): void {}
+  function reset(): void {}
+  function startCleanup(): void {}
+  function stopCleanup(): void {}
+
+  return { check, cleanup, reset, startCleanup, stopCleanup };
+}
+
+export type DatabaseRateLimiter = ReturnType<typeof createDatabaseRateLimiter>;

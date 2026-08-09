@@ -73,6 +73,7 @@ import {
 } from "@town/tools";
 
 import { createApp } from "./app.js";
+import { createDatabaseRateLimiter } from "./lib/rate-limit.js";
 import { createGoogleRoutinePoller } from "./pollers/google-routine-poller.js";
 import { createGoogleCalendarPoller } from "./pollers/google-calendar-poller.js";
 import {
@@ -905,10 +906,23 @@ export async function composeRuntime(
         });
       };
 
+  const rateLimiter =
+    environment.RATE_LIMIT_BACKEND === "db"
+      ? createDatabaseRateLimiter({
+          windowMs:
+            Number(environment.RATE_LIMIT_WINDOW_MS) > 0
+              ? Number(environment.RATE_LIMIT_WINDOW_MS)
+              : 60_000,
+          max: environment.RATE_LIMIT_MAX,
+          sql,
+        })
+      : undefined;
+
   const app = createApp({
     sql,
     identityService,
     accountRepository,
+    ...(rateLimiter === undefined ? {} : { rateLimiter }),
     profileRepository,
     memoryRepository,
     peopleRepository,

@@ -83,6 +83,10 @@ export const environmentSchema = z.object({
     .max(3_600_000)
     .default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10_000).default(60),
+  RATE_LIMIT_BACKEND: z
+    .enum(["memory", "db"])
+    .default("memory")
+    .transform((value) => value),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
 });
 
