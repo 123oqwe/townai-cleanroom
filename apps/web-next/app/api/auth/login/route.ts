@@ -1,13 +1,31 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { TownApiError, TownClient } from "@town/web-client";
+import { setSessionCookie } from "@/lib/server/cookies";
+import {
+  assertSameOriginRequest,
+  getInternalApiBaseUrl,
+} from "@/lib/server/csrf";
 
-const TOWN_TOKEN_COOKIE = "town-token";
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+// Phase 01A: DEV-ONLY email login BFF route. In production this route must
+// not be reachable; the login page only offers "Continue with Google". This
+// route exists for local/E2E testing against /v1/auth/dev-session.
+
+const isProduction = process.env.NODE_ENV === "production";
 
 export async function POST(request: NextRequest) {
+  // Fail closed in production builds.
+  if (isProduction) {
+    return NextResponse.json({ code: "NOT_FOUND" }, { status: 404 });
+  }
+
+  const csrf = assertSameOriginRequest(request);
+  if (!csrf.ok) {
+    return NextResponse.json(
+      { code: csrf.reason ?? "CSRF_REJECTED" },
+      { status: 403 },
+    );
+  }
+
   let email: string;
   try {
     const body = (await request.json()) as { email?: unknown };
@@ -25,31 +43,43 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const client = new TownClient({ baseUrl: API_BASE_URL });
+  let apiBase: string;
   try {
-    const result = await client.auth.createSession(email);
-    const response = NextResponse.json({
-      user: result.user,
-      session: { id: result.session.id, expiresAt: result.session.expiresAt },
-    });
-    response.cookies.set(TOWN_TOKEN_COOKIE, result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_MAX_AGE_SECONDS,
-    });
-    return response;
-  } catch (err) {
-    if (err instanceof TownApiError) {
-      return NextResponse.json(
-        { code: err.code, detail: err.message },
-        { status: err.status },
-      );
-    }
+    apiBase = getInternalApiBaseUrl();
+  } catch {
+    // Fallback for dev without INTERNAL_API_BASE_URL configured.
+    apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+  }
+
+  const response = await fetch(`${apiBase}/v1/auth/dev-session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      detail?: string;
+    };
     return NextResponse.json(
-      { code: "INTERNAL_ERROR", detail: "Could not connect to the API." },
-      { status: 502 },
+      {
+        code: body.code ?? "INTERNAL_ERROR",
+        detail: body.detail ?? "Could not sign in.",
+      },
+      { status: response.status },
     );
   }
+
+  const result = (await response.json()) as {
+    token: string;
+    user: { email: string };
+    session: { id: string; expiresAt: string };
+  };
+  const res = NextResponse.json({
+    user: result.user,
+    session: { id: result.session.id, expiresAt: result.session.expiresAt },
+  });
+  setSessionCookie(res, result.token);
+  return res;
 }

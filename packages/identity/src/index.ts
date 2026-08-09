@@ -4,3 +4,7 @@ export * from "./identity-service.js";
 export * from "./google-token-service.js";
 export * from "./session-token.js";
 export * from "./types.js";
+export * from "./session-flow-cipher.js";
+export * from "./oidc-attempt-store.js";
+export * from "./verified-identity-repository.js";
+export * from "./session-management.js";

@@ -3,8 +3,12 @@ import { timingSafeEqual } from "node:crypto";
 
 import { composeRuntime } from "./compose.js";
 import { environment } from "./config.js";
+import { assertProductionAuthConfig } from "./lib/auth-config.js";
 
 export type { Environment } from "./config.js";
+
+// Fail fast on production auth misconfiguration before serving traffic.
+assertProductionAuthConfig(environment);
 
 const composition = await composeRuntime("api");
 const app = composition.app;

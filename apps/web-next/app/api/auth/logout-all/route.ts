@@ -6,9 +6,6 @@ import {
   getInternalApiBaseUrl,
 } from "@/lib/server/csrf";
 
-// Phase 01A: logout revokes the current session server-side and clears the
-// cookie. Logout-all is a separate route. Cross-origin logout is rejected.
-
 export async function POST(request: NextRequest) {
   const csrf = assertSameOriginRequest(request);
   if (!csrf.ok) {
@@ -30,14 +27,13 @@ export async function POST(request: NextRequest) {
       apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
     }
     try {
-      await fetch(`${apiBase}/v1/me/session`, {
+      await fetch(`${apiBase}/v1/me/sessions`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
     } catch {
-      // Still clear the cookie; backend may be unreachable.
+      // Cookie still cleared.
     }
   }
-
   return response;
 }

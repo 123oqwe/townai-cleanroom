@@ -4,8 +4,6 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import { TownClient } from "@town/web-client";
 
-export const TOWN_TOKEN_COOKIE = "town-token";
-
 // Browser-side TownClient provider. The client targets the same-origin /v1
 // path, which is rewritten by next.config.ts to /api/proxy/v1/* — a
 // server-side route that reads the HttpOnly session cookie and injects

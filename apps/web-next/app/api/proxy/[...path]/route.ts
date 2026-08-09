@@ -1,8 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const TOWN_TOKEN_COOKIE = "town-token";
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+import { readSessionCookie } from "@/lib/server/cookies";
+import {
+  assertSameOriginRequest,
+  getInternalApiBaseUrl,
+} from "@/lib/server/csrf";
+
+// Phase 01A: authenticated reverse proxy. Reads the HttpOnly session cookie,
+// injects a Bearer token server-to-server, forwards to the backend API via
+// INTERNAL_API_BASE_URL (never NEXT_PUBLIC_). Enforces same-origin CSRF on
+// mutations. Path-normalized to prevent traversal. Cookies are never forwarded.
 
 const FORWARDED_HEADERS = [
   "content-type",
@@ -10,22 +17,34 @@ const FORWARDED_HEADERS = [
   "idempotency-key",
 ] as const;
 
-/**
- * Authenticated reverse proxy: reads the HttpOnly session cookie and
- * forwards the request to the backend API with a Bearer token.
- *
- * Supports both JSON and Server-Sent Events (SSE) responses. For SSE,
- * the response body is streamed directly through so the client can
- * consume events in real time.
- */
 async function proxy(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path: pathSegments } = await params;
-  const path = pathSegments.join("/");
 
-  const token = request.cookies.get(TOWN_TOKEN_COOKIE)?.value;
+  // Path normalization: reject traversal and empty segments.
+  const path = pathSegments
+    .map((seg) => decodeURIComponent(seg))
+    .filter((seg) => seg.length > 0 && !seg.includes(".."))
+    .join("/");
+  if (path.length === 0) {
+    return NextResponse.json({ code: "BAD_REQUEST" }, { status: 400 });
+  }
+
+  // CSRF: reject cross-origin mutations before doing any work.
+  const csrf = assertSameOriginRequest(request);
+  if (!csrf.ok) {
+    return NextResponse.json(
+      {
+        code: csrf.reason ?? "CSRF_REJECTED",
+        detail: "Cross-origin request rejected.",
+      },
+      { status: 403 },
+    );
+  }
+
+  const token = readSessionCookie(request.cookies);
   if (token === undefined || token.length === 0) {
     return NextResponse.json(
       {
@@ -39,8 +58,18 @@ async function proxy(
     );
   }
 
+  let apiBase: string;
+  try {
+    apiBase = getInternalApiBaseUrl();
+  } catch {
+    return NextResponse.json(
+      { code: "INTERNAL_ERROR", detail: "API endpoint not configured." },
+      { status: 503 },
+    );
+  }
+
   const search = request.nextUrl.search;
-  const url = `${API_BASE_URL.replace(/\/$/, "")}/${path}${search}`;
+  const url = `${apiBase}/${path}${search}`;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
@@ -49,6 +78,8 @@ async function proxy(
     const value = request.headers.get(name);
     if (value !== null) headers[name] = value;
   }
+  // Never forward the browser Cookie header to the backend.
+  // Never allow a user-supplied Authorization header to override the session.
 
   const init: RequestInit = {
     method: request.method,
@@ -66,12 +97,10 @@ async function proxy(
   const contentType = upstream.headers.get("content-type");
   if (contentType !== null) responseHeaders.set("content-type", contentType);
 
+  // SSE: stream the body through.
   if (contentType !== null && contentType.includes("text/event-stream")) {
     if (upstream.body === null) {
-      return new NextResponse(null, {
-        status: 502,
-        headers: responseHeaders,
-      });
+      return new NextResponse(null, { status: 502, headers: responseHeaders });
     }
     return new NextResponse(upstream.body, {
       status: upstream.status,

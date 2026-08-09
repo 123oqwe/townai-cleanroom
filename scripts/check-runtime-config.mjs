@@ -37,6 +37,16 @@ function inspectCredentialKey(value) {
   }
 }
 
+function inspectFlowKey(value) {
+  if (!value) return "missing";
+  try {
+    const decoded = Buffer.from(value, "base64url");
+    return decoded.length === 32 ? "configured" : "invalid";
+  } catch {
+    return "invalid";
+  }
+}
+
 function inspectJsonObject(name, value) {
   if (!value) return { name, status: "missing" };
   try {
@@ -136,6 +146,33 @@ export function inspectRuntimeConfig(environment = process.env) {
       name: "ADMIN_ALLOWLIST_EMAILS",
       status: environment.ADMIN_ALLOWLIST_EMAILS ? "configured" : "empty",
     },
+    // Phase 01A: production authentication (Google OIDC login).
+    inspectEnvVar("AUTH_GOOGLE_CLIENT_ID", environment.AUTH_GOOGLE_CLIENT_ID),
+    inspectEnvVar(
+      "AUTH_GOOGLE_CLIENT_SECRET",
+      environment.AUTH_GOOGLE_CLIENT_SECRET,
+    ),
+    {
+      name: "AUTH_GOOGLE_REDIRECT_URI",
+      status: inspectUrl(
+        "AUTH_GOOGLE_REDIRECT_URI",
+        environment.AUTH_GOOGLE_REDIRECT_URI,
+      ).status,
+    },
+    inspectEnvVar("AUTH_BFF_SHARED_SECRET", environment.AUTH_BFF_SHARED_SECRET),
+    {
+      name: "AUTH_FLOW_ENCRYPTION_KEY_BASE64URL",
+      status: inspectFlowKey(environment.AUTH_FLOW_ENCRYPTION_KEY_BASE64URL),
+    },
+    inspectEnvVar("AUTH_ALLOWED_ORIGINS", environment.AUTH_ALLOWED_ORIGINS),
+    {
+      name: "AUTH_SIGNUP_MODE",
+      status: environment.AUTH_SIGNUP_MODE ? "configured" : "missing",
+    },
+    {
+      name: "DEV_EMAIL_LOGIN_ENABLED",
+      status: environment.DEV_EMAIL_LOGIN_ENABLED ? "configured" : "disabled",
+    },
     {
       name: "WORKER_SECRET_OR_CRON_SECRET",
       status:
@@ -171,7 +208,35 @@ export function inspectRuntimeConfig(environment = process.env) {
       ({ name, status }) => required.includes(name) && status !== "configured",
     )
     .map(({ name }) => name);
-  return { checks, missingRequired };
+  const productionAuthErrors = [];
+  if (environment.NODE_ENV === "production") {
+    if (environment.DEV_EMAIL_LOGIN_ENABLED === "true") {
+      productionAuthErrors.push(
+        "DEV_EMAIL_LOGIN_ENABLED=true is forbidden in production",
+      );
+    }
+    for (const name of [
+      "AUTH_GOOGLE_CLIENT_ID",
+      "AUTH_GOOGLE_CLIENT_SECRET",
+      "AUTH_GOOGLE_REDIRECT_URI",
+      "AUTH_BFF_SHARED_SECRET",
+      "AUTH_FLOW_ENCRYPTION_KEY_BASE64URL",
+      "AUTH_ALLOWED_ORIGINS",
+    ]) {
+      if (!environment[name]) {
+        productionAuthErrors.push(
+          `Missing required production auth var: ${name}`,
+        );
+      }
+    }
+    if (
+      environment.AUTH_ALLOWED_ORIGINS &&
+      environment.AUTH_ALLOWED_ORIGINS.includes("*")
+    ) {
+      productionAuthErrors.push("AUTH_ALLOWED_ORIGINS must not be a wildcard");
+    }
+  }
+  return { checks, missingRequired, productionAuthErrors };
 }
 
 const isMain =
@@ -180,7 +245,11 @@ const isMain =
 if (isMain) {
   const result = inspectRuntimeConfig();
   console.log(JSON.stringify(result, null, 2));
-  if (process.argv.includes("--strict") && result.missingRequired.length > 0) {
+  if (
+    process.argv.includes("--strict") &&
+    (result.missingRequired.length > 0 ||
+      (result.productionAuthErrors && result.productionAuthErrors.length > 0))
+  ) {
     process.exitCode = 1;
   }
 }

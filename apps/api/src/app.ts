@@ -66,6 +66,14 @@ import {
 
 import { createAuthMiddleware, type AuthVariables } from "./lib/auth.js";
 import {
+  registerOidcLoginRoutes,
+  type OidcLoginDependencies,
+} from "./auth/oidc-login-routes.js";
+import {
+  registerSessionRoutes,
+  type SessionRouteDependencies,
+} from "./auth/session-routes.js";
+import {
   createRateLimiter,
   createRateLimitMiddleware,
   type AnyRateLimiter,
@@ -183,6 +191,9 @@ export interface AppDependencies {
   a2aRepository?: A2ARepository;
   googleOAuth?: GoogleOAuthDependencies;
   googleTokenRefresher?: GoogleTokenRefresher;
+  oidcLogin?: OidcLoginDependencies;
+  sessionRoutes?: SessionRouteDependencies;
+  devEmailLoginEnabled?: boolean;
   googleApi?: GoogleApiClient;
   gmailPubsubClientId?: string;
   microsoftOAuth?: MicrosoftOAuthDependencies;
@@ -798,7 +809,8 @@ export function createApp(dependencies?: AppDependencies) {
     // Rate-limit unauthenticated entry points: session establishment,
     // OAuth flows, and webhook receivers. Authenticated /v1/* business
     // routes have their own per-resource limits.
-    app.use("/v1/auth/session", rateLimit);
+    app.use("/v1/auth/dev-session", rateLimit);
+    app.use("/v1/auth/oidc/*", rateLimit);
     app.use("/v1/auth/oauth/*", rateLimit);
     app.use("/v1/accounts/google/oauth/*", rateLimit);
     app.use("/auth/google/*", rateLimit);
@@ -820,23 +832,37 @@ export function createApp(dependencies?: AppDependencies) {
         timezone: z.string().trim().min(1).max(100).default("UTC"),
       })
       .strict();
-    app.post("/v1/auth/session", async (context) => {
-      const established = await dependencies.identityService.establishIdentity(
-        establishSessionSchema.parse(await context.req.json()),
-      );
-      return context.json(
-        {
-          token: established.token,
-          user: established.user,
-          session: {
-            id: established.session.id,
-            expiresAt: established.session.expiresAt,
+    // Email-only login is DEV ONLY. It is registered only when
+    // devEmailLoginAllowed() is true (non-production AND explicitly enabled).
+    // In production this route does not exist -> 404. Even if misconfigured
+    // with DEV_EMAIL_LOGIN_ENABLED=true, the runtime-config guard refuses
+    // to start in production (see lib/auth-config.ts).
+    if (dependencies.devEmailLoginEnabled === true) {
+      app.post("/v1/auth/dev-session", async (context) => {
+        const established =
+          await dependencies.identityService.establishIdentity(
+            establishSessionSchema.parse(await context.req.json()),
+          );
+        return context.json(
+          {
+            token: established.token,
+            user: established.user,
+            session: {
+              id: established.session.id,
+              expiresAt: established.session.expiresAt,
+            },
           },
-        },
-        201,
-      );
-    });
+          201,
+        );
+      });
+    }
     const authenticate = createAuthMiddleware(dependencies.identityService);
+    if (dependencies.oidcLogin !== undefined) {
+      registerOidcLoginRoutes(app, dependencies.oidcLogin);
+    }
+    if (dependencies.sessionRoutes !== undefined) {
+      registerSessionRoutes(app, dependencies.sessionRoutes);
+    }
     const adminAllowlist = new Set(
       (dependencies.adminAllowlistEmails ?? []).map((email) =>
         email.trim().toLowerCase(),
