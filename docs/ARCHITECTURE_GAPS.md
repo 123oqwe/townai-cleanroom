@@ -74,3 +74,98 @@ daily from the worker loop. See `docs/deployment.md` for configuration.
 | Tasks & Suggestions       | Task projection, suggestion engine, need-to-know — implemented.                                                                          |
 | Squares & Teams           | Membership, shared integrations, team routines, A2A — implemented.                                                                       |
 | Platform Ops              | Credits, usage ledger, model routing, admin health — implemented.                                                                        |
+
+## Production Readiness Gaps
+
+These gaps cannot be resolved by code alone. They require external
+infrastructure, credentials, or operational setup that is beyond the scope
+of this repository. They are documented here for transparency.
+
+### Gap A: Secret Management (Red Line 2)
+
+**Current state:** AES-256-GCM with a single `CREDENTIAL_MASTER_KEY_BASE64URL`
+environment variable. `keyVersion: 1` — no rotation support.
+
+**What's missing:**
+
+- Cloud KMS integration (AWS KMS, GCP KMS, or HashiCorp Vault)
+- Envelope encryption (data encryption key wrapped by KMS master key)
+- Per-environment key separation
+- Key versioning and automatic rotation
+- Credential re-encryption on key rotation
+- Audit trail for decryption operations
+- Secrets never logged
+
+**Why it can't be fixed in code:** KMS integration requires cloud provider
+credentials and a configured KMS instance. The current single-key approach is
+correct for development and evaluation, but not for production with real user
+credentials.
+
+### Gap B: Payment Processing (Red Line 5)
+
+**Current state:** Internal credit/usage ledger in `packages/billing`. Tracks
+plan state, credit balance, and per-session/model/tool usage. One API endpoint
+(`GET /v1/billing`) returns billing state and usage summary.
+
+**What's missing:**
+
+- Stripe Checkout / Subscription / Payment Intent
+- Stripe webhook handling (signature verification, idempotency)
+- Checkout flow, trial, upgrade/downgrade, proration
+- Payment failure handling, dunning, grace period
+- Invoice generation, refund, tax
+- Entitlements enforcement (credit reservation → execution → reconciliation)
+- Seat billing, organization shared credits
+- Abuse/fraud controls
+
+**Why it can't be fixed in code:** Stripe integration requires a Stripe account
+with API keys, configured webhooks, and product/price catalog. The internal
+ledger is correct for tracking usage, but payment collection requires external
+infrastructure.
+
+### Gap C: Live Deployment Verification (Red Line 7)
+
+**Current state:** Deployment configuration exists (`vercel.json`, Fly worker
+Dockerfile/fly.toml, deployment docs). No evidence of a live, continuously
+running production deployment.
+
+**What's missing:**
+
+- Verified live Web URL accessible to users
+- Verified live API endpoint
+- Verified always-on Worker process
+- Verified PostgreSQL connectivity from both API and Worker
+- Verified migrations applied in production
+- Verified OAuth redirect URIs use production domain
+- Verified webhooks reachable from public internet
+- Verified logs, metrics, and alerts are operational
+- Worker restart recovery verified
+- Scheduled Routine execution with browser closed verified
+
+**Why it can't be fixed in code:** Live deployment requires provisioned
+infrastructure (Vercel project, Fly.io app, managed PostgreSQL), configured
+environment variables with real credentials, and a domain with DNS pointing
+to the deployment. This is an operations task, not a code task.
+
+## Security Hardening Roadmap
+
+The following items are required before any production deployment with real
+user data. They are ordered by priority:
+
+1. **Authentication** — Resolved in this session: HttpOnly cookie, server-side
+   proxy, server-side logout. Still needed: Google OIDC for web login (not
+   just allowlist), MFA/passkey, session rotation, device management.
+2. **Secret Management** — See Gap A above.
+3. **Cross-Tenant Isolation** — Automated tests that verify no cross-owner
+   data access is possible through any API endpoint.
+4. **Rate Limiting** — Resolved in this session: database-backed limiter
+   option. Still needed: per-tenant, per-tool, per-model dimension limits.
+5. **Audit Logging** — Exists in `operations` package. Needs verification
+   that all sensitive actions (credential access, tool execution, approval
+   decisions) are logged with sufficient detail.
+6. **Data Encryption** — At rest (PostgreSQL) and in transit (TLS). Requires
+   infrastructure configuration.
+7. **Backup and Recovery** — PostgreSQL backup strategy, RPO/RTO defined,
+   restore drill performed.
+8. **Compliance** — Privacy policy, terms of service, DPA, subprocessor
+   list, GDPR/CCPA data export/deletion.
