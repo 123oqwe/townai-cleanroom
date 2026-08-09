@@ -16,7 +16,7 @@ Branch: `codex/phase-01b-rate-limit-correctness` (from `main`)
 
 ## 2. End SHA
 
-`8f1cb97df7e0d47184aac03829c661bd69a33728`
+`7cf30ab422fc625a42514228deb0154fc0f85892`
 
 ---
 
