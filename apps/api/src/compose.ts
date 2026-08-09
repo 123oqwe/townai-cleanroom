@@ -915,6 +915,8 @@ export async function composeRuntime(
               : 60_000,
           max: environment.RATE_LIMIT_MAX,
           sql,
+          retentionMs: environment.RATE_LIMIT_RETENTION_MS,
+          cleanupBatchSize: environment.RATE_LIMIT_CLEANUP_BATCH_SIZE,
         })
       : undefined;
 

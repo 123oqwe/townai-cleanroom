@@ -133,6 +133,7 @@ describe("knowledge migration", () => {
       "0048_knowledge_graph.sql",
       "0049_telegram_whatsapp_triggers.sql",
       "0050_rate_limit_buckets.sql",
+      "0051_rate_limit_concurrency.sql",
     ]);
   });
 });
