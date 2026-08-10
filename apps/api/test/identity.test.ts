@@ -47,13 +47,13 @@ async function fixture() {
     sql,
     createCredentialCipher(randomBytes(32).toString("base64url")),
   );
-  const owner = await identityService.establishIdentity({
+  const owner = await identityService.establishLegacyIdentityForTestOnly({
     email: "owner@example.test",
     firstName: "Town",
     lastName: "Owner",
     timezone: "Asia/Shanghai",
   });
-  const other = await identityService.establishIdentity({
+  const other = await identityService.establishLegacyIdentityForTestOnly({
     email: "other@example.test",
     timezone: "UTC",
   });

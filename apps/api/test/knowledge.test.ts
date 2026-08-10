@@ -64,11 +64,11 @@ async function fixture() {
   const knowledgeSearchRepository = createKnowledgeSearchRepository(sql);
   const knowledgeUpkeepScanner = createWikiUpkeepScanner(sql);
   const knowledgeConflictService = createKnowledgeConflictService(sql);
-  const owner = await identityService.establishIdentity({
+  const owner = await identityService.establishLegacyIdentityForTestOnly({
     email: "knowledge-owner@example.invalid",
     timezone: "Asia/Shanghai",
   });
-  const other = await identityService.establishIdentity({
+  const other = await identityService.establishLegacyIdentityForTestOnly({
     email: "knowledge-other@example.invalid",
     timezone: "UTC",
   });

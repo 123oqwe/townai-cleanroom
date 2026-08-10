@@ -63,7 +63,7 @@ describe("allowlist-gated identity service", () => {
     if (insertDisabled) await allow(identityInput.email, false);
 
     await expect(
-      service().establishIdentity(identityInput),
+      service().establishLegacyIdentityForTestOnly(identityInput),
     ).rejects.toMatchObject({
       code: "ACCESS_DENIED",
     } satisfies Partial<IdentityError>);
@@ -84,8 +84,10 @@ describe("allowlist-gated identity service", () => {
   it("matches allowlist email case-insensitively and reuses one user", async () => {
     await allow("OWNER@EXAMPLE.TEST");
 
-    const first = await service().establishIdentity(identityInput);
-    const second = await service().establishIdentity(identityInput);
+    const first =
+      await service().establishLegacyIdentityForTestOnly(identityInput);
+    const second =
+      await service().establishLegacyIdentityForTestOnly(identityInput);
     const rows = await sql<{ count: number }[]>`
       select count(*)::int as count from users
     `;
@@ -98,8 +100,10 @@ describe("allowlist-gated identity service", () => {
   it("returns 32 random token bytes and stores only their SHA-256 hashes", async () => {
     await allow(identityInput.email);
 
-    const first = await service().establishIdentity(identityInput);
-    const second = await service().establishIdentity(identityInput);
+    const first =
+      await service().establishLegacyIdentityForTestOnly(identityInput);
+    const second =
+      await service().establishLegacyIdentityForTestOnly(identityInput);
     const tokenBytes = Buffer.from(
       first.token.replace("town_session_", ""),
       "base64url",
@@ -118,7 +122,8 @@ describe("allowlist-gated identity service", () => {
 
   it("authenticates a live session and updates last-seen time", async () => {
     await allow(identityInput.email);
-    const established = await service().establishIdentity(identityInput);
+    const established =
+      await service().establishLegacyIdentityForTestOnly(identityInput);
 
     const authenticated = await service().authenticate(established.token);
 
@@ -149,7 +154,8 @@ describe("allowlist-gated identity service", () => {
 
   it("rejects expired and malformed session tokens", async () => {
     await allow(identityInput.email);
-    const established = await service().establishIdentity(identityInput);
+    const established =
+      await service().establishLegacyIdentityForTestOnly(identityInput);
     // Manually expire the session by setting created_at and expires_at to the past.
     await sql`
       update auth_sessions
@@ -171,8 +177,9 @@ describe("allowlist-gated identity service", () => {
   it("revokes only a session owned by the authenticated user", async () => {
     await allow(identityInput.email);
     await allow("other@example.test");
-    const owner = await service().establishIdentity(identityInput);
-    const other = await service().establishIdentity({
+    const owner =
+      await service().establishLegacyIdentityForTestOnly(identityInput);
+    const other = await service().establishLegacyIdentityForTestOnly({
       ...identityInput,
       email: "other@example.test",
     });

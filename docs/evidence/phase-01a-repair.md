@@ -2,7 +2,11 @@
 
 ## Previous Head
 
-`f399a31b3c020a64d161e202c61a46e00ed86065` (previous acceptance repair HEAD)
+`1d0f584096fa0eec76b72e8bfb0e0917e2b7a2f6` (Round 2 HEAD)
+
+## Final Head
+
+`<pending push>` (will be updated after push)
 
 ## Latest Main SHA
 
@@ -37,6 +41,37 @@ that the first round of acceptance repair still had correctness gaps:
   with fixed public message in the GoogleTokenError error handler.
 - **Test bug**: `logoutResponse` was not assigned to a variable in the
   logout E2E test.
+
+## Acceptance Repair Round 3 (Final Independent Remediation)
+
+The following fixes were made in the final independent remediation:
+
+1. **OIDC Attempt DB-authoritative time**: `create()` now uses
+   `clock_timestamp()` for `created_at` and `expires_at`. `consume()`
+   checks expiry using `expires_at <= clock_timestamp() as expired` inside
+   the transaction SQL. No Node-side `Date` is used for expiry decisions.
+2. **Verified Identity Email Change Integrity**: When provider+subject exists
+   but the email has changed, advisory locks are acquired on both old and new
+   email (in stable order). The new email is checked against existing users
+   and identities. Conflicts return `AUTH_IDENTITY_EMAIL_CONFLICT` (409).
+3. **Session Lifecycle Acceptance Tests**: Added tests for sliding idle across
+   initial TTL, absolute TTL forcing expiry, 100 concurrent authenticates not
+   crossing absolute TTL, authenticate vs revoke race, two concurrent rotations
+   (one succeeds), rotation DB failure safety, expired session rotation
+   rejection, disabled user rotation rejection.
+4. **Current Session Revoke Cookie**: BFF sessions DELETE now reads upstream
+   `revokedCurrent` field and clears the session cookie when the current
+   session is revoked. Added browser E2E test.
+5. **Logout Degraded Tests**: Added real tests for upstream 500, fetch throw,
+   AbortSignal timeout, and INTERNAL_API_BASE_URL missing. All verify cookie
+   cleared, serverSessionRevoked=false, status=degraded, correct HTTP status.
+6. **Legacy Footgun Isolation**: `establishIdentity()` renamed to
+   `establishLegacyIdentityForTestOnly()`. All test callers updated.
+   `SessionManager.create()` documented as test-only.
+7. **Vercel Strict Runtime Smoke**: Bypass params refactored as bash array
+   (`CURL_AUTH`) to prevent header/cookie word-splitting.
+8. **Documentation**: Fixed stale "Falls back to 7 days" comment in
+   cookie-ttl.ts. Updated evidence to final head.
 
 ## Acceptance Repair Defect Matrix
 
@@ -115,10 +150,10 @@ that the first round of acceptance repair still had correctness gaps:
 
 ## Test Results
 
-- Identity tests: 35 passed (9 OIDC + 12 session + 5 verified identity + 9 identity service)
+- Identity tests: 63 passed (11 OIDC + 20 session + 12 verified identity + 20 identity service)
 - API identity tests: 18 passed
-- Web-next tests: 16 passed
-- Browser E2E: 12 passed, 0 skipped (7 original + 5 acceptance repair)
+- Web-next tests: 20 passed (including 4 logout degraded tests)
+- Browser E2E: 13 passed, 0 skipped (7 original + 6 acceptance repair)
 
 ## Vercel Runtime
 

@@ -11,6 +11,8 @@ import { runMigrations } from "@town/db";
 import postgres, { type Sql } from "postgres";
 import { createHash } from "node:crypto";
 
+import { newId } from "@town/contracts";
+
 import {
   OidcAttemptError,
   createOidcAttemptStore,
@@ -92,9 +94,11 @@ describe("oidc attempt store", () => {
       browserBindingHash: bindingHashFor("binding-test-secret"),
       ttlMs: 1_000,
     });
-    const past = new Date(Date.now() + 10_000);
+    // Wait for the attempt to expire (DB clock_timestamp() will be past
+    // expires_at). 1.5s TTL + buffer.
+    await new Promise((r) => setTimeout(r, 1_500));
     await expect(
-      s.consume("state-3", "binding-test-secret", past),
+      s.consume("state-3", "binding-test-secret"),
     ).rejects.toMatchObject({
       code: "AUTH_FLOW_EXPIRED",
     } satisfies Partial<OidcAttemptError>);
@@ -218,4 +222,51 @@ describe("oidc attempt store", () => {
       code: "AUTH_BROWSER_BINDING_INVALID",
     } satisfies Partial<OidcAttemptError>);
   });
+});
+
+it("wrong binding does not consume state (correct binding still works)", async () => {
+  const s = store();
+  const correctSecret = "correct-binding-for-state-reuse";
+  await s.create({
+    provider: "google",
+    flowType: "login",
+    state: "state-reuse-after-wrong",
+    nonce: "nonce-reuse",
+    codeVerifier: "verifier-reuse",
+    redirectPath: "/",
+    browserBindingHash: bindingHashFor(correctSecret),
+    ttlMs: 60_000,
+  });
+  // Wrong binding: rejected, state NOT consumed.
+  await expect(
+    s.consume("state-reuse-after-wrong", "wrong-binding-secret"),
+  ).rejects.toMatchObject({
+    code: "AUTH_BROWSER_BINDING_INVALID",
+  } satisfies Partial<OidcAttemptError>);
+  // Correct binding: still succeeds because state was not consumed.
+  const consumed = await s.consume("state-reuse-after-wrong", correctSecret);
+  expect(consumed.codeVerifier).toBe("verifier-reuse");
+});
+
+it("NULL request_metadata_hash fails closed (AUTH_BROWSER_BINDING_INVALID)", async () => {
+  // Insert a legacy attempt with NULL binding hash directly.
+  const stateHash = createHash("sha256").update("state-null-hash").digest();
+  await sql`
+      insert into auth_oidc_attempts (
+        id, provider, flow_type, state_hash, nonce_hash,
+        encrypted_code_verifier, redirect_path, created_at, expires_at,
+        request_metadata_hash
+      ) values (
+        ${newId<"auth-oidc-attempt">()}, 'google', 'login', ${stateHash},
+        ${createHash("sha256").update("nonce-null").digest()},
+        ${sql.json(createFlowCipher(KEY).encrypt(JSON.stringify({ v: 1, codeVerifier: "v", nonce: "n" })))},
+        '/', clock_timestamp(), clock_timestamp() + interval '5 minutes',
+        null
+      )
+    `;
+  await expect(
+    store().consume("state-null-hash", "any-secret"),
+  ).rejects.toMatchObject({
+    code: "AUTH_BROWSER_BINDING_INVALID",
+  } satisfies Partial<OidcAttemptError>);
 });
