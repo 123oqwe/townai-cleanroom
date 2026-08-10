@@ -22,8 +22,8 @@ export interface OidcAttemptInput {
   nonce: string;
   codeVerifier: string;
   redirectPath: string;
-  /** Hash of the per-browser binding cookie secret. */
-  browserBindingHash?: Buffer;
+  /** Hash of the per-browser binding cookie secret. Required. */
+  browserBindingHash: Buffer;
   ttlMs: number;
 }
 
@@ -133,20 +133,22 @@ export function createOidcAttemptStore(sql: Sql, cipher: FlowCipher) {
         if (row === undefined) {
           return { kind: "invalid" as const };
         }
-        // Per-browser binding: if the attempt has a binding hash, the
-        // supplied secret must match. Checked inside the transaction so
-        // a stolen state from a different browser is rejected before
-        // the attempt is consumed.
-        if (row.request_metadata_hash !== null) {
-          if (
-            browserBindingSecret === undefined ||
-            !timingSafeEqualBuffer(
-              row.request_metadata_hash,
-              sha256(browserBindingSecret),
-            )
-          ) {
-            return { kind: "binding_invalid" as const };
-          }
+        // Per-browser binding: the attempt MUST have a binding hash.
+        // If it is NULL (legacy/malformed), fail closed.
+        if (row.request_metadata_hash === null) {
+          return { kind: "binding_invalid" as const };
+        }
+        // Verify the supplied secret matches the stored hash.
+        // Checked inside the transaction so a stolen state from a
+        // different browser is rejected before the attempt is consumed.
+        if (
+          browserBindingSecret === undefined ||
+          !timingSafeEqualBuffer(
+            row.request_metadata_hash,
+            sha256(browserBindingSecret),
+          )
+        ) {
+          return { kind: "binding_invalid" as const };
         }
         if (row.consumed_at !== null) {
           return { kind: "replayed" as const };

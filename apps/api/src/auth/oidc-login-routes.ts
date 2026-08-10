@@ -15,7 +15,11 @@ import {
   createOidcAttemptStore,
   createVerifiedIdentityRepository,
   createSessionManager,
+  normalizePostLoginRedirect,
+  RedirectValidationError,
+  getAuthErrorMessage,
 } from "@town/identity";
+import { OidcAttemptError } from "@town/identity";
 
 // Phase 01A: Google OIDC login routes. These are called by the Next.js BFF
 // (server-to-server) using AUTH_BFF_SHARED_SECRET, never directly by the
@@ -34,6 +38,7 @@ export interface OidcLoginDependencies {
   signupMode: "allowlist" | "open";
   idleTtlMs: number;
   absoluteTtlMs: number;
+  webOrigin: string;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -62,10 +67,16 @@ function assertBffSecret(supplied: string | undefined, expected: string): void {
 function notConfigured(): never {
   throw new OidcRouteError(
     "AUTH_NOT_CONFIGURED",
-    "Google OIDC login is not configured.",
+    getAuthErrorMessage("AUTH_NOT_CONFIGURED"),
     503,
   );
 }
+
+const BROWSER_BINDING_SCHEMA = z
+  .string()
+  .min(16)
+  .max(128)
+  .regex(/^[A-Za-z0-9_-]+$/);
 
 export function registerOidcLoginRoutes(
   app: Hono<{ Variables: AuthVariables }>,
@@ -77,8 +88,9 @@ export function registerOidcLoginRoutes(
   const sessionManager = createSessionManager(deps.sql);
 
   // POST /v1/auth/oidc/google/start
-  // BFF requests a new OIDC attempt. Returns the Google authorization URL
-  // + state + nonce for the BFF to redirect the browser to.
+  // BFF requests a new OIDC attempt. Returns ONLY the Google authorization URL.
+  // The BFF generates the browserBindingSecret and sets the cookie; the API
+  // never regenerates or returns it.
   app.post("/v1/auth/oidc/google/start", async (context) => {
     assertBffSecret(context.req.header("x-bff-secret"), deps.bffSharedSecret);
     if (
@@ -93,21 +105,37 @@ export function registerOidcLoginRoutes(
       redirectPath?: string;
       browserBindingSecret?: string;
     };
-    const redirectPath =
-      typeof body.redirectPath === "string" &&
-      body.redirectPath.startsWith("/") &&
-      !body.redirectPath.startsWith("//")
-        ? body.redirectPath
-        : "/";
 
-    // Per-browser flow binding: the BFF generates a random secret, sets it
-    // as a cookie on the browser, and passes it here. We store its hash so
-    // the callback can verify the same browser completes the flow.
-    const browserBindingSecret =
-      typeof body.browserBindingSecret === "string" &&
-      body.browserBindingSecret.length >= 16
-        ? body.browserBindingSecret
-        : randomBytes(32).toString("base64url");
+    // Validate redirectPath using the shared canonicalization module.
+    let redirectPath: string;
+    try {
+      const rawPath =
+        typeof body.redirectPath === "string" ? body.redirectPath : "/";
+      redirectPath = normalizePostLoginRedirect(rawPath, deps.webOrigin);
+    } catch (error: unknown) {
+      if (error instanceof RedirectValidationError) {
+        throw new OidcRouteError(
+          "INVALID_REDIRECT_PATH",
+          getAuthErrorMessage("INVALID_REDIRECT_PATH"),
+          400,
+        );
+      }
+      throw error;
+    }
+
+    // browserBindingSecret is REQUIRED — the BFF must generate and provide it.
+    // The API must NOT regenerate it or return it.
+    const bindingResult = BROWSER_BINDING_SCHEMA.safeParse(
+      body.browserBindingSecret,
+    );
+    if (!bindingResult.success) {
+      throw new OidcRouteError(
+        "AUTH_BROWSER_BINDING_INVALID",
+        getAuthErrorMessage("AUTH_BROWSER_BINDING_INVALID"),
+        400,
+      );
+    }
+    const browserBindingSecret = bindingResult.data;
     const browserBindingHash = createHash("sha256")
       .update(browserBindingSecret, "utf8")
       .digest();
@@ -142,18 +170,15 @@ export function registerOidcLoginRoutes(
     url.searchParams.set("access_type", "online");
     url.searchParams.set("prompt", "consent");
 
-    return context.json({
-      authorizationUrl: url.toString(),
-      state,
-      nonce,
-      browserBindingSecret,
-    });
+    // Response returns ONLY the authorization URL.
+    // browserBindingSecret is NOT returned — the BFF already has it.
+    return context.json({ authorizationUrl: url.toString() });
   });
 
   // POST /v1/auth/oidc/google/callback
-  // BFF posts the Google callback (code + state). The API exchanges the code,
-  // verifies the ID token, links the verified identity, creates a session,
-  // and returns the session token (server-to-server only -- never to browser).
+  // BFF posts the Google callback (code + state + browserBindingSecret).
+  // The API exchanges the code, verifies the ID token, links the verified
+  // identity, creates a session, and returns the session token (server-to-server only).
   const callbackSchema = z
     .object({
       code: z.string().min(1),
@@ -161,6 +186,14 @@ export function registerOidcLoginRoutes(
       browserBindingSecret: z.string().min(1),
     })
     .strict();
+
+  // Precise HTTP mapping for OidcAttemptError codes.
+  const ATTEMPT_ERROR_STATUS: Record<string, number> = {
+    AUTH_STATE_INVALID: 400,
+    AUTH_FLOW_EXPIRED: 400,
+    AUTH_FLOW_REPLAYED: 409,
+    AUTH_BROWSER_BINDING_INVALID: 400,
+  };
 
   app.post("/v1/auth/oidc/google/callback", async (context) => {
     assertBffSecret(context.req.header("x-bff-secret"), deps.bffSharedSecret);
@@ -175,6 +208,7 @@ export function registerOidcLoginRoutes(
     const input = callbackSchema.parse(await context.req.json());
 
     // Consume the attempt (one-time, replay-safe).
+    // Preserve precise error codes — do NOT collapse to AUTH_FLOW_INVALID.
     let consumed;
     try {
       consumed = await attemptStore.consume(
@@ -182,8 +216,19 @@ export function registerOidcLoginRoutes(
         input.browserBindingSecret,
       );
     } catch (error: unknown) {
-      const code = error instanceof Error ? error.message : "AUTH_FLOW_INVALID";
-      throw new OidcRouteError("AUTH_FLOW_INVALID", code, 400);
+      if (error instanceof OidcAttemptError) {
+        const status = ATTEMPT_ERROR_STATUS[error.code] ?? 400;
+        throw new OidcRouteError(
+          error.code,
+          getAuthErrorMessage(error.code),
+          status,
+        );
+      }
+      throw new OidcRouteError(
+        "AUTH_FLOW_INVALID",
+        getAuthErrorMessage("AUTH_FLOW_INVALID"),
+        400,
+      );
     }
 
     // Exchange the authorization code for tokens.
@@ -204,7 +249,7 @@ export function registerOidcLoginRoutes(
       await attemptStore.markFailed(input.state, "TOKEN_EXCHANGE_FAILED");
       throw new OidcRouteError(
         "AUTH_TOKEN_EXCHANGE_FAILED",
-        "Token exchange failed.",
+        getAuthErrorMessage("AUTH_TOKEN_EXCHANGE_FAILED"),
         502,
       );
     }
@@ -212,7 +257,7 @@ export function registerOidcLoginRoutes(
     if (tokens.id_token === undefined) {
       throw new OidcRouteError(
         "AUTH_TOKEN_EXCHANGE_FAILED",
-        "No ID token returned.",
+        getAuthErrorMessage("AUTH_TOKEN_EXCHANGE_FAILED"),
         502,
       );
     }
@@ -228,7 +273,11 @@ export function registerOidcLoginRoutes(
     } catch (error: unknown) {
       if (error instanceof OidcLoginError) {
         await attemptStore.markFailed(input.state, error.code);
-        throw new OidcRouteError(error.code, error.message, 400);
+        throw new OidcRouteError(
+          error.code,
+          getAuthErrorMessage(error.code),
+          400,
+        );
       }
       throw error;
     }
@@ -242,33 +291,28 @@ export function registerOidcLoginRoutes(
       await attemptStore.markFailed(input.state, "AUTH_ACCOUNT_NOT_ALLOWED");
       throw new OidcRouteError(
         "AUTH_ACCOUNT_NOT_ALLOWED",
-        "This account is not allowed.",
+        getAuthErrorMessage("AUTH_ACCOUNT_NOT_ALLOWED"),
         403,
       );
     }
 
     // Link the verified identity to a user.
-    const now = new Date();
     const linked = await identityRepo.link({
       provider: "google",
       providerSubject: verified.subject,
-      verifiedEmail: verified.email,
+      verifiedEmail: normalizedEmail,
       emailVerified: true,
-      now,
+      now: new Date(),
     });
 
-    // Create a hardened session.
-    const session = await sessionManager.create({
+    // Create a hardened session using DB-authoritative time.
+    const session = await sessionManager.createWithDbClock({
       userId: linked.userId,
       authMethod: "oidc:google",
-      now,
       idleTtlMs: deps.idleTtlMs,
       absoluteTtlMs: deps.absoluteTtlMs,
     });
 
-    const cookieMaxAgeSeconds = Math.floor(
-      (session.absoluteExpiresAt.getTime() - now.getTime()) / 1000,
-    );
     return context.json(
       {
         token: session.token,
@@ -276,7 +320,7 @@ export function registerOidcLoginRoutes(
         expiresAt: session.expiresAt,
         idleExpiresAt: session.idleExpiresAt,
         absoluteExpiresAt: session.absoluteExpiresAt,
-        cookieMaxAgeSeconds,
+        cookieMaxAgeSeconds: session.cookieMaxAgeSeconds,
         redirectPath: consumed.redirectPath,
         user: { id: linked.userId, email: verified.email },
       },

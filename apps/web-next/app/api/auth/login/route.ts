@@ -2,6 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { setSessionCookie } from "@/lib/server/cookies";
 import {
+  parseServerCookieMaxAge,
+  getMaxAbsoluteTtlMs,
+  CookieTtlError,
+} from "@/lib/server/cookie-ttl";
+import {
   assertSameOriginRequest,
   getInternalApiBaseUrl,
 } from "@/lib/server/csrf";
@@ -79,17 +84,26 @@ export async function POST(request: NextRequest) {
     session: { id: string; expiresAt: string };
     cookieMaxAgeSeconds?: number;
   };
+  let maxAge: number;
+  try {
+    maxAge = parseServerCookieMaxAge(
+      result.cookieMaxAgeSeconds,
+      getMaxAbsoluteTtlMs(),
+    );
+  } catch (error: unknown) {
+    if (error instanceof CookieTtlError) {
+      return NextResponse.json(
+        { code: "SESSION_TTL_INVALID", detail: error.message },
+        { status: 502 },
+      );
+    }
+    throw error;
+  }
   const res = NextResponse.json({
     user: result.user,
     session: { id: result.session.id, expiresAt: result.session.expiresAt },
   });
-  setSessionCookie(res, result.token, {
-    maxAge:
-      result.cookieMaxAgeSeconds ??
-      Math.floor(
-        (Number(process.env.AUTH_SESSION_ABSOLUTE_TTL_MS) || 604800000) / 1000,
-      ),
-  });
+  setSessionCookie(res, result.token, { maxAge });
   res.headers.set("Cache-Control", "no-store");
   res.headers.set("Pragma", "no-cache");
   return res;

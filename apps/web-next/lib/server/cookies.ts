@@ -17,7 +17,9 @@ export const DEV_LOGIN_COOKIE = "town-dev-session"; // never used in prod
 // Per-browser OIDC flow binding cookie. Set at /api/auth/google/start,
 // verified at /api/auth/google/callback. Prevents a stolen state from
 // completing the flow from a different browser.
-export const OIDC_BINDING_COOKIE = "town-oidc-binding";
+export const OIDC_BINDING_COOKIE = isProduction
+  ? "__Host-town-auth-flow"
+  : "town-auth-flow";
 
 /** Set the OIDC browser binding cookie (short-lived, HttpOnly). */
 export function setOidcBindingCookie(
@@ -29,8 +31,8 @@ export function setOidcBindingCookie(
     secure: isProduction,
     sameSite: "lax",
     path: "/",
-    maxAge: 600, // 10 minutes (matches ATTEMPT_TTL_MS)
-    expires: new Date(Date.now() + 600 * 1_000),
+    maxAge: 300, // 5 minutes (matches ATTEMPT_TTL_MS)
+    expires: new Date(Date.now() + 300 * 1_000),
   });
 }
 
@@ -65,9 +67,13 @@ export function setSessionCookie(
   token: string,
   options: CookieOptions,
 ): void {
-  if (typeof options.maxAge !== "number" || options.maxAge <= 0) {
+  if (
+    typeof options.maxAge !== "number" ||
+    !Number.isSafeInteger(options.maxAge) ||
+    options.maxAge <= 0
+  ) {
     throw new Error(
-      "Cookie maxAge must be provided from the server-authoritative session response.",
+      "Cookie maxAge must be a safe positive integer from the server-authoritative session response.",
     );
   }
   const maxAge = options.maxAge;

@@ -102,6 +102,7 @@ async function proxy(
     if (upstream.body === null) {
       return new NextResponse(null, { status: 502, headers: responseHeaders });
     }
+    responseHeaders.set("X-Town-BFF-Proxy", "1");
     return new NextResponse(upstream.body, {
       status: upstream.status,
       headers: responseHeaders,
@@ -109,6 +110,7 @@ async function proxy(
   }
 
   const responseBody = await upstream.arrayBuffer();
+  responseHeaders.set("X-Town-BFF-Proxy", "1");
   return new NextResponse(responseBody, {
     status: upstream.status,
     headers: responseHeaders,

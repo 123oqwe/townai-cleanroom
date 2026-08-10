@@ -101,6 +101,7 @@ describe("auth login route", () => {
             id: "auth-session-123",
             expiresAt: "2026-09-01T00:00:00Z",
           },
+          cookieMaxAgeSeconds: 3600,
         }),
         {
           status: 201,

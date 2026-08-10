@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
@@ -43,9 +44,9 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
-  // Generate a per-browser binding secret. The API stores its hash; the
-  // callback must present the same secret to complete the flow.
-  const browserBindingSecret = crypto.randomUUID() + crypto.randomUUID();
+  // Generate a per-browser binding secret using crypto.randomBytes.
+  // The API stores its hash; the callback must present the same secret.
+  const browserBindingSecret = randomBytes(32).toString("base64url");
 
   const response = await fetch(`${apiUrl}/v1/auth/oidc/google/start`, {
     method: "POST",
@@ -68,13 +69,10 @@ export async function POST(request: NextRequest) {
 
   const result = (await response.json()) as {
     authorizationUrl: string;
-    browserBindingSecret?: string;
   };
-  // Use the API-returned secret if provided (it may regenerate if ours
-  // was too short), otherwise use the one we generated.
-  const bindingSecret = result.browserBindingSecret ?? browserBindingSecret;
+  // BFF always uses its own generated secret. The API must NOT return it.
   const res = NextResponse.json({ authorizationUrl: result.authorizationUrl });
-  setOidcBindingCookie(res, bindingSecret);
+  setOidcBindingCookie(res, browserBindingSecret);
   res.headers.set("Cache-Control", "no-store");
   res.headers.set("Pragma", "no-cache");
   return res;

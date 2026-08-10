@@ -17,6 +17,10 @@ import {
 } from "../src/oidc-attempt-store.js";
 import { createFlowCipher } from "../src/session-flow-cipher.js";
 
+function bindingHashFor(secret: string): Buffer {
+  return createHash("sha256").update(secret, "utf8").digest();
+}
+
 let sql: Sql;
 const KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"; // 32 bytes b64url
 
@@ -47,9 +51,10 @@ describe("oidc attempt store", () => {
       nonce: "nonce-1",
       codeVerifier: "verifier-1",
       redirectPath: "/new/threads",
+      browserBindingHash: bindingHashFor("binding-test-secret"),
       ttlMs: 60_000,
     });
-    const consumed = await s.consume("state-1");
+    const consumed = await s.consume("state-1", "binding-test-secret");
     expect(consumed.codeVerifier).toBe("verifier-1");
     expect(consumed.nonce).toBe("nonce-1");
     expect(consumed.redirectPath).toBe("/new/threads");
@@ -64,10 +69,11 @@ describe("oidc attempt store", () => {
       nonce: "nonce-2",
       codeVerifier: "verifier-2",
       redirectPath: "/",
+      browserBindingHash: bindingHashFor("binding-test-secret"),
       ttlMs: 60_000,
     });
-    await s.consume("state-2");
-    await expect(s.consume("state-2")).rejects.toMatchObject({
+    await s.consume("state-2", "binding-test-secret");
+    await expect(s.consume("state-2", "binding-test-secret")).rejects.toMatchObject({
       code: "AUTH_FLOW_REPLAYED",
     } satisfies Partial<OidcAttemptError>);
   });
@@ -81,10 +87,11 @@ describe("oidc attempt store", () => {
       nonce: "nonce-3",
       codeVerifier: "verifier-3",
       redirectPath: "/",
+      browserBindingHash: bindingHashFor("binding-test-secret"),
       ttlMs: 1_000,
     });
     const past = new Date(Date.now() + 10_000);
-    await expect(s.consume("state-3", undefined, past)).rejects.toMatchObject({
+    await expect(s.consume("state-3", "binding-test-secret", past)).rejects.toMatchObject({
       code: "AUTH_FLOW_EXPIRED",
     } satisfies Partial<OidcAttemptError>);
   });
@@ -105,11 +112,12 @@ describe("oidc attempt store", () => {
       nonce: "nonce-race",
       codeVerifier: "verifier-race",
       redirectPath: "/",
+      browserBindingHash: bindingHashFor("binding-test-secret"),
       ttlMs: 60_000,
     });
     const results = await Promise.allSettled([
-      s.consume("state-race"),
-      s.consume("state-race"),
+      s.consume("state-race", "binding-test-secret"),
+      s.consume("state-race", "binding-test-secret"),
     ]);
     const fulfilled = results.filter((r) => r.status === "fulfilled");
     const rejected = results.filter((r) => r.status === "rejected");
@@ -126,6 +134,7 @@ describe("oidc attempt store", () => {
       nonce: "nonce-plain",
       codeVerifier: "secret-verifier-plaintext",
       redirectPath: "/",
+      browserBindingHash: bindingHashFor("binding-test-secret"),
       ttlMs: 60_000,
     });
     const stateHashHex = createHash("sha256")

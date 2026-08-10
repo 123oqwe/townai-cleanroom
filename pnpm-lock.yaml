@@ -117,13 +117,14 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
-  apps/web: {}
-
   apps/web-next:
     dependencies:
       '@town/contracts':
         specifier: file:../../packages/contracts
         version: link:../../packages/contracts
+      '@town/identity':
+        specifier: file:../../packages/identity
+        version: link:../../packages/identity
       '@town/web-client':
         specifier: file:../../packages/web-client
         version: link:../../packages/web-client
