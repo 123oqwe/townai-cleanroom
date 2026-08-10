@@ -4,6 +4,7 @@ import { z } from "zod";
 import { asId, newId, type Id } from "@town/contracts";
 
 import { IdentityRepository } from "./identity-repository.js";
+import { createSessionManager } from "./session-management.js";
 import {
   generateSessionToken,
   hashSessionToken,
@@ -32,11 +33,19 @@ export class IdentityError extends Error {
 
 export function createIdentityService(
   sql: Sql,
-  options: { now?: () => Date; sessionTtlMs?: number } = {},
+  options: {
+    now?: () => Date;
+    sessionTtlMs?: number;
+    sessionIdleTtlMs?: number;
+  } = {},
 ) {
   const repository = new IdentityRepository(sql);
+  const sessionManager = createSessionManager(sql);
   const now = options.now ?? (() => new Date());
   const sessionTtlMs = options.sessionTtlMs ?? 30 * 24 * 60 * 60 * 1_000;
+  const sessionIdleTtlMs =
+    options.sessionIdleTtlMs ??
+    Number(process.env["AUTH_SESSION_IDLE_TTL_MS"] ?? 15 * 60 * 1_000);
 
   return {
     async syncAllowlist(emails: string[]): Promise<void> {
@@ -69,14 +78,31 @@ export function createIdentityService(
       if (!isSessionToken(token)) {
         throw new IdentityError("UNAUTHENTICATED", "The session is invalid.");
       }
-      const identity = await repository.authenticate(
+      // Canonical path: delegate to hardened session authentication.
+      // The old IdentityRepository.authenticate path is deprecated.
+      const result = await sessionManager.authenticateHardened(
         hashSessionToken(token),
         now(),
+        sessionIdleTtlMs,
       );
-      if (identity === null) {
+      if (result === null) {
         throw new IdentityError("UNAUTHENTICATED", "The session is invalid.");
       }
-      return identity;
+      // Load the user for the authenticated session.
+      const user = await repository.findUserById(result.userId);
+      if (user === null || user.status !== "active") {
+        throw new IdentityError("UNAUTHENTICATED", "The session is invalid.");
+      }
+      return {
+        user,
+        session: {
+          id: result.sessionId,
+          userId: result.userId,
+          expiresAt: result.expiresAt,
+          createdAt: new Date(0),
+          lastSeenAt: result.lastSeenAt,
+        },
+      };
     },
 
     async revokeSession(sessionId: string, ownerId: string): Promise<void> {
@@ -91,6 +117,47 @@ export function createIdentityService(
           "The session was not found.",
         );
       }
+    },
+
+    /**
+     * Dev-only identity establishment. Creates a hardened session with
+     * auth_method='dev:email' through the same SessionManager path as OIDC.
+     * Must NEVER be available in production.
+     */
+    async establishDevIdentity(
+      input: z.input<typeof identityInputSchema>,
+    ): Promise<EstablishedIdentity> {
+      const value = identityInputSchema.parse(input);
+      const issuedAt = now();
+      // Check allowlist first.
+      const result = await repository.establishDevUser(value, {
+        now: issuedAt,
+      });
+      if (result === null) {
+        throw new IdentityError(
+          "ACCESS_DENIED",
+          "This identity is not allowed.",
+        );
+      }
+      // Create a hardened session via SessionManager.
+      const session = await sessionManager.create({
+        userId: result.userId,
+        authMethod: "dev:email",
+        now: issuedAt,
+        idleTtlMs: sessionIdleTtlMs,
+        absoluteTtlMs: sessionTtlMs,
+      });
+      return {
+        token: session.token,
+        user: result.user,
+        session: {
+          id: session.sessionId,
+          userId: result.userId,
+          expiresAt: session.expiresAt,
+          createdAt: issuedAt,
+          lastSeenAt: issuedAt,
+        },
+      };
     },
   };
 }

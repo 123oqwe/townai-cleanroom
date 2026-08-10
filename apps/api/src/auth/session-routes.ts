@@ -3,8 +3,7 @@ import type { Hono } from "hono";
 import type { Sql } from "postgres";
 
 import type { AuthVariables } from "../lib/auth.js";
-import { createSessionManager, hashSessionToken } from "@town/identity";
-import { isSessionToken } from "@town/identity";
+import { createSessionManager } from "@town/identity";
 
 // Phase 01A: authenticated session-management routes. All require a valid
 // session (the existing auth middleware populates context.get("identity")).
@@ -56,17 +55,11 @@ export function registerSessionRoutes(
   });
 
   // POST /v1/me/session/rotate -- rotate the current session.
+  // Uses the session ID from the auth context; no raw token in headers.
   app.post("/v1/me/session/rotate", async (context) => {
     const identity = context.get("identity");
-    // The current token is needed to rotate; the BFF passes it via a header
-    // OR we rotate by session id + user. We rotate by the current session's
-    // token hash, which the BFF supplies in x-session-token.
-    const tokenHeader = context.req.header("x-session-token");
-    if (typeof tokenHeader !== "string" || !isSessionToken(tokenHeader)) {
-      return context.json({ code: "SESSION_REVOKED" }, 401);
-    }
-    const rotated = await manager.rotate(
-      hashSessionToken(tokenHeader),
+    const rotated = await manager.rotateById(
+      identity.session.id,
       identity.user.id,
       new Date(),
       {
@@ -75,12 +68,16 @@ export function registerSessionRoutes(
         authMethod: deps.authMethod,
       },
     );
+    const cookieMaxAgeSeconds = Math.floor(
+      (rotated.absoluteExpiresAt.getTime() - Date.now()) / 1000,
+    );
     return context.json({
       token: rotated.token,
       sessionId: rotated.sessionId,
       expiresAt: rotated.expiresAt,
       idleExpiresAt: rotated.idleExpiresAt,
       absoluteExpiresAt: rotated.absoluteExpiresAt,
+      cookieMaxAgeSeconds,
     });
   });
 }

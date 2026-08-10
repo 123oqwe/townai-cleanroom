@@ -1,6 +1,6 @@
 import type { Sql } from "postgres";
 
-import { asId, type Id } from "@town/contracts";
+import { asId, newId, type Id } from "@town/contracts";
 
 import type { AuthenticatedIdentity, SafeSession, SafeUser } from "./types.js";
 
@@ -171,5 +171,57 @@ export class IdentityRepository {
       returning id
     `;
     return rows.count === 1;
+  }
+
+  /** Find a user by ID (for loading user data after session authentication). */
+  async findUserById(userId: Id<"user">): Promise<SafeUser | null> {
+    const [row] = await this.sql<UserRow[]>`
+      select id, email::text, first_name, last_name, timezone, status
+      from users
+      where id = ${userId}
+    `;
+    return row === undefined ? null : safeUser(row);
+  }
+
+  /**
+   * Dev-only: create or get a user by email (allowlist-checked).
+   * Does NOT create a session — the caller (establishDevIdentity) uses
+   * SessionManager.create for that. Returns null if not allowlisted.
+   */
+  async establishDevUser(
+    input: {
+      email: string;
+      firstName?: string | undefined;
+      lastName?: string | undefined;
+      timezone: string;
+    },
+    values: { now: Date },
+  ): Promise<{ user: SafeUser; userId: Id<"user"> } | null> {
+    return this.sql.begin(async (transaction) => {
+      const [allowed] = await transaction<{ enabled: boolean }[]>`
+        select enabled
+        from access_allowlist
+        where email = ${input.email}
+        for update
+      `;
+      if (allowed?.enabled !== true) return null;
+
+      const [user] = await transaction<UserRow[]>`
+        insert into users (
+          id, email, first_name, last_name, timezone, status, created_at, updated_at
+        ) values (
+          ${newId<"user">()}, ${input.email}, ${input.firstName ?? null},
+          ${input.lastName ?? null}, ${input.timezone}, 'active', ${values.now}, ${values.now}
+        )
+        on conflict (email) do update set
+          first_name = excluded.first_name,
+          last_name = excluded.last_name,
+          timezone = excluded.timezone,
+          updated_at = excluded.updated_at
+        returning id, email::text, first_name, last_name, timezone, status
+      `;
+      if (user === undefined || user.status !== "active") return null;
+      return { user: safeUser(user), userId: asId<"user">(user.id) };
+    });
   }
 }

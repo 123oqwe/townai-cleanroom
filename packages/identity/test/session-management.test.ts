@@ -129,12 +129,14 @@ describe("session manager", () => {
     const oldAuth = await m.authenticateHardened(
       hashSessionToken(created.token),
       now,
+      IDLE,
     );
     expect(oldAuth).toBeNull();
     // New token authenticates.
     const newAuth = await m.authenticateHardened(
       hashSessionToken(rotated.token),
       now,
+      IDLE,
     );
     expect(newAuth?.sessionId).toBe(rotated.sessionId);
   });
@@ -167,6 +169,7 @@ describe("session manager", () => {
     const auth = await m.authenticateHardened(
       hashSessionToken(created.token),
       afterIdle,
+      IDLE,
     );
     expect(auth).toBeNull();
   });
@@ -185,6 +188,7 @@ describe("session manager", () => {
     const auth = await m.authenticateHardened(
       hashSessionToken(created.token),
       now,
+      IDLE,
     );
     expect(auth).toBeNull();
   });

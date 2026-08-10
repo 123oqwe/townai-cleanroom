@@ -236,7 +236,10 @@ export async function composeRuntime(
   const credentialCipher = createCredentialCipher(
     environment.CREDENTIAL_MASTER_KEY_BASE64URL,
   );
-  const identityService = createIdentityService(sql);
+  const identityService = createIdentityService(sql, {
+    sessionIdleTtlMs: environment.AUTH_SESSION_IDLE_TTL_MS,
+    sessionTtlMs: environment.AUTH_SESSION_ABSOLUTE_TTL_MS,
+  });
   const configuredAllowlist = environment.ACCESS_ALLOWLIST_EMAILS.split(",")
     .map((email) => email.trim())
     .filter(Boolean);

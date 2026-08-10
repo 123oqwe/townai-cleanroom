@@ -188,9 +188,10 @@ export function createSessionManager(sql: Sql) {
             id: string;
             session_family_id: string | null;
             auth_method: string | null;
+            absolute_expires_at: Date | null;
           }[]
         >`
-          select id, session_family_id, auth_method
+          select id, session_family_id, auth_method, absolute_expires_at
           from auth_sessions
           where token_hash = ${oldTokenHash}
             and user_id = ${userId}
@@ -216,9 +217,12 @@ export function createSessionManager(sql: Sql) {
         const newHash = hashSessionToken(token);
         const newSessionId = newId<"auth-session">();
         const idleExpiresAt = new Date(now.getTime() + options.idleTtlMs);
-        const absoluteExpiresAt = new Date(
-          now.getTime() + options.absoluteTtlMs,
-        );
+        // Preserve the original absolute expiry — rotation must NOT extend
+        // the session's absolute lifetime.
+        const absoluteExpiresAt =
+          old.absolute_expires_at !== null
+            ? old.absolute_expires_at
+            : new Date(now.getTime() + options.absoluteTtlMs);
         const expiresAt =
           idleExpiresAt < absoluteExpiresAt ? idleExpiresAt : absoluteExpiresAt;
         await tx`
@@ -245,33 +249,167 @@ export function createSessionManager(sql: Sql) {
       });
     },
 
+    /**
+     * Rotate by session ID (from auth context). Does NOT accept raw tokens.
+     * Preserves the original absolute_expires_at across rotation.
+     */
+    async rotateById(
+      sessionId: Id<"auth-session">,
+      userId: Id<"user">,
+      now: Date,
+      options: SessionLifecycleOptions,
+      meta?: { userAgent?: string; ip?: string },
+    ): Promise<CreatedSession> {
+      return sql.begin(async (tx) => {
+        const [old] = await tx<
+          {
+            id: string;
+            session_family_id: string | null;
+            auth_method: string | null;
+            absolute_expires_at: Date | null;
+          }[]
+        >`
+          select id, session_family_id, auth_method, absolute_expires_at
+          from auth_sessions
+          where id = ${sessionId}
+            and user_id = ${userId}
+            and revoked_at is null
+          for update
+        `;
+        if (old === undefined) {
+          throw new SessionManagementError(
+            "SESSION_NOT_FOUND",
+            "The session was not found.",
+          );
+        }
+        await tx`
+          update auth_sessions
+          set revoked_at = ${now}, is_current = false
+          where id = ${old.id}
+        `;
+        const familyId =
+          old.session_family_id !== null
+            ? (old.session_family_id as Id<"auth-session-family">)
+            : (old.id as unknown as Id<"auth-session-family">);
+        const token = generateSessionToken();
+        const newHash = hashSessionToken(token);
+        const newSessionId = newId<"auth-session">();
+        const idleExpiresAt = new Date(now.getTime() + options.idleTtlMs);
+        const absoluteExpiresAt =
+          old.absolute_expires_at !== null
+            ? old.absolute_expires_at
+            : new Date(now.getTime() + options.absoluteTtlMs);
+        const expiresAt =
+          idleExpiresAt < absoluteExpiresAt ? idleExpiresAt : absoluteExpiresAt;
+        await tx`
+          insert into auth_sessions (
+            id, user_id, token_hash, expires_at, created_at, last_seen_at,
+            auth_method, idle_expires_at, absolute_expires_at,
+            session_family_id, rotated_from_session_id,
+            user_agent_hash, ip_metadata_hash, is_current
+          ) values (
+            ${newSessionId}, ${userId}, ${newHash}, ${expiresAt},
+            ${now}, ${now}, ${options.authMethod},
+            ${idleExpiresAt}, ${absoluteExpiresAt},
+            ${familyId}, ${old.id},
+            ${hashUa(meta?.userAgent)}, ${hashIp(meta?.ip)}, ${true}
+          )
+        `;
+        return {
+          token,
+          sessionId: newSessionId,
+          expiresAt,
+          idleExpiresAt,
+          absoluteExpiresAt,
+        };
+      });
+    },
+
+    /**
+     * Canonical hardened session authentication.
+     *
+     * Single atomic UPDATE ... RETURNING that validates:
+     *   - token_hash matches
+     *   - revoked_at is null
+     *   - expires_at > now
+     *   - idle_expires_at is null or > now (legacy sessions exempt)
+     *   - absolute_expires_at is null or > now (legacy sessions exempt)
+     *   - user status = 'active'
+     *
+     * Implements sliding idle expiration: when the throttle window has
+     * elapsed, idle_expires_at is extended to min(now + idleTtlMs,
+     * absolute_expires_at), capped by the absolute expiry. last_seen_at
+     * and expires_at are updated atomically in the same statement.
+     *
+     * No SELECT ... FOR UPDATE followed by a separate UPDATE — the
+     * atomic UPDATE ensures concurrent revoke + authenticate cannot
+     * re-activate a revoked session.
+     */
     async authenticateHardened(
       tokenHash: Buffer,
       now: Date,
+      idleTtlMs: number,
       throttleMs = 60_000,
-    ): Promise<{ userId: Id<"user">; sessionId: Id<"auth-session"> } | null> {
+    ): Promise<{
+      userId: Id<"user">;
+      sessionId: Id<"auth-session">;
+      expiresAt: Date;
+      idleExpiresAt: Date | null;
+      absoluteExpiresAt: Date | null;
+      lastSeenAt: Date;
+    } | null> {
+      // Phase 01A: single atomic UPDATE ... RETURNING.
+      // The WHERE clause re-checks all validity conditions so that a
+      // concurrent revoke or expiry is respected.
       const [row] = await sql<
-        { id: string; user_id: string; last_seen_at: Date }[]
+        {
+          id: string;
+          user_id: string;
+          last_seen_at: Date;
+          idle_expires_at: Date | null;
+          absolute_expires_at: Date | null;
+          expires_at: Date;
+        }[]
       >`
-        select id, user_id, last_seen_at
-        from auth_sessions
-        where token_hash = ${tokenHash}
-          and revoked_at is null
-          and expires_at > ${now}
-          and (idle_expires_at is null or idle_expires_at > ${now})
-          and (absolute_expires_at is null or absolute_expires_at > ${now})
-        for update
+        update auth_sessions as s
+        set last_seen_at = ${now},
+            idle_expires_at = case
+              when s.idle_expires_at is not null
+                and extract(epoch from (${now} - s.last_seen_at)) * 1000 >= ${throttleMs}
+              then least(
+                ${now}::timestamptz + make_interval(secs => ${idleTtlMs} / 1000.0),
+                s.absolute_expires_at
+              )
+              else s.idle_expires_at
+            end,
+            expires_at = case
+              when s.idle_expires_at is not null
+                and extract(epoch from (${now} - s.last_seen_at)) * 1000 >= ${throttleMs}
+              then least(
+                ${now}::timestamptz + make_interval(secs => ${idleTtlMs} / 1000.0),
+                s.absolute_expires_at
+              )
+              else s.expires_at
+            end
+        from users as u
+        where s.token_hash = ${tokenHash}
+          and s.user_id = u.id
+          and s.revoked_at is null
+          and s.expires_at > ${now}
+          and (s.idle_expires_at is null or s.idle_expires_at > ${now})
+          and (s.absolute_expires_at is null or s.absolute_expires_at > ${now})
+          and u.status = 'active'
+        returning s.id, s.user_id, s.last_seen_at,
+                  s.idle_expires_at, s.absolute_expires_at, s.expires_at
       `;
       if (row === undefined) return null;
-      if (now.getTime() - row.last_seen_at.getTime() >= throttleMs) {
-        await sql`
-          update auth_sessions set last_seen_at = ${now}
-          where id = ${row.id}
-        `;
-      }
       return {
         userId: asId<"user">(row.user_id),
         sessionId: asId<"auth-session">(row.id),
+        expiresAt: row.expires_at,
+        idleExpiresAt: row.idle_expires_at,
+        absoluteExpiresAt: row.absolute_expires_at,
+        lastSeenAt: row.last_seen_at,
       };
     },
   };
