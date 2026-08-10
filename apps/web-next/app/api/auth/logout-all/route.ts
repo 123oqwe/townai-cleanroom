@@ -1,10 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { clearSessionCookie, readSessionCookie } from "@/lib/server/cookies";
+import { readSessionCookie } from "@/lib/server/cookies";
 import {
   assertSameOriginRequest,
   getInternalApiBaseUrl,
 } from "@/lib/server/csrf";
+import {
+  buildLogoutResponse,
+  classifyLogoutResponse,
+} from "@/lib/server/logout";
+
+// Phase 01A: logout-all revokes ALL sessions (including current) server-side
+// and clears the cookie. Uses /v1/me/sessions/all endpoint.
+// ALL error paths still clear the cookie and return the unified contract.
+
+const LOGOUT_TIMEOUT_MS = 5_000;
 
 export async function POST(request: NextRequest) {
   const csrf = assertSameOriginRequest(request);
@@ -16,32 +26,55 @@ export async function POST(request: NextRequest) {
   }
 
   const token = readSessionCookie(request.cookies);
-  const response = NextResponse.json({ ok: true });
-  response.headers.set("Cache-Control", "no-store");
-  response.headers.set("Pragma", "no-cache");
-  clearSessionCookie(response);
 
-  if (token !== undefined && token.length > 0) {
-    let apiBase: string;
-    try {
-      apiBase = getInternalApiBaseUrl();
-    } catch {
-      // Cannot reach backend without INTERNAL_API_BASE_URL.
-      return response;
-    }
-    // Use /v1/me/sessions/all to revoke ALL sessions INCLUDING the current
-    // one (logout all devices). This is distinct from DELETE /v1/me/sessions
-    // which preserves the current session (logout other devices only).
+  // If no token, session is already cleared.
+  if (token === undefined || token.length === 0) {
+    return buildLogoutResponse({
+      httpStatus: 200,
+      serverSessionRevoked: true,
+      revokedCount: 0,
+      status: "complete",
+      code: "OK",
+    });
+  }
+
+  let apiBase: string;
+  try {
+    apiBase = getInternalApiBaseUrl();
+  } catch {
+    return buildLogoutResponse({
+      httpStatus: 503,
+      serverSessionRevoked: false,
+      status: "degraded",
+      code: "LOGOUT_DEGRADED",
+    });
+  }
+
+  try {
     const upstream = await fetch(`${apiBase}/v1/me/sessions/all`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(LOGOUT_TIMEOUT_MS),
     });
-    if (!upstream.ok && upstream.status !== 401 && upstream.status !== 404) {
-      return NextResponse.json(
-        { code: "LOGOUT_DEGRADED", detail: "Sessions may still be active." },
-        { status: 502 },
-      );
+    let revokedCount: number | undefined;
+    if (upstream.ok) {
+      const body = (await upstream.json().catch(() => ({}))) as {
+        revoked?: number;
+      };
+      revokedCount = body.revoked;
     }
+    const classified = classifyLogoutResponse(
+      upstream.ok,
+      upstream.status,
+      revokedCount,
+    );
+    return buildLogoutResponse(classified);
+  } catch {
+    return buildLogoutResponse({
+      httpStatus: 502,
+      serverSessionRevoked: false,
+      status: "degraded",
+      code: "LOGOUT_DEGRADED",
+    });
   }
-  return response;
 }

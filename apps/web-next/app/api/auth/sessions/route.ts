@@ -66,10 +66,26 @@ export async function DELETE(request: NextRequest) {
   }
 
   const sessionId = request.nextUrl.searchParams.get("id");
-  const target =
-    sessionId !== null
-      ? `${apiBase}/v1/me/sessions/${sessionId}`
-      : `${apiBase}/v1/me/sessions`;
+  if (sessionId !== null) {
+    // Validate sessionId is a UUID before using it.
+    // Validate sessionId is a UUID before using it.
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(sessionId)) {
+      return NextResponse.json({ code: "INVALID_SESSION_ID" }, { status: 400 });
+    }
+    const target = new URL(
+      `/v1/me/sessions/${encodeURIComponent(sessionId)}`,
+      apiBase,
+    );
+    const response = await fetch(target, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return new NextResponse(null, { status: response.status });
+  }
+  // No id — revoke all other sessions.
+  const target = new URL("/v1/me/sessions", apiBase);
   const response = await fetch(target, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
