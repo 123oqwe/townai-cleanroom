@@ -24,14 +24,6 @@ function parseAllowedOrigins(): string[] {
     .filter((o) => o.length > 0);
 }
 
-function hostFromUrl(origin: string): string {
-  try {
-    return new URL(origin).host;
-  } catch {
-    return "";
-  }
-}
-
 export interface CsrfResult {
   ok: boolean;
   reason?: string;
@@ -47,25 +39,22 @@ export function assertSameOriginRequest(request: NextRequest): CsrfResult {
   }
 
   const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-  const forwardedHost = request.headers.get("x-forwarded-host");
   const secFetchSite = request.headers.get("sec-fetch-site");
 
   if (secFetchSite === "cross-site") {
     return { ok: false, reason: "CSRF_REJECTED" };
   }
 
-  if (origin !== null) {
-    const ok = allowed.some(
-      (a) => safeEqual(a, origin) || hostFromUrl(a) === hostFromUrl(origin),
-    );
-    if (!ok) return { ok: false, reason: "CSRF_REJECTED" };
-    return { ok: true };
+  // Require Origin header for all mutations. No host-only fallback.
+  // Browsers always send Origin on cross-origin POST/PUT/PATCH/DELETE.
+  // Missing Origin on a mutation is treated as a potential CSRF attack.
+  if (origin === null) {
+    return { ok: false, reason: "CSRF_REJECTED" };
   }
 
-  const effectiveHost = host ?? forwardedHost ?? "";
-  if (effectiveHost === "") return { ok: false, reason: "CSRF_REJECTED" };
-  const ok = allowed.some((a) => hostFromUrl(a) === effectiveHost);
+  // Exact-origin comparison: scheme, host, and port must all match.
+  // No host-only comparison (same host different port/scheme is rejected).
+  const ok = allowed.some((a) => safeEqual(a, origin));
   if (!ok) return { ok: false, reason: "CSRF_REJECTED" };
   return { ok: true };
 }

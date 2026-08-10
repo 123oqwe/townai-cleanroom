@@ -243,6 +243,9 @@ export function registerOidcLoginRoutes(
       absoluteTtlMs: deps.absoluteTtlMs,
     });
 
+    const cookieMaxAgeSeconds = Math.floor(
+      (session.absoluteExpiresAt.getTime() - now.getTime()) / 1000,
+    );
     return context.json(
       {
         token: session.token,
@@ -250,6 +253,7 @@ export function registerOidcLoginRoutes(
         expiresAt: session.expiresAt,
         idleExpiresAt: session.idleExpiresAt,
         absoluteExpiresAt: session.absoluteExpiresAt,
+        cookieMaxAgeSeconds,
         redirectPath: consumed.redirectPath,
         user: { id: linked.userId, email: verified.email },
       },

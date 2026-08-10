@@ -21,10 +21,13 @@ export async function POST(request: NextRequest) {
     apiUrl = getInternalApiBaseUrl();
     secret = getBffSharedSecret();
   } catch {
-    return NextResponse.json(
+    const res = NextResponse.json(
       { code: "AUTH_NOT_CONFIGURED", detail: "Server auth is not configured." },
       { status: 503 },
     );
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("Pragma", "no-cache");
+    return res;
   }
 
   const response = await fetch(`${apiUrl}/v1/auth/oidc/google/start`, {
@@ -49,5 +52,8 @@ export async function POST(request: NextRequest) {
   const result = (await response.json()) as {
     authorizationUrl: string;
   };
-  return NextResponse.json({ authorizationUrl: result.authorizationUrl });
+  const res = NextResponse.json({ authorizationUrl: result.authorizationUrl });
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("Pragma", "no-cache");
+  return res;
 }

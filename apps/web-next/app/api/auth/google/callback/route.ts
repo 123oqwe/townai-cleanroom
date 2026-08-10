@@ -50,10 +50,26 @@ export async function GET(request: NextRequest) {
     const body = (await response.json().catch(() => ({}))) as {
       code?: string;
     };
-    const code_err = body.code ?? "auth_failed";
-    return NextResponse.redirect(
-      new URL(`/new/login?error=${code_err}`, request.nextUrl.origin),
-    );
+    // UI error allowlist: map known API error codes to safe UI codes.
+    // Unknown errors map to a generic auth_failed.
+    const UI_ERROR_MAP: Record<string, string> = {
+      AUTH_ACCOUNT_NOT_ALLOWED: "account_not_allowed",
+      AUTH_FLOW_EXPIRED: "flow_expired",
+      AUTH_FLOW_REPLAYED: "flow_replayed",
+      AUTH_FLOW_INVALID: "invalid_flow",
+      AUTH_BROWSER_BINDING_INVALID: "invalid_flow",
+      AUTH_STATE_INVALID: "invalid_flow",
+      AUTH_TOKEN_EXCHANGE_FAILED: "provider_error",
+      AUTH_NOT_CONFIGURED: "not_configured",
+      AUTH_IDENTITY_CONFLICT: "auth_failed",
+    };
+    const uiError =
+      body.code !== undefined && body.code in UI_ERROR_MAP
+        ? (UI_ERROR_MAP[body.code] ?? "auth_failed")
+        : "auth_failed";
+    const loginUrl = new URL("/new/login", request.nextUrl.origin);
+    loginUrl.searchParams.set("error", uiError);
+    return NextResponse.redirect(loginUrl);
   }
 
   const result = (await response.json()) as {
@@ -61,6 +77,7 @@ export async function GET(request: NextRequest) {
     expiresAt: string;
     redirectPath: string;
     user: { id: string; email: string };
+    cookieMaxAgeSeconds?: number;
   };
 
   // Normalize the redirect path (prevent open redirect).
@@ -74,6 +91,10 @@ export async function GET(request: NextRequest) {
   const redirect = NextResponse.redirect(
     new URL(safePath, request.nextUrl.origin),
   );
-  setSessionCookie(redirect, result.token);
+  setSessionCookie(redirect, result.token, {
+    maxAge: result.cookieMaxAgeSeconds,
+  });
+  redirect.headers.set("Cache-Control", "no-store");
+  redirect.headers.set("Pragma", "no-cache");
   return redirect;
 }
