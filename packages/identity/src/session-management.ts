@@ -9,11 +9,14 @@ import type { SafeSessionDetail } from "./types.js";
 // Phase 01A: session lifecycle beyond establish/revoke. Covers listing,
 // revoke-all, rotation (atomic, old token invalidated), idle/absolute expiry,
 // and throttled last_seen updates. Keeps identity-repository.ts focused.
+//
+// All time-sensitive operations use PostgreSQL clock_timestamp() as the
+// authoritative time source. No method in the production path accepts a
+// Node-side `now: Date` parameter for time-critical decisions.
 
 export interface SessionLifecycleOptions {
   idleTtlMs: number;
   absoluteTtlMs: number;
-  authMethod: string;
 }
 
 export interface CreateSessionInput {
@@ -36,13 +39,18 @@ export interface CreatedSession {
   absoluteExpiresAt: Date;
 }
 
+export interface CreatedSessionWithDbClock extends CreatedSession {
+  cookieMaxAgeSeconds: number;
+}
+
 export class SessionManagementError extends Error {
   constructor(
     readonly code:
       | "SESSION_NOT_FOUND"
       | "SESSION_EXPIRED"
       | "SESSION_REVOKED"
-      | "SESSION_ROTATION_CONFLICT",
+      | "SESSION_ROTATION_CONFLICT"
+      | "SESSION_AUTH_METHOD_INVALID",
     message: string,
   ) {
     super(message);
@@ -64,11 +72,18 @@ interface SessionDetailRow {
   user_agent_hash: Buffer | null;
 }
 
-function toDetail(row: SessionDetailRow): SafeSessionDetail {
+function toDetail(
+  row: SessionDetailRow,
+  currentSessionId?: string,
+): SafeSessionDetail {
   const deviceLabel =
     row.user_agent_hash === null
       ? null
       : row.user_agent_hash.toString("hex").slice(0, 6);
+  // Dynamic isCurrent: compute from the authenticated session context,
+  // do NOT trust the database is_current column.
+  const isCurrent =
+    currentSessionId !== undefined && row.id === currentSessionId;
   return {
     id: asId<"auth-session">(row.id),
     userId: asId<"user">(row.user_id),
@@ -78,7 +93,7 @@ function toDetail(row: SessionDetailRow): SafeSessionDetail {
     idleExpiresAt: row.idle_expires_at,
     absoluteExpiresAt: row.absolute_expires_at,
     authMethod: row.auth_method,
-    isCurrent: row.is_current,
+    isCurrent,
     revokedAt: row.revoked_at,
     deviceLabel,
   };
@@ -96,6 +111,10 @@ function hashIp(ip: string | null | undefined): Buffer | null {
 
 export function createSessionManager(sql: Sql) {
   return {
+    /**
+     * Create a session using Node-side time (test/legacy compatibility).
+     * Production code should use createWithDbClock instead.
+     */
     async create(input: CreateSessionInput): Promise<CreatedSession> {
       const token = generateSessionToken();
       const tokenHash = hashSessionToken(token);
@@ -126,33 +145,103 @@ export function createSessionManager(sql: Sql) {
       return { token, sessionId, expiresAt, idleExpiresAt, absoluteExpiresAt };
     },
 
+    /**
+     * Create a session using PostgreSQL clock_timestamp() as the authoritative
+     * time source. All timestamps (created_at, last_seen_at, idle_expires_at,
+     * absolute_expires_at, expires_at) are computed from a single DB clock
+     * read, returned via RETURNING.
+     */
+    async createWithDbClock(input: {
+      userId: Id<"user">;
+      authMethod: string;
+      idleTtlMs: number;
+      absoluteTtlMs: number;
+    }): Promise<CreatedSessionWithDbClock> {
+      const token = generateSessionToken();
+      const tokenHash = hashSessionToken(token);
+      const sessionId = newId<"auth-session">();
+      const [row] = await sql<
+        {
+          created_at: Date;
+          expires_at: Date;
+          idle_expires_at: Date;
+          absolute_expires_at: Date;
+          server_now: Date;
+        }[]
+      >`
+        with clock as (select clock_timestamp() as now)
+        insert into auth_sessions (
+          id, user_id, token_hash, expires_at, created_at, last_seen_at,
+          auth_method, idle_expires_at, absolute_expires_at,
+          session_family_id, rotated_from_session_id,
+          user_agent_hash, ip_metadata_hash, is_current
+        )
+        select
+          ${sessionId}, ${input.userId}, ${tokenHash},
+          least(
+            clock.now + make_interval(secs => ${input.idleTtlMs} / 1000.0),
+            clock.now + make_interval(secs => ${input.absoluteTtlMs} / 1000.0)
+          ),
+          clock.now, clock.now, ${input.authMethod},
+          clock.now + make_interval(secs => ${input.idleTtlMs} / 1000.0),
+          clock.now + make_interval(secs => ${input.absoluteTtlMs} / 1000.0),
+          null, null, null, null, true
+        from clock
+        returning created_at, expires_at, idle_expires_at,
+                 absolute_expires_at, (select now from clock) as server_now
+      `;
+      if (row === undefined) {
+        throw new Error("Session insert returned no row.");
+      }
+      const cookieMaxAgeSeconds = Math.floor(
+        (row.absolute_expires_at.getTime() - row.server_now.getTime()) / 1000,
+      );
+      return {
+        token,
+        sessionId,
+        expiresAt: row.expires_at,
+        idleExpiresAt: row.idle_expires_at,
+        absoluteExpiresAt: row.absolute_expires_at,
+        cookieMaxAgeSeconds,
+      };
+    },
+
+    /**
+     * List active sessions using DB clock_timestamp().
+     * isCurrent is computed dynamically from the currentSessionId parameter.
+     */
     async listActive(
       userId: Id<"user">,
       now: Date,
+      currentSessionId?: Id<"auth-session">,
     ): Promise<SafeSessionDetail[]> {
       const rows = await sql<SessionDetailRow[]>`
         select id, user_id, created_at, last_seen_at, expires_at,
                idle_expires_at, absolute_expires_at, auth_method,
                is_current, revoked_at, user_agent_hash
-        from auth_sessions
+        from auth_sessions, (select clock_timestamp() as db_now) as c
         where user_id = ${userId}
           and revoked_at is null
-          and expires_at > ${now}
-          and (idle_expires_at is null or idle_expires_at > ${now})
-          and (absolute_expires_at is null or absolute_expires_at > ${now})
+          and expires_at > c.db_now
+          and (idle_expires_at is null or idle_expires_at > c.db_now)
+          and (absolute_expires_at is null or absolute_expires_at > c.db_now)
         order by created_at desc
       `;
-      return rows.map(toDetail);
+      return rows.map((r) =>
+        toDetail(r, currentSessionId as string | undefined),
+      );
     },
 
+    /**
+     * Revoke all sessions except the specified one, using DB clock_timestamp().
+     */
     async revokeAll(
       userId: Id<"user">,
-      now: Date,
       exceptSessionId?: Id<"auth-session">,
     ): Promise<number> {
       const rows = await sql`
         update auth_sessions
-        set revoked_at = ${now}, is_current = false
+        set revoked_at = clock_timestamp(), is_current = false
         where user_id = ${userId}
           and revoked_at is null
           ${exceptSessionId !== undefined ? sql`and id <> ${exceptSessionId}` : sql``}
@@ -163,16 +252,12 @@ export function createSessionManager(sql: Sql) {
 
     /**
      * Revoke ALL sessions for a user, INCLUDING the current one.
-     * This is the "logout all devices" endpoint — distinct from
-     * revokeAll(exceptSessionId) which is "logout other devices".
+     * Uses DB clock_timestamp().
      */
-    async revokeAllIncludingCurrent(
-      userId: Id<"user">,
-      now: Date,
-    ): Promise<number> {
+    async revokeAllIncludingCurrent(userId: Id<"user">): Promise<number> {
       const rows = await sql`
         update auth_sessions
-        set revoked_at = ${now}, is_current = false
+        set revoked_at = clock_timestamp(), is_current = false
         where user_id = ${userId}
           and revoked_at is null
         returning id
@@ -180,42 +265,57 @@ export function createSessionManager(sql: Sql) {
       return rows.count;
     },
 
+    /**
+     * Revoke a specific session using DB clock_timestamp().
+     */
     async revoke(
       sessionId: Id<"auth-session">,
       userId: Id<"user">,
-      now: Date,
     ): Promise<boolean> {
       const rows = await sql`
         update auth_sessions
-        set revoked_at = ${now}, is_current = false
+        set revoked_at = clock_timestamp(), is_current = false
         where id = ${sessionId} and user_id = ${userId} and revoked_at is null
         returning id
       `;
       return rows.count === 1;
     },
 
-    async rotate(
-      oldTokenHash: Buffer,
+    /**
+     * Rotate by session ID (from auth context). Does NOT accept raw tokens.
+     * Uses DB clock_timestamp() as the authoritative time source.
+     * Re-validates session expiry and user status before rotating.
+     * Inherits old.auth_method — rejects if auth_method is NULL.
+     */
+    async rotateById(
+      sessionId: Id<"auth-session">,
       userId: Id<"user">,
-      now: Date,
       options: SessionLifecycleOptions,
       meta?: { userAgent?: string; ip?: string },
-    ): Promise<CreatedSession> {
+    ): Promise<CreatedSessionWithDbClock> {
       return sql.begin(async (tx) => {
+        // Use a CTE to get clock_timestamp() once for the entire transaction.
         const [old] = await tx<
           {
             id: string;
             session_family_id: string | null;
             auth_method: string | null;
             absolute_expires_at: Date | null;
+            idle_expires_at: Date | null;
+            expires_at: Date;
+            db_now: Date;
+            user_status: string;
           }[]
         >`
-          select id, session_family_id, auth_method, absolute_expires_at
-          from auth_sessions
-          where token_hash = ${oldTokenHash}
-            and user_id = ${userId}
-            and revoked_at is null
-          for update
+          select s.id, s.session_family_id, s.auth_method,
+                 s.absolute_expires_at, s.idle_expires_at, s.expires_at,
+                 clock_timestamp() as db_now, u.status as user_status
+          from auth_sessions s
+          join users u on u.id = s.user_id
+          where s.id = ${sessionId}
+            and s.user_id = ${userId}
+            and s.revoked_at is null
+          for update of s
         `;
         if (old === undefined) {
           throw new SessionManagementError(
@@ -223,9 +323,46 @@ export function createSessionManager(sql: Sql) {
             "The session was not found.",
           );
         }
+        // Re-validate session expiry using DB clock.
+        if (old.expires_at <= old.db_now) {
+          throw new SessionManagementError(
+            "SESSION_EXPIRED",
+            "The session has expired.",
+          );
+        }
+        if (old.idle_expires_at !== null && old.idle_expires_at <= old.db_now) {
+          throw new SessionManagementError(
+            "SESSION_EXPIRED",
+            "The session has expired.",
+          );
+        }
+        if (
+          old.absolute_expires_at !== null &&
+          old.absolute_expires_at <= old.db_now
+        ) {
+          throw new SessionManagementError(
+            "SESSION_EXPIRED",
+            "The session has expired.",
+          );
+        }
+        // auth_method must NOT be NULL.
+        if (old.auth_method === null) {
+          throw new SessionManagementError(
+            "SESSION_AUTH_METHOD_INVALID",
+            "The session has an invalid auth method.",
+          );
+        }
+        // User must be active.
+        if (old.user_status !== "active") {
+          throw new SessionManagementError(
+            "SESSION_NOT_FOUND",
+            "The session was not found.",
+          );
+        }
+
         await tx`
           update auth_sessions
-          set revoked_at = ${now}, is_current = false
+          set revoked_at = ${old.db_now}, is_current = false
           where id = ${old.id}
         `;
         const familyId =
@@ -235,13 +372,15 @@ export function createSessionManager(sql: Sql) {
         const token = generateSessionToken();
         const newHash = hashSessionToken(token);
         const newSessionId = newId<"auth-session">();
-        const idleExpiresAt = new Date(now.getTime() + options.idleTtlMs);
+        const idleExpiresAt = new Date(
+          old.db_now.getTime() + options.idleTtlMs,
+        );
         // Preserve the original absolute expiry — rotation must NOT extend
         // the session's absolute lifetime.
         const absoluteExpiresAt =
           old.absolute_expires_at !== null
             ? old.absolute_expires_at
-            : new Date(now.getTime() + options.absoluteTtlMs);
+            : new Date(old.db_now.getTime() + options.absoluteTtlMs);
         const expiresAt =
           idleExpiresAt < absoluteExpiresAt ? idleExpiresAt : absoluteExpiresAt;
         await tx`
@@ -252,94 +391,22 @@ export function createSessionManager(sql: Sql) {
             user_agent_hash, ip_metadata_hash, is_current
           ) values (
             ${newSessionId}, ${userId}, ${newHash}, ${expiresAt},
-            ${now}, ${now}, ${old.auth_method ?? options.authMethod},
+            ${old.db_now}, ${old.db_now}, ${old.auth_method},
             ${idleExpiresAt}, ${absoluteExpiresAt},
             ${familyId}, ${old.id},
             ${hashUa(meta?.userAgent)}, ${hashIp(meta?.ip)}, ${true}
           )
         `;
+        const cookieMaxAgeSeconds = Math.floor(
+          (absoluteExpiresAt.getTime() - old.db_now.getTime()) / 1000,
+        );
         return {
           token,
           sessionId: newSessionId,
           expiresAt,
           idleExpiresAt,
           absoluteExpiresAt,
-        };
-      });
-    },
-
-    /**
-     * Rotate by session ID (from auth context). Does NOT accept raw tokens.
-     * Preserves the original absolute_expires_at across rotation.
-     */
-    async rotateById(
-      sessionId: Id<"auth-session">,
-      userId: Id<"user">,
-      now: Date,
-      options: SessionLifecycleOptions,
-      meta?: { userAgent?: string; ip?: string },
-    ): Promise<CreatedSession> {
-      return sql.begin(async (tx) => {
-        const [old] = await tx<
-          {
-            id: string;
-            session_family_id: string | null;
-            auth_method: string | null;
-            absolute_expires_at: Date | null;
-          }[]
-        >`
-          select id, session_family_id, auth_method, absolute_expires_at
-          from auth_sessions
-          where id = ${sessionId}
-            and user_id = ${userId}
-            and revoked_at is null
-          for update
-        `;
-        if (old === undefined) {
-          throw new SessionManagementError(
-            "SESSION_NOT_FOUND",
-            "The session was not found.",
-          );
-        }
-        await tx`
-          update auth_sessions
-          set revoked_at = ${now}, is_current = false
-          where id = ${old.id}
-        `;
-        const familyId =
-          old.session_family_id !== null
-            ? (old.session_family_id as Id<"auth-session-family">)
-            : (old.id as unknown as Id<"auth-session-family">);
-        const token = generateSessionToken();
-        const newHash = hashSessionToken(token);
-        const newSessionId = newId<"auth-session">();
-        const idleExpiresAt = new Date(now.getTime() + options.idleTtlMs);
-        const absoluteExpiresAt =
-          old.absolute_expires_at !== null
-            ? old.absolute_expires_at
-            : new Date(now.getTime() + options.absoluteTtlMs);
-        const expiresAt =
-          idleExpiresAt < absoluteExpiresAt ? idleExpiresAt : absoluteExpiresAt;
-        await tx`
-          insert into auth_sessions (
-            id, user_id, token_hash, expires_at, created_at, last_seen_at,
-            auth_method, idle_expires_at, absolute_expires_at,
-            session_family_id, rotated_from_session_id,
-            user_agent_hash, ip_metadata_hash, is_current
-          ) values (
-            ${newSessionId}, ${userId}, ${newHash}, ${expiresAt},
-            ${now}, ${now}, ${old.auth_method ?? options.authMethod},
-            ${idleExpiresAt}, ${absoluteExpiresAt},
-            ${familyId}, ${old.id},
-            ${hashUa(meta?.userAgent)}, ${hashIp(meta?.ip)}, ${true}
-          )
-        `;
-        return {
-          token,
-          sessionId: newSessionId,
-          expiresAt,
-          idleExpiresAt,
-          absoluteExpiresAt,
+          cookieMaxAgeSeconds,
         };
       });
     },
@@ -347,24 +414,14 @@ export function createSessionManager(sql: Sql) {
     /**
      * Canonical hardened session authentication.
      *
-     * Single atomic UPDATE ... RETURNING that validates:
-     *   - token_hash matches
-     *   - revoked_at is null
-     *   - expires_at > now
-     *   - idle_expires_at is null or > now (legacy sessions exempt)
-     *   - absolute_expires_at is null or > now (legacy sessions exempt)
-     *   - user status = 'active'
+     * Uses a CTE to get clock_timestamp() once, then uses that single
+     * timestamp for all comparisons and updates in the same statement.
      *
      * Implements sliding idle expiration: when the throttle window has
-     * elapsed, idle_expires_at is extended to min(clock_timestamp() +
-     * idleTtlMs, absolute_expires_at), capped by the absolute expiry.
+     * elapsed, idle_expires_at is extended to min(db_now + idleTtlMs,
+     * absolute_expires_at), capped by the absolute expiry.
      * last_seen_at and expires_at are updated ONLY when the throttle
      * window has elapsed; below-threshold requests leave them unchanged.
-     * Uses PostgreSQL clock_timestamp() as the authoritative time source.
-     *
-     * No SELECT ... FOR UPDATE followed by a separate UPDATE — the
-     * atomic UPDATE ensures concurrent revoke + authenticate cannot
-     * re-activate a revoked session.
      */
     async authenticateHardened(
       tokenHash: Buffer,
@@ -378,14 +435,8 @@ export function createSessionManager(sql: Sql) {
       idleExpiresAt: Date | null;
       absoluteExpiresAt: Date | null;
       lastSeenAt: Date;
+      createdAt: Date;
     } | null> {
-      // Phase 01A: single atomic UPDATE ... RETURNING.
-      // Uses clock_timestamp() as the authoritative time source.
-      // last_seen_at is ONLY updated when the throttle window has elapsed;
-      // below-threshold requests leave last_seen_at, idle_expires_at, and
-      // expires_at unchanged (correct sliding idle behavior).
-      // The WHERE clause re-checks all validity conditions so that a
-      // concurrent revoke or expiry is respected.
       const [row] = await sql<
         {
           id: string;
@@ -394,42 +445,47 @@ export function createSessionManager(sql: Sql) {
           idle_expires_at: Date | null;
           absolute_expires_at: Date | null;
           expires_at: Date;
+          created_at: Date;
         }[]
       >`
+        with auth_clock as (
+          select clock_timestamp() as now
+        )
         update auth_sessions as s
         set last_seen_at = case
-              when extract(epoch from (clock_timestamp() - s.last_seen_at)) * 1000 >= ${throttleMs}
-              then clock_timestamp()
+              when extract(epoch from (auth_clock.now - s.last_seen_at)) * 1000 >= ${throttleMs}
+              then auth_clock.now
               else s.last_seen_at
             end,
             idle_expires_at = case
               when s.idle_expires_at is not null
-                and extract(epoch from (clock_timestamp() - s.last_seen_at)) * 1000 >= ${throttleMs}
+                and extract(epoch from (auth_clock.now - s.last_seen_at)) * 1000 >= ${throttleMs}
               then least(
-                clock_timestamp() + make_interval(secs => ${idleTtlMs} / 1000.0),
+                auth_clock.now + make_interval(secs => ${idleTtlMs} / 1000.0),
                 s.absolute_expires_at
               )
               else s.idle_expires_at
             end,
             expires_at = case
               when s.idle_expires_at is not null
-                and extract(epoch from (clock_timestamp() - s.last_seen_at)) * 1000 >= ${throttleMs}
+                and extract(epoch from (auth_clock.now - s.last_seen_at)) * 1000 >= ${throttleMs}
               then least(
-                clock_timestamp() + make_interval(secs => ${idleTtlMs} / 1000.0),
+                auth_clock.now + make_interval(secs => ${idleTtlMs} / 1000.0),
                 s.absolute_expires_at
               )
               else s.expires_at
             end
-        from users as u
+        from users as u, auth_clock
         where s.token_hash = ${tokenHash}
           and s.user_id = u.id
           and s.revoked_at is null
-          and s.expires_at > clock_timestamp()
-          and (s.idle_expires_at is null or s.idle_expires_at > clock_timestamp())
-          and (s.absolute_expires_at is null or s.absolute_expires_at > clock_timestamp())
+          and s.expires_at > auth_clock.now
+          and (s.idle_expires_at is null or s.idle_expires_at > auth_clock.now)
+          and (s.absolute_expires_at is null or s.absolute_expires_at > auth_clock.now)
           and u.status = 'active'
         returning s.id, s.user_id, s.last_seen_at,
-                  s.idle_expires_at, s.absolute_expires_at, s.expires_at
+                  s.idle_expires_at, s.absolute_expires_at, s.expires_at,
+                  s.created_at
       `;
       if (row === undefined) return null;
       return {
@@ -439,6 +495,7 @@ export function createSessionManager(sql: Sql) {
         idleExpiresAt: row.idle_expires_at,
         absoluteExpiresAt: row.absolute_expires_at,
         lastSeenAt: row.last_seen_at,
+        createdAt: row.created_at,
       };
     },
   };

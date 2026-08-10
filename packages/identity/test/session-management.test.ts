@@ -67,21 +67,45 @@ describe("session manager", () => {
     expect(created.absoluteExpiresAt.getTime()).toBe(now.getTime() + ABSOLUTE);
   });
 
-  it("listActive returns non-revoked, non-expired sessions", async () => {
+  it("createWithDbClock returns DB-authoritative timestamps", async () => {
+    const userId = await seedUser();
+    const created = await mgr().createWithDbClock({
+      userId: userId as never,
+      authMethod: "oidc:google",
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
+    expect(created.token).toMatch(/^town_session_/);
+    expect(created.cookieMaxAgeSeconds).toBeGreaterThan(0);
+    expect(created.cookieMaxAgeSeconds).toBeLessThanOrEqual(
+      Math.floor(ABSOLUTE / 1000),
+    );
+  });
+
+  it("listActive returns non-revoked, non-expired sessions with dynamic isCurrent", async () => {
     const userId = await seedUser();
     const now = new Date();
     const m = mgr();
-    await m.create({
+    const a = await m.create({
       userId: userId as never,
       authMethod: "oidc:google",
       now,
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    const list = await m.listActive(userId as never, now);
-    expect(list).toHaveLength(1);
-    const [first] = list;
-    expect(first?.authMethod).toBe("oidc:google");
+    const b = await m.create({
+      userId: userId as never,
+      authMethod: "oidc:google",
+      now,
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
+    const list = await m.listActive(userId as never, now, b.sessionId as never);
+    expect(list).toHaveLength(2);
+    const current = list.find((s) => s.isCurrent);
+    const other = list.find((s) => !s.isCurrent);
+    expect(current?.id).toBe(b.sessionId);
+    expect(other?.id).toBe(a.sessionId);
   });
 
   it("revokeAll revokes every session except the specified one", async () => {
@@ -102,7 +126,7 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    const count = await m.revokeAll(userId as never, now, b.sessionId as never);
+    const count = await m.revokeAll(userId as never, b.sessionId as never);
     expect(count).toBe(1);
     const list = await m.listActive(userId as never, now);
     expect(list).toHaveLength(1);
@@ -129,13 +153,13 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    const count = await m.revokeAllIncludingCurrent(userId as never, now);
+    const count = await m.revokeAllIncludingCurrent(userId as never);
     expect(count).toBe(2);
     const list = await m.listActive(userId as never, now);
     expect(list).toHaveLength(0);
   });
 
-  it("rotate invalidates the old token and issues a new one atomically", async () => {
+  it("rotateById invalidates old token and issues new one with DB clock", async () => {
     const userId = await seedUser();
     const now = new Date();
     const m = mgr();
@@ -146,21 +170,21 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    const rotated = await m.rotate(
-      hashSessionToken(created.token),
+    const rotated = await m.rotateById(
+      created.sessionId,
       userId as never,
-      now,
-      { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE, authMethod: "oidc:google" },
+      { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE },
     );
     expect(rotated.token).not.toBe(created.token);
-    // Old token no longer authenticates (uses clock_timestamp()).
+    expect(rotated.cookieMaxAgeSeconds).toBeGreaterThan(0);
+    // Old token no longer authenticates.
     const oldAuth = await m.authenticateHardened(
       hashSessionToken(created.token),
       now,
       IDLE,
     );
     expect(oldAuth).toBeNull();
-    // New token authenticates (uses clock_timestamp()).
+    // New token authenticates.
     const newAuth = await m.authenticateHardened(
       hashSessionToken(rotated.token),
       now,
@@ -169,7 +193,7 @@ describe("session manager", () => {
     expect(newAuth?.sessionId).toBe(rotated.sessionId);
   });
 
-  it("rotate inherits original auth_method", async () => {
+  it("rotateById inherits original auth_method", async () => {
     const userId = await seedUser();
     const now = new Date();
     const m = mgr();
@@ -180,13 +204,10 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    // Rotate with a DIFFERENT authMethod in options — the rotation
-    // should inherit the original "dev:email", not use "oidc:google".
-    const rotated = await m.rotate(
-      hashSessionToken(created.token),
+    const rotated = await m.rotateById(
+      created.sessionId,
       userId as never,
-      now,
-      { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE, authMethod: "oidc:google" },
+      { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE },
     );
     const [row] = await sql<{ auth_method: string | null }[]>`
       select auth_method from auth_sessions where id = ${rotated.sessionId}
@@ -194,15 +215,13 @@ describe("session manager", () => {
     expect(row?.auth_method).toBe("dev:email");
   });
 
-  it("rotate throws SESSION_NOT_FOUND for unknown token", async () => {
+  it("rotateById rejects unknown session", async () => {
     const userId = await seedUser();
-    const now = new Date();
     await expect(
-      mgr().rotate(
-        hashSessionToken(generateSessionToken()),
+      mgr().rotateById(
+        "00000000-0000-0000-0000-000000000000" as never,
         userId as never,
-        now,
-        { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE, authMethod: "oidc:google" },
+        { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE },
       ),
     ).rejects.toMatchObject({
       code: "SESSION_NOT_FOUND",
@@ -219,8 +238,6 @@ describe("session manager", () => {
       idleTtlMs: 1_000,
       absoluteTtlMs: ABSOLUTE,
     });
-    // Manually set idle_expires_at and created_at to the past to simulate
-    // idle expiry (the check constraint requires idle_expires_at > created_at).
     await sql`
       update auth_sessions
       set created_at = now() - interval '5 minutes',
@@ -248,7 +265,7 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    await m.revoke(created.sessionId as never, userId as never, now);
+    await m.revoke(created.sessionId as never, userId as never);
     const auth = await m.authenticateHardened(
       hashSessionToken(created.token),
       now,
@@ -268,16 +285,33 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    // Get the initial last_seen_at.
     const [before] = await sql<{ last_seen_at: Date }[]>`
       select last_seen_at from auth_sessions where id = ${created.sessionId}
     `;
-    // Authenticate immediately (below the 60s throttle).
     await m.authenticateHardened(hashSessionToken(created.token), now, IDLE);
-    // last_seen_at should NOT have changed (below throttle).
     const [after] = await sql<{ last_seen_at: Date }[]>`
       select last_seen_at from auth_sessions where id = ${created.sessionId}
     `;
     expect(after?.last_seen_at.getTime()).toBe(before?.last_seen_at.getTime());
+  });
+
+  it("authenticateHardened returns real createdAt", async () => {
+    const userId = await seedUser();
+    const now = new Date();
+    const m = mgr();
+    const created = await m.create({
+      userId: userId as never,
+      authMethod: "oidc:google",
+      now,
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
+    const auth = await m.authenticateHardened(
+      hashSessionToken(created.token),
+      now,
+      IDLE,
+    );
+    expect(auth?.createdAt).toBeInstanceOf(Date);
+    expect(auth?.createdAt.getTime()).not.toBe(0);
   });
 });

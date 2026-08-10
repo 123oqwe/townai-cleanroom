@@ -99,7 +99,7 @@ export function createIdentityService(
           id: result.sessionId,
           userId: result.userId,
           expiresAt: result.expiresAt,
-          createdAt: new Date(0),
+          createdAt: result.createdAt,
           lastSeenAt: result.lastSeenAt,
         },
       };
