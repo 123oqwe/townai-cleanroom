@@ -79,6 +79,8 @@ import {
   SessionManagementError,
   VerifiedIdentityError,
   OidcAttemptError,
+  getAuthErrorMessage,
+  RedirectValidationError,
 } from "@town/identity";
 import {
   createRateLimiter,
@@ -426,40 +428,47 @@ export function createApp(dependencies?: AppDependencies) {
           type: "https://town.local/problems/auth",
           title: "Authentication error",
           status,
-          detail: error.message,
+          detail: getAuthErrorMessage(error.code),
           code: error.code,
         },
         status,
       );
     }
     if (error instanceof OidcAttemptError) {
-      const status = error.code === "AUTH_FLOW_REPLAYED" ? 409 : 400;
+      const status =
+        error.code === "AUTH_FLOW_REPLAYED"
+          ? 409
+          : error.code === "AUTH_BROWSER_BINDING_INVALID"
+            ? 400
+            : 400;
       return context.json(
         {
           type: "https://town.local/problems/auth",
           title: "Auth flow error",
           status,
-          detail: error.message,
+          detail: getAuthErrorMessage(error.code),
           code: error.code,
         },
         status,
       );
     }
     if (error instanceof VerifiedIdentityError) {
+      const status = error.code === "AUTH_ACCOUNT_DISABLED" ? 403 : 409;
       return context.json(
         {
           type: "https://town.local/problems/auth",
           title: "Identity conflict",
-          status: 409,
-          detail: error.message,
+          status,
+          detail: getAuthErrorMessage(error.code),
           code: error.code,
         },
-        409,
+        status,
       );
     }
     if (error instanceof SessionManagementError) {
       const status =
-        error.code === "SESSION_ROTATION_CONFLICT"
+        error.code === "SESSION_ROTATION_CONFLICT" ||
+        error.code === "SESSION_AUTH_METHOD_INVALID"
           ? 409
           : error.code === "SESSION_NOT_FOUND"
             ? 404
@@ -469,10 +478,22 @@ export function createApp(dependencies?: AppDependencies) {
           type: "https://town.local/problems/auth",
           title: "Session error",
           status,
-          detail: error.message,
+          detail: getAuthErrorMessage(error.code),
           code: error.code,
         },
         status,
+      );
+    }
+    if (error instanceof RedirectValidationError) {
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Invalid redirect",
+          status: 400,
+          detail: getAuthErrorMessage(error.code),
+          code: error.code,
+        },
+        400,
       );
     }
     if (error instanceof z.ZodError || error instanceof SyntaxError) {
