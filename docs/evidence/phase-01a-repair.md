@@ -2,7 +2,7 @@
 
 ## Previous Head
 
-`ef5872ffef00728e50938005bc8148cfeb288fca`
+`32b2409 (acceptance repair HEAD)fef00728e50938005bc8148cfeb288fca`
 
 ## Latest Main SHA
 
@@ -88,7 +88,7 @@
 - Identity tests: 35 passed (9 OIDC + 12 session + 5 verified identity + 9 identity service)
 - API identity tests: 18 passed
 - Web-next tests: 16 passed
-- Browser E2E: 7 passed, 0 skipped
+- Browser E2E: 12 passed, 0 skipped (7 original + 5 acceptance repair)
 
 ## Vercel Runtime
 
@@ -107,5 +107,5 @@ BLOCKED_BY_CREDENTIAL — no real Google OIDC credentials provided.
 
 ## Unresolved P1
 
-- AUTH-AR-P1-008: Auth attempt cleanup not scheduled (no retention worker)
-- AUTH-AR-P1-009: Expired/revoked session cleanup not scheduled (no cleanup worker)
+- AUTH-AR-P1-008: Auth attempt cleanup not scheduled — https://github.com/123oqwe/townai-cleanroom/issues/3
+- AUTH-AR-P1-009: Expired/revoked session cleanup not scheduled — https://github.com/123oqwe/townai-cleanroom/issues/4

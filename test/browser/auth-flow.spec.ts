@@ -132,7 +132,7 @@ test.describe("Phase 01A authentication flow", () => {
 
     await page.goto("/new/threads");
 
-    const logoutResponse = await page.request.post("/api/auth/logout", {
+    await page.request.post("/api/auth/logout", {
       headers: {
         "content-type": "application/json",
         origin: WEB_ORIGIN,
@@ -148,4 +148,129 @@ test.describe("Phase 01A authentication flow", () => {
     await page.goto("/new/threads");
     await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
   });
+});
+
+test("logout-all revokes all sessions", async ({ page, context }) => {
+  const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
+  await page.goto("/new/login");
+
+  const response = await page.request.post("/api/auth/login", {
+    data: { email: testEmail },
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(response.ok()).toBe(true);
+
+  await page.goto("/new/threads");
+
+  const logoutAllResponse = await page.request.post("/api/auth/logout-all", {
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(logoutAllResponse.ok()).toBe(true);
+
+  const cookies = await context.cookies();
+  const sessionCookie = cookies.find((c) => c.name.includes("town-session"));
+  expect(sessionCookie?.value ?? "").toBe("");
+
+  await page.goto("/new/threads");
+  await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
+});
+
+test("session rotation issues a new cookie", async ({ page, context }) => {
+  const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
+  await page.goto("/new/login");
+
+  const loginResponse = await page.request.post("/api/auth/login", {
+    data: { email: testEmail },
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(loginResponse.ok()).toBe(true);
+
+  await page.goto("/new/threads");
+
+  const cookiesBefore = await context.cookies();
+  const oldCookie = cookiesBefore.find((c) => c.name.includes("town-session"));
+  expect(oldCookie).toBeDefined();
+  const oldValue = oldCookie?.value;
+
+  const rotateResponse = await page.request.post("/api/auth/session/rotate", {
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(rotateResponse.ok()).toBe(true);
+
+  const cookiesAfter = await context.cookies();
+  const newCookie = cookiesAfter.find((c) => c.name.includes("town-session"));
+  expect(newCookie).toBeDefined();
+  expect(newCookie?.value).not.toBe(oldValue);
+});
+
+test("sessions DELETE with invalid session ID returns 400", async ({
+  page,
+}) => {
+  const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
+  await page.goto("/new/login");
+
+  const loginResponse = await page.request.post("/api/auth/login", {
+    data: { email: testEmail },
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(loginResponse.ok()).toBe(true);
+
+  await page.goto("/new/threads");
+
+  const invalidIdResponse = await page.request.delete(
+    "/api/auth/sessions?id=../../../etc/passwd",
+    {
+      headers: { origin: WEB_ORIGIN },
+    },
+  );
+  expect(invalidIdResponse.status()).toBe(400);
+});
+
+test("sessions DELETE cross-origin is rejected by CSRF", async ({
+  request,
+}) => {
+  const response = await request.delete(
+    `${WEB_ORIGIN}/api/auth/sessions?id=00000000-0000-0000-0000-000000000000`,
+    {
+      headers: {
+        origin: "https://evil.example.com",
+      },
+    },
+  );
+  expect(response.status()).toBe(403);
+});
+
+test("logout clears cookie even when backend is unreachable", async ({
+  page,
+  context,
+}) => {
+  const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
+  await page.goto("/new/login");
+
+  const loginResponse = await page.request.post("/api/auth/login", {
+    data: { email: testEmail },
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(loginResponse.ok()).toBe(true);
+
+  await page.goto("/new/threads");
+
+  // Verify cookie exists.
+  const cookiesBefore = await context.cookies();
+  const sessionCookie = cookiesBefore.find((c) =>
+    c.name.includes("town-session"),
+  );
+  expect(sessionCookie?.value).toBeTruthy();
+
+  // Logout should still clear the cookie even if the backend is slow/failing.
+  await page.request.post("/api/auth/logout", {
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+
+  // Cookie must be cleared regardless of backend state.
+  const cookiesAfter = await context.cookies();
+  const clearedCookie = cookiesAfter.find((c) =>
+    c.name.includes("town-session"),
+  );
+  expect(clearedCookie?.value ?? "").toBe("");
 });

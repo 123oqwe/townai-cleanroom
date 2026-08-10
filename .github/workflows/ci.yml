@@ -262,12 +262,8 @@ jobs:
           WAITED=0
           PREVIEW_URL=""
           while [ $WAITED -lt $MAX_WAIT ]; do
-            STATUS_URL=$(gh api "repos/$REPO/commits/$SHA/status" --jq ".statuses[] | select(.context | test(\"vercel\"; \"i\")) | .target_url" 2>/dev/null | head -1)
-            if [ -n "$STATUS_URL" ]; then
-              PREVIEW_URL="$STATUS_URL"
-              break
-            fi
-            COMMENT_URL=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq ".[].body" 2>/dev/null | grep -oP 'https://[a-zA-Z0-9.-]+\.vercel\.app' | head -1)
+            # Only accept actual .vercel.app deployment URLs, not vercel.com dashboard URLs.
+            COMMENT_URL=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq ".[].body" 2>/dev/null | grep -oE 'https://[a-zA-Z0-9.-]+\.vercel\.app' | head -1)
             if [ -n "$COMMENT_URL" ]; then
               PREVIEW_URL="$COMMENT_URL"
               break

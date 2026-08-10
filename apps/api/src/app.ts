@@ -951,6 +951,11 @@ export function createApp(dependencies?: AppDependencies) {
       });
     }
     const authenticate = createAuthMiddleware(dependencies.identityService);
+    // Auth middleware must be registered BEFORE session routes so that
+    // /v1/me/* routes are protected. In Hono, middleware only applies
+    // to routes registered after it.
+    app.use("/v1/me", authenticate);
+    app.use("/v1/me/*", authenticate);
     if (dependencies.oidcLogin !== undefined) {
       registerOidcLoginRoutes(app, dependencies.oidcLogin);
     }
@@ -1054,8 +1059,6 @@ export function createApp(dependencies?: AppDependencies) {
       registerRoutineShareRoutes(app, {
         repository: dependencies.routineRepository,
       });
-    app.use("/v1/me", authenticate);
-    app.use("/v1/me/*", authenticate);
     app.use("/v1/accounts", authenticate);
     app.use("/v1/accounts/*", authenticate);
 
