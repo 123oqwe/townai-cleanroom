@@ -222,6 +222,7 @@ export function inspectRuntimeConfig(environment = process.env) {
       "AUTH_BFF_SHARED_SECRET",
       "AUTH_FLOW_ENCRYPTION_KEY_BASE64URL",
       "AUTH_ALLOWED_ORIGINS",
+      "INTERNAL_API_BASE_URL",
     ]) {
       if (!environment[name]) {
         productionAuthErrors.push(
@@ -234,6 +235,43 @@ export function inspectRuntimeConfig(environment = process.env) {
       environment.AUTH_ALLOWED_ORIGINS.includes("*")
     ) {
       productionAuthErrors.push("AUTH_ALLOWED_ORIGINS must not be a wildcard");
+    }
+    // Validate AUTH_GOOGLE_REDIRECT_URI matches WEB_ORIGIN
+    if (environment.WEB_ORIGIN && environment.AUTH_GOOGLE_REDIRECT_URI) {
+      try {
+        const webOrigin = new URL(environment.WEB_ORIGIN);
+        const redirectUri = new URL(environment.AUTH_GOOGLE_REDIRECT_URI);
+        if (redirectUri.origin !== webOrigin.origin) {
+          productionAuthErrors.push(
+            "AUTH_GOOGLE_REDIRECT_URI origin must match WEB_ORIGIN origin",
+          );
+        }
+        if (redirectUri.pathname !== "/api/auth/google/callback") {
+          productionAuthErrors.push(
+            "AUTH_GOOGLE_REDIRECT_URI pathname must be /api/auth/google/callback",
+          );
+        }
+      } catch {
+        productionAuthErrors.push(
+          "AUTH_GOOGLE_REDIRECT_URI or WEB_ORIGIN is not a valid URL",
+        );
+      }
+    }
+    // Validate AUTH_ALLOWED_ORIGINS contains WEB_ORIGIN
+    if (environment.WEB_ORIGIN && environment.AUTH_ALLOWED_ORIGINS) {
+      try {
+        const webOrigin = new URL(environment.WEB_ORIGIN);
+        const allowed = environment.AUTH_ALLOWED_ORIGINS.split(",")
+          .map((o) => o.trim().toLowerCase())
+          .filter((o) => o.length > 0);
+        if (!allowed.includes(webOrigin.origin.toLowerCase())) {
+          productionAuthErrors.push(
+            "AUTH_ALLOWED_ORIGINS must contain WEB_ORIGIN",
+          );
+        }
+      } catch {
+        // Already reported by URL parsing above
+      }
     }
   }
   return { checks, missingRequired, productionAuthErrors };

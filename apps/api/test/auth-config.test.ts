@@ -19,7 +19,8 @@ function baseEnv(overrides: Partial<Environment> = {}): Environment {
     RESPONSES_FALLBACKS_JSON: "[]",
     CODEX_EXEC_ENABLED: false,
     CODEX_SANDBOX_MODE: "read-only",
-    WEB_ORIGIN: "http://localhost:4173",
+    WEB_ORIGIN: "https://app.example.com",
+    INTERNAL_API_BASE_URL: "http://127.0.0.1:3000",
     CHANNEL_CREDENTIALS_JSON: "{}",
     PORT: 3000,
     WORKER_ENABLED: false,
@@ -86,7 +87,8 @@ describe("production auth config validation", () => {
         AUTH_ALLOWED_ORIGINS: "https://app.example.com",
         AUTH_GOOGLE_CLIENT_ID: "id",
         AUTH_GOOGLE_CLIENT_SECRET: "secret",
-        AUTH_GOOGLE_REDIRECT_URI: "https://app.example.com/cb",
+        AUTH_GOOGLE_REDIRECT_URI:
+          "https://app.example.com/api/auth/google/callback",
       }),
       "production",
     );
@@ -103,7 +105,8 @@ describe("production auth config validation", () => {
         AUTH_ALLOWED_ORIGINS: "https://app.example.com",
         AUTH_GOOGLE_CLIENT_ID: "id",
         AUTH_GOOGLE_CLIENT_SECRET: "secret",
-        AUTH_GOOGLE_REDIRECT_URI: "https://app.example.com/cb",
+        AUTH_GOOGLE_REDIRECT_URI:
+          "https://app.example.com/api/auth/google/callback",
       }),
       "production",
     );
@@ -120,7 +123,8 @@ describe("production auth config validation", () => {
         AUTH_ALLOWED_ORIGINS: "*",
         AUTH_GOOGLE_CLIENT_ID: "id",
         AUTH_GOOGLE_CLIENT_SECRET: "secret",
-        AUTH_GOOGLE_REDIRECT_URI: "https://app.example.com/cb",
+        AUTH_GOOGLE_REDIRECT_URI:
+          "https://app.example.com/api/auth/google/callback",
       }),
       "production",
     );

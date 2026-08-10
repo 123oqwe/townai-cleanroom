@@ -15,10 +15,7 @@ import {
   SessionManagementError,
   createSessionManager,
 } from "../src/session-management.js";
-import {
-  generateSessionToken,
-  hashSessionToken,
-} from "../src/session-token.js";
+import { hashSessionToken } from "../src/session-token.js";
 
 let sql: Sql;
 const IDLE = 15 * 60 * 1_000;
@@ -170,11 +167,10 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    const rotated = await m.rotateById(
-      created.sessionId,
-      userId as never,
-      { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE },
-    );
+    const rotated = await m.rotateById(created.sessionId, userId as never, {
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
     expect(rotated.token).not.toBe(created.token);
     expect(rotated.cookieMaxAgeSeconds).toBeGreaterThan(0);
     // Old token no longer authenticates.
@@ -204,11 +200,10 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    const rotated = await m.rotateById(
-      created.sessionId,
-      userId as never,
-      { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE },
-    );
+    const rotated = await m.rotateById(created.sessionId, userId as never, {
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
     const [row] = await sql<{ auth_method: string | null }[]>`
       select auth_method from auth_sessions where id = ${rotated.sessionId}
     `;

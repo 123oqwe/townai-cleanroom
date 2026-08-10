@@ -73,7 +73,9 @@ describe("oidc attempt store", () => {
       ttlMs: 60_000,
     });
     await s.consume("state-2", "binding-test-secret");
-    await expect(s.consume("state-2", "binding-test-secret")).rejects.toMatchObject({
+    await expect(
+      s.consume("state-2", "binding-test-secret"),
+    ).rejects.toMatchObject({
       code: "AUTH_FLOW_REPLAYED",
     } satisfies Partial<OidcAttemptError>);
   });
@@ -91,7 +93,9 @@ describe("oidc attempt store", () => {
       ttlMs: 1_000,
     });
     const past = new Date(Date.now() + 10_000);
-    await expect(s.consume("state-3", "binding-test-secret", past)).rejects.toMatchObject({
+    await expect(
+      s.consume("state-3", "binding-test-secret", past),
+    ).rejects.toMatchObject({
       code: "AUTH_FLOW_EXPIRED",
     } satisfies Partial<OidcAttemptError>);
   });
