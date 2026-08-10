@@ -320,8 +320,14 @@ jobs:
 
           # 2. POST /api/auth/google/start must return 503 (no Google creds in preview)
           # or 200 (if creds configured). Must NOT be 302 (Vercel protection).
-          START_RESPONSE=$(curl -sS -o /tmp/start.json -w "%{http_code}"             -X POST "$PREVIEW_URL/api/auth/google/start"             -H "content-type: application/json"             -H "origin: $PREVIEW_URL"             $BYPASS_HEADER             -d '{"redirectPath":"/new/threads"}' 2>/dev/null || echo "000")
+          START_RESPONSE=$(curl -sS -o /tmp/start.json -w "%{http_code}"             -X POST "$PREVIEW_URL/api/auth/google/start"             -H "content-type: application/json"             -H "origin: $PREVIEW_URL"             $BYPASS_COOKIE $BYPASS_HEADER             -d '{"redirectPath":"/new/threads"}' 2>/dev/null || echo "000")
           echo "Google start status: $START_RESPONSE"
+          # Check if Vercel Protection is blocking the API route.
+          if [ "$START_RESPONSE" = "401" ] && grep -qi "Protected deployment" /tmp/start.json 2>/dev/null; then
+            echo "VERCEL_SMOKE_BLOCKED_BY_PROTECTION"
+            echo "Vercel Protection is blocking API routes. Configure VERCEL_AUTOMATION_BYPASS_SECRET."
+            exit 1
+          fi
           if [ "$START_RESPONSE" = "302" ] || [ "$START_RESPONSE" = "000" ]; then
             echo "ERROR: Google start was blocked (status: $START_RESPONSE)"
             echo "VERCEL_SMOKE_BLOCKED_BY_PROTECTION"
