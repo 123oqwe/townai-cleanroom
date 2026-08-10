@@ -97,7 +97,7 @@ describe("session manager", () => {
       idleTtlMs: IDLE,
       absoluteTtlMs: ABSOLUTE,
     });
-    const list = await m.listActive(userId as never, now, b.sessionId as never);
+    const list = await m.listActive(userId as never, b.sessionId as never);
     expect(list).toHaveLength(2);
     const current = list.find((s) => s.isCurrent);
     const other = list.find((s) => !s.isCurrent);
@@ -125,7 +125,7 @@ describe("session manager", () => {
     });
     const count = await m.revokeAll(userId as never, b.sessionId as never);
     expect(count).toBe(1);
-    const list = await m.listActive(userId as never, now);
+    const list = await m.listActive(userId as never);
     expect(list).toHaveLength(1);
     const [active] = list;
     expect(active?.id).toBe(b.sessionId);
@@ -152,7 +152,7 @@ describe("session manager", () => {
     });
     const count = await m.revokeAllIncludingCurrent(userId as never);
     expect(count).toBe(2);
-    const list = await m.listActive(userId as never, now);
+    const list = await m.listActive(userId as never);
     expect(list).toHaveLength(0);
   });
 
@@ -176,14 +176,12 @@ describe("session manager", () => {
     // Old token no longer authenticates.
     const oldAuth = await m.authenticateHardened(
       hashSessionToken(created.token),
-      now,
       IDLE,
     );
     expect(oldAuth).toBeNull();
     // New token authenticates.
     const newAuth = await m.authenticateHardened(
       hashSessionToken(rotated.token),
-      now,
       IDLE,
     );
     expect(newAuth?.sessionId).toBe(rotated.sessionId);
@@ -243,7 +241,6 @@ describe("session manager", () => {
     `;
     const auth = await m.authenticateHardened(
       hashSessionToken(created.token),
-      new Date(),
       IDLE,
     );
     expect(auth).toBeNull();
@@ -263,7 +260,6 @@ describe("session manager", () => {
     await m.revoke(created.sessionId as never, userId as never);
     const auth = await m.authenticateHardened(
       hashSessionToken(created.token),
-      now,
       IDLE,
     );
     expect(auth).toBeNull();
@@ -283,7 +279,7 @@ describe("session manager", () => {
     const [before] = await sql<{ last_seen_at: Date }[]>`
       select last_seen_at from auth_sessions where id = ${created.sessionId}
     `;
-    await m.authenticateHardened(hashSessionToken(created.token), now, IDLE);
+    await m.authenticateHardened(hashSessionToken(created.token), IDLE);
     const [after] = await sql<{ last_seen_at: Date }[]>`
       select last_seen_at from auth_sessions where id = ${created.sessionId}
     `;
@@ -303,7 +299,6 @@ describe("session manager", () => {
     });
     const auth = await m.authenticateHardened(
       hashSessionToken(created.token),
-      now,
       IDLE,
     );
     expect(auth?.createdAt).toBeInstanceOf(Date);

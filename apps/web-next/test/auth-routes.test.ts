@@ -5,6 +5,7 @@ process.env.NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:3000";
 process.env.AUTH_ALLOWED_ORIGINS = "http://localhost:3001";
 process.env.AUTH_BFF_SHARED_SECRET = "test-bff-secret-at-least-32-chars-long";
 process.env.INTERNAL_API_BASE_URL = "http://127.0.0.1:3000";
+process.env.AUTH_SESSION_ABSOLUTE_TTL_MS = "604800000";
 
 // We must import the route handlers after setting env. Since these are
 // Next.js route handlers, they use NextRequest/NextResponse. We test by

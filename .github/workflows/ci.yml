@@ -189,6 +189,8 @@ jobs:
       AUTH_ALLOWED_ORIGINS: "http://localhost:3001"
       AUTH_BFF_SHARED_SECRET: "ci-bff-secret-not-used-for-dev-login"
       AUTH_FLOW_ENCRYPTION_KEY_BASE64URL: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      AUTH_SESSION_ABSOLUTE_TTL_MS: "604800000"
+      AUTH_SESSION_IDLE_TTL_MS: "900000"
     steps:
       - name: Check out source
         uses: actions/checkout@v4

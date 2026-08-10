@@ -132,7 +132,7 @@ test.describe("Phase 01A authentication flow", () => {
 
     await page.goto("/new/threads");
 
-    await page.request.post("/api/auth/logout", {
+    const logoutResponse = await page.request.post("/api/auth/logout", {
       headers: {
         "content-type": "application/json",
         origin: WEB_ORIGIN,

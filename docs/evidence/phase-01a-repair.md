@@ -2,11 +2,41 @@
 
 ## Previous Head
 
-`32b2409 (acceptance repair HEAD)fef00728e50938005bc8148cfeb288fca`
+`f399a31b3c020a64d161e202c61a46e00ed86065` (previous acceptance repair HEAD)
 
 ## Latest Main SHA
 
 `cc51269f589257155f0e07e20794508f826e89b9`
+
+## Acceptance Repair Round 2
+
+The following additional fixes were made after independent source review found
+that the first round of acceptance repair still had correctness gaps:
+
+- **Route ordering bug**: `/v1/me/sessions/:sessionId` was registered before
+  `/v1/me/sessions/all`, causing "all" to match `:sessionId` and fail UUID
+  validation. Fixed by reordering routes.
+- **clock_timestamp() string conversion**: The `postgres` driver can return
+  `timestamptz` columns as strings instead of Date objects. Added explicit
+  Date conversion in `createWithDbClock()` and `rotateById()` for all Date
+  fields returned from the database.
+- **Dead `now` parameters**: Removed unused `now: Date` parameter from
+  `authenticateHardened()` and `listActive()` — both use `clock_timestamp()`
+  in SQL, making the Node-side `now` dead code.
+- **Dev login clock**: Changed `establishDevIdentity` to use
+  `createWithDbClock()` instead of the test-only `create()` method.
+- **`IdentityRepository.revoke()`**: Changed to use `clock_timestamp()`
+  instead of accepting a Node-side `now: Date` parameter.
+- **7-day TTL fallback removed**: `getMaxAbsoluteTtlMs()` now throws if
+  `AUTH_SESSION_ABSOLUTE_TTL_MS` is not configured, rather than silently
+  falling back to 7 days.
+- **`request.nextUrl.origin` fallback removed**: BFF callback no longer
+  falls back to `request.nextUrl.origin` when `WEB_ORIGIN` is not
+  configured — returns 503 instead.
+- **`GoogleTokenError` fixed message**: `detail: error.message` replaced
+  with fixed public message in the GoogleTokenError error handler.
+- **Test bug**: `logoutResponse` was not assigned to a variable in the
+  logout E2E test.
 
 ## Acceptance Repair Defect Matrix
 

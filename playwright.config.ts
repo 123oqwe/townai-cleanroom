@@ -48,6 +48,8 @@ export default defineConfig({
         env: {
           NEXT_PUBLIC_API_BASE_URL:
             process.env.E2E_API_URL ?? "http://127.0.0.1:3000",
+          AUTH_SESSION_ABSOLUTE_TTL_MS:
+            process.env.AUTH_SESSION_ABSOLUTE_TTL_MS ?? "604800000",
         },
       },
 });
