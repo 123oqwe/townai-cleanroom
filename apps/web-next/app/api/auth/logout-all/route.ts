@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
 
   const token = readSessionCookie(request.cookies);
   const response = NextResponse.json({ ok: true });
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("Pragma", "no-cache");
   clearSessionCookie(response);
 
   if (token !== undefined && token.length > 0) {
@@ -24,15 +26,18 @@ export async function POST(request: NextRequest) {
     try {
       apiBase = getInternalApiBaseUrl();
     } catch {
-      apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+      // Cannot reach backend without INTERNAL_API_BASE_URL.
+      return response;
     }
-    try {
-      await fetch(`${apiBase}/v1/me/sessions`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch {
-      // Cookie still cleared.
+    const upstream = await fetch(`${apiBase}/v1/me/sessions`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!upstream.ok && upstream.status !== 401 && upstream.status !== 404) {
+      return NextResponse.json(
+        { code: "LOGOUT_DEGRADED", detail: "Sessions may still be active." },
+        { status: 502 },
+      );
     }
   }
   return response;

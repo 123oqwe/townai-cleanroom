@@ -27,14 +27,16 @@ export async function POST(request: NextRequest) {
   try {
     apiBase = getInternalApiBaseUrl();
   } catch {
-    apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+    return NextResponse.json(
+      { code: "AUTH_NOT_CONFIGURED", detail: "Server API is not configured." },
+      { status: 503 },
+    );
   }
 
   const response = await fetch(`${apiBase}/v1/me/session/rotate`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
-      "x-session-token": token,
     },
   });
 
@@ -49,11 +51,17 @@ export async function POST(request: NextRequest) {
     token: string;
     sessionId: string;
     expiresAt: string;
+    cookieMaxAgeSeconds?: number;
   };
   const res = NextResponse.json({
     sessionId: result.sessionId,
     expiresAt: result.expiresAt,
   });
-  setSessionCookie(res, result.token);
+  // Use server-authoritative cookie max age.
+  setSessionCookie(res, result.token, {
+    maxAge: result.cookieMaxAgeSeconds,
+  });
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("Pragma", "no-cache");
   return res;
 }

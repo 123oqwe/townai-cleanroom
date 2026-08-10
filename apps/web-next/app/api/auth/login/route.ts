@@ -47,8 +47,10 @@ export async function POST(request: NextRequest) {
   try {
     apiBase = getInternalApiBaseUrl();
   } catch {
-    // Fallback for dev without INTERNAL_API_BASE_URL configured.
-    apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+    return NextResponse.json(
+      { code: "AUTH_NOT_CONFIGURED", detail: "Server API is not configured." },
+      { status: 503 },
+    );
   }
 
   const response = await fetch(`${apiBase}/v1/auth/dev-session`, {
@@ -75,11 +77,16 @@ export async function POST(request: NextRequest) {
     token: string;
     user: { email: string };
     session: { id: string; expiresAt: string };
+    cookieMaxAgeSeconds?: number;
   };
   const res = NextResponse.json({
     user: result.user,
     session: { id: result.session.id, expiresAt: result.session.expiresAt },
   });
-  setSessionCookie(res, result.token);
+  setSessionCookie(res, result.token, {
+    maxAge: result.cookieMaxAgeSeconds,
+  });
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("Pragma", "no-cache");
   return res;
 }

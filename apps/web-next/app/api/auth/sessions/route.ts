@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
   try {
     apiBase = getInternalApiBaseUrl();
   } catch {
-    apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+    return NextResponse.json(
+      { code: "AUTH_NOT_CONFIGURED", detail: "Server API is not configured." },
+      { status: 503 },
+    );
   }
 
   const response = await fetch(`${apiBase}/v1/me/sessions`, {
@@ -28,7 +31,10 @@ export async function GET(request: NextRequest) {
     );
   }
   const body = (await response.json()) as { sessions: unknown[] };
-  return NextResponse.json(body);
+  const res = NextResponse.json(body);
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("Pragma", "no-cache");
+  return res;
 }
 
 export async function DELETE(request: NextRequest) {
@@ -42,7 +48,10 @@ export async function DELETE(request: NextRequest) {
   try {
     apiBase = getInternalApiBaseUrl();
   } catch {
-    apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+    return NextResponse.json(
+      { code: "AUTH_NOT_CONFIGURED", detail: "Server API is not configured." },
+      { status: 503 },
+    );
   }
 
   const sessionId = request.nextUrl.searchParams.get("id");

@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
   try {
     apiBase = getInternalApiBaseUrl();
   } catch {
-    apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3000";
+    return NextResponse.json(
+      { code: "AUTH_NOT_CONFIGURED", detail: "Server API is not configured." },
+      { status: 503 },
+    );
   }
 
   try {
@@ -33,7 +36,10 @@ export async function GET(request: NextRequest) {
       );
     }
     const body = (await response.json()) as { user: unknown };
-    return NextResponse.json(body);
+    const res = NextResponse.json(body);
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("Pragma", "no-cache");
+    return res;
   } catch {
     return NextResponse.json(
       { code: "INTERNAL_ERROR", detail: "Could not connect to the API." },

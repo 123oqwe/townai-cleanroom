@@ -14,9 +14,8 @@ export const SESSION_COOKIE = isProduction
 
 export const DEV_LOGIN_COOKIE = "town-dev-session"; // never used in prod
 
-// Cookie TTL must match the backend session lifetime (absolute TTL).
-const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 days, matches AUTH_SESSION_ABSOLUTE_TTL_MS
-
+// Cookie max age MUST come from the server-authoritative session response.
+// Do NOT hardcode a TTL here — the API returns cookieMaxAgeSeconds.
 export interface CookieOptions {
   maxAge?: number;
 }
@@ -27,6 +26,7 @@ export function setSessionCookie(
   token: string,
   options: CookieOptions = {},
 ): void {
+  const maxAge = options.maxAge ?? 7 * 24 * 60 * 60;
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: isProduction,
@@ -34,8 +34,8 @@ export function setSessionCookie(
     path: "/",
     ...(isProduction ? { domain: undefined } : {}),
     priority: "high" as const,
-    maxAge: options.maxAge ?? SESSION_MAX_AGE,
-    expires: new Date(Date.now() + (options.maxAge ?? SESSION_MAX_AGE) * 1_000),
+    maxAge,
+    expires: new Date(Date.now() + maxAge * 1_000),
   });
 }
 
