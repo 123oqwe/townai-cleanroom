@@ -8,6 +8,10 @@ import type { OidcProvider } from "./oidc-attempt-store.js";
 // (provider, provider_subject) -- NOT by email alone. Email is only trusted
 // after OIDC email_verified === true. Conflicting subjects for the same
 // email must NOT silently merge.
+//
+// Concurrency safety: uses pg_advisory_xact_lock on the normalized email
+// so concurrent link() calls for the same email are serialized within the
+// transaction. Different emails can proceed in parallel.
 
 export interface VerifiedIdentity {
   id: Id<"auth-identity">;
@@ -28,7 +32,7 @@ export interface LinkResult {
 
 export class VerifiedIdentityError extends Error {
   constructor(
-    readonly code: "AUTH_IDENTITY_CONFLICT",
+    readonly code: "AUTH_IDENTITY_CONFLICT" | "AUTH_ACCOUNT_DISABLED",
     message: string,
   ) {
     super(message);
@@ -78,11 +82,16 @@ export function createVerifiedIdentityRepository(sql: Sql) {
 
     /**
      * Link a verified identity to a user.
-     * - If (provider, subject) exists, reuse that user.
-     * - Else if a user with the verified email exists, link to it (no merge
-     *   of differing subjects -- conflict throws AUTH_IDENTITY_CONFLICT).
-     * - Else create a new user.
-     * Returns the identity + user id + whether a new identity row was created.
+     *
+     * Uses pg_advisory_xact_lock on the normalized email to serialize
+     * concurrent link() calls for the same email. After acquiring the lock,
+     * re-queries all existing rows (the pre-lock query results may be stale).
+     *
+     * - Email is normalized (trim + lowercase) before all queries.
+     * - User upsert uses ON CONFLICT DO UPDATE ... RETURNING canonical ID.
+     * - Identity insert uses ON CONFLICT DO NOTHING; on conflict, re-selects
+     *   the canonical identity and verifies it belongs to the same user.
+     * - Disabled users are rejected with AUTH_ACCOUNT_DISABLED.
      */
     async link(
       input: {
@@ -97,7 +106,20 @@ export function createVerifiedIdentityRepository(sql: Sql) {
         createUser?: (email: string) => Promise<Id<"user">>;
       } = {},
     ): Promise<LinkResult> {
+      const normalizedEmail = input.verifiedEmail.trim().toLowerCase();
+
       return sql.begin(async (tx) => {
+        // Acquire advisory lock on the normalized email to serialize
+        // concurrent link() calls for the same email.
+        await tx`
+          select pg_advisory_xact_lock(
+            hashtextextended(${"auth_identity:" + normalizedEmail}, 0)
+          )
+        `;
+
+        // After acquiring the lock, re-query everything (pre-lock results
+        // may be stale).
+
         // 1. Existing (provider, subject)?
         const [existing] = await tx<IdentityRow[]>`
           select id, user_id, provider, provider_subject,
@@ -108,9 +130,19 @@ export function createVerifiedIdentityRepository(sql: Sql) {
           for update
         `;
         if (existing !== undefined) {
+          // Check if the user is disabled.
+          const [userRow] = await tx<{ status: string }[]>`
+            select status from users where id = ${existing.user_id}
+          `;
+          if (userRow?.status === "disabled") {
+            throw new VerifiedIdentityError(
+              "AUTH_ACCOUNT_DISABLED",
+              "This account is disabled.",
+            );
+          }
           await tx`
             update auth_identities
-            set last_login_at = ${input.now}, verified_email = ${input.verifiedEmail}
+            set last_login_at = ${input.now}, verified_email = ${normalizedEmail}
             where id = ${existing.id}
           `;
           return {
@@ -120,15 +152,23 @@ export function createVerifiedIdentityRepository(sql: Sql) {
           };
         }
 
-        // 2. Existing user by verified email? Check for subject conflict.
-        const [userByEmail] = await tx<{ id: string }[]>`
-          select id from users where email = ${input.verifiedEmail} for update
+        // 2. Existing user by normalized email?
+        const [userByEmail] = await tx<{ id: string; status: string }[]>`
+          select id, status from users
+          where email = ${normalizedEmail}
+          for update
         `;
         if (userByEmail !== undefined) {
-          // Ensure no OTHER identity with a different subject owns this email.
+          if (userByEmail.status === "disabled") {
+            throw new VerifiedIdentityError(
+              "AUTH_ACCOUNT_DISABLED",
+              "This account is disabled.",
+            );
+          }
+          // Check for subject conflict.
           const [conflict] = await tx<{ id: string }[]>`
             select id from auth_identities
-            where verified_email = ${input.verifiedEmail}
+            where verified_email = ${normalizedEmail}
               and provider = ${input.provider}
               and provider_subject <> ${input.providerSubject}
             for update
@@ -139,89 +179,113 @@ export function createVerifiedIdentityRepository(sql: Sql) {
               "A different verified identity already owns this email.",
             );
           }
-          const id = newId<"auth-identity">();
-          await tx`
+          // Insert identity linked to existing user.
+          const identityId = newId<"auth-identity">();
+          const [insertedIdentity] = await tx<IdentityRow[]>`
             insert into auth_identities (
               id, user_id, provider, provider_subject, verified_email,
               email_verified, created_at, last_login_at
             ) values (
-              ${id}, ${userByEmail.id}, ${input.provider},
-              ${input.providerSubject}, ${input.verifiedEmail},
+              ${identityId}, ${userByEmail.id}, ${input.provider},
+              ${input.providerSubject}, ${normalizedEmail},
               ${true}, ${input.now}, ${input.now}
             )
+            on conflict (provider, provider_subject) do nothing
+            returning id, user_id, provider, provider_subject,
+                      verified_email::text, email_verified, created_at, last_login_at
           `;
-          return {
-            identity: {
-              id,
+          if (insertedIdentity !== undefined) {
+            return {
+              identity: toIdentity(insertedIdentity),
               userId: asId<"user">(userByEmail.id),
-              provider: input.provider,
-              providerSubject: input.providerSubject,
-              verifiedEmail: input.verifiedEmail,
-              emailVerified: true,
-              createdAt: input.now,
-              lastLoginAt: input.now,
-            },
-            userId: asId<"user">(userByEmail.id),
-            created: true,
-          };
+              created: true,
+            };
+          }
+          // Conflict: another concurrent insert won. Re-select canonical.
+          const [canonical] = await tx<IdentityRow[]>`
+            select id, user_id, provider, provider_subject,
+                   verified_email::text, email_verified, created_at, last_login_at
+            from auth_identities
+            where provider = ${input.provider}
+              and provider_subject = ${input.providerSubject}
+            for update
+          `;
+          if (canonical !== undefined && canonical.user_id === userByEmail.id) {
+            return {
+              identity: toIdentity(canonical),
+              userId: asId<"user">(canonical.user_id),
+              created: false,
+            };
+          }
+          throw new VerifiedIdentityError(
+            "AUTH_IDENTITY_CONFLICT",
+            "A different verified identity already owns this email.",
+          );
         }
 
-        // 3. Create a new user + identity using concurrency-safe upsert.
-        // ON CONFLICT DO UPDATE ... RETURNING ensures we always get the
-        // canonical IDs back, even under concurrent insert races.
+        // 3. Create a new user + identity.
         const candidateUserId =
           input.existingUserId ??
           (options.createUser !== undefined
-            ? await options.createUser(input.verifiedEmail)
+            ? await options.createUser(normalizedEmail)
             : newId<"user">());
-        const [userRow] = await tx<{ id: string }[]>`
+        const [userRow] = await tx<{ id: string; status: string }[]>`
           insert into users (id, email, timezone, status, created_at, updated_at)
-          values (${candidateUserId}, ${input.verifiedEmail}, 'UTC', 'active', ${input.now}, ${input.now})
+          values (${candidateUserId}, ${normalizedEmail}, 'UTC', 'active', ${input.now}, ${input.now})
           on conflict (email) do update set updated_at = excluded.updated_at
-          returning id
+          returning id, status
         `;
         if (userRow === undefined) {
           throw new Error("User upsert returned no row.");
         }
+        if (userRow.status === "disabled") {
+          throw new VerifiedIdentityError(
+            "AUTH_ACCOUNT_DISABLED",
+            "This account is disabled.",
+          );
+        }
         const canonicalUserId = asId<"user">(userRow.id);
         const identityId = newId<"auth-identity">();
-        const [identityRow] = await tx<
-          {
-            id: string;
-            user_id: string;
-            created_at: Date;
-          }[]
-        >`
+        const [identityRow] = await tx<IdentityRow[]>`
           insert into auth_identities (
             id, user_id, provider, provider_subject, verified_email,
             email_verified, created_at, last_login_at
           ) values (
             ${identityId}, ${canonicalUserId}, ${input.provider},
-            ${input.providerSubject}, ${input.verifiedEmail},
+            ${input.providerSubject}, ${normalizedEmail},
             ${true}, ${input.now}, ${input.now}
           )
-          on conflict (provider, provider_subject) do update set
-            last_login_at = excluded.last_login_at,
-            verified_email = excluded.verified_email
-          returning id, user_id, created_at
+          on conflict (provider, provider_subject) do nothing
+          returning id, user_id, provider, provider_subject,
+                    verified_email::text, email_verified, created_at, last_login_at
         `;
-        if (identityRow === undefined) {
-          throw new Error("Identity upsert returned no row.");
+        if (identityRow !== undefined) {
+          return {
+            identity: toIdentity(identityRow),
+            userId: canonicalUserId,
+            created: true,
+          };
         }
-        return {
-          identity: {
-            id: asId<"auth-identity">(identityRow.id),
-            userId: asId<"user">(identityRow.user_id),
-            provider: input.provider,
-            providerSubject: input.providerSubject,
-            verifiedEmail: input.verifiedEmail,
-            emailVerified: true,
-            createdAt: identityRow.created_at,
-            lastLoginAt: input.now,
-          },
-          userId: asId<"user">(identityRow.user_id),
-          created: true,
-        };
+        // Conflict: re-select canonical identity and verify ownership.
+        const [canonical] = await tx<IdentityRow[]>`
+          select id, user_id, provider, provider_subject,
+                 verified_email::text, email_verified, created_at, last_login_at
+          from auth_identities
+          where provider = ${input.provider}
+            and provider_subject = ${input.providerSubject}
+          for update
+        `;
+        if (canonical !== undefined && canonical.user_id === canonicalUserId) {
+          return {
+            identity: toIdentity(canonical),
+            userId: canonicalUserId,
+            created: false,
+          };
+        }
+        throw new VerifiedIdentityError(
+          "AUTH_IDENTITY_CONFLICT",
+          "A different verified identity already owns this email.",
+        );
       });
     },
 
