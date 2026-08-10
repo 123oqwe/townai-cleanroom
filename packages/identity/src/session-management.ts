@@ -41,6 +41,7 @@ export interface CreatedSession {
 
 export interface CreatedSessionWithDbClock extends CreatedSession {
   cookieMaxAgeSeconds: number;
+  createdAt: Date;
 }
 
 export class SessionManagementError extends Error {
@@ -112,8 +113,10 @@ function hashIp(ip: string | null | undefined): Buffer | null {
 export function createSessionManager(sql: Sql) {
   return {
     /**
-     * Create a session using Node-side time (test/legacy compatibility).
-     * Production code should use createWithDbClock instead.
+     * TEST-ONLY: Create a session using Node-side time.
+     * Production code MUST use createWithDbClock instead, which uses
+     * PostgreSQL clock_timestamp() as the authoritative time source.
+     * This method exists for tests that need deterministic Node-side time.
      */
     async create(input: CreateSessionInput): Promise<CreatedSession> {
       const token = generateSessionToken();
@@ -193,16 +196,38 @@ export function createSessionManager(sql: Sql) {
       if (row === undefined) {
         throw new Error("Session insert returned no row.");
       }
+      // Ensure Date fields are actual Date objects (postgres may return strings).
+      const createdAt =
+        row.created_at instanceof Date
+          ? row.created_at
+          : new Date(row.created_at);
+      const expiresAt =
+        row.expires_at instanceof Date
+          ? row.expires_at
+          : new Date(row.expires_at);
+      const idleExpiresAt =
+        row.idle_expires_at instanceof Date
+          ? row.idle_expires_at
+          : new Date(row.idle_expires_at);
+      const absoluteExpiresAt =
+        row.absolute_expires_at instanceof Date
+          ? row.absolute_expires_at
+          : new Date(row.absolute_expires_at);
+      const serverNow =
+        row.server_now instanceof Date
+          ? row.server_now
+          : new Date(row.server_now);
       const cookieMaxAgeSeconds = Math.floor(
-        (row.absolute_expires_at.getTime() - row.server_now.getTime()) / 1000,
+        (absoluteExpiresAt.getTime() - serverNow.getTime()) / 1000,
       );
       return {
         token,
         sessionId,
-        expiresAt: row.expires_at,
-        idleExpiresAt: row.idle_expires_at,
-        absoluteExpiresAt: row.absolute_expires_at,
+        expiresAt,
+        idleExpiresAt,
+        absoluteExpiresAt,
         cookieMaxAgeSeconds,
+        createdAt,
       };
     },
 
@@ -212,21 +237,20 @@ export function createSessionManager(sql: Sql) {
      */
     async listActive(
       userId: Id<"user">,
-      now: Date,
       currentSessionId?: Id<"auth-session">,
     ): Promise<SafeSessionDetail[]> {
       const rows = await sql<SessionDetailRow[]>`
-        select id, user_id, created_at, last_seen_at, expires_at,
-               idle_expires_at, absolute_expires_at, auth_method,
-               is_current, revoked_at, user_agent_hash
-        from auth_sessions, (select clock_timestamp() as db_now) as c
-        where user_id = ${userId}
-          and revoked_at is null
-          and expires_at > c.db_now
-          and (idle_expires_at is null or idle_expires_at > c.db_now)
-          and (absolute_expires_at is null or absolute_expires_at > c.db_now)
-        order by created_at desc
-      `;
+       select id, user_id, created_at, last_seen_at, expires_at,
+              idle_expires_at, absolute_expires_at, auth_method,
+              is_current, revoked_at, user_agent_hash
+       from auth_sessions, (select clock_timestamp() as db_now) as c
+       where user_id = ${userId}
+         and revoked_at is null
+         and expires_at > c.db_now
+         and (idle_expires_at is null or idle_expires_at > c.db_now)
+         and (absolute_expires_at is null or absolute_expires_at > c.db_now)
+       order by created_at desc
+     `;
       return rows.map((r) =>
         toDetail(r, currentSessionId as string | undefined),
       );
@@ -309,7 +333,7 @@ export function createSessionManager(sql: Sql) {
         >`
           select s.id, s.session_family_id, s.auth_method,
                  s.absolute_expires_at, s.idle_expires_at, s.expires_at,
-                 clock_timestamp() as db_now, u.status as user_status
+                 clock_timestamp()::timestamptz as db_now, u.status as user_status
           from auth_sessions s
           join users u on u.id = s.user_id
           where s.id = ${sessionId}
@@ -323,23 +347,41 @@ export function createSessionManager(sql: Sql) {
             "The session was not found.",
           );
         }
+        // Ensure db_now is a Date (postgres may return string).
+        const dbNow =
+          old.db_now instanceof Date ? old.db_now : new Date(old.db_now);
         // Re-validate session expiry using DB clock.
-        if (old.expires_at <= old.db_now) {
+        // Ensure all Date fields from DB are actual Date objects.
+        const oldExpiresAt =
+          old.expires_at instanceof Date
+            ? old.expires_at
+            : new Date(old.expires_at);
+        const oldIdleExpiresAt =
+          old.idle_expires_at === null
+            ? null
+            : old.idle_expires_at instanceof Date
+              ? old.idle_expires_at
+              : new Date(old.idle_expires_at);
+        const oldAbsoluteExpiresAt =
+          old.absolute_expires_at === null
+            ? null
+            : old.absolute_expires_at instanceof Date
+              ? old.absolute_expires_at
+              : new Date(old.absolute_expires_at);
+        // Re-validate session expiry using DB clock.
+        if (oldExpiresAt <= dbNow) {
           throw new SessionManagementError(
             "SESSION_EXPIRED",
             "The session has expired.",
           );
         }
-        if (old.idle_expires_at !== null && old.idle_expires_at <= old.db_now) {
+        if (oldIdleExpiresAt !== null && oldIdleExpiresAt <= dbNow) {
           throw new SessionManagementError(
             "SESSION_EXPIRED",
             "The session has expired.",
           );
         }
-        if (
-          old.absolute_expires_at !== null &&
-          old.absolute_expires_at <= old.db_now
-        ) {
+        if (oldAbsoluteExpiresAt !== null && oldAbsoluteExpiresAt <= dbNow) {
           throw new SessionManagementError(
             "SESSION_EXPIRED",
             "The session has expired.",
@@ -362,7 +404,7 @@ export function createSessionManager(sql: Sql) {
 
         await tx`
           update auth_sessions
-          set revoked_at = ${old.db_now}, is_current = false
+          set revoked_at = ${dbNow}, is_current = false
           where id = ${old.id}
         `;
         const familyId =
@@ -372,15 +414,13 @@ export function createSessionManager(sql: Sql) {
         const token = generateSessionToken();
         const newHash = hashSessionToken(token);
         const newSessionId = newId<"auth-session">();
-        const idleExpiresAt = new Date(
-          old.db_now.getTime() + options.idleTtlMs,
-        );
+        const idleExpiresAt = new Date(dbNow.getTime() + options.idleTtlMs);
         // Preserve the original absolute expiry — rotation must NOT extend
         // the session's absolute lifetime.
         const absoluteExpiresAt =
-          old.absolute_expires_at !== null
-            ? old.absolute_expires_at
-            : new Date(old.db_now.getTime() + options.absoluteTtlMs);
+          oldAbsoluteExpiresAt !== null
+            ? oldAbsoluteExpiresAt
+            : new Date(dbNow.getTime() + options.absoluteTtlMs);
         const expiresAt =
           idleExpiresAt < absoluteExpiresAt ? idleExpiresAt : absoluteExpiresAt;
         await tx`
@@ -391,14 +431,14 @@ export function createSessionManager(sql: Sql) {
             user_agent_hash, ip_metadata_hash, is_current
           ) values (
             ${newSessionId}, ${userId}, ${newHash}, ${expiresAt},
-            ${old.db_now}, ${old.db_now}, ${old.auth_method},
+            ${dbNow}, ${dbNow}, ${old.auth_method},
             ${idleExpiresAt}, ${absoluteExpiresAt},
             ${familyId}, ${old.id},
             ${hashUa(meta?.userAgent)}, ${hashIp(meta?.ip)}, ${true}
           )
         `;
         const cookieMaxAgeSeconds = Math.floor(
-          (absoluteExpiresAt.getTime() - old.db_now.getTime()) / 1000,
+          (absoluteExpiresAt.getTime() - dbNow.getTime()) / 1000,
         );
         return {
           token,
@@ -407,6 +447,7 @@ export function createSessionManager(sql: Sql) {
           idleExpiresAt,
           absoluteExpiresAt,
           cookieMaxAgeSeconds,
+          createdAt: dbNow,
         };
       });
     },
@@ -425,7 +466,6 @@ export function createSessionManager(sql: Sql) {
      */
     async authenticateHardened(
       tokenHash: Buffer,
-      now: Date,
       idleTtlMs: number,
       throttleMs = 60_000,
     ): Promise<{

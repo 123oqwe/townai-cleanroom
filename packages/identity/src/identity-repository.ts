@@ -162,11 +162,10 @@ export class IdentityRepository {
   async revoke(
     sessionId: Id<"auth-session">,
     ownerId: Id<"user">,
-    now: Date,
   ): Promise<boolean> {
     const rows = await this.sql`
       update auth_sessions
-      set revoked_at = ${now}
+      set revoked_at = clock_timestamp()
       where id = ${sessionId} and user_id = ${ownerId} and revoked_at is null
       returning id
     `;

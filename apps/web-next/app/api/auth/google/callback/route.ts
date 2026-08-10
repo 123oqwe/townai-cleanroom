@@ -34,16 +34,10 @@ function getTrustedWebOrigin(): string {
 }
 
 /** Redirect to login with an error, always clearing the flow cookie. */
-function redirectToLoginWithError(
-  error: string,
-  request: NextRequest,
-): NextResponse {
-  let trustedOrigin: string;
-  try {
-    trustedOrigin = getTrustedWebOrigin();
-  } catch {
-    trustedOrigin = request.nextUrl.origin;
-  }
+function redirectToLoginWithError(error: string): NextResponse {
+  // Use the configured WEB_ORIGIN only — never request.nextUrl.origin
+  // (which can be spoofed by an attacker in certain hosting setups).
+  const trustedOrigin = getTrustedWebOrigin();
   const loginUrl = new URL("/new/login", trustedOrigin);
   loginUrl.searchParams.set("error", error);
   const res = NextResponse.redirect(loginUrl);
@@ -59,13 +53,28 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
+  // Verify WEB_ORIGIN is configured before any redirect path.
+  // All error/success redirects use this origin, never request.nextUrl.origin.
+  try {
+    getTrustedWebOrigin();
+  } catch {
+    const res = NextResponse.json(
+      { code: "AUTH_NOT_CONFIGURED" },
+      { status: 503 },
+    );
+    clearOidcBindingCookie(res);
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("Pragma", "no-cache");
+    return res;
+  }
+
   // User denied consent — clear flow cookie.
   if (error !== null) {
-    return redirectToLoginWithError("access_denied", request);
+    return redirectToLoginWithError("access_denied");
   }
   // Missing code or state — clear flow cookie.
   if (code === null || state === null) {
-    return redirectToLoginWithError("invalid_callback", request);
+    return redirectToLoginWithError("invalid_callback");
   }
 
   let apiUrl: string;
@@ -74,13 +83,13 @@ export async function GET(request: NextRequest) {
     apiUrl = getInternalApiBaseUrl();
     secret = getBffSharedSecret();
   } catch {
-    return redirectToLoginWithError("not_configured", request);
+    return redirectToLoginWithError("not_configured");
   }
 
   // Read the per-browser binding cookie. If missing — clear and reject.
   const browserBindingSecret = readOidcBindingCookie(request.cookies);
   if (browserBindingSecret === undefined) {
-    return redirectToLoginWithError("invalid_flow", request);
+    return redirectToLoginWithError("invalid_flow");
   }
 
   let response: Response;
@@ -95,7 +104,7 @@ export async function GET(request: NextRequest) {
     });
   } catch {
     // Network error — clear flow cookie.
-    return redirectToLoginWithError("auth_failed", request);
+    return redirectToLoginWithError("auth_failed");
   }
 
   if (!response.ok) {
@@ -119,7 +128,7 @@ export async function GET(request: NextRequest) {
       body.code !== undefined && body.code in UI_ERROR_MAP
         ? (UI_ERROR_MAP[body.code] ?? "auth_failed")
         : "auth_failed";
-    return redirectToLoginWithError(uiError, request);
+    return redirectToLoginWithError(uiError);
   }
 
   const result = (await response.json()) as {
@@ -139,7 +148,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error: unknown) {
     if (error instanceof CookieTtlError) {
-      return redirectToLoginWithError("auth_failed", request);
+      return redirectToLoginWithError("auth_failed");
     }
     throw error;
   }
@@ -153,13 +162,10 @@ export async function GET(request: NextRequest) {
     safePath = SAFE_FALLBACK_REDIRECT;
   }
 
-  let trustedOrigin: string;
-  try {
-    trustedOrigin = getTrustedWebOrigin();
-  } catch {
-    trustedOrigin = request.nextUrl.origin;
-  }
-  const redirect = NextResponse.redirect(new URL(safePath, trustedOrigin));
+  // WEB_ORIGIN was already verified at the top of GET().
+  const redirect = NextResponse.redirect(
+    new URL(safePath, getTrustedWebOrigin()),
+  );
   setSessionCookie(redirect, result.token, { maxAge });
   clearOidcBindingCookie(redirect);
   redirect.headers.set("Cache-Control", "no-store");

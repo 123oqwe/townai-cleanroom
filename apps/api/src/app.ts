@@ -409,12 +409,16 @@ export function createApp(dependencies?: AppDependencies) {
     }
     if (error instanceof GoogleTokenError) {
       const status = error.code === "GOOGLE_TOKEN_NOT_CONFIGURED" ? 503 : 502;
+      const safeMessage =
+        error.code === "GOOGLE_TOKEN_NOT_CONFIGURED"
+          ? "Google integration is not configured."
+          : "Google token refresh failed.";
       return context.json(
         {
           type: "https://town.local/problems/google-token",
           title: "Google token refresh failed",
           status,
-          detail: error.message,
+          detail: safeMessage,
           code: error.code,
         },
         status,

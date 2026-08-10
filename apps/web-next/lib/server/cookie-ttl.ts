@@ -78,5 +78,10 @@ export function getMaxAbsoluteTtlMs(): number {
   if (Number.isSafeInteger(parsed) && parsed > 0) {
     return parsed;
   }
-  return 7 * 24 * 60 * 60 * 1_000; // 604800000 ms default
+  // No 7-day fallback. If AUTH_SESSION_ABSOLUTE_TTL_MS is not configured,
+  // cookie TTL validation must fail rather than guess a duration.
+  throw new CookieTtlError(
+    "SESSION_TTL_INVALID",
+    "AUTH_SESSION_ABSOLUTE_TTL_MS is not configured.",
+  );
 }

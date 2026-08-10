@@ -28,14 +28,34 @@ export function registerSessionRoutes(
     const identity = context.get("identity");
     const sessions = await manager.listActive(
       identity.user.id,
-      new Date(),
       identity.session.id,
     );
     return context.json({ sessions });
   });
 
+  // DELETE /v1/me/sessions -- revoke all OTHER sessions (logout other devices).
+  // The current session is preserved.
+  app.delete("/v1/me/sessions", async (context) => {
+    const identity = context.get("identity");
+    const count = await manager.revokeAll(
+      identity.user.id,
+      identity.session.id,
+    );
+    return context.json({ revoked: count });
+  });
+
+  // DELETE /v1/me/sessions/all -- revoke ALL sessions INCLUDING the current
+  // one (logout all devices).
+  // MUST be registered BEFORE /:sessionId to avoid shadowing.
+  app.delete("/v1/me/sessions/all", async (context) => {
+    const identity = context.get("identity");
+    const count = await manager.revokeAllIncludingCurrent(identity.user.id);
+    return context.json({ revoked: count });
+  });
+
   // DELETE /v1/me/sessions/:sessionId -- revoke a specific session.
   // Validates sessionId is a UUID before using it.
+  // Registered AFTER /sessions/all so "all" does not match :sessionId.
   app.delete("/v1/me/sessions/:sessionId", async (context) => {
     const identity = context.get("identity");
     const rawSessionId = context.req.param("sessionId");
@@ -53,25 +73,6 @@ export function registerSessionRoutes(
     // Check if the revoked session was the current one.
     const revokedCurrent = parsed.data === identity.session.id;
     return context.json({ revoked: true, revokedCurrent }, 200);
-  });
-
-  // DELETE /v1/me/sessions -- revoke all OTHER sessions (logout other devices).
-  // The current session is preserved.
-  app.delete("/v1/me/sessions", async (context) => {
-    const identity = context.get("identity");
-    const count = await manager.revokeAll(
-      identity.user.id,
-      identity.session.id,
-    );
-    return context.json({ revoked: count });
-  });
-
-  // DELETE /v1/me/sessions/all -- revoke ALL sessions INCLUDING the current
-  // one (logout all devices).
-  app.delete("/v1/me/sessions/all", async (context) => {
-    const identity = context.get("identity");
-    const count = await manager.revokeAllIncludingCurrent(identity.user.id);
-    return context.json({ revoked: count });
   });
 
   // POST /v1/me/session/rotate -- rotate the current session.

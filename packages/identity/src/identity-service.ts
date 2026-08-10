@@ -82,7 +82,6 @@ export function createIdentityService(
       // The old IdentityRepository.authenticate path is deprecated.
       const result = await sessionManager.authenticateHardened(
         hashSessionToken(token),
-        now(),
         sessionIdleTtlMs,
       );
       if (result === null) {
@@ -109,7 +108,6 @@ export function createIdentityService(
       const revoked = await repository.revoke(
         asId<"auth-session">(sessionId),
         asId<"user">(ownerId),
-        now(),
       );
       if (!revoked) {
         throw new IdentityError(
@@ -140,10 +138,10 @@ export function createIdentityService(
         );
       }
       // Create a hardened session via SessionManager.
-      const session = await sessionManager.create({
+      // Use DB-authoritative clock for dev sessions too.
+      const session = await sessionManager.createWithDbClock({
         userId: result.userId,
         authMethod: "dev:email",
-        now: issuedAt,
         idleTtlMs: sessionIdleTtlMs,
         absoluteTtlMs: sessionTtlMs,
       });
@@ -154,8 +152,8 @@ export function createIdentityService(
           id: session.sessionId,
           userId: result.userId,
           expiresAt: session.expiresAt,
-          createdAt: issuedAt,
-          lastSeenAt: issuedAt,
+          createdAt: session.createdAt,
+          lastSeenAt: session.createdAt,
         },
       };
     },
