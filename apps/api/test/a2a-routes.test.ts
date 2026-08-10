@@ -46,11 +46,11 @@ async function fixture() {
     createCredentialCipher(randomBytes(32).toString("base64url")),
   );
   const a2aRepository = createA2ARepository(sql);
-  const owner = await identityService.establishIdentity({
+  const owner = await identityService.establishLegacyIdentityForTestOnly({
     email: "a2a-owner@example.test",
     timezone: "Asia/Shanghai",
   });
-  const recipient = await identityService.establishIdentity({
+  const recipient = await identityService.establishLegacyIdentityForTestOnly({
     email: "a2a-recipient@example.test",
     timezone: "UTC",
   });

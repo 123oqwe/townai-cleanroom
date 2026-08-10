@@ -155,6 +155,13 @@ user data. They are ordered by priority:
 1. **Authentication** — Resolved in this session: HttpOnly cookie, server-side
    proxy, server-side logout. Still needed: Google OIDC for web login (not
    just allowlist), MFA/passkey, session rotation, device management.
+   **Phase 01A update:** Google OIDC (Authorization Code + PKCE) login is now
+   implemented with verified identities, hardened sessions (idle/absolute
+   expiry, rotation, device management), sealed dev-only email login, and a
+   BFF with CSRF protection. Authentication code: S2. Google login live
+   verified: not completed (BLOCKED_BY_CREDENTIAL). Do not write
+   "Authentication Resolved" until S4. Still needed: MFA/passkey, KMS-backed
+   session secrets.
 2. **Secret Management** — See Gap A above.
 3. **Cross-Tenant Isolation** — Automated tests that verify no cross-owner
    data access is possible through any API endpoint.

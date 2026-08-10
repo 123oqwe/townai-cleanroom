@@ -22,6 +22,7 @@
   "dependencies": {
     "@town/contracts": "file:../contracts",
     "@town/db": "file:../db",
+    "jose": "^6.2.8",
     "zod": "4.4.3"
   },
   "devDependencies": {

@@ -72,11 +72,11 @@ async function fixture() {
     approvalDecisions: createApprovalDecisionRepository(sql),
     billingRepository: createBillingRepository(sql),
   };
-  const owner = await identityService.establishIdentity({
+  const owner = await identityService.establishLegacyIdentityForTestOnly({
     email: "runtime-api-owner@example.invalid",
     timezone: "Asia/Shanghai",
   });
-  const other = await identityService.establishIdentity({
+  const other = await identityService.establishLegacyIdentityForTestOnly({
     email: "runtime-api-other@example.invalid",
     timezone: "UTC",
   });

@@ -58,11 +58,11 @@ async function fixture() {
   const turnRepository = createTurnRepository(sql);
   const taskRepository = createTaskRepository(sql);
   const inputRequestRepository = createInputRequestRepository(sql);
-  const owner = await identityService.establishIdentity({
+  const owner = await identityService.establishLegacyIdentityForTestOnly({
     email: "agents-owner@example.invalid",
     timezone: "Asia/Shanghai",
   });
-  const other = await identityService.establishIdentity({
+  const other = await identityService.establishLegacyIdentityForTestOnly({
     email: "agents-other@example.invalid",
     timezone: "UTC",
   });

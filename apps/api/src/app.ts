@@ -66,6 +66,23 @@ import {
 
 import { createAuthMiddleware, type AuthVariables } from "./lib/auth.js";
 import {
+  registerOidcLoginRoutes,
+  OidcRouteError,
+  type OidcLoginDependencies,
+} from "./auth/oidc-login-routes.js";
+import {
+  registerSessionRoutes,
+  type SessionRouteDependencies,
+} from "./auth/session-routes.js";
+
+import {
+  SessionManagementError,
+  VerifiedIdentityError,
+  OidcAttemptError,
+  getAuthErrorMessage,
+  RedirectValidationError,
+} from "@town/identity";
+import {
   createRateLimiter,
   createRateLimitMiddleware,
   type AnyRateLimiter,
@@ -183,6 +200,9 @@ export interface AppDependencies {
   a2aRepository?: A2ARepository;
   googleOAuth?: GoogleOAuthDependencies;
   googleTokenRefresher?: GoogleTokenRefresher;
+  oidcLogin?: OidcLoginDependencies;
+  sessionRoutes?: SessionRouteDependencies;
+  devEmailLoginEnabled?: boolean;
   googleApi?: GoogleApiClient;
   gmailPubsubClientId?: string;
   microsoftOAuth?: MicrosoftOAuthDependencies;
@@ -379,21 +399,105 @@ export function createApp(dependencies?: AppDependencies) {
       error instanceof McpRepositoryError ||
       error instanceof GoogleTokenError ||
       error instanceof SuggestionError ||
-      error instanceof ChannelError
+      error instanceof ChannelError ||
+      error instanceof OidcRouteError ||
+      error instanceof OidcAttemptError ||
+      error instanceof SessionManagementError ||
+      error instanceof VerifiedIdentityError
     )) {
       console.error("[unhandled-error]", error);
     }
     if (error instanceof GoogleTokenError) {
       const status = error.code === "GOOGLE_TOKEN_NOT_CONFIGURED" ? 503 : 502;
+      const safeMessage =
+        error.code === "GOOGLE_TOKEN_NOT_CONFIGURED"
+          ? "Google integration is not configured."
+          : "Google token refresh failed.";
       return context.json(
         {
           type: "https://town.local/problems/google-token",
           title: "Google token refresh failed",
           status,
-          detail: error.message,
+          detail: safeMessage,
           code: error.code,
         },
         status,
+      );
+    }
+    // Unified auth error mapping: stable, explicit, no internal info leak.
+    if (error instanceof OidcRouteError) {
+      const status = error.status as 400 | 401 | 403 | 502 | 503;
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Authentication error",
+          status,
+          detail: getAuthErrorMessage(error.code),
+          code: error.code,
+        },
+        status,
+      );
+    }
+    if (error instanceof OidcAttemptError) {
+      const status =
+        error.code === "AUTH_FLOW_REPLAYED"
+          ? 409
+          : error.code === "AUTH_BROWSER_BINDING_INVALID"
+            ? 400
+            : 400;
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Auth flow error",
+          status,
+          detail: getAuthErrorMessage(error.code),
+          code: error.code,
+        },
+        status,
+      );
+    }
+    if (error instanceof VerifiedIdentityError) {
+      const status = error.code === "AUTH_ACCOUNT_DISABLED" ? 403 : 409;
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Identity conflict",
+          status,
+          detail: getAuthErrorMessage(error.code),
+          code: error.code,
+        },
+        status,
+      );
+    }
+    if (error instanceof SessionManagementError) {
+      const status =
+        error.code === "SESSION_ROTATION_CONFLICT" ||
+        error.code === "SESSION_AUTH_METHOD_INVALID"
+          ? 409
+          : error.code === "SESSION_NOT_FOUND"
+            ? 404
+            : 401;
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Session error",
+          status,
+          detail: getAuthErrorMessage(error.code),
+          code: error.code,
+        },
+        status,
+      );
+    }
+    if (error instanceof RedirectValidationError) {
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Invalid redirect",
+          status: 400,
+          detail: getAuthErrorMessage(error.code),
+          code: error.code,
+        },
+        400,
       );
     }
     if (error instanceof z.ZodError || error instanceof SyntaxError) {
@@ -798,7 +902,8 @@ export function createApp(dependencies?: AppDependencies) {
     // Rate-limit unauthenticated entry points: session establishment,
     // OAuth flows, and webhook receivers. Authenticated /v1/* business
     // routes have their own per-resource limits.
-    app.use("/v1/auth/session", rateLimit);
+    app.use("/v1/auth/dev-session", rateLimit);
+    app.use("/v1/auth/oidc/*", rateLimit);
     app.use("/v1/auth/oauth/*", rateLimit);
     app.use("/v1/accounts/google/oauth/*", rateLimit);
     app.use("/auth/google/*", rateLimit);
@@ -820,23 +925,47 @@ export function createApp(dependencies?: AppDependencies) {
         timezone: z.string().trim().min(1).max(100).default("UTC"),
       })
       .strict();
-    app.post("/v1/auth/session", async (context) => {
-      const established = await dependencies.identityService.establishIdentity(
-        establishSessionSchema.parse(await context.req.json()),
-      );
-      return context.json(
-        {
-          token: established.token,
-          user: established.user,
-          session: {
-            id: established.session.id,
-            expiresAt: established.session.expiresAt,
+    // Email-only login is DEV ONLY. It is registered only when
+    // devEmailLoginAllowed() is true (non-production AND explicitly enabled).
+    // In production this route does not exist -> 404. Even if misconfigured
+    // with DEV_EMAIL_LOGIN_ENABLED=true, the runtime-config guard refuses
+    // to start in production (see lib/auth-config.ts).
+    if (dependencies.devEmailLoginEnabled === true) {
+      app.post("/v1/auth/dev-session", async (context) => {
+        const established =
+          await dependencies.identityService.establishDevIdentity(
+            establishSessionSchema.parse(await context.req.json()),
+          );
+        // Server-authoritative cookie max age (seconds until absolute expiry).
+        const cookieMaxAgeSeconds = Math.floor(
+          (established.session.expiresAt.getTime() - Date.now()) / 1000,
+        );
+        return context.json(
+          {
+            token: established.token,
+            user: established.user,
+            session: {
+              id: established.session.id,
+              expiresAt: established.session.expiresAt,
+            },
+            cookieMaxAgeSeconds,
           },
-        },
-        201,
-      );
-    });
+          201,
+        );
+      });
+    }
     const authenticate = createAuthMiddleware(dependencies.identityService);
+    // Auth middleware must be registered BEFORE session routes so that
+    // /v1/me/* routes are protected. In Hono, middleware only applies
+    // to routes registered after it.
+    app.use("/v1/me", authenticate);
+    app.use("/v1/me/*", authenticate);
+    if (dependencies.oidcLogin !== undefined) {
+      registerOidcLoginRoutes(app, dependencies.oidcLogin);
+    }
+    if (dependencies.sessionRoutes !== undefined) {
+      registerSessionRoutes(app, dependencies.sessionRoutes);
+    }
     const adminAllowlist = new Set(
       (dependencies.adminAllowlistEmails ?? []).map((email) =>
         email.trim().toLowerCase(),
@@ -934,8 +1063,6 @@ export function createApp(dependencies?: AppDependencies) {
       registerRoutineShareRoutes(app, {
         repository: dependencies.routineRepository,
       });
-    app.use("/v1/me", authenticate);
-    app.use("/v1/me/*", authenticate);
     app.use("/v1/accounts", authenticate);
     app.use("/v1/accounts/*", authenticate);
 

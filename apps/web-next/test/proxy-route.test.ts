@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 process.env.NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:3000";
+process.env.AUTH_ALLOWED_ORIGINS = "http://localhost:3001";
+process.env.AUTH_BFF_SHARED_SECRET = "test-bff-secret-at-least-32-chars-long";
+process.env.INTERNAL_API_BASE_URL = "http://127.0.0.1:3000";
 
 import {
   GET as proxyGET,
@@ -20,7 +23,10 @@ function makeProxyRequest(
   const search = options.search ?? "";
   const pathStr = pathSegments.join("/");
   const url = `http://localhost:3001/${pathStr}${search}`;
-  const headers: Record<string, string> = { ...options.headers };
+  const headers: Record<string, string> = {
+    ...options.headers,
+    origin: "http://localhost:3001",
+  };
   if (options.body !== undefined) headers["content-type"] = "application/json";
   const req = new Request(url, {
     method,
@@ -68,7 +74,7 @@ describe("proxy route — authentication", () => {
 
   it("returns 401 when cookie is empty string", async () => {
     const { req, params } = makeProxyRequest("GET", ["v1", "me"], {
-      cookies: { "town-token": "" },
+      cookies: { "town-session": "" },
     });
     const res = await proxyGET(req, { params });
     expect(res.status).toBe(401);
@@ -88,7 +94,7 @@ describe("proxy route — request forwarding", () => {
       }),
     );
     const { req, params } = makeProxyRequest("GET", ["v1", "threads"], {
-      cookies: { "town-token": "town_session_testtoken" },
+      cookies: { "town-session": "town_session_testtoken" },
       search: "?limit=10",
     });
     const res = await proxyGET(req, { params });
@@ -112,7 +118,7 @@ describe("proxy route — request forwarding", () => {
       }),
     );
     const { req, params } = makeProxyRequest("POST", ["v1", "threads"], {
-      cookies: { "town-token": "town_session_testtoken" },
+      cookies: { "town-session": "town_session_testtoken" },
       body: { title: "Test thread" },
       headers: { "idempotency-key": "abc-123" },
     });
@@ -139,7 +145,7 @@ describe("proxy route — request forwarding", () => {
     const { req, params } = makeProxyRequest(
       "GET",
       ["v1", "threads", "nonexistent"],
-      { cookies: { "town-token": "town_session_testtoken" } },
+      { cookies: { "town-session": "town_session_testtoken" } },
     );
     const res = await proxyGET(req, { params });
     expect(res.status).toBe(404);
@@ -169,7 +175,7 @@ describe("proxy route — SSE streaming", () => {
     const { req, params } = makeProxyRequest(
       "GET",
       ["v1", "sessions", "sess_1", "events", "stream"],
-      { cookies: { "town-token": "town_session_testtoken" } },
+      { cookies: { "town-session": "town_session_testtoken" } },
     );
     const res = await proxyGET(req, { params });
     expect(res.status).toBe(200);

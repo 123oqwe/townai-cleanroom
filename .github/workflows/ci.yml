@@ -32,6 +32,128 @@ jobs:
       - name: Verify source
         run: pnpm verify
 
+  production-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Production config must fail when dev login is enabled
+        run: |
+          # NODE_ENV=production + DEV_EMAIL_LOGIN_ENABLED=true must FAIL.
+          if NODE_ENV=production DEV_EMAIL_LOGIN_ENABLED=true \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict; then
+            echo "ERROR: production config incorrectly passed with dev login enabled"
+            exit 1
+          else
+            echo "OK: production config correctly rejected dev login"
+          fi
+
+      - name: Production config must fail when AUTH_* vars are missing
+        run: |
+          if NODE_ENV=production \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict; then
+            echo "ERROR: production config incorrectly passed without AUTH_* vars"
+            exit 1
+          else
+            echo "OK: production config correctly rejected missing AUTH_* vars"
+          fi
+
+      - name: Production config passes when all AUTH_* vars configured
+        run: |
+          NODE_ENV=production \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            INTERNAL_API_BASE_URL=http://127.0.0.1:3000 \
+            AUTH_GOOGLE_CLIENT_ID=id \
+            AUTH_GOOGLE_CLIENT_SECRET=secret \
+            AUTH_GOOGLE_REDIRECT_URI=https://app.example.com/api/auth/google/callback \
+            AUTH_BFF_SHARED_SECRET=$(openssl rand -hex 32) \
+            AUTH_FLOW_ENCRYPTION_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            AUTH_ALLOWED_ORIGINS=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict
+
+      - name: Production config must fail when INTERNAL_API_BASE_URL is missing
+        run: |
+          if NODE_ENV=production \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            AUTH_GOOGLE_CLIENT_ID=id \
+            AUTH_GOOGLE_CLIENT_SECRET=secret \
+            AUTH_GOOGLE_REDIRECT_URI=https://app.example.com/api/auth/google/callback \
+            AUTH_BFF_SHARED_SECRET=$(openssl rand -hex 32) \
+            AUTH_FLOW_ENCRYPTION_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            AUTH_ALLOWED_ORIGINS=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict; then
+            echo "ERROR: config passed without INTERNAL_API_BASE_URL"
+            exit 1
+          else
+            echo "OK: config rejected missing INTERNAL_API_BASE_URL"
+          fi
+
+      - name: Production config must fail when redirect URI origin mismatches WEB_ORIGIN
+        run: |
+          if NODE_ENV=production \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            INTERNAL_API_BASE_URL=http://127.0.0.1:3000 \
+            AUTH_GOOGLE_CLIENT_ID=id \
+            AUTH_GOOGLE_CLIENT_SECRET=secret \
+            AUTH_GOOGLE_REDIRECT_URI=https://evil.example.com/api/auth/google/callback \
+            AUTH_BFF_SHARED_SECRET=$(openssl rand -hex 32) \
+            AUTH_FLOW_ENCRYPTION_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            AUTH_ALLOWED_ORIGINS=https://app.example.com \
+            node scripts/check-runtime-config.mjs --strict; then
+            echo "ERROR: config passed with mismatched redirect URI origin"
+            exit 1
+          else
+            echo "OK: config rejected mismatched redirect URI origin"
+          fi
+
+      - name: Production config must fail when Allowed Origins does not contain WEB_ORIGIN
+        run: |
+          if NODE_ENV=production \
+            DATABASE_URL=postgres://u:p@localhost:5432/db \
+            CREDENTIAL_MASTER_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            WEB_ORIGIN=https://app.example.com \
+            INTERNAL_API_BASE_URL=http://127.0.0.1:3000 \
+            AUTH_GOOGLE_CLIENT_ID=id \
+            AUTH_GOOGLE_CLIENT_SECRET=secret \
+            AUTH_GOOGLE_REDIRECT_URI=https://app.example.com/api/auth/google/callback \
+            AUTH_BFF_SHARED_SECRET=$(openssl rand -hex 32) \
+            AUTH_FLOW_ENCRYPTION_KEY_BASE64URL=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+            AUTH_ALLOWED_ORIGINS=https://other.example.com \
+            node scripts/check-runtime-config.mjs --strict; then
+            echo "ERROR: config passed when Allowed Origins does not contain WEB_ORIGIN"
+            exit 1
+          else
+            echo "OK: config rejected Allowed Origins not containing WEB_ORIGIN"
+          fi
+
   browser-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -61,6 +183,14 @@ jobs:
       E2E_WEB_URL: "http://localhost:3001"
       E2E_SKIP_WEB_SERVER: "1"
       NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:3000"
+      INTERNAL_API_BASE_URL: "http://127.0.0.1:3000"
+      DEV_EMAIL_LOGIN_ENABLED: "true"
+      E2E_DEV_LOGIN_ENABLED: "true"
+      AUTH_ALLOWED_ORIGINS: "http://localhost:3001"
+      AUTH_BFF_SHARED_SECRET: "ci-bff-secret-not-used-for-dev-login"
+      AUTH_FLOW_ENCRYPTION_KEY_BASE64URL: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      AUTH_SESSION_ABSOLUTE_TTL_MS: "604800000"
+      AUTH_SESSION_IDLE_TTL_MS: "900000"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -109,3 +239,147 @@ jobs:
       - name: Print Web logs
         if: failure()
         run: cat /tmp/web.log || true
+
+  vercel-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [verify, browser-e2e]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Wait for Vercel preview deployment
+        id: vercel_wait
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+          SHA="${{ github.event.pull_request.head.sha }}"
+          MAX_WAIT=300
+          WAITED=0
+          PREVIEW_URL=""
+          while [ $WAITED -lt $MAX_WAIT ]; do
+            # Only accept actual .vercel.app deployment URLs, not vercel.com dashboard URLs.
+            COMMENT_URL=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq ".[].body" 2>/dev/null | grep -oE 'https://[a-zA-Z0-9.-]+\.vercel\.app' | head -1)
+            if [ -n "$COMMENT_URL" ]; then
+              PREVIEW_URL="$COMMENT_URL"
+              break
+            fi
+            echo "Waiting for Vercel preview deployment... ($WAITED/$MAX_WAIT)"
+            sleep 15
+            WAITED=$((WAITED + 15))
+          done
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "No Vercel preview URL found after $MAX_WAIT seconds."
+            exit 1
+          fi
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "Found Vercel preview: $PREVIEW_URL"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Strict runtime smoke test
+        if: steps.vercel_wait.outputs.preview_url != ''
+        run: |
+          PREVIEW_URL="${{ steps.vercel_wait.outputs.preview_url }}"
+          BYPASS_SECRET="${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}"
+
+          echo "Smoke testing Vercel preview at: $PREVIEW_URL"
+
+          # Build bypass params as a bash array to prevent header/cookie
+          # word-splitting issues.
+          CURL_AUTH=()
+          if [ -n "$BYPASS_SECRET" ]; then
+            CURL_AUTH+=(
+              -H "x-vercel-protection-bypass: $BYPASS_SECRET"
+              --cookie "x-vercel-protection-bypass=$BYPASS_SECRET"
+            )
+            echo "Using Vercel Protection Bypass Secret"
+          fi
+
+          # 1. GET /new/login must return 200 and contain "Town" (not Vercel).
+          LOGIN_RESPONSE=$(curl -sS -L -o /tmp/login.html -w "%{http_code}" \
+            "''${CURL_AUTH[@]}" "$PREVIEW_URL/new/login" 2>/dev/null || echo "000")
+          echo "Login page status: $LOGIN_RESPONSE"
+          if [ "$LOGIN_RESPONSE" != "200" ]; then
+            echo "ERROR: Login page did not return 200"
+            cat /tmp/login.html
+            exit 1
+          fi
+          if ! grep -qi "Town" /tmp/login.html; then
+            echo "ERROR: Login page does not contain 'Town' app content."
+            echo "This likely means Vercel Deployment Protection is active"
+            echo "and no bypass secret is configured."
+            echo "VERCEL_SMOKE_BLOCKED_BY_PROTECTION"
+            exit 1
+          fi
+          echo "OK: Login page renders Town app content"
+
+          # 2. POST /api/auth/google/start must return 503 (no Google creds in preview)
+          # or 200 (if creds configured). Must NOT be 302 (Vercel protection).
+          START_RESPONSE=$(curl -sS -o /tmp/start.json -w "%{http_code}" \
+            -X POST "$PREVIEW_URL/api/auth/google/start" \
+            -H "content-type: application/json" \
+            -H "origin: $PREVIEW_URL" \
+            "''${CURL_AUTH[@]}" \
+            -d '{"redirectPath":"/new/threads"}' 2>/dev/null || echo "000")
+          echo "Google start status: $START_RESPONSE"
+          # Check if Vercel Protection is blocking the API route.
+          if [ "$START_RESPONSE" = "401" ] && grep -qi "Protected deployment" /tmp/start.json 2>/dev/null; then
+            echo "VERCEL_SMOKE_BLOCKED_BY_PROTECTION"
+            echo "Vercel Protection is blocking API routes. Configure VERCEL_AUTOMATION_BYPASS_SECRET."
+            exit 1
+          fi
+          if [ "$START_RESPONSE" = "302" ] || [ "$START_RESPONSE" = "000" ]; then
+            echo "ERROR: Google start was blocked (status: $START_RESPONSE)"
+            echo "VERCEL_SMOKE_BLOCKED_BY_PROTECTION"
+            exit 1
+          fi
+          if [ "$START_RESPONSE" != "200" ] && [ "$START_RESPONSE" != "503" ]; then
+            echo "ERROR: Google start returned unexpected status $START_RESPONSE"
+            cat /tmp/start.json
+            exit 1
+          fi
+          echo "OK: Google start endpoint responds correctly"
+
+          # 3. GET /api/proxy/v1/me must return 401 with UNAUTHENTICATED code.
+          PROXY_RESPONSE=$(curl -sS -o /tmp/proxy.json -w "%{http_code}" \
+            "''${CURL_AUTH[@]}" "$PREVIEW_URL/api/proxy/v1/me" 2>/dev/null || echo "000")
+          echo "Unauthenticated proxy status: $PROXY_RESPONSE"
+          if [ "$PROXY_RESPONSE" != "401" ]; then
+            echo "ERROR: Unauthenticated proxy should return 401, got $PROXY_RESPONSE"
+            cat /tmp/proxy.json
+            exit 1
+          fi
+          # Verify X-Town-BFF-Proxy header is present.
+          PROXY_HEADERS=$(curl -sS -D - -o /dev/null \
+            "''${CURL_AUTH[@]}" "$PREVIEW_URL/api/proxy/v1/me" 2>/dev/null)
+          if ! echo "$PROXY_HEADERS" | grep -qi "X-Town-BFF-Proxy: 1"; then
+            echo "ERROR: X-Town-BFF-Proxy header missing"
+            exit 1
+          fi
+          echo "OK: Unauthenticated proxy returns 401 with BFF header"
+
+          # 4. Cross-origin POST must return 403 with CSRF_REJECTED.
+          CSRF_RESPONSE=$(curl -sS -o /tmp/csrf.json -w "%{http_code}" \
+            -X POST "$PREVIEW_URL/api/proxy/v1/me" \
+            -H "content-type: application/json" \
+            -H "origin: https://evil.example.com" \
+            "''${CURL_AUTH[@]}" \
+            -d '{}' 2>/dev/null || echo "000")
+          echo "Cross-origin CSRF status: $CSRF_RESPONSE"
+          if [ "$CSRF_RESPONSE" != "403" ]; then
+            echo "ERROR: Cross-origin request should return 403, got $CSRF_RESPONSE"
+            cat /tmp/csrf.json
+            exit 1
+          fi
+          echo "OK: Cross-origin CSRF correctly rejected with 403"
+
+          echo "=== Vercel Preview Smoke Test: ALL PASSED ==="
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

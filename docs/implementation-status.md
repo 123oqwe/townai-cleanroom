@@ -21,13 +21,14 @@ Only S6 qualifies as "Production Ready" in external documentation.
 
 ### Core Platform
 
-| Area                | Maturity | Package    | Evidence                                                    |
-| ------------------- | -------- | ---------- | ----------------------------------------------------------- |
-| Identity & sessions | S2       | `identity` | Hashed token storage; allowlist gate; 4 test files          |
-| Google OAuth        | S2       | `identity` | PKCE + offline refresh; `google-oauth-routes.test.ts`       |
-| Microsoft OAuth     | S1       | `identity` | Azure AD v2.0 PKCE flow; **no action tools registered**     |
-| Connected accounts  | S2       | `identity` | AES-256-GCM encryption; `account-repository.test.ts`        |
-| Credential cipher   | S2       | `identity` | AES-256-GCM; single master key; `credential-cipher.test.ts` |
+| Area                               | Maturity | Package                     | Evidence                                                                                        |
+| ---------------------------------- | -------- | --------------------------- | ----------------------------------------------------------------------------------------------- |
+| Identity & sessions                | S2       | `identity`                  | Hashed token storage; allowlist gate; 4 test files                                              |
+| Authentication (Google OIDC login) | S2       | `identity`/`api`/`web-next` | Phase 01A: OIDC PKCE, verified identities, hardened sessions, BFF; BLOCKED_BY_CREDENTIAL for S4 |
+| Google OAuth                       | S2       | `identity`                  | PKCE + offline refresh; `google-oauth-routes.test.ts`                                           |
+| Microsoft OAuth                    | S1       | `identity`                  | Azure AD v2.0 PKCE flow; **no action tools registered**                                         |
+| Connected accounts                 | S2       | `identity`                  | AES-256-GCM encryption; `account-repository.test.ts`                                            |
+| Credential cipher                  | S2       | `identity`                  | AES-256-GCM; single master key; `credential-cipher.test.ts`                                     |
 
 ### Knowledge Layer
 

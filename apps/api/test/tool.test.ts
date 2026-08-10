@@ -50,7 +50,7 @@ async function fixture() {
     values ('tool-api-owner@example.invalid', true)
   `;
   const identityService = createIdentityService(sql);
-  const owner = await identityService.establishIdentity({
+  const owner = await identityService.establishLegacyIdentityForTestOnly({
     email: "tool-api-owner@example.invalid",
     timezone: "UTC",
   });

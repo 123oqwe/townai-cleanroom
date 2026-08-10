@@ -47,13 +47,13 @@ async function fixture() {
     sql,
     createCredentialCipher(randomBytes(32).toString("base64url")),
   );
-  const owner = await identityService.establishIdentity({
+  const owner = await identityService.establishLegacyIdentityForTestOnly({
     email: "owner@example.test",
     firstName: "Town",
     lastName: "Owner",
     timezone: "Asia/Shanghai",
   });
-  const other = await identityService.establishIdentity({
+  const other = await identityService.establishLegacyIdentityForTestOnly({
     email: "other@example.test",
     timezone: "UTC",
   });
@@ -191,8 +191,9 @@ describe("protected identity API", () => {
         sql,
         createCredentialCipher(randomBytes(32).toString("base64url")),
       ),
+      devEmailLoginEnabled: true,
     });
-    const response = await app.request("/v1/auth/session", {
+    const response = await app.request("/v1/auth/dev-session", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -223,8 +224,9 @@ describe("protected identity API", () => {
         sql,
         createCredentialCipher(randomBytes(32).toString("base64url")),
       ),
+      devEmailLoginEnabled: true,
     });
-    const response = await app.request("/v1/auth/session", {
+    const response = await app.request("/v1/auth/dev-session", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: "not-allowed@example.test" }),

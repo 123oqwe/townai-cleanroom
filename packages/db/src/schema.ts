@@ -83,8 +83,117 @@ export const authSessions = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // Phase 01A session hardening (all nullable for backward compatibility).
+    authMethod: text("auth_method"),
+    idleExpiresAt: timestamp("idle_expires_at", { withTimezone: true }),
+    absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true }),
+    sessionFamilyId: uuid("session_family_id"),
+    rotatedFromSessionId: uuid("rotated_from_session_id"),
+    userAgentHash: bytea("user_agent_hash"),
+    ipMetadataHash: bytea("ip_metadata_hash"),
+    isCurrent: boolean("is_current").notNull().default(true),
   },
-  (table) => [index("auth_sessions_user_id_idx").on(table.userId)],
+  (table) => [
+    index("auth_sessions_user_id_idx").on(table.userId),
+    index("auth_sessions_user_active_idx")
+      .on(table.userId)
+      .where(sql`${table.revokedAt} is null`),
+    index("auth_sessions_family_idx")
+      .on(table.sessionFamilyId)
+      .where(sql`${table.sessionFamilyId} is not null`),
+    check(
+      "auth_sessions_auth_method_check",
+      sql`${table.authMethod} is null or ${table.authMethod} in ('oidc:google', 'dev:email')`,
+    ),
+    check(
+      "auth_sessions_idle_after_creation",
+      sql`${table.idleExpiresAt} is null or ${table.idleExpiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      "auth_sessions_absolute_after_creation",
+      sql`${table.absoluteExpiresAt} is null or ${table.absoluteExpiresAt} > ${table.createdAt}`,
+    ),
+  ],
+);
+
+// Phase 01A: short-lived OIDC Authorization Code + PKCE attempts.
+export const authOidcAttempts = pgTable(
+  "auth_oidc_attempts",
+  {
+    id: uuid("id").primaryKey(),
+    provider: text("provider").notNull(),
+    flowType: text("flow_type").notNull(),
+    stateHash: bytea("state_hash").notNull().unique(),
+    nonceHash: bytea("nonce_hash").notNull(),
+    encryptedCodeVerifier: jsonb("encrypted_code_verifier").notNull(),
+    redirectPath: text("redirect_path").notNull().default("/"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    failureCode: text("failure_code"),
+    requestMetadataHash: bytea("request_metadata_hash"),
+  },
+  (table) => [
+    index("auth_oidc_attempts_expires_at_idx").on(table.expiresAt),
+    index("auth_oidc_attempts_consumed_at_idx").on(table.consumedAt),
+    check(
+      "auth_oidc_attempts_provider_check",
+      sql`${table.provider} in ('google')`,
+    ),
+    check(
+      "auth_oidc_attempts_flow_type_check",
+      sql`${table.flowType} in ('login')`,
+    ),
+    check(
+      "auth_oidc_attempts_expiry_after_creation",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      "auth_oidc_attempts_verifier_object",
+      sql`jsonb_typeof(${table.encryptedCodeVerifier}) = 'object'`,
+    ),
+  ],
+);
+
+// Phase 01A: verified external identities (provider + subject).
+export const authIdentities = pgTable(
+  "auth_identities",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    providerSubject: text("provider_subject").notNull(),
+    verifiedEmail: citext("verified_email").notNull(),
+    emailVerified: boolean("email_verified").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("auth_identities_provider_subject_unique").on(
+      table.provider,
+      table.providerSubject,
+    ),
+    index("auth_identities_user_id_idx").on(table.userId),
+    index("auth_identities_verified_email_idx").on(table.verifiedEmail),
+    check(
+      "auth_identities_provider_check",
+      sql`${table.provider} in ('google')`,
+    ),
+    check(
+      "auth_identities_subject_nonempty",
+      sql`length(${table.providerSubject}) > 0`,
+    ),
+    check(
+      "auth_identities_email_verified_implied",
+      sql`${table.emailVerified} = true`,
+    ),
+  ],
 );
 
 export const oauthCredentials = pgTable(

@@ -143,6 +143,8 @@ describe("agent, thread, and task migration", () => {
       "0048_knowledge_graph.sql",
       "0049_telegram_whatsapp_triggers.sql",
       "0050_rate_limit_buckets.sql",
+      "0051_auth_oidc_verified_identity.sql",
+      "0052_auth_session_cutover.sql",
     ]);
   });
 });

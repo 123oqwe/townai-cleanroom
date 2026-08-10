@@ -236,7 +236,10 @@ export async function composeRuntime(
   const credentialCipher = createCredentialCipher(
     environment.CREDENTIAL_MASTER_KEY_BASE64URL,
   );
-  const identityService = createIdentityService(sql);
+  const identityService = createIdentityService(sql, {
+    sessionIdleTtlMs: environment.AUTH_SESSION_IDLE_TTL_MS,
+    sessionTtlMs: environment.AUTH_SESSION_ABSOLUTE_TTL_MS,
+  });
   const configuredAllowlist = environment.ACCESS_ALLOWLIST_EMAILS.split(",")
     .map((email) => email.trim())
     .filter(Boolean);
@@ -977,6 +980,40 @@ export async function composeRuntime(
     },
     googleTokenRefresher,
     webOrigin: environment.WEB_ORIGIN,
+    ...(environment.AUTH_BFF_SHARED_SECRET !== undefined &&
+    environment.AUTH_FLOW_ENCRYPTION_KEY_BASE64URL !== undefined
+      ? {
+          oidcLogin: {
+            sql,
+            bffSharedSecret: environment.AUTH_BFF_SHARED_SECRET,
+            webOrigin: environment.WEB_ORIGIN,
+            ...(environment.AUTH_GOOGLE_CLIENT_ID === undefined
+              ? {}
+              : { googleClientId: environment.AUTH_GOOGLE_CLIENT_ID }),
+            ...(environment.AUTH_GOOGLE_CLIENT_SECRET === undefined
+              ? {}
+              : { googleClientSecret: environment.AUTH_GOOGLE_CLIENT_SECRET }),
+            ...(environment.AUTH_GOOGLE_REDIRECT_URI === undefined
+              ? {}
+              : { googleRedirectUri: environment.AUTH_GOOGLE_REDIRECT_URI }),
+            flowEncryptionKey: environment.AUTH_FLOW_ENCRYPTION_KEY_BASE64URL,
+            allowlistEmails: new Set(
+              configuredAllowlist.map((e) => e.toLowerCase()),
+            ),
+            signupMode: environment.AUTH_SIGNUP_MODE,
+            idleTtlMs: environment.AUTH_SESSION_IDLE_TTL_MS,
+            absoluteTtlMs: environment.AUTH_SESSION_ABSOLUTE_TTL_MS,
+          },
+        }
+      : {}),
+    sessionRoutes: {
+      sql,
+      idleTtlMs: environment.AUTH_SESSION_IDLE_TTL_MS,
+      absoluteTtlMs: environment.AUTH_SESSION_ABSOLUTE_TTL_MS,
+    },
+    devEmailLoginEnabled:
+      process.env["NODE_ENV"] !== "production" &&
+      environment.DEV_EMAIL_LOGIN_ENABLED,
     microsoftOAuth: {
       sql,
       accounts: accountRepository,
