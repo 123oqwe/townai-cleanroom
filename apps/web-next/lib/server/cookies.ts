@@ -14,19 +14,63 @@ export const SESSION_COOKIE = isProduction
 
 export const DEV_LOGIN_COOKIE = "town-dev-session"; // never used in prod
 
+// Per-browser OIDC flow binding cookie. Set at /api/auth/google/start,
+// verified at /api/auth/google/callback. Prevents a stolen state from
+// completing the flow from a different browser.
+export const OIDC_BINDING_COOKIE = "town-oidc-binding";
+
+/** Set the OIDC browser binding cookie (short-lived, HttpOnly). */
+export function setOidcBindingCookie(
+  response: NextResponse,
+  secret: string,
+): void {
+  response.cookies.set(OIDC_BINDING_COOKIE, secret, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600, // 10 minutes (matches ATTEMPT_TTL_MS)
+    expires: new Date(Date.now() + 600 * 1_000),
+  });
+}
+
+/** Read the OIDC browser binding cookie value from a request. */
+export function readOidcBindingCookie(cookieStore: {
+  get: (name: string) => { value: string } | undefined;
+}): string | undefined {
+  return cookieStore.get(OIDC_BINDING_COOKIE)?.value;
+}
+
+/** Clear the OIDC browser binding cookie. */
+export function clearOidcBindingCookie(response: NextResponse): void {
+  response.cookies.set(OIDC_BINDING_COOKIE, "", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+}
+
 // Cookie max age MUST come from the server-authoritative session response.
-// Do NOT hardcode a TTL here — the API returns cookieMaxAgeSeconds.
+// No hardcoded fallback TTL — the API always returns cookieMaxAgeSeconds.
 export interface CookieOptions {
-  maxAge?: number;
+  maxAge: number;
 }
 
 /** Set the session cookie on a response with full production hardening. */
 export function setSessionCookie(
   response: NextResponse,
   token: string,
-  options: CookieOptions = {},
+  options: CookieOptions,
 ): void {
-  const maxAge = options.maxAge ?? 7 * 24 * 60 * 60;
+  if (typeof options.maxAge !== "number" || options.maxAge <= 0) {
+    throw new Error(
+      "Cookie maxAge must be provided from the server-authoritative session response.",
+    );
+  }
+  const maxAge = options.maxAge;
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: isProduction,

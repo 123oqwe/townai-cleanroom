@@ -62,7 +62,10 @@ test.describe("Phase 01A authentication flow", () => {
     // In dev with Google creds: 200 + authorizationUrl.
     const response = await request.post(`${WEB_ORIGIN}/api/auth/google/start`, {
       data: { redirectPath: "/new/threads" },
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: WEB_ORIGIN,
+      },
     });
     expect([200, 503]).toContain(response.status());
     if (response.ok()) {
@@ -90,20 +93,17 @@ test.describe("Phase 01A authentication flow", () => {
     page,
     context,
   }) => {
-    test.skip(!process.env.E2E_DEV_LOGIN_ENABLED, "dev login not enabled");
-
     const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
     await page.goto("/new/login");
 
     const response = await page.request.post("/api/auth/login", {
       data: { email: testEmail },
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: WEB_ORIGIN,
+      },
     });
-
-    if (!response.ok()) {
-      test.skip(true, `Dev login failed: ${response.status()}`);
-      return;
-    }
+    expect(response.ok()).toBe(true);
 
     await page.goto("/new/threads");
 
@@ -118,25 +118,25 @@ test.describe("Phase 01A authentication flow", () => {
   });
 
   test("logout clears session and redirects to login", async ({ page }) => {
-    test.skip(!process.env.E2E_DEV_LOGIN_ENABLED, "dev login not enabled");
-
     const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
     await page.goto("/new/login");
 
     const response = await page.request.post("/api/auth/login", {
       data: { email: testEmail },
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: WEB_ORIGIN,
+      },
     });
-
-    if (!response.ok()) {
-      test.skip(true, `Dev login failed: ${response.status()}`);
-      return;
-    }
+    expect(response.ok()).toBe(true);
 
     await page.goto("/new/threads");
 
     const logoutResponse = await page.request.post("/api/auth/logout", {
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: WEB_ORIGIN,
+      },
     });
     expect(logoutResponse.ok()).toBe(true);
 
@@ -144,6 +144,8 @@ test.describe("Phase 01A authentication flow", () => {
     const sessionCookie = cookies.find((c) => c.name.includes("town-session"));
     expect(sessionCookie?.value ?? "").toBe("");
 
+    // After logout, navigating to a protected page should redirect to login.
+    await page.goto("/new/threads");
     await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
   });
 });

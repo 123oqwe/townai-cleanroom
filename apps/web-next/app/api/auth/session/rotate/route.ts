@@ -59,7 +59,11 @@ export async function POST(request: NextRequest) {
   });
   // Use server-authoritative cookie max age.
   setSessionCookie(res, result.token, {
-    maxAge: result.cookieMaxAgeSeconds,
+    maxAge:
+      result.cookieMaxAgeSeconds ??
+      Math.floor(
+        (Number(process.env.AUTH_SESSION_ABSOLUTE_TTL_MS) || 604800000) / 1000,
+      ),
   });
   res.headers.set("Cache-Control", "no-store");
   res.headers.set("Pragma", "no-cache");

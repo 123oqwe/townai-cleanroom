@@ -166,41 +166,60 @@ export function createVerifiedIdentityRepository(sql: Sql) {
           };
         }
 
-        // 3. Create a new user + identity.
-        const userId =
+        // 3. Create a new user + identity using concurrency-safe upsert.
+        // ON CONFLICT DO UPDATE ... RETURNING ensures we always get the
+        // canonical IDs back, even under concurrent insert races.
+        const candidateUserId =
           input.existingUserId ??
           (options.createUser !== undefined
             ? await options.createUser(input.verifiedEmail)
             : newId<"user">());
-        await tx`
+        const [userRow] = await tx<{ id: string }[]>`
           insert into users (id, email, timezone, status, created_at, updated_at)
-          values (${userId}, ${input.verifiedEmail}, 'UTC', 'active', ${input.now}, ${input.now})
-          on conflict (email) do nothing
+          values (${candidateUserId}, ${input.verifiedEmail}, 'UTC', 'active', ${input.now}, ${input.now})
+          on conflict (email) do update set updated_at = excluded.updated_at
+          returning id
         `;
+        if (userRow === undefined) {
+          throw new Error("User upsert returned no row.");
+        }
+        const canonicalUserId = asId<"user">(userRow.id);
         const identityId = newId<"auth-identity">();
-        await tx`
+        const [identityRow] = await tx<
+          {
+            id: string;
+            user_id: string;
+            created_at: Date;
+          }[]
+        >`
           insert into auth_identities (
             id, user_id, provider, provider_subject, verified_email,
             email_verified, created_at, last_login_at
           ) values (
-            ${identityId}, ${userId}, ${input.provider},
+            ${identityId}, ${canonicalUserId}, ${input.provider},
             ${input.providerSubject}, ${input.verifiedEmail},
             ${true}, ${input.now}, ${input.now}
           )
-          on conflict (provider, provider_subject) do nothing
+          on conflict (provider, provider_subject) do update set
+            last_login_at = excluded.last_login_at,
+            verified_email = excluded.verified_email
+          returning id, user_id, created_at
         `;
+        if (identityRow === undefined) {
+          throw new Error("Identity upsert returned no row.");
+        }
         return {
           identity: {
-            id: identityId,
-            userId,
+            id: asId<"auth-identity">(identityRow.id),
+            userId: asId<"user">(identityRow.user_id),
             provider: input.provider,
             providerSubject: input.providerSubject,
             verifiedEmail: input.verifiedEmail,
             emailVerified: true,
-            createdAt: input.now,
+            createdAt: identityRow.created_at,
             lastLoginAt: input.now,
           },
-          userId,
+          userId: asId<"user">(identityRow.user_id),
           created: true,
         };
       });

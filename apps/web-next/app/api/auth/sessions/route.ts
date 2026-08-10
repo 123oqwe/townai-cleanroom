@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { readSessionCookie } from "@/lib/server/cookies";
-import { getInternalApiBaseUrl } from "@/lib/server/csrf";
+import {
+  assertSameOriginRequest,
+  getInternalApiBaseUrl,
+} from "@/lib/server/csrf";
 
 // Phase 01A: list active sessions for the session-management UI.
 
@@ -38,7 +41,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  // Revoke a single session by id (query param) or all (no param).
+  const csrf = assertSameOriginRequest(request);
+  if (!csrf.ok) {
+    return NextResponse.json(
+      { code: csrf.reason ?? "CSRF_REJECTED" },
+      { status: 403 },
+    );
+  }
+
+  // Revoke a single session by id (query param) or all other (no param).
   const token = readSessionCookie(request.cookies);
   if (token === undefined || token.length === 0) {
     return NextResponse.json({ code: "UNAUTHENTICATED" }, { status: 401 });

@@ -29,7 +29,10 @@ export async function POST(request: NextRequest) {
       // Cannot reach backend without INTERNAL_API_BASE_URL.
       return response;
     }
-    const upstream = await fetch(`${apiBase}/v1/me/sessions`, {
+    // Use /v1/me/sessions/all to revoke ALL sessions INCLUDING the current
+    // one (logout all devices). This is distinct from DELETE /v1/me/sessions
+    // which preserves the current session (logout other devices only).
+    const upstream = await fetch(`${apiBase}/v1/me/sessions/all`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

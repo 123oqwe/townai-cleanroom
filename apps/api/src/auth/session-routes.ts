@@ -43,13 +43,26 @@ export function registerSessionRoutes(
     return context.body(null, 204);
   });
 
-  // DELETE /v1/me/sessions -- revoke all sessions (logout-all).
+  // DELETE /v1/me/sessions -- revoke all OTHER sessions (logout other devices).
+  // The current session is preserved via exceptSessionId.
   app.delete("/v1/me/sessions", async (context) => {
     const identity = context.get("identity");
     const count = await manager.revokeAll(
       identity.user.id,
       new Date(),
       identity.session.id,
+    );
+    return context.json({ revoked: count });
+  });
+
+  // DELETE /v1/me/sessions/all -- revoke ALL sessions INCLUDING the current
+  // one (logout all devices). Distinct from DELETE /v1/me/sessions which
+  // preserves the current session.
+  app.delete("/v1/me/sessions/all", async (context) => {
+    const identity = context.get("identity");
+    const count = await manager.revokeAllIncludingCurrent(
+      identity.user.id,
+      new Date(),
     );
     return context.json({ revoked: count });
   });

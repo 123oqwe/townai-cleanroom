@@ -1,11 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getBffSharedSecret, getInternalApiBaseUrl } from "@/lib/server/csrf";
+import {
+  assertSameOriginRequest,
+  getBffSharedSecret,
+  getInternalApiBaseUrl,
+} from "@/lib/server/csrf";
+import { setOidcBindingCookie } from "@/lib/server/cookies";
 // Phase 01A: BFF route that initiates Google OIDC login. Calls the API's
 // server-to-server OIDC start endpoint (BFF secret gated), then redirects the
 // browser to Google's consent page. The browser never sees the BFF secret.
 
 export async function POST(request: NextRequest) {
+  const csrf = assertSameOriginRequest(request);
+  if (!csrf.ok) {
+    return NextResponse.json(
+      { code: csrf.reason ?? "CSRF_REJECTED" },
+      { status: 403 },
+    );
+  }
+
   const redirectPath = await request
     .json()
     .then((b) =>
@@ -30,13 +43,17 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
+  // Generate a per-browser binding secret. The API stores its hash; the
+  // callback must present the same secret to complete the flow.
+  const browserBindingSecret = crypto.randomUUID() + crypto.randomUUID();
+
   const response = await fetch(`${apiUrl}/v1/auth/oidc/google/start`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-bff-secret": secret,
     },
-    body: JSON.stringify({ redirectPath }),
+    body: JSON.stringify({ redirectPath, browserBindingSecret }),
   });
 
   if (!response.ok) {
@@ -51,8 +68,13 @@ export async function POST(request: NextRequest) {
 
   const result = (await response.json()) as {
     authorizationUrl: string;
+    browserBindingSecret?: string;
   };
+  // Use the API-returned secret if provided (it may regenerate if ours
+  // was too short), otherwise use the one we generated.
+  const bindingSecret = result.browserBindingSecret ?? browserBindingSecret;
   const res = NextResponse.json({ authorizationUrl: result.authorizationUrl });
+  setOidcBindingCookie(res, bindingSecret);
   res.headers.set("Cache-Control", "no-store");
   res.headers.set("Pragma", "no-cache");
   return res;

@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getBffSharedSecret, getInternalApiBaseUrl } from "@/lib/server/csrf";
-import { setSessionCookie } from "@/lib/server/cookies";
+import {
+  setSessionCookie,
+  readOidcBindingCookie,
+  clearOidcBindingCookie,
+} from "@/lib/server/cookies";
 
 // Phase 01A: Google OIDC callback. The browser lands here after Google
 // consent. This BFF route forwards code+state to the API (BFF secret gated),
@@ -37,13 +41,22 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Read the per-browser binding cookie set at /api/auth/google/start.
+  // The API verifies it inside the consume() transaction.
+  const browserBindingSecret = readOidcBindingCookie(request.cookies);
+  if (browserBindingSecret === undefined) {
+    return NextResponse.redirect(
+      new URL(`/new/login?error=invalid_flow`, request.nextUrl.origin),
+    );
+  }
+
   const response = await fetch(`${apiUrl}/v1/auth/oidc/google/callback`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-bff-secret": secret,
     },
-    body: JSON.stringify({ code, state }),
+    body: JSON.stringify({ code, state, browserBindingSecret }),
   });
 
   if (!response.ok) {
@@ -92,8 +105,13 @@ export async function GET(request: NextRequest) {
     new URL(safePath, request.nextUrl.origin),
   );
   setSessionCookie(redirect, result.token, {
-    maxAge: result.cookieMaxAgeSeconds,
+    maxAge:
+      result.cookieMaxAgeSeconds ??
+      Math.floor(
+        (Number(process.env.AUTH_SESSION_ABSOLUTE_TTL_MS) || 604800000) / 1000,
+      ),
   });
+  clearOidcBindingCookie(redirect);
   redirect.headers.set("Cache-Control", "no-store");
   redirect.headers.set("Pragma", "no-cache");
   return redirect;

@@ -16,11 +16,35 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ba, bb);
 }
 
+/**
+ * Canonicalize a URL origin: normalize scheme to lowercase, strip default
+ * ports (80 for http, 443 for https), and remove trailing slashes.
+ * Example: https://app.example.com:443/ -> https://app.example.com
+ */
+function canonicalizeOrigin(origin: string): string {
+  try {
+    const url = new URL(origin);
+    const scheme = url.protocol.replace(":", "").toLowerCase();
+    const host = url.hostname.toLowerCase();
+    const port = url.port;
+    // Strip default ports
+    const hasDefaultPort =
+      (scheme === "https" && port === "443") ||
+      (scheme === "http" && port === "80");
+    const originStr = hasDefaultPort
+      ? `${scheme}://${host}`
+      : `${scheme}://${host}${port !== "" ? `:${port}` : ""}`;
+    return originStr;
+  } catch {
+    return origin.trim().toLowerCase();
+  }
+}
+
 function parseAllowedOrigins(): string[] {
   const raw = process.env.AUTH_ALLOWED_ORIGINS ?? "";
   return raw
     .split(",")
-    .map((o) => o.trim())
+    .map((o) => canonicalizeOrigin(o))
     .filter((o) => o.length > 0);
 }
 
@@ -53,8 +77,11 @@ export function assertSameOriginRequest(request: NextRequest): CsrfResult {
   }
 
   // Exact-origin comparison: scheme, host, and port must all match.
-  // No host-only comparison (same host different port/scheme is rejected).
-  const ok = allowed.some((a) => safeEqual(a, origin));
+  // Both sides are canonicalized so https://example.com:443 matches
+  // https://example.com. No host-only comparison (same host different
+  // port/scheme is rejected).
+  const canonicalOrigin = canonicalizeOrigin(origin);
+  const ok = allowed.some((a) => safeEqual(a, canonicalOrigin));
   if (!ok) return { ok: false, reason: "CSRF_REJECTED" };
   return { ok: true };
 }

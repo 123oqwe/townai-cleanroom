@@ -21,7 +21,6 @@ import {
 } from "../src/session-token.js";
 
 let sql: Sql;
-const now = new Date("2026-08-09T00:00:00Z");
 const IDLE = 15 * 60 * 1_000;
 const ABSOLUTE = 7 * 24 * 60 * 60 * 1_000;
 
@@ -40,6 +39,7 @@ beforeEach(async () => {
 
 async function seedUser(): Promise<string> {
   const id = newId<"user">();
+  const now = new Date();
   await sql`
     insert into users (id, email, timezone, status, created_at, updated_at)
     values (${id}, ${`u-${id}@example.test`}, 'UTC', 'active', ${now}, ${now})
@@ -54,6 +54,7 @@ function mgr() {
 describe("session manager", () => {
   it("creates a hardened session with idle + absolute expiry", async () => {
     const userId = await seedUser();
+    const now = new Date();
     const created = await mgr().create({
       userId: userId as never,
       authMethod: "oidc:google",
@@ -68,6 +69,7 @@ describe("session manager", () => {
 
   it("listActive returns non-revoked, non-expired sessions", async () => {
     const userId = await seedUser();
+    const now = new Date();
     const m = mgr();
     await m.create({
       userId: userId as never,
@@ -84,6 +86,7 @@ describe("session manager", () => {
 
   it("revokeAll revokes every session except the specified one", async () => {
     const userId = await seedUser();
+    const now = new Date();
     const m = mgr();
     const a = await m.create({
       userId: userId as never,
@@ -108,8 +111,33 @@ describe("session manager", () => {
     expect(a.token).not.toBe(b.token);
   });
 
+  it("revokeAllIncludingCurrent revokes all sessions including current", async () => {
+    const userId = await seedUser();
+    const now = new Date();
+    const m = mgr();
+    await m.create({
+      userId: userId as never,
+      authMethod: "oidc:google",
+      now,
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
+    await m.create({
+      userId: userId as never,
+      authMethod: "oidc:google",
+      now,
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
+    const count = await m.revokeAllIncludingCurrent(userId as never, now);
+    expect(count).toBe(2);
+    const list = await m.listActive(userId as never, now);
+    expect(list).toHaveLength(0);
+  });
+
   it("rotate invalidates the old token and issues a new one atomically", async () => {
     const userId = await seedUser();
+    const now = new Date();
     const m = mgr();
     const created = await m.create({
       userId: userId as never,
@@ -125,14 +153,14 @@ describe("session manager", () => {
       { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE, authMethod: "oidc:google" },
     );
     expect(rotated.token).not.toBe(created.token);
-    // Old token no longer authenticates.
+    // Old token no longer authenticates (uses clock_timestamp()).
     const oldAuth = await m.authenticateHardened(
       hashSessionToken(created.token),
       now,
       IDLE,
     );
     expect(oldAuth).toBeNull();
-    // New token authenticates.
+    // New token authenticates (uses clock_timestamp()).
     const newAuth = await m.authenticateHardened(
       hashSessionToken(rotated.token),
       now,
@@ -141,8 +169,34 @@ describe("session manager", () => {
     expect(newAuth?.sessionId).toBe(rotated.sessionId);
   });
 
+  it("rotate inherits original auth_method", async () => {
+    const userId = await seedUser();
+    const now = new Date();
+    const m = mgr();
+    const created = await m.create({
+      userId: userId as never,
+      authMethod: "dev:email",
+      now,
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
+    // Rotate with a DIFFERENT authMethod in options — the rotation
+    // should inherit the original "dev:email", not use "oidc:google".
+    const rotated = await m.rotate(
+      hashSessionToken(created.token),
+      userId as never,
+      now,
+      { idleTtlMs: IDLE, absoluteTtlMs: ABSOLUTE, authMethod: "oidc:google" },
+    );
+    const [row] = await sql<{ auth_method: string | null }[]>`
+      select auth_method from auth_sessions where id = ${rotated.sessionId}
+    `;
+    expect(row?.auth_method).toBe("dev:email");
+  });
+
   it("rotate throws SESSION_NOT_FOUND for unknown token", async () => {
     const userId = await seedUser();
+    const now = new Date();
     await expect(
       mgr().rotate(
         hashSessionToken(generateSessionToken()),
@@ -161,14 +215,23 @@ describe("session manager", () => {
     const created = await m.create({
       userId: userId as never,
       authMethod: "oidc:google",
-      now,
+      now: new Date(),
       idleTtlMs: 1_000,
       absoluteTtlMs: ABSOLUTE,
     });
-    const afterIdle = new Date(now.getTime() + 5_000);
+    // Manually set idle_expires_at and created_at to the past to simulate
+    // idle expiry (the check constraint requires idle_expires_at > created_at).
+    await sql`
+      update auth_sessions
+      set created_at = now() - interval '5 minutes',
+          idle_expires_at = now() - interval '1 minute',
+          last_seen_at = now() - interval '5 minutes',
+          expires_at = now() - interval '1 minute'
+      where id = ${created.sessionId}
+    `;
     const auth = await m.authenticateHardened(
       hashSessionToken(created.token),
-      afterIdle,
+      new Date(),
       IDLE,
     );
     expect(auth).toBeNull();
@@ -176,6 +239,7 @@ describe("session manager", () => {
 
   it("authenticateHardened rejects revoked sessions", async () => {
     const userId = await seedUser();
+    const now = new Date();
     const m = mgr();
     const created = await m.create({
       userId: userId as never,
@@ -191,5 +255,29 @@ describe("session manager", () => {
       IDLE,
     );
     expect(auth).toBeNull();
+  });
+
+  it("authenticateHardened does not update last_seen_at below throttle", async () => {
+    const userId = await seedUser();
+    const now = new Date();
+    const m = mgr();
+    const created = await m.create({
+      userId: userId as never,
+      authMethod: "oidc:google",
+      now,
+      idleTtlMs: IDLE,
+      absoluteTtlMs: ABSOLUTE,
+    });
+    // Get the initial last_seen_at.
+    const [before] = await sql<{ last_seen_at: Date }[]>`
+      select last_seen_at from auth_sessions where id = ${created.sessionId}
+    `;
+    // Authenticate immediately (below the 60s throttle).
+    await m.authenticateHardened(hashSessionToken(created.token), now, IDLE);
+    // last_seen_at should NOT have changed (below throttle).
+    const [after] = await sql<{ last_seen_at: Date }[]>`
+      select last_seen_at from auth_sessions where id = ${created.sessionId}
+    `;
+    expect(after?.last_seen_at.getTime()).toBe(before?.last_seen_at.getTime());
   });
 });

@@ -161,6 +161,25 @@ export function createSessionManager(sql: Sql) {
       return rows.count;
     },
 
+    /**
+     * Revoke ALL sessions for a user, INCLUDING the current one.
+     * This is the "logout all devices" endpoint — distinct from
+     * revokeAll(exceptSessionId) which is "logout other devices".
+     */
+    async revokeAllIncludingCurrent(
+      userId: Id<"user">,
+      now: Date,
+    ): Promise<number> {
+      const rows = await sql`
+        update auth_sessions
+        set revoked_at = ${now}, is_current = false
+        where user_id = ${userId}
+          and revoked_at is null
+        returning id
+      `;
+      return rows.count;
+    },
+
     async revoke(
       sessionId: Id<"auth-session">,
       userId: Id<"user">,
@@ -233,7 +252,7 @@ export function createSessionManager(sql: Sql) {
             user_agent_hash, ip_metadata_hash, is_current
           ) values (
             ${newSessionId}, ${userId}, ${newHash}, ${expiresAt},
-            ${now}, ${now}, ${options.authMethod},
+            ${now}, ${now}, ${old.auth_method ?? options.authMethod},
             ${idleExpiresAt}, ${absoluteExpiresAt},
             ${familyId}, ${old.id},
             ${hashUa(meta?.userAgent)}, ${hashIp(meta?.ip)}, ${true}
@@ -309,7 +328,7 @@ export function createSessionManager(sql: Sql) {
             user_agent_hash, ip_metadata_hash, is_current
           ) values (
             ${newSessionId}, ${userId}, ${newHash}, ${expiresAt},
-            ${now}, ${now}, ${options.authMethod},
+            ${now}, ${now}, ${old.auth_method ?? options.authMethod},
             ${idleExpiresAt}, ${absoluteExpiresAt},
             ${familyId}, ${old.id},
             ${hashUa(meta?.userAgent)}, ${hashIp(meta?.ip)}, ${true}
@@ -337,9 +356,11 @@ export function createSessionManager(sql: Sql) {
      *   - user status = 'active'
      *
      * Implements sliding idle expiration: when the throttle window has
-     * elapsed, idle_expires_at is extended to min(now + idleTtlMs,
-     * absolute_expires_at), capped by the absolute expiry. last_seen_at
-     * and expires_at are updated atomically in the same statement.
+     * elapsed, idle_expires_at is extended to min(clock_timestamp() +
+     * idleTtlMs, absolute_expires_at), capped by the absolute expiry.
+     * last_seen_at and expires_at are updated ONLY when the throttle
+     * window has elapsed; below-threshold requests leave them unchanged.
+     * Uses PostgreSQL clock_timestamp() as the authoritative time source.
      *
      * No SELECT ... FOR UPDATE followed by a separate UPDATE — the
      * atomic UPDATE ensures concurrent revoke + authenticate cannot
@@ -359,6 +380,10 @@ export function createSessionManager(sql: Sql) {
       lastSeenAt: Date;
     } | null> {
       // Phase 01A: single atomic UPDATE ... RETURNING.
+      // Uses clock_timestamp() as the authoritative time source.
+      // last_seen_at is ONLY updated when the throttle window has elapsed;
+      // below-threshold requests leave last_seen_at, idle_expires_at, and
+      // expires_at unchanged (correct sliding idle behavior).
       // The WHERE clause re-checks all validity conditions so that a
       // concurrent revoke or expiry is respected.
       const [row] = await sql<
@@ -372,21 +397,25 @@ export function createSessionManager(sql: Sql) {
         }[]
       >`
         update auth_sessions as s
-        set last_seen_at = ${now},
+        set last_seen_at = case
+              when extract(epoch from (clock_timestamp() - s.last_seen_at)) * 1000 >= ${throttleMs}
+              then clock_timestamp()
+              else s.last_seen_at
+            end,
             idle_expires_at = case
               when s.idle_expires_at is not null
-                and extract(epoch from (${now} - s.last_seen_at)) * 1000 >= ${throttleMs}
+                and extract(epoch from (clock_timestamp() - s.last_seen_at)) * 1000 >= ${throttleMs}
               then least(
-                ${now}::timestamptz + make_interval(secs => ${idleTtlMs} / 1000.0),
+                clock_timestamp() + make_interval(secs => ${idleTtlMs} / 1000.0),
                 s.absolute_expires_at
               )
               else s.idle_expires_at
             end,
             expires_at = case
               when s.idle_expires_at is not null
-                and extract(epoch from (${now} - s.last_seen_at)) * 1000 >= ${throttleMs}
+                and extract(epoch from (clock_timestamp() - s.last_seen_at)) * 1000 >= ${throttleMs}
               then least(
-                ${now}::timestamptz + make_interval(secs => ${idleTtlMs} / 1000.0),
+                clock_timestamp() + make_interval(secs => ${idleTtlMs} / 1000.0),
                 s.absolute_expires_at
               )
               else s.expires_at
@@ -395,9 +424,9 @@ export function createSessionManager(sql: Sql) {
         where s.token_hash = ${tokenHash}
           and s.user_id = u.id
           and s.revoked_at is null
-          and s.expires_at > ${now}
-          and (s.idle_expires_at is null or s.idle_expires_at > ${now})
-          and (s.absolute_expires_at is null or s.absolute_expires_at > ${now})
+          and s.expires_at > clock_timestamp()
+          and (s.idle_expires_at is null or s.idle_expires_at > clock_timestamp())
+          and (s.absolute_expires_at is null or s.absolute_expires_at > clock_timestamp())
           and u.status = 'active'
         returning s.id, s.user_id, s.last_seen_at,
                   s.idle_expires_at, s.absolute_expires_at, s.expires_at

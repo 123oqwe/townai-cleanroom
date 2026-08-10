@@ -91,6 +91,7 @@ export function registerOidcLoginRoutes(
 
     const body = (await context.req.json().catch(() => ({}))) as {
       redirectPath?: string;
+      browserBindingSecret?: string;
     };
     const redirectPath =
       typeof body.redirectPath === "string" &&
@@ -98,6 +99,18 @@ export function registerOidcLoginRoutes(
       !body.redirectPath.startsWith("//")
         ? body.redirectPath
         : "/";
+
+    // Per-browser flow binding: the BFF generates a random secret, sets it
+    // as a cookie on the browser, and passes it here. We store its hash so
+    // the callback can verify the same browser completes the flow.
+    const browserBindingSecret =
+      typeof body.browserBindingSecret === "string" &&
+      body.browserBindingSecret.length >= 16
+        ? body.browserBindingSecret
+        : randomBytes(32).toString("base64url");
+    const browserBindingHash = createHash("sha256")
+      .update(browserBindingSecret, "utf8")
+      .digest();
 
     const state = randomBytes(32).toString("base64url");
     const nonce = randomBytes(32).toString("base64url");
@@ -113,6 +126,7 @@ export function registerOidcLoginRoutes(
       nonce,
       codeVerifier,
       redirectPath,
+      browserBindingHash,
       ttlMs: ATTEMPT_TTL_MS,
     });
 
@@ -128,7 +142,12 @@ export function registerOidcLoginRoutes(
     url.searchParams.set("access_type", "online");
     url.searchParams.set("prompt", "consent");
 
-    return context.json({ authorizationUrl: url.toString(), state, nonce });
+    return context.json({
+      authorizationUrl: url.toString(),
+      state,
+      nonce,
+      browserBindingSecret,
+    });
   });
 
   // POST /v1/auth/oidc/google/callback
@@ -139,6 +158,7 @@ export function registerOidcLoginRoutes(
     .object({
       code: z.string().min(1),
       state: z.string().min(1),
+      browserBindingSecret: z.string().min(1),
     })
     .strict();
 
@@ -157,7 +177,10 @@ export function registerOidcLoginRoutes(
     // Consume the attempt (one-time, replay-safe).
     let consumed;
     try {
-      consumed = await attemptStore.consume(input.state);
+      consumed = await attemptStore.consume(
+        input.state,
+        input.browserBindingSecret,
+      );
     } catch (error: unknown) {
       const code = error instanceof Error ? error.message : "AUTH_FLOW_INVALID";
       throw new OidcRouteError("AUTH_FLOW_INVALID", code, 400);

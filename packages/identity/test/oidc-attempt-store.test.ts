@@ -84,7 +84,7 @@ describe("oidc attempt store", () => {
       ttlMs: 1_000,
     });
     const past = new Date(Date.now() + 10_000);
-    await expect(s.consume("state-3", past)).rejects.toMatchObject({
+    await expect(s.consume("state-3", undefined, past)).rejects.toMatchObject({
       code: "AUTH_FLOW_EXPIRED",
     } satisfies Partial<OidcAttemptError>);
   });
@@ -137,5 +137,72 @@ describe("oidc attempt store", () => {
     `;
     const json = JSON.stringify(row?.encrypted_code_verifier);
     expect(json).not.toContain("secret-verifier-plaintext");
+  });
+
+  it("verifies per-browser binding cookie on consume", async () => {
+    const s = store();
+    const bindingSecret = "test-browser-binding-secret-1234567890";
+    const bindingHash = createHash("sha256")
+      .update(bindingSecret, "utf8")
+      .digest();
+    await s.create({
+      provider: "google",
+      flowType: "login",
+      state: "state-binding",
+      nonce: "nonce-binding",
+      codeVerifier: "verifier-binding",
+      redirectPath: "/",
+      browserBindingHash: bindingHash,
+      ttlMs: 60_000,
+    });
+    // Correct binding secret: consume succeeds.
+    const consumed = await s.consume("state-binding", bindingSecret);
+    expect(consumed.codeVerifier).toBe("verifier-binding");
+  });
+
+  it("rejects consume with wrong browser binding secret", async () => {
+    const s = store();
+    const bindingSecret = "correct-binding-secret-1234567890";
+    const bindingHash = createHash("sha256")
+      .update(bindingSecret, "utf8")
+      .digest();
+    await s.create({
+      provider: "google",
+      flowType: "login",
+      state: "state-wrong-binding",
+      nonce: "nonce-wrong-binding",
+      codeVerifier: "verifier-wrong-binding",
+      redirectPath: "/",
+      browserBindingHash: bindingHash,
+      ttlMs: 60_000,
+    });
+    // Wrong binding secret: consume should throw AUTH_BROWSER_BINDING_INVALID.
+    await expect(
+      s.consume("state-wrong-binding", "wrong-binding-secret"),
+    ).rejects.toMatchObject({
+      code: "AUTH_BROWSER_BINDING_INVALID",
+    } satisfies Partial<OidcAttemptError>);
+  });
+
+  it("rejects consume with missing browser binding secret", async () => {
+    const s = store();
+    const bindingSecret = "missing-binding-secret-1234567890";
+    const bindingHash = createHash("sha256")
+      .update(bindingSecret, "utf8")
+      .digest();
+    await s.create({
+      provider: "google",
+      flowType: "login",
+      state: "state-missing-binding",
+      nonce: "nonce-missing-binding",
+      codeVerifier: "verifier-missing-binding",
+      redirectPath: "/",
+      browserBindingHash: bindingHash,
+      ttlMs: 60_000,
+    });
+    // No binding secret: consume should throw AUTH_BROWSER_BINDING_INVALID.
+    await expect(s.consume("state-missing-binding")).rejects.toMatchObject({
+      code: "AUTH_BROWSER_BINDING_INVALID",
+    } satisfies Partial<OidcAttemptError>);
   });
 });
