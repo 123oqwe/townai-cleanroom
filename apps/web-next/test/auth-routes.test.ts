@@ -273,3 +273,84 @@ describe("auth logout route", () => {
     expect(setCookie).toContain("Max-Age=0");
   });
 });
+
+describe("logout degraded behavior", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("upstream 500: cookie cleared, serverSessionRevoked=false, status=degraded", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ code: "INTERNAL_ERROR" }), {
+        status: 500,
+      }),
+    );
+    const req = makeRequest("/api/auth/logout", {
+      method: "POST",
+      cookies: { "town-session": "town_session_valid" },
+    });
+    const res = await logoutPOST(req);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.serverSessionRevoked).toBe(false);
+    expect(body.status).toBe("degraded");
+    expect(body.code).toBe("LOGOUT_DEGRADED");
+    expect(body.localSessionCleared).toBe(true);
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).not.toBeNull();
+    expect(setCookie).toContain("Max-Age=0");
+  });
+
+  it("fetch throws (network error): cookie cleared, degraded, 502", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new TypeError("fetch failed"),
+    );
+    const req = makeRequest("/api/auth/logout", {
+      method: "POST",
+      cookies: { "town-session": "town_session_valid" },
+    });
+    const res = await logoutPOST(req);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.serverSessionRevoked).toBe(false);
+    expect(body.status).toBe("degraded");
+    expect(body.code).toBe("LOGOUT_DEGRADED");
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).not.toBeNull();
+    expect(setCookie).toContain("Max-Age=0");
+  });
+
+  it("AbortSignal timeout: cookie cleared, degraded, 502", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new DOMException("The operation was aborted", "TimeoutError"),
+    );
+    const req = makeRequest("/api/auth/logout", {
+      method: "POST",
+      cookies: { "town-session": "town_session_valid" },
+    });
+    const res = await logoutPOST(req);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.serverSessionRevoked).toBe(false);
+    expect(body.status).toBe("degraded");
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).toContain("Max-Age=0");
+  });
+
+  it("INTERNAL_API_BASE_URL missing: cookie cleared, degraded, 503", async () => {
+    const originalInternal = process.env.INTERNAL_API_BASE_URL;
+    delete process.env.INTERNAL_API_BASE_URL;
+    const req = makeRequest("/api/auth/logout", {
+      method: "POST",
+      cookies: { "town-session": "town_session_valid" },
+    });
+    const res = await logoutPOST(req);
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.serverSessionRevoked).toBe(false);
+    expect(body.status).toBe("degraded");
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).toContain("Max-Age=0");
+    process.env.INTERNAL_API_BASE_URL = originalInternal;
+  });
+});

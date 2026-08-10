@@ -240,7 +240,43 @@ test("sessions DELETE cross-origin is rejected by CSRF", async ({
   expect(response.status()).toBe(403);
 });
 
-test("logout clears cookie even when backend is unreachable", async ({
+test("logout clears cookie on successful logout", async ({ page, context }) => {
+  const testEmail = process.env.E2E_TEST_EMAIL ?? "e2e-browser@test.local";
+  await page.goto("/new/login");
+
+  const loginResponse = await page.request.post("/api/auth/login", {
+    data: { email: testEmail },
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(loginResponse.ok()).toBe(true);
+
+  await page.goto("/new/threads");
+
+  // Verify cookie exists before logout.
+  const cookiesBefore = await context.cookies();
+  const sessionCookie = cookiesBefore.find((c) =>
+    c.name.includes("town-session"),
+  );
+  expect(sessionCookie?.value).toBeTruthy();
+
+  // Logout should clear the cookie on success.
+  const logoutResponse = await page.request.post("/api/auth/logout", {
+    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  });
+  expect(logoutResponse.ok()).toBe(true);
+  const body = await logoutResponse.json();
+  expect(body.localSessionCleared).toBe(true);
+  expect(body.status).toBe("complete");
+
+  // Cookie must be cleared regardless of backend state.
+  const cookiesAfter = await context.cookies();
+  const clearedCookie = cookiesAfter.find((c) =>
+    c.name.includes("town-session"),
+  );
+  expect(clearedCookie?.value ?? "").toBe("");
+});
+
+test("revoke current session clears cookie and redirects to login", async ({
   page,
   context,
 }) => {
@@ -255,22 +291,34 @@ test("logout clears cookie even when backend is unreachable", async ({
 
   await page.goto("/new/threads");
 
-  // Verify cookie exists.
-  const cookiesBefore = await context.cookies();
-  const sessionCookie = cookiesBefore.find((c) =>
-    c.name.includes("town-session"),
-  );
-  expect(sessionCookie?.value).toBeTruthy();
-
-  // Logout should still clear the cookie even if the backend is slow/failing.
-  await page.request.post("/api/auth/logout", {
-    headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+  // Get the current session list to find the session ID.
+  const sessionsResponse = await page.request.get("/api/auth/sessions", {
+    headers: { origin: WEB_ORIGIN },
   });
+  expect(sessionsResponse.ok()).toBe(true);
+  const sessionsBody = await sessionsResponse.json();
+  const currentSession = sessionsBody.sessions.find(
+    (s: { isCurrent: boolean; id: string }) => s.isCurrent,
+  );
+  expect(currentSession).toBeDefined();
 
-  // Cookie must be cleared regardless of backend state.
+  // Delete the current session.
+  const deleteResponse = await page.request.delete(
+    `/api/auth/sessions?id=${currentSession.id}`,
+    { headers: { origin: WEB_ORIGIN } },
+  );
+  expect(deleteResponse.ok()).toBe(true);
+  const deleteBody = await deleteResponse.json();
+  expect(deleteBody.revokedCurrent).toBe(true);
+
+  // Cookie should be cleared.
   const cookiesAfter = await context.cookies();
-  const clearedCookie = cookiesAfter.find((c) =>
+  const sessionCookie = cookiesAfter.find((c) =>
     c.name.includes("town-session"),
   );
-  expect(clearedCookie?.value ?? "").toBe("");
+  expect(sessionCookie?.value ?? "").toBe("");
+
+  // Navigating to a protected page should redirect to login.
+  await page.goto("/new/threads");
+  await expect(page).toHaveURL(/\/new\/login/, { timeout: 15000 });
 });

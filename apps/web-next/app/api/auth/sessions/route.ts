@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { readSessionCookie } from "@/lib/server/cookies";
+import { readSessionCookie, clearSessionCookie } from "@/lib/server/cookies";
 import {
   assertSameOriginRequest,
   getInternalApiBaseUrl,
@@ -82,7 +82,24 @@ export async function DELETE(request: NextRequest) {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-    return new NextResponse(null, { status: response.status });
+    // Read upstream response to check if the current session was revoked.
+    let revokedCurrent = false;
+    if (response.ok) {
+      const body = (await response.json().catch(() => ({}))) as {
+        revokedCurrent?: boolean;
+      };
+      revokedCurrent = body.revokedCurrent === true;
+    }
+    const res = NextResponse.json(
+      { revokedCurrent },
+      { status: response.status },
+    );
+    if (revokedCurrent) {
+      clearSessionCookie(res);
+    }
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("Pragma", "no-cache");
+    return res;
   }
   // No id — revoke all other sessions.
   const target = new URL("/v1/me/sessions", apiBase);
@@ -90,5 +107,8 @@ export async function DELETE(request: NextRequest) {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
-  return new NextResponse(null, { status: response.status });
+  const res = new NextResponse(null, { status: response.status });
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("Pragma", "no-cache");
+  return res;
 }

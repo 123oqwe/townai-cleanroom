@@ -70,7 +70,8 @@ export function parseServerCookieMaxAge(
 
 /**
  * Get the configured maximum absolute TTL from environment.
- * Falls back to 7 days (604800000 ms) if not configured.
+ * Throws if AUTH_SESSION_ABSOLUTE_TTL_MS is not configured.
+ * No 7-day fallback — the BFF must never guess a session duration.
  */
 export function getMaxAbsoluteTtlMs(): number {
   const raw = process.env.AUTH_SESSION_ABSOLUTE_TTL_MS;
