@@ -291,18 +291,20 @@ jobs:
 
           echo "Smoke testing Vercel preview at: $PREVIEW_URL"
 
-          # If we have a bypass secret, use it. Otherwise check if protection
-          # is active and fail if we can't bypass it.
-          BYPASS_HEADER=""
-          BYPASS_COOKIE=""
+          # Build bypass params as a bash array to prevent header/cookie
+          # word-splitting issues.
+          CURL_AUTH=()
           if [ -n "$BYPASS_SECRET" ]; then
-            BYPASS_HEADER="-H x-vercel-protection-bypass: $BYPASS_SECRET"
-            BYPASS_COOKIE="--cookie x-vercel-protection-bypass=$BYPASS_SECRET"
+            CURL_AUTH+=(
+              -H "x-vercel-protection-bypass: $BYPASS_SECRET"
+              --cookie "x-vercel-protection-bypass=$BYPASS_SECRET"
+            )
             echo "Using Vercel Protection Bypass Secret"
           fi
 
           # 1. GET /new/login must return 200 and contain "Town" (not Vercel).
-          LOGIN_RESPONSE=$(curl -sS -L -o /tmp/login.html -w "%{http_code}"             $BYPASS_COOKIE "$PREVIEW_URL/new/login" 2>/dev/null || echo "000")
+          LOGIN_RESPONSE=$(curl -sS -L -o /tmp/login.html -w "%{http_code}" \
+            "''${CURL_AUTH[@]}" "$PREVIEW_URL/new/login" 2>/dev/null || echo "000")
           echo "Login page status: $LOGIN_RESPONSE"
           if [ "$LOGIN_RESPONSE" != "200" ]; then
             echo "ERROR: Login page did not return 200"
@@ -320,7 +322,12 @@ jobs:
 
           # 2. POST /api/auth/google/start must return 503 (no Google creds in preview)
           # or 200 (if creds configured). Must NOT be 302 (Vercel protection).
-          START_RESPONSE=$(curl -sS -o /tmp/start.json -w "%{http_code}"             -X POST "$PREVIEW_URL/api/auth/google/start"             -H "content-type: application/json"             -H "origin: $PREVIEW_URL"             $BYPASS_COOKIE $BYPASS_HEADER             -d '{"redirectPath":"/new/threads"}' 2>/dev/null || echo "000")
+          START_RESPONSE=$(curl -sS -o /tmp/start.json -w "%{http_code}" \
+            -X POST "$PREVIEW_URL/api/auth/google/start" \
+            -H "content-type: application/json" \
+            -H "origin: $PREVIEW_URL" \
+            "''${CURL_AUTH[@]}" \
+            -d '{"redirectPath":"/new/threads"}' 2>/dev/null || echo "000")
           echo "Google start status: $START_RESPONSE"
           # Check if Vercel Protection is blocking the API route.
           if [ "$START_RESPONSE" = "401" ] && grep -qi "Protected deployment" /tmp/start.json 2>/dev/null; then
@@ -341,7 +348,8 @@ jobs:
           echo "OK: Google start endpoint responds correctly"
 
           # 3. GET /api/proxy/v1/me must return 401 with UNAUTHENTICATED code.
-          PROXY_RESPONSE=$(curl -sS -o /tmp/proxy.json -w "%{http_code}"             $BYPASS_COOKIE "$PREVIEW_URL/api/proxy/v1/me" 2>/dev/null || echo "000")
+          PROXY_RESPONSE=$(curl -sS -o /tmp/proxy.json -w "%{http_code}" \
+            "''${CURL_AUTH[@]}" "$PREVIEW_URL/api/proxy/v1/me" 2>/dev/null || echo "000")
           echo "Unauthenticated proxy status: $PROXY_RESPONSE"
           if [ "$PROXY_RESPONSE" != "401" ]; then
             echo "ERROR: Unauthenticated proxy should return 401, got $PROXY_RESPONSE"
@@ -349,7 +357,8 @@ jobs:
             exit 1
           fi
           # Verify X-Town-BFF-Proxy header is present.
-          PROXY_HEADERS=$(curl -sS -D - -o /dev/null             $BYPASS_COOKIE "$PREVIEW_URL/api/proxy/v1/me" 2>/dev/null)
+          PROXY_HEADERS=$(curl -sS -D - -o /dev/null \
+            "''${CURL_AUTH[@]}" "$PREVIEW_URL/api/proxy/v1/me" 2>/dev/null)
           if ! echo "$PROXY_HEADERS" | grep -qi "X-Town-BFF-Proxy: 1"; then
             echo "ERROR: X-Town-BFF-Proxy header missing"
             exit 1
@@ -357,7 +366,12 @@ jobs:
           echo "OK: Unauthenticated proxy returns 401 with BFF header"
 
           # 4. Cross-origin POST must return 403 with CSRF_REJECTED.
-          CSRF_RESPONSE=$(curl -sS -o /tmp/csrf.json -w "%{http_code}"             -X POST "$PREVIEW_URL/api/proxy/v1/me"             -H "content-type: application/json"             -H "origin: https://evil.example.com"             $BYPASS_COOKIE             -d '{}' 2>/dev/null || echo "000")
+          CSRF_RESPONSE=$(curl -sS -o /tmp/csrf.json -w "%{http_code}" \
+            -X POST "$PREVIEW_URL/api/proxy/v1/me" \
+            -H "content-type: application/json" \
+            -H "origin: https://evil.example.com" \
+            "''${CURL_AUTH[@]}" \
+            -d '{}' 2>/dev/null || echo "000")
           echo "Cross-origin CSRF status: $CSRF_RESPONSE"
           if [ "$CSRF_RESPONSE" != "403" ]; then
             echo "ERROR: Cross-origin request should return 403, got $CSRF_RESPONSE"
