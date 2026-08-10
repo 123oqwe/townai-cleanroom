@@ -18,6 +18,8 @@ export const AUTH_ERROR_MESSAGES: Readonly<Record<string, string>> =
     AUTH_TOKEN_EXCHANGE_FAILED:
       "The identity provider could not complete authentication.",
     AUTH_IDENTITY_CONFLICT: "The identity could not be linked.",
+    AUTH_IDENTITY_EMAIL_CONFLICT:
+      "The email is already associated with a different account.",
     SESSION_INVALID: "The session is invalid.",
     UNAUTHORIZED: "Authentication is required.",
     SESSION_NOT_FOUND: "The session was not found.",

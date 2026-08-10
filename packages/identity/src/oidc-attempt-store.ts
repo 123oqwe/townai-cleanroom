@@ -11,6 +11,9 @@ import type { FlowCipher, FlowEnvelope } from "./session-flow-cipher.js";
 // encrypted together at rest (the nonce_hash column is for lookup only).
 // A per-browser binding cookie hash is stored in request_metadata_hash and
 // verified inside the same consume() transaction.
+//
+// All time-sensitive operations use PostgreSQL clock_timestamp() as the
+// authoritative time source. No Node-side Date is used for expiry decisions.
 
 export type OidcProvider = "google";
 export type OidcFlowType = "login";
@@ -71,10 +74,12 @@ export function createOidcAttemptStore(sql: Sql, cipher: FlowCipher) {
      * Create a new attempt; returns the stored id. state/nonce are hashed.
      * browserBindingHash is stored in request_metadata_hash so consume()
      * can verify the same browser that started the flow completes it.
+     *
+     * Uses PostgreSQL clock_timestamp() for created_at and expires_at
+     * so the time source is the database, not Node.
      */
     async create(input: OidcAttemptInput): Promise<Id<"auth-oidc-attempt">> {
       const id = newId<"auth-oidc-attempt">();
-      const now = Date.now();
       const sealed: SealedFlow = {
         v: 1,
         codeVerifier: input.codeVerifier,
@@ -90,7 +95,8 @@ export function createOidcAttemptStore(sql: Sql, cipher: FlowCipher) {
           ${id}, ${input.provider}, ${input.flowType}, ${sha256(input.state)},
           ${sha256(input.nonce)}, ${sql.json(envelope)},
           ${input.redirectPath},
-          ${new Date(now)}, ${new Date(now + input.ttlMs)},
+          clock_timestamp(),
+          clock_timestamp() + make_interval(secs => ${input.ttlMs} / 1000.0),
           ${input.browserBindingHash ?? null}
         )
       `;
@@ -107,11 +113,13 @@ export function createOidcAttemptStore(sql: Sql, cipher: FlowCipher) {
      * the same secret must be supplied here. The hash is verified inside the
      * same transaction (FOR UPDATE) so a stolen state alone cannot complete
      * the flow from a different browser.
+     *
+     * Expiry is checked using PostgreSQL clock_timestamp() inside the same
+     * transaction — no Node-side Date is used for the expiry decision.
      */
     async consume(
       state: string,
       browserBindingSecret?: string,
-      now: Date = new Date(),
     ): Promise<ConsumedAttempt> {
       const result = await sql.begin(async (tx) => {
         const [row] = await tx<
@@ -122,10 +130,12 @@ export function createOidcAttemptStore(sql: Sql, cipher: FlowCipher) {
             expires_at: Date;
             consumed_at: Date | null;
             request_metadata_hash: Buffer | null;
+            expired: boolean;
           }[]
         >`
           select id, encrypted_code_verifier, redirect_path,
-                 expires_at, consumed_at, request_metadata_hash
+                 expires_at, consumed_at, request_metadata_hash,
+                 expires_at <= clock_timestamp() as expired
           from auth_oidc_attempts
           where state_hash = ${sha256(state)}
           for update
@@ -153,7 +163,7 @@ export function createOidcAttemptStore(sql: Sql, cipher: FlowCipher) {
         if (row.consumed_at !== null) {
           return { kind: "replayed" as const };
         }
-        if (row.expires_at <= now) {
+        if (row.expired) {
           await tx`
             update auth_oidc_attempts
             set failure_code = 'AUTH_FLOW_EXPIRED'
@@ -163,7 +173,7 @@ export function createOidcAttemptStore(sql: Sql, cipher: FlowCipher) {
         }
         await tx`
           update auth_oidc_attempts
-          set consumed_at = ${now}
+          set consumed_at = clock_timestamp()
           where id = ${row.id} and consumed_at is null
         `;
         return {

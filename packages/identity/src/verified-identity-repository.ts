@@ -32,7 +32,10 @@ export interface LinkResult {
 
 export class VerifiedIdentityError extends Error {
   constructor(
-    readonly code: "AUTH_IDENTITY_CONFLICT" | "AUTH_ACCOUNT_DISABLED",
+    readonly code:
+      | "AUTH_IDENTITY_CONFLICT"
+      | "AUTH_ACCOUNT_DISABLED"
+      | "AUTH_IDENTITY_EMAIL_CONFLICT",
     message: string,
   ) {
     super(message);
@@ -132,21 +135,71 @@ export function createVerifiedIdentityRepository(sql: Sql) {
         if (existing !== undefined) {
           // Check if the user is disabled.
           const [userRow] = await tx<{ status: string }[]>`
-            select status from users where id = ${existing.user_id}
-          `;
+           select status from users where id = ${existing.user_id}
+         `;
           if (userRow?.status === "disabled") {
             throw new VerifiedIdentityError(
               "AUTH_ACCOUNT_DISABLED",
               "This account is disabled.",
             );
           }
+          // Check if the email has changed.
+          const oldEmail = existing.verified_email;
+          if (oldEmail !== normalizedEmail) {
+            // Email change: acquire advisory locks on both old and new
+            // email in a stable order to prevent deadlocks.
+            const lockA =
+              oldEmail < normalizedEmail ? oldEmail : normalizedEmail;
+            const lockB =
+              oldEmail < normalizedEmail ? normalizedEmail : oldEmail;
+            await tx`
+              select pg_advisory_xact_lock(
+                hashtextextended(${"auth_identity:" + lockA}, 0)
+              )
+            `;
+            await tx`
+              select pg_advisory_xact_lock(
+                hashtextextended(${"auth_identity:" + lockB}, 0)
+              )
+            `;
+            // Check if the new email belongs to a different user.
+            const [newEmailUser] = await tx<{ id: string }[]>`
+              select id from users
+              where email = ${normalizedEmail} and id <> ${existing.user_id}
+              for update
+            `;
+            if (newEmailUser !== undefined) {
+              throw new VerifiedIdentityError(
+                "AUTH_IDENTITY_EMAIL_CONFLICT",
+                "The new email is already associated with a different user.",
+              );
+            }
+            // Check if another identity already has the new email.
+            const [newEmailIdentity] = await tx<{ id: string }[]>`
+              select id from auth_identities
+              where verified_email = ${normalizedEmail}
+                and id <> ${existing.id}
+              for update
+            `;
+            if (newEmailIdentity !== undefined) {
+              throw new VerifiedIdentityError(
+                "AUTH_IDENTITY_EMAIL_CONFLICT",
+                "The new email is already associated with a different identity.",
+              );
+            }
+          }
+          // Update last_login_at and email (if changed).
           await tx`
             update auth_identities
             set last_login_at = ${input.now}, verified_email = ${normalizedEmail}
             where id = ${existing.id}
           `;
           return {
-            identity: toIdentity({ ...existing, last_login_at: input.now }),
+            identity: toIdentity({
+              ...existing,
+              last_login_at: input.now,
+              verified_email: normalizedEmail,
+            }),
             userId: asId<"user">(existing.user_id),
             created: false,
           };

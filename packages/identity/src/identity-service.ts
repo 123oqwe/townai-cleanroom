@@ -52,7 +52,12 @@ export function createIdentityService(
       const values = z.array(z.email()).max(1_000).parse(emails);
       await repository.syncAllowlist(values);
     },
-    async establishIdentity(
+    /**
+     * TEST-ONLY: Creates a legacy email-only session without OIDC.
+     * Production code MUST NOT call this — use establishDevIdentity or
+     * the OIDC login flow instead. Retained for test fixtures only.
+     */
+    async establishLegacyIdentityForTestOnly(
       input: z.input<typeof identityInputSchema>,
     ): Promise<EstablishedIdentity> {
       const value = identityInputSchema.parse(input);
