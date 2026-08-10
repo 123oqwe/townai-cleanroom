@@ -67,12 +67,19 @@ import {
 import { createAuthMiddleware, type AuthVariables } from "./lib/auth.js";
 import {
   registerOidcLoginRoutes,
+  OidcRouteError,
   type OidcLoginDependencies,
 } from "./auth/oidc-login-routes.js";
 import {
   registerSessionRoutes,
   type SessionRouteDependencies,
 } from "./auth/session-routes.js";
+
+import {
+  SessionManagementError,
+  VerifiedIdentityError,
+  OidcAttemptError,
+} from "@town/identity";
 import {
   createRateLimiter,
   createRateLimitMiddleware,
@@ -390,7 +397,11 @@ export function createApp(dependencies?: AppDependencies) {
       error instanceof McpRepositoryError ||
       error instanceof GoogleTokenError ||
       error instanceof SuggestionError ||
-      error instanceof ChannelError
+      error instanceof ChannelError ||
+      error instanceof OidcRouteError ||
+      error instanceof OidcAttemptError ||
+      error instanceof SessionManagementError ||
+      error instanceof VerifiedIdentityError
     )) {
       console.error("[unhandled-error]", error);
     }
@@ -400,6 +411,63 @@ export function createApp(dependencies?: AppDependencies) {
         {
           type: "https://town.local/problems/google-token",
           title: "Google token refresh failed",
+          status,
+          detail: error.message,
+          code: error.code,
+        },
+        status,
+      );
+    }
+    // Unified auth error mapping: stable, explicit, no internal info leak.
+    if (error instanceof OidcRouteError) {
+      const status = error.status as 400 | 401 | 403 | 502 | 503;
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Authentication error",
+          status,
+          detail: error.message,
+          code: error.code,
+        },
+        status,
+      );
+    }
+    if (error instanceof OidcAttemptError) {
+      const status = error.code === "AUTH_FLOW_REPLAYED" ? 409 : 400;
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Auth flow error",
+          status,
+          detail: error.message,
+          code: error.code,
+        },
+        status,
+      );
+    }
+    if (error instanceof VerifiedIdentityError) {
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Identity conflict",
+          status: 409,
+          detail: error.message,
+          code: error.code,
+        },
+        409,
+      );
+    }
+    if (error instanceof SessionManagementError) {
+      const status =
+        error.code === "SESSION_ROTATION_CONFLICT"
+          ? 409
+          : error.code === "SESSION_NOT_FOUND"
+            ? 404
+            : 401;
+      return context.json(
+        {
+          type: "https://town.local/problems/auth",
+          title: "Session error",
           status,
           detail: error.message,
           code: error.code,
@@ -840,9 +908,13 @@ export function createApp(dependencies?: AppDependencies) {
     if (dependencies.devEmailLoginEnabled === true) {
       app.post("/v1/auth/dev-session", async (context) => {
         const established =
-          await dependencies.identityService.establishIdentity(
+          await dependencies.identityService.establishDevIdentity(
             establishSessionSchema.parse(await context.req.json()),
           );
+        // Server-authoritative cookie max age (seconds until absolute expiry).
+        const cookieMaxAgeSeconds = Math.floor(
+          (established.session.expiresAt.getTime() - Date.now()) / 1000,
+        );
         return context.json(
           {
             token: established.token,
@@ -851,6 +923,7 @@ export function createApp(dependencies?: AppDependencies) {
               id: established.session.id,
               expiresAt: established.session.expiresAt,
             },
+            cookieMaxAgeSeconds,
           },
           201,
         );

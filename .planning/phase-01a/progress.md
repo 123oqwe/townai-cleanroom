@@ -100,11 +100,11 @@
 | 2026-08-10 00:21 | verified-identity test used crypto.randomUUID (v4) | 1       | use newId (uuidv7)                                     |
 | 2026-08-10 00:22 | plaintext test used digest() (needs pgcrypto)      | 1       | compare encode(state_hash,'hex') to Node hash          |
 
-
 ### Phase 7-8: Test Suite + CI/Docs/Evidence
+
 - **Status:** complete
 - Full unit + PG-integration suite: 873 tests pass (222 identity/web-client/auth
-  + 651 api/packages), no regressions.
+  - 651 api/packages), no regressions.
 - auth-config (12) + google-oidc-login (9, LOCAL_OIDC_INTEGRATION_TEST) pass.
 - Production config fail-fast verified: prod+dev-login -> exit 1; prod missing
   AUTH_* -> exit 1; prod fully configured -> exit 0.
@@ -116,6 +116,7 @@
 - test/global-postgres.ts: POSTGRES_URL override for reliable local test runs.
 
 ### Phase 9: Final Verification
+
 - **Status:** complete
 - git diff --check: clean. format/lint/typecheck/build: PASS.
 - check:source (520), check:build-entries (21): PASS.
@@ -134,9 +135,9 @@
 - **E. Modified files:** 64 files, +4435 -301.
 - **F. Migration:** 0051_auth_oidc_verified_identity.sql (additive, backward
   compatible).
-- **G. Env vars:** AUTH_GOOGLE_*, AUTH_BFF_SHARED_SECRET,
+- **G. Env vars:** AUTH_GOOGLE__, AUTH_BFF_SHARED_SECRET,
   AUTH_FLOW_ENCRYPTION_KEY_BASE64URL, AUTH_ALLOWED_ORIGINS, AUTH_SIGNUP_MODE,
-  DEV_EMAIL_LOGIN_ENABLED, INTERNAL_API_BASE_URL, AUTH_SESSION_*_TTL_MS.
+  DEV_EMAIL_LOGIN_ENABLED, INTERNAL_API_BASE_URL, AUTH_SESSION___TTL_MS.
 - **H. Security changes:** email login sealed to dev-only /v1/auth/dev-session;
   prod fail-fast; HttpOnly __Host- cookie; CSRF on mutations; PKCE + full claim
   verification; encrypted code_verifier at rest; session rotation/list/revoke-all.
@@ -152,11 +153,11 @@
 
 | Question             | Answer                                                                            |
 | -------------------- | --------------------------------------------------------------------------------- |
-| Where am I?          | Complete (all 9 phases done)                                  |
-| Where am I going?    | Push branch + Draft PR; user provides Google creds for S4                           |
+| Where am I?          | Complete (all 9 phases done)                                                      |
+| Where am I going?    | Push branch + Draft PR; user provides Google creds for S4                         |
 | What's the goal?     | Replace email-only login with verified Google OIDC; Auth Gate GO, Beta Gate NO-GO |
 | What have I learned? | See findings.md -- root cause + all gaps mapped                                   |
-| What have I done?    | All 9 phases; 873 tests pass; fail-fast verified; evidence doc complete     |
+| What have I done?    | All 9 phases; 873 tests pass; fail-fast verified; evidence doc complete           |
 
 ---
 
