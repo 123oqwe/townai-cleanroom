@@ -134,6 +134,7 @@ describe("knowledge migration", () => {
       "0049_telegram_whatsapp_triggers.sql",
       "0050_rate_limit_buckets.sql",
       "0051_auth_oidc_verified_identity.sql",
+      "0052_auth_session_cutover.sql",
     ]);
   });
 });
